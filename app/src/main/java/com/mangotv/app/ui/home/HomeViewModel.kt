@@ -43,6 +43,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val myListRepository = (application as MangoTvApplication).container.myListRepository
     private val continueWatchingRepository = (application as MangoTvApplication).container.continueWatchingRepository
     private val homeCacheRepository = (application as MangoTvApplication).container.homeCacheRepository
+    private val trailerRepository = (application as MangoTvApplication).container.trailerRepository
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -286,6 +287,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             else -> HomeUiState.Empty
         }
     }
+
+    /** The YouTube id of [content]'s trailer for the hero's Trailer button, or null when there is none (or it can't be looked up). */
+    suspend fun findTrailer(content: Content): String? =
+        trailerRepository.findTrailer(content.title, content.year, content.type)
 
     private fun List<ContinueWatchingEntry>.toHomeSectionOrNull(): HomeSection? {
         if (isEmpty()) return null

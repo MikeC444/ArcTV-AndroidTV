@@ -54,7 +54,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
+import androidx.compose.material.icons.filled.Theaters
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import coil.imageLoader
+import coil.request.ImageRequest
+import com.mangotv.app.data.trailer.TrailerLauncher
 import coil.compose.AsyncImagePainter
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.ui.components.HeroIconButton
@@ -84,6 +92,8 @@ fun HeroSection(
     onAddToList: (Content) -> Unit,
     onMoreInfo: (Content) -> Unit,
     modifier: Modifier = Modifier,
+    // Looks up a title's trailer for the Trailer button beside Play; null leaves the button out.
+    findTrailer: (suspend (Content) -> String?)? = null,
     navUpFocusRequester: FocusRequester? = null,
     onNavigateUpPastHero: () -> Unit = {},
     onNavigateDownFromHero: () -> Unit = {},
@@ -93,6 +103,25 @@ fun HeroSection(
 
     var index by remember { mutableIntStateOf(0) }
     val current = items[index % items.size]
+    val context = LocalContext.current
+
+    // Fetch every picture the hero will show now, in rotation order, so each slide appears instantly instead of
+    // loading as it arrives. Only warms Coil's caches; nothing is drawn from here.
+    LaunchedEffect(items) {
+        val imageLoader = context.imageLoader
+        heroImages(items).forEach { image ->
+            imageLoader.enqueue(ImageRequest.Builder(context).data(image.url).build())
+        }
+    }
+
+    // Trailer lookups, once per title as its slide comes round: a key present means "looked up", whatever the answer
+    // (null = no trailer found). A looked-up title is never asked again while the hero is on screen.
+    val trailers = remember { mutableStateMapOf<String, String?>() }
+    LaunchedEffect(current.id) {
+        if (findTrailer != null && !trailers.containsKey(current.id)) {
+            trailers[current.id] = findTrailer(current)
+        }
+    }
 
     LaunchedEffect(items) {
         if (items.size <= 1) return@LaunchedEffect
@@ -335,6 +364,29 @@ fun HeroSection(
                     focusUp = navUpFocusRequester,
                     bringIntoViewOnFocus = false
                 )
+                if (findTrailer != null) {
+                    Spacer(Modifier.width(16.dp))
+                    val trailerId = trailers[current.id]
+                    val lookedUp = trailers.containsKey(current.id)
+                    // Dimmed (but still focusable, so the remote can land on it) until a trailer is found; pressing it
+                    // then says why nothing opened.
+                    Box(modifier = Modifier.alpha(if (trailerId != null) 1f else 0.45f)) {
+                        MangoButton(
+                            text = "Trailer",
+                            icon = Icons.Filled.Theaters,
+                            onClick = {
+                                when {
+                                    trailerId != null -> TrailerLauncher.launch(context, trailerId)
+                                    !lookedUp -> Toast.makeText(context, "Looking for a trailer\u2026", Toast.LENGTH_SHORT).show()
+                                    else -> Toast.makeText(context, "No trailer found for this title", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            style = MangoButtonStyle.GLASS,
+                            focusUp = navUpFocusRequester,
+                            bringIntoViewOnFocus = false
+                        )
+                    }
+                }
                 Spacer(Modifier.width(16.dp))
                 val isSaved = current.id in savedIds
                 HeroIconButton(
@@ -376,11 +428,20 @@ private fun KenBurnsBackdrop(url: String?, modifier: Modifier = Modifier) {
     // fixes both at once.
     var isLoaded by remember(url) { mutableStateOf(false) }
 
+    // Ask for the sharper size where the address says which sizes exist (see sharpBackdrop), and fall back to the
+    // address as given if that one fails to load.
+    val sharpUrl = remember(url) { sharpBackdrop(url) }
+    var sharpFailed by remember(url) { mutableStateOf(false) }
+    val requestUrl = if (sharpFailed || sharpUrl == null) url else sharpUrl
+
     AsyncImage(
-        model = rememberOpaqueImageRequest(url),
+        model = rememberOpaqueImageRequest(requestUrl),
         contentDescription = null,
         contentScale = ContentScale.Crop,
-        onState = { state -> if (state is AsyncImagePainter.State.Success) isLoaded = true },
+        onState = { state ->
+            if (state is AsyncImagePainter.State.Success) isLoaded = true
+            if (state is AsyncImagePainter.State.Error && sharpUrl != null && sharpUrl != url) sharpFailed = true
+        },
         modifier = modifier
             .fillMaxSize()
             .graphicsLayer {

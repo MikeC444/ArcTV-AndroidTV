@@ -3705,3 +3705,46 @@ Install and the permission prompt still work.
 **Issues discovered:** none beyond the above.
 
 **Issues fixed:** Release notes beyond the first screenful being unreadable with a remote.
+
+## Post-Milestone-39 — Home Hero: Trailer Button, Sharper Backdrops, Preloading
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** Ported from the web app (MangotvWebb 8f0a884, 1bc2db2, 8d02693 "Trailer
+button on the Home hero"; cb140e2 "largest hero background"; 060d440 "preload the Home
+hero pictures"). The Firestick's hero had no trailer shortcut (only Detail did), asked
+addons for whatever size they listed, and loaded each slide's picture only when its
+turn came.
+
+**Changes:**
+- `HeroSection.kt` -- a "Trailer" button between Play and My List, looked up once per
+  title as its slide comes round (`HomeViewModel.findTrailer`, the same server lookup
+  Detail uses) and opened with the same `TrailerLauncher` hand-off to whichever app the
+  person picks. It stays focusable but dimmed until a trailer is found; pressing it then
+  shows a short message ("Looking for a trailer..." or "No trailer found for this title").
+- `HeroImages.kt` (new) -- `sharpBackdrop()` asks Metahub (Cinemeta) for `large` instead
+  of `small`/`medium` and TMDB for `original` instead of `w300`..`w1280`, and leaves any
+  other address alone; `heroImages()` lists the hero's pictures in rotation order, each
+  title's backdrop then its logo, once each. Same rules as the web.
+- `HeroSection.kt` -- the Ken Burns backdrop requests the sharper address and falls back
+  to the original one if it fails to load; every hero picture is fetched ahead through
+  Coil as soon as the hero's titles are known (the cold-boot screen used to preload
+  images; removing it left nothing doing this).
+- `HomeScreen.kt` / `HomeViewModel.kt` -- plumbing for the trailer lookup.
+- `HeroImagesTest.kt` -- the address rules and the preload order.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**Not ported:** "Home hero pictures are no longer cropped" (3317cc8) and "Detail hero
+matches the Home hero" (1853db5) fix web-layout problems: the browser shows backdrops of
+any shape in windows of any shape, while the TV is always 16:9 and its backdrops are too,
+so there is nothing being cropped away to fix.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android SDK):
+unit tests for the address and preload rules run on GitHub Actions, brace/paren balance
+on touched files, and a manual re-read. **Not performed:** an on-device check: confirm
+the Trailer button sits between Play and the plus button, is dim at first and bright once
+found, opens the trailer, and that D-pad LEFT/RIGHT still moves across all four buttons.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none beyond the new behaviour.

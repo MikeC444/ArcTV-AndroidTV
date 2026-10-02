@@ -74,7 +74,8 @@ fun HomeScreen(
                     state = state,
                     onNavigate = onNavigate,
                     savedIds = savedIds,
-                    onToggleMyList = viewModel::toggleMyList
+                    onToggleMyList = viewModel::toggleMyList,
+                    findTrailer = viewModel::findTrailer
                 )
             }
         }
@@ -117,6 +118,7 @@ private fun HomeContent(
     onNavigate: (String) -> Unit,
     savedIds: Set<String>,
     onToggleMyList: (Content) -> Unit,
+    findTrailer: suspend (Content) -> String?,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -292,6 +294,7 @@ private fun HomeContent(
                         savedIds = savedIds,
                         onAddToList = onToggleMyList,
                         onMoreInfo = ::navigateToContent,
+                        findTrailer = findTrailer,
                         navUpFocusRequester = homeNavFocusRequester,
                         onNavigateUpPastHero = {
                             // Imperative, not focusProperties-driven: pressing UP
