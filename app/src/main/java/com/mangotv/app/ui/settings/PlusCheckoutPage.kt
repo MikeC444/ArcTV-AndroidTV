@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -185,7 +186,7 @@ private fun QrPanel(url: String, remainingSeconds: Int, modifier: Modifier) {
 }
 
 @Composable
-private fun DonePanel(planName: String) {
+private fun ColumnScope.DonePanel(planName: String) {
     Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Box(modifier = Modifier.size(72.dp).background(ArcAccent, CircleShape), contentAlignment = Alignment.Center) {
             Icon(Icons.Filled.Check, contentDescription = null, tint = MangoBackground, modifier = Modifier.size(44.dp))
