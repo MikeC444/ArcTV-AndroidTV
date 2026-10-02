@@ -4119,3 +4119,11 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues discovered:** the cause of profiles not showing on the user's TV with 0.1.5 is not known yet; the on-screen reason is there to find it.
 
+## Post-Milestone-55 — Profile name beside the picture in the top bar, smaller
+
+**Context:** User request: show the profile's name next to its picture at the top right of the top bar (web and Firestick) and make the Firestick's smaller.
+
+**Changes (`app/`):** `ProfileNavButton` is one focusable surface holding a 28 dp picture (6 dp corners) and the profile's name (`labelMedium`, one line, ellipsised at 120 dp), where it was a 42 dp picture alone. `ProfileAvatarTile` gets an optional `cornerRadius`.
+
+**Tests performed:** none new (layout only); **not compiled or run locally** (no Android SDK here), CI (`build-apk.yml`) builds this branch. Not tried on a device.
+

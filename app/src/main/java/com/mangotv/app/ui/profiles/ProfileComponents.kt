@@ -42,12 +42,12 @@ import com.mangotv.app.ui.theme.TextSecondary
 
 /** A profile's picture: a coloured tile with its glyph. */
 @Composable
-fun ProfileAvatarTile(avatar: String, size: Dp, modifier: Modifier = Modifier) {
+fun ProfileAvatarTile(avatar: String, size: Dp, modifier: Modifier = Modifier, cornerRadius: Dp = 14.dp) {
     val a = avatarById(avatar)
     Box(
         modifier = modifier
             .size(size)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(cornerRadius))
             .background(Brush.linearGradient(listOf(Color(a.from), Color(a.to)))),
         contentAlignment = Alignment.Center
     ) {

@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -39,6 +39,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.mangotv.app.navigation.PROFILES_NAV_LABEL
 import com.mangotv.app.ui.components.ArcLogo
@@ -204,14 +205,14 @@ fun TopNavBar(
         }
         if (activeProfile != null) {
             Spacer(Modifier.width(12.dp))
-            ProfileNavButton(avatar = activeProfile.avatar, onClick = { onItemClick(PROFILES_NAV_LABEL) }, focusDown = contentFocusRequester)
+            ProfileNavButton(avatar = activeProfile.avatar, name = activeProfile.name, onClick = { onItemClick(PROFILES_NAV_LABEL) }, focusDown = contentFocusRequester)
         }
     }
 }
 
 /** The active profile's picture at the top right of the bar: pressing it opens "Who's watching?" (same place and behaviour as the web app). */
 @Composable
-private fun ProfileNavButton(avatar: String, onClick: () -> Unit, focusDown: FocusRequester?) {
+private fun ProfileNavButton(avatar: String, name: String, onClick: () -> Unit, focusDown: FocusRequester?) {
     TvFocusSurface(
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
@@ -219,10 +220,25 @@ private fun ProfileNavButton(avatar: String, onClick: () -> Unit, focusDown: Foc
         borderColor = TextPrimary,
         focusedElevation = 0f,
         borderAnimationSpec = snap(),
-        focusDown = focusDown,
-        modifier = Modifier.size(42.dp)
+        focusDown = focusDown
     ) {
-        ProfileAvatarTile(avatar = avatar, size = 42.dp)
+        Row(
+            modifier = Modifier.padding(start = 3.dp, top = 3.dp, bottom = 3.dp, end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Small, like the labels beside it: the bar is not the place for a big picture.
+            ProfileAvatarTile(avatar = avatar, size = 28.dp, cornerRadius = 6.dp)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = name,
+                color = TextPrimary,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 120.dp)
+            )
+        }
     }
 }
 

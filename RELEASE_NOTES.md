@@ -14,6 +14,8 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- The profile control at the top right of the top bar is smaller, and now shows your profile's name next to its picture.
+
 - Profiles: your profile's picture now sits at the top right of the top bar, like on the website. Press it to open "Who's watching?" and switch profile, without going into Settings. If profiles can't load, Settings > Account now says why instead of showing nothing.
 
 ## 0.1.5
