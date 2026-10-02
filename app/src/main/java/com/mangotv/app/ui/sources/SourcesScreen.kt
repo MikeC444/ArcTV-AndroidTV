@@ -43,6 +43,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.mangotv.app.data.model.Stream
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.filled.Refresh
+import com.mangotv.app.ui.theme.ArcWarn
+import com.mangotv.app.data.model.StreamLookup
 import com.mangotv.app.navigation.MangoRoutes
 import com.mangotv.app.ui.components.ClickSound
 import com.mangotv.app.ui.components.FullScreenErrorState
@@ -105,6 +110,7 @@ fun SourcesScreen(
                         // screen rather than its own route -- this lands on
                         // Settings' default tab, not Addons specifically.
                         onManageAddons = { onNavigate(MangoRoutes.SETTINGS) },
+                        onRetry = viewModel::load,
                         onSelectSource = { stream ->
                             state.content.providerId?.let { pid ->
                                 onNavigate(
@@ -203,6 +209,7 @@ private fun SourcesContent(
     state: SourcesUiState.Loaded,
     onBack: () -> Unit,
     onManageAddons: () -> Unit,
+    onRetry: () -> Unit,
     onSelectSource: (Stream) -> Unit
 ) {
     var selectedFilter by remember { mutableStateOf(SourceFilter.ALL) }
@@ -303,7 +310,12 @@ private fun SourcesContent(
                     sorted.isEmpty() && state.isSearchingMore ->
                         SourcesSearchingState(modifier = Modifier.weight(1f))
                     sorted.isEmpty() ->
-                        SourcesEmptyState(onManageAddons = onManageAddons, modifier = Modifier.weight(1f))
+                        SourcesEmptyState(
+                            addons = state.addons,
+                            onManageAddons = onManageAddons,
+                            onRetry = onRetry,
+                            modifier = Modifier.weight(1f)
+                        )
                     else -> Column(modifier = Modifier.weight(1f)) {
                         if (state.isSearchingMore) {
                             Row(
@@ -337,6 +349,19 @@ private fun SourcesContent(
                                 )
                             }
                         }
+                        // Some addons didn't answer, so say so even though other sources were found -- the list may
+                        // be missing the best one.
+                        if (!state.isSearchingMore && anyAddonFailed(state.addons)) {
+                            Text(
+                                text = "Some addons didn't answer, so this list may be incomplete: " +
+                                    failedAddonLines(state.addons).joinToString("; "),
+                                color = ArcWarn,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        }
                     }
                 }
 
@@ -348,8 +373,16 @@ private fun SourcesContent(
     }
 }
 
+// More than this many addons and the rest are summarised, so the empty state still fits a TV screen.
+private const val MAX_ADDON_LINES = 5
+
 @Composable
-private fun SourcesEmptyState(onManageAddons: () -> Unit, modifier: Modifier = Modifier) {
+private fun SourcesEmptyState(
+    addons: List<AddonLookupRow>,
+    onManageAddons: () -> Unit,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -369,18 +402,49 @@ private fun SourcesEmptyState(onManageAddons: () -> Unit, modifier: Modifier = M
         )
         Spacer(Modifier.height(6.dp))
         Text(
-            text = "Try installing more addons to find sources for this title.",
+            text = noSourcesHint(addons),
             color = TextSecondary,
             style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            modifier = Modifier.widthIn(max = 560.dp)
         )
+        // What each addon answered, so a missing source is never a mystery.
+        if (addons.isNotEmpty()) {
+            Spacer(Modifier.height(12.dp))
+            addons.take(MAX_ADDON_LINES).forEach { row ->
+                Text(
+                    text = "${row.name}  \u2014  ${lookupText(row.lookup)}",
+                    color = if (row.lookup is StreamLookup.Failed) ArcWarn else TextTertiary,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (addons.size > MAX_ADDON_LINES) {
+                Text(
+                    text = "and ${addons.size - MAX_ADDON_LINES} more",
+                    color = TextTertiary,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
         Spacer(Modifier.height(20.dp))
-        MangoButton(
-            text = "Manage Addons",
-            icon = Icons.Filled.Extension,
-            onClick = onManageAddons,
-            style = MangoButtonStyle.GLASS
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (anyAddonFailed(addons)) {
+                MangoButton(
+                    text = "Try Again",
+                    icon = Icons.Filled.Refresh,
+                    onClick = onRetry,
+                    style = MangoButtonStyle.GLASS
+                )
+            }
+            MangoButton(
+                text = "Manage Addons",
+                icon = Icons.Filled.Extension,
+                onClick = onManageAddons,
+                style = MangoButtonStyle.GLASS
+            )
+        }
     }
 }
 

@@ -14,6 +14,8 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- Select a Source now tells you whether a Real-Debrid (or other debrid) source is ready: "Cached on Real-Debrid" starts straight away, while "Not cached on Real-Debrid — may take minutes" means the service still has to fetch the file first. Sources that start at once are now listed and recommended ahead of ones you'd have to wait for
+- When Select a Source has nothing to show, it now says why: no addons installed, none of your addons provide streams, an addon didn't answer (with a Try Again button), or they all answered but have nothing for this title. Each addon's answer is listed, and if some addons failed while others found sources, a note says the list may be incomplete
 - New Arc TV logo, launcher icon and Fire TV home-screen banner, and the logo in the top bar, sign-in screens and the player now use the full Arc TV artwork instead of the old "MANGO TV" text
 - Mango TV is now Arc TV: the app's name, and every place that used to say Mango TV (sign-in, Settings, the update prompt, the add-addon page on your phone), now say Arc TV
 - New look: the app's colours now follow the Arc TV logo (cyan, blue and violet) instead of amber and orange, across buttons, selected items, switches, the focus highlight and the progress bars. Warnings stay amber and errors stay red

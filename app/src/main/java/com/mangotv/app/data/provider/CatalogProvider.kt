@@ -4,6 +4,8 @@ import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.model.HomeSection
 import com.mangotv.app.data.model.Stream
+import com.mangotv.app.data.model.StreamLookup
+import com.mangotv.app.data.model.StreamReport
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -44,6 +46,16 @@ interface CatalogProvider {
      * [getDetails] (which only makes sense against the one owning provider).
      */
     suspend fun getStreams(type: ContentType, id: String, season: Int? = null, episode: Int? = null): List<Stream>
+
+    /**
+     * Like [getStreams], but says what happened (sources / none / not a stream addon / failed and why) so Select a
+     * Source can show what each addon answered. Never throws.
+     */
+    suspend fun getStreamReport(type: ContentType, id: String, season: Int? = null, episode: Int? = null): StreamReport =
+        runCatching { getStreams(type, id, season, episode) }.fold(
+            onSuccess = { streams -> StreamReport(name, streams, if (streams.isEmpty()) StreamLookup.None else StreamLookup.Ok(streams.size)) },
+            onFailure = { StreamReport(name, emptyList(), StreamLookup.Failed("couldn't be reached")) }
+        )
 
     /**
      * The same base+genre row set [getHomeSections] builds, restricted to

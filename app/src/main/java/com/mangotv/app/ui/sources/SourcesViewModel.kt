@@ -8,6 +8,8 @@ import com.mangotv.app.MangoTvApplication
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.model.Stream
+import com.mangotv.app.data.model.StreamLookup
+import com.mangotv.app.data.model.StreamReport
 import com.mangotv.app.data.provider.ProviderRegistry
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -19,12 +21,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
 
+/** One installed addon and what it answered; [lookup] is null while it is still being asked. */
+data class AddonLookupRow(val name: String, val lookup: StreamLookup?)
+
 sealed interface SourcesUiState {
     data object Loading : SourcesUiState
     data class Loaded(
         val content: Content,
         val streams: List<Stream>,
         val recommendedStreamId: String?,
+        // Every installed addon and what it answered, in install order -- backs the "what each addon answered" lines
+        // and the empty-state hint, so a missing source is never a mystery.
+        val addons: List<AddonLookupRow> = emptyList(),
         val season: Int?,
         val episode: Int?,
         // Non-null only when this exact title/episode is already resumable
@@ -110,9 +118,10 @@ class SourcesViewModel(
                     // real picker) for as long as this state stays Loading,
                     // and a resumable title should never flash the
                     // interactive source list the user doesn't need to see.
-                    val streams = providers.map { provider ->
-                        async { runCatching { provider.getStreams(contentType, contentId, season, episode) }.getOrDefault(emptyList()) }
-                    }.awaitAll().flatten()
+                    val reports = providers.map { provider ->
+                        async { provider.getStreamReport(contentType, contentId, season, episode) }
+                    }.awaitAll()
+                    val streams = reports.flatMap { it.streams }
                     val content = contentDeferred.await()
                     if (content == null) {
                         _uiState.value = SourcesUiState.Error("Couldn't load details for this title.")
@@ -124,6 +133,7 @@ class SourcesViewModel(
                         content = content,
                         streams = streams,
                         recommendedStreamId = recommendedStreamId(streams),
+                        addons = reports.map { AddonLookupRow(it.addonName, it.lookup) },
                         season = season,
                         episode = episode,
                         autoSelectStream = autoSelectStream
@@ -148,22 +158,24 @@ class SourcesViewModel(
                 // same "don't wait for the slowest of many" fix Home
                 // already applies to its own row fetches (see
                 // StremioAddonProvider.buildSectionsFlow).
-                val resultsChannel = Channel<List<Stream>>(capacity = providers.size)
-                providers.forEach { provider ->
+                val resultsChannel = Channel<Pair<Int, StreamReport>>(capacity = providers.size)
+                providers.forEachIndexed { providerIndex, provider ->
                     launch {
-                        resultsChannel.send(
-                            runCatching { provider.getStreams(contentType, contentId, season, episode) }.getOrDefault(emptyList())
-                        )
+                        resultsChannel.send(providerIndex to provider.getStreamReport(contentType, contentId, season, episode))
                     }
                 }
 
                 val accumulated = mutableListOf<Stream>()
+                val rows = providers.map { AddonLookupRow(it.name, null) }.toMutableList()
                 repeat(providers.size) { index ->
-                    accumulated += resultsChannel.receive()
+                    val (providerIndex, report) = resultsChannel.receive()
+                    accumulated += report.streams
+                    rows[providerIndex] = AddonLookupRow(report.addonName, report.lookup)
                     _uiState.value = SourcesUiState.Loaded(
                         content = content,
                         streams = accumulated.toList(),
                         recommendedStreamId = recommendedStreamId(accumulated),
+                        addons = rows.toList(),
                         season = season,
                         episode = episode,
                         isSearchingMore = index < providers.size - 1
@@ -172,10 +184,4 @@ class SourcesViewModel(
             }
         }
     }
-
-    private fun recommendedStreamId(streams: List<Stream>): String? =
-        streams
-            .sortedWith(compareBy<Stream> { it.resolutionTier.ordinal }.thenByDescending { it.seeders ?: -1 })
-            .firstOrNull()
-            ?.id
 }

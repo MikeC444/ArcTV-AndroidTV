@@ -3484,3 +3484,72 @@ if it has the old logo or colours baked in it will still show them until the
 video is replaced.
 
 **Issues fixed:** none beyond the artwork itself.
+
+## Post-Milestone-35 — Debrid Cached Badges And What Each Addon Answered
+
+**Status:** Complete, not compiled (see Tests performed). Last phase of the web
+parity port.
+
+**Context:** Ported from the web app (MangotvWebb ee990c9 "Show whether debrid
+sources are cached; rank and explain the ones that aren't", and 7164349 "Show
+what each addon answered on Select a Source"). Two gaps: a Torrentio-style source
+that the debrid service hasn't stored yet (`[RD download]`) looked identical to a
+ready one (`[RD+]`) but made the player sit for minutes, and every failure on
+Select a Source was swallowed (`getStreams` turned any error into an empty list),
+so "an addon timed out", "no addons provide streams" and "nothing for this title"
+all read as the same "No sources found".
+
+**Changes:**
+- Debrid state: `Stream.debrid` (`DebridState(service, cached)`), parsed from the
+  leading tag of the stream name by `parseDebridTag()` in `StremioMapper.kt`
+  (`[RD+]` is cached, `[RD download]` is not). `DEBRID_NAMES` turns the code into
+  the service's name (RD is Real-Debrid and so on); an unknown code is shown as is.
+- `SourceRow.kt` -- a line under each debrid source: "Cached on Real-Debrid"
+  (teal, bolt) or "Not cached on Real-Debrid -- may take minutes" (amber,
+  hourglass). Sources that aren't debrid links show nothing.
+- `SourceOrdering.kt` -- the "Quality" order and the "Recommended" pick now put
+  sources that start at once ahead of uncached debrid ones, then resolution, then
+  seeders, so a ready 720p beats a 4K that makes you wait. Seeders and Size sorts
+  are untouched. `recommendedStreamId()` moved here from the view model so the
+  two share one comparator. (The web ranks cache state below its device-playability
+  level; the Firestick has no such level, so cache state comes first.)
+- Per-addon answers: `StreamLookup` (Ok, None, Unsupported, Failed) and
+  `StreamReport` in `data/model/StreamReport.kt`; `CatalogProvider.getStreamReport()`
+  (default wraps `getStreams`) overridden by `StremioAddonProvider`, which skips an
+  addon whose manifest lists resources without "stream" (Cinemeta), treats a 404 as
+  "no streams for this title", and otherwise records why it failed.
+  `AddonHttpException` (still an `IllegalStateException`, as the old bare `check`
+  was) carries the status; `describeAddonError()` turns it into a short reason that
+  never includes the address, which can hold an account key.
+- `SourcesViewModel.kt` -- `Loaded.addons` lists every addon with its answer, filled
+  in as each one replies (and all at once on the resume path).
+- `SourcesScreen.kt` / `SourcesHints.kt` -- the empty state now names the cause,
+  lists each addon's answer (first five), and offers Try Again when something
+  failed; if sources were found but some addons failed, a one-line note says the
+  list may be incomplete.
+- Tests: `DebridAndErrorsTest`, `ManifestOffersStreamsTest`, `SourcesHintsTest`, and
+  new cases in `SourceOrderingTest`.
+- `RELEASE_NOTES.md` -- two user-facing lines under Unreleased.
+
+**Not ported (web-only or deferred):** the "can this device play it" badges and
+device-capability panel (a browser concern; ExoPlayer plays far more), a
+collapsible "Addon results" panel (a TV list is shown inline instead, to avoid a
+new focus target), the "quality filter hides everything" message (the recommended
+source always stays listed, so the list can't empty that way), and the web player's
+"waiting on the debrid service" explanation for a stalled start.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android
+SDK): unit tests written, run on GitHub Actions afterwards; brace/paren balance
+check on every touched Kotlin file; a manual re-read. The addon-classification
+code in `StremioAddonProvider` is not unit tested, because the addon client is a
+concrete OkHttp class with no seam to fake. **Not performed:** an on-device check
+with a real debrid addon: confirm cached and uncached badges show, an uncached
+source lists below ready ones and is not "Recommended", and with the network off or
+an addon removed the empty state says the right thing and Try Again works.
+
+**Issues discovered:** `AddonHttpException` is thrown for every non-2xx answer from
+an addon, not just streams, so manifest, catalog and meta failures now carry a
+status too; none of those call sites read it, so nothing changes for them.
+
+**Issues fixed:** Uncached debrid sources looking identical to ready ones; every
+Select a Source failure reading as "No sources found".
