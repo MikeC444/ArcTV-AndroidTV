@@ -43,14 +43,11 @@ private const val MAX_GENRE_ROWS = 30
 // between pages, not a crash.
 private const val PAGE_SIZE = 100
 
-// How many base/genre row requests getHomeSections() fans out per batch --
-// matches the batch size Nuvio (a comparable Stremio-client app) uses for
-// the same job. Small on purpose: it's not about raw throughput (this app's
-// own OkHttp client already allows far more concurrent requests than this),
-// it's about how soon the FIRST batch -- and therefore the first visible
-// rows -- lands, and about being a reasonably polite load against a shared,
+// How many genre row requests getHomeSections() fans out per batch (the base row is always its own first batch, so
+// the first visible rows aren't held up by the slowest genre request). Bigger batches mean fewer sequential waves to
+// reach the last row -- there were eight waves of four -- while still being a reasonably polite load against a shared,
 // free community addon server rather than firing 30 requests at once.
-private const val HOME_BATCH_SIZE = 4
+private const val HOME_BATCH_SIZE = 8
 
 /**
  * A [CatalogProvider] backed by a real, user-installed Stremio-protocol
@@ -250,8 +247,13 @@ class StremioAddonProvider(
         // batches (awaitAll returns results in input order, not completion
         // order), it just controls how many requests are in flight at once
         // and how often a batch's worth of rows gets published.
-        val allFetches = listOfNotNull(baseRowFetch) + genreRowFetches
-        allFetches.chunked(HOME_BATCH_SIZE).forEach { batch ->
+        //
+        // The base row goes out on its own: a batch is only published once its slowest request lands, so sharing a
+        // batch with genre rows made the first paint wait for the slowest of them (and, on a slow device, for the
+        // rest of the batch to be parsed). Alone, it shows as soon as it arrives and the genre rows follow in waves.
+        val genreBatches = genreRowFetches.chunked(HOME_BATCH_SIZE)
+        val allBatches = listOfNotNull(baseRowFetch?.let { listOf(it) }) + genreBatches
+        allBatches.forEach { batch ->
             val ready = coroutineScope {
                 batch.map { fetchRow -> async { fetchRow() } }.awaitAll()
             }.filterNotNull()

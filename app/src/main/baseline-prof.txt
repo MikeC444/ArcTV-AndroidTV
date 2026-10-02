@@ -1,0 +1,5 @@
+# Baseline profile: tells Android to precompile the app's own code at install time instead of interpreting it on first
+# launch, which is the main reason the first few seconds on a Fire TV Stick feel slow. Wildcards cover everything in
+# the app (H = hot, S = startup, P = post-startup); Compose's own libraries ship their profiles separately.
+HSPLcom/mangotv/app/**->**(**)**
+Lcom/mangotv/app/**;

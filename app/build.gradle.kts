@@ -140,6 +140,9 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    // Installs the baseline profile (app/src/main/baseline-prof.txt) on first launch so the app's own code, not just
+    // the libraries', starts precompiled instead of interpreted.
+    implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

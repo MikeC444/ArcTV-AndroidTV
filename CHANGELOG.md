@@ -3936,3 +3936,25 @@ starting point; it is one number to adjust.
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-44 — Faster First Boot
+
+**Status:** Complete, not compiled or timed on a device (see Tests performed).
+
+**Context:** User report: the app is very slow for the first 5-10 seconds after launching.
+
+**Changes:**
+- `StremioAddonProvider.getHomeSections` -- the base row is now its own first batch and the genre
+  rows follow in batches of 8 (was 4), so the first rows no longer wait on the slowest genre
+  request and the last row is reached in about half as many sequential waves. The hero pool is now
+  drawn from the base row, which is the first thing to arrive, rather than from the first four rows.
+- `MangoTvApplication.warmUp` -- loads the UI sounds (`SoundPool`) and reads Home's cached rows on a
+  background thread at launch, so the first frame no longer waits on them.
+- `app/src/main/baseline-prof.txt` plus the `profileinstaller` dependency -- a baseline profile for
+  the app's own code (wildcard rules), so release builds start precompiled rather than interpreted.
+
+**Not changed:** the debug APKs the CI builds for sideloading do not use baseline profiles and run
+unoptimised Compose, so they will always feel slower than a release build on a Fire TV Stick.
+
+**Tests performed:** None runnable here; relies on the CI build. Needs a timed launch on a Fire TV
+(debug vs release) to confirm the improvement.
