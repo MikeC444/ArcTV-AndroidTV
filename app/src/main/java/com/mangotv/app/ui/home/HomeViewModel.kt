@@ -392,7 +392,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         excludeIds = inputs.excludeIds,
                         pool = inputs.movies.map { it.toCandidate() },
                         interactionRefs = inputs.refs,
-                        loadFeatures = { refs, limit -> featureCache.load(refs, limit) { ref -> fetchMovieFeatures(providers, ref) } }
+                        loadFeatures = { refs, limit -> featureCache.load(refs, limit, fetchOne = { ref -> fetchMovieFeatures(providers, ref) }) }
                     )
                 )
             }.getOrNull() ?: return@collectLatest
