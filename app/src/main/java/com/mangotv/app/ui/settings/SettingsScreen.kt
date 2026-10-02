@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
@@ -101,11 +103,17 @@ fun SettingsScreen(
                 .fillMaxWidth()
                 .weight(1f)
         ) {
+            // Six categories no longer fit in the height under the nav bar on a TV (the last row, Arc TV Plus, was
+            // squeezed), so the list scrolls with the remote like every other long list here, and its rows are a
+            // little tighter. The vertical padding inside the scroll leaves room for a focused row's scale-up,
+            // which the scroll area would otherwise clip at its top and bottom edges.
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
                     .padding(end = 12.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 4.dp)
             ) {
                 val categories = remember { SettingsCategory.values().filter { it != SettingsCategory.PLUS || PLUS_TAB_VISIBLE } }
                 categories.forEachIndexed { index, category ->
@@ -118,7 +126,7 @@ fun SettingsScreen(
                         focusRight = paneContentFocusRequester
                     )
                     if (index != categories.lastIndex) {
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(6.dp))
                     }
                 }
             }
@@ -178,7 +186,7 @@ private fun SettingsSidebarRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(imageVector = category.icon, contentDescription = null, tint = contentColor)

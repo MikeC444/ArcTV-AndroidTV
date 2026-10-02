@@ -3870,7 +3870,11 @@ commit later hid it for everyone) because Plus is not on sale yet.
   lets the remote move down the whole tab. A plan with a checkout page opens it in whichever
   app the person picks (nothing is paid for on the TV); without one it shows "Plus isn't on
   sale yet".
-- `SettingsScreen.kt` -- an "Arc TV Plus" category, listed only while `PLUS_TAB_VISIBLE`.
+- `SettingsScreen.kt` -- an "Arc TV Plus" category, listed only while `PLUS_TAB_VISIBLE`. With six
+  categories the sidebar no longer fit the height under the nav bar on a TV and the last row was
+  squeezed (reported after the first on-device look), so the sidebar now scrolls with the remote
+  and its rows are tighter (10dp vertical padding and 6dp gaps, down from 14dp and 10dp), with a
+  little padding inside the scroll area so a focused row's scale-up isn't clipped.
 - `PlusPlansTest.kt` -- the plan list, the on-sale rule and that every perk and plan is filled in.
 
 **Not ported:** the web's per-account "Plus status" (there is none yet), and a checkout flow:
