@@ -3301,3 +3301,61 @@ not the hero button. Not looked at on the web side; a possible follow-up rather
 than part of this change.
 
 **Issues fixed:** Home losing its place on BACK.
+
+## Post-Milestone-31 — Cast Photos And Characters (TMDB Lookup)
+
+**Status:** Server side verified (typecheck plus its tests run against a local
+Postgres). App side complete but not compiled here (see Tests performed).
+**Needs a backend redeploy before it has any visible effect.**
+
+**Context:** Ported from the web app (MangotvWebb 3d714f5, 9cf3490, 701095f).
+`CastRow` already drew a photo and a character line, but the Stremio base
+protocol gives cast as plain names, so `StremioMapper` only ever produced
+`CastMember(name = ...)` and every avatar was the placeholder icon. TV shows
+with season data also never showed a cast at all.
+
+**Changes:**
+- Server: `schemas/cast.ts`, `services/castService.ts`, `routes/cast.ts`
+  (mounted in `app.ts`) -- `GET /user/cast?imdbId=tt...&type=MOVIE|TV_SHOW`,
+  authenticated like every route under `/user`. It finds the title on TMDB by
+  IMDb id, then reads its credits: up to 20 people with the character played and
+  a `w185` photo address. Same pattern as the release-date lookup: the existing
+  `TMDB_READ_ACCESS_TOKEN`, a 24 hour in-memory cache of hits and misses, and an
+  empty list instead of an error when TMDB is unconfigured, has no match or
+  fails. The IMDb id is matched against `^tt\d{1,10}$` before it is placed in
+  the TMDB path, so nothing else a caller sends reaches TMDB.
+- Server: `tests/cast.test.ts` -- auth, id validation, unconfigured, movie and TV
+  paths, no match, caching and a TMDB error.
+- App: `CastApiClient`, `CastDtos`, `CastRepository` (wired lazily in
+  `AppContainer`), and `mergeCast()`. The merge fills photos and characters into
+  the addon's own list by name (ignoring case, accents and punctuation), never
+  overwrites anything the addon sent, keeps the addon's order, and uses TMDB's
+  list when the addon sent none.
+- App: `DetailViewModel.loadCast()` runs as its own coroutine alongside the
+  trailer and release-date lookups, never delaying the page, and republishes the
+  enriched cast. A late answer for a title the person has already left is dropped.
+- App: `DetailScreen` shows the cast under the episodes for a TV show with season
+  data, as the web does.
+- App: `CastMergeTest.kt`.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**Tests performed:** Server: `tsc --noEmit` clean; `npm test` for `cast.test.ts`
+and `releaseDates.test.ts` -- 15 of 15 passing against a local Postgres 16 with
+all 14 migrations applied. App: same sandbox limitation as every recent
+milestone (no Android SDK); unit tests written and run on GitHub Actions
+afterwards, brace/paren balance check on touched files, manual re-read.
+**Not performed:** an on-device check -- open a movie and a show whose addon
+sends names only, and confirm photos and character lines appear a moment after
+the page, and that a show lists its cast under the episodes.
+
+**Deployment note:** the app only calls the new endpoint. Until the backend is
+redeployed with this change, the call returns 404, which the app treats as "no
+photos", so the page looks exactly as before. No new setting is needed; it reuses
+the TMDB token the trailer and release-date lookups already use.
+
+**Issues discovered:** The lookup only runs for ids that are IMDb ids (`tt...`),
+which is what Cinemeta uses; an addon with other id schemes keeps plain names.
+Cast is capped at 20 people.
+
+**Issues fixed:** Cast avatars always showing the placeholder; TV shows with
+episodes showing no cast.

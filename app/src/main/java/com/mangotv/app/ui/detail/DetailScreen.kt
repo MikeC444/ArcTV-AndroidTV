@@ -3,6 +3,7 @@ package com.mangotv.app.ui.detail
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -282,20 +283,29 @@ private fun DetailContent(
             }
             item(key = "seasons_or_cast_and_similar") {
                 // TV shows with real season/episode data get a season
-                // picker + episode list instead — cast and "similar" don't
-                // apply the same way once there's something more useful
-                // (and more central to actually watching the show) to show.
+                // picker + episode list instead — "similar" doesn't apply
+                // the same way once there's something more useful (and more
+                // central to actually watching the show) to show. The cast
+                // still sits under the episodes.
                 if (content.type == ContentType.TV_SHOW && content.seasons.isNotEmpty()) {
-                    SeasonsSection(
-                        seasons = content.seasons,
-                        modifier = Modifier.fillMaxWidth(),
-                        onNavigateUpPastRow = { returnToHero() },
-                        onEpisodeClick = { episode ->
-                            content.providerId?.let { pid ->
-                                navigateToPlayback(pid, episode.seasonNumber, episode.episodeNumber)
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        SeasonsSection(
+                            seasons = content.seasons,
+                            modifier = Modifier.fillMaxWidth(),
+                            onNavigateUpPastRow = { returnToHero() },
+                            onEpisodeClick = { episode ->
+                                content.providerId?.let { pid ->
+                                    navigateToPlayback(pid, episode.seasonNumber, episode.episodeNumber)
+                                }
                             }
+                        )
+                        // The cast sits under the episodes, as on the web. Nothing is drawn for a show with no
+                        // cast; UP from here falls through to the episode list above rather than the hero.
+                        if (content.cast.isNotEmpty()) {
+                            Spacer(Modifier.height(24.dp))
+                            CastRow(cast = content.cast, modifier = Modifier.fillMaxWidth())
                         }
-                    )
+                    }
                 } else {
                     Row(modifier = Modifier.fillMaxWidth()) {
                         CastRow(

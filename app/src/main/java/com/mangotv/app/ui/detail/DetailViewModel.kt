@@ -58,6 +58,7 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
     private val lastSourceRepository = (application as MangoTvApplication).container.lastSourceRepository
     private val trailerRepository = (application as MangoTvApplication).container.trailerRepository
     private val releaseDateRepository = (application as MangoTvApplication).container.releaseDateRepository
+    private val castRepository = (application as MangoTvApplication).container.castRepository
 
     private val providerId: String =
         URLDecoder.decode(savedStateHandle.get<String>("providerId").orEmpty(), "UTF-8")
@@ -219,6 +220,7 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
             publish()
             loadTrailer(detail)
             loadReleaseDate(detail)
+            loadCast(detail)
 
             val similar = runCatching { loadSimilar(provider, detail) }.getOrDefault(emptyList())
             if (similar.isNotEmpty()) {
@@ -257,6 +259,21 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
         viewModelScope.launch {
             val date = releaseDateRepository.findReleaseDate(content.title, content.year)
             _releaseDateState.value = date?.let { ReleaseDateState.Found(it) } ?: ReleaseDateState.NotFound
+        }
+    }
+
+    // A separate child coroutine, same reasoning as loadTrailer/loadReleaseDate above: an extra network round trip that
+    // must never delay (or be delayed by) the rest of the page. Addons only send cast names; this fills in photos and
+    // characters from TMDB when it can and republishes, so the avatars pop in a moment after the page appears. Guarded
+    // so a slow answer for a title the person has already left can't overwrite the one now on screen.
+    private fun loadCast(content: Content) {
+        viewModelScope.launch {
+            val enriched = castRepository.withTmdbDetails(content.id, content.type, content.cast)
+            val current = rawContent
+            if (enriched !== content.cast && current != null && current.id == content.id) {
+                rawContent = current.copy(cast = enriched)
+                publish()
+            }
         }
     }
 
