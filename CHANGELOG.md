@@ -3194,3 +3194,47 @@ Watching is the main way back into a show, it may not be wanted -- flipping
 it is a one-line change in `applyPreferences()`.
 
 **Issues fixed:** see Changes above.
+
+## Post-Milestone-28 — My List "Sort by"
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** Ported from the web app (MangotvWebb 800068e "Add sort-by options
+to My List", later restyled as a drop-down in bc71264). My List could only show
+newest-added first, with no way to reorder it.
+
+**Changes:**
+- `MyListSort.kt` (new) -- `MyListSort` (Recently Added, A-Z, Highest Rated,
+  Newest) and `sortSavedItems()`. Every sort starts from the newest-added-first
+  reading of the repository's oldest-first list, so ties (same rating or year)
+  stay in recently-added order, and a title with no rating or year goes last.
+  A-Z uses a primary-strength `Collator`, so it ignores case and accents.
+- `MyListViewModel.kt` -- holds the selected sort and sorts after the
+  All/Watched filter. `toSections()` no longer reverses; the order now comes
+  from `sortSavedItems()`. `myListRepository.items` itself is untouched, so
+  every other reader still sees the oldest-first list.
+- `RowsBrowseScreen.kt` -- `RowsBrowseContent` and the grid layout take optional
+  `sortOptions` / `selectedSortIndex` / `onSortSelected`. When given, a "Sort by"
+  label and one pill per option are drawn after the filter pills in the same bar
+  slot, with the same up/down focus wiring, so the grid's row offsets and the
+  nav-bar seam are unchanged. Movies, TV Shows and Genre Results pass nothing and
+  render exactly as before.
+- `MyListScreen.kt` -- wires the new parameters.
+- `MyListSortTest.kt` -- unit tests for each order, tie-breaking, missing values
+  and that the stored list is never mutated.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**Deliberate difference from the web:** the web shows the sort as a drop-down;
+here it is a row of pills, which suits a D-pad and matches the app's existing
+All/Watched pills and Source filters.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no
+Android SDK): unit tests written but not run here, brace/paren balance check on
+every touched Kotlin file (clean), and a manual re-read. **Not performed:** a
+Gradle compile or an on-device check -- on-device, confirm the six pills fit on
+one line at TV size, LEFT/RIGHT moves between them, UP reaches the nav bar and
+DOWN reaches the first poster, and each sort reorders the grid.
+
+**Issues discovered:** none beyond the layout check above.
+
+**Issues fixed:** see Changes above.

@@ -14,7 +14,9 @@ fun MyListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
+    val selectedSort by viewModel.selectedSort.collectAsStateWithLifecycle()
     val filters = MyListFilter.entries
+    val sorts = MyListSort.entries
     RowsBrowseContent(
         screenTitle = "My List",
         navLabel = "My List",
@@ -29,6 +31,9 @@ fun MyListScreen(
         },
         filterOptions = filters.map { it.label },
         selectedFilterIndex = filters.indexOf(selectedFilter),
-        onFilterSelected = { index -> viewModel.selectFilter(filters[index]) }
+        onFilterSelected = { index -> viewModel.selectFilter(filters[index]) },
+        sortOptions = sorts.map { it.label },
+        selectedSortIndex = sorts.indexOf(selectedSort),
+        onSortSelected = { index -> viewModel.selectSort(sorts[index]) }
     )
 }

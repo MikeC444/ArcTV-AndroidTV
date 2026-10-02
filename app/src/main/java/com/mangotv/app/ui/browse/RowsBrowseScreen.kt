@@ -127,7 +127,12 @@ fun RowsBrowseContent(
     // nav-bar-seam changes it requires.
     filterOptions: List<String> = emptyList(),
     selectedFilterIndex: Int = 0,
-    onFilterSelected: (Int) -> Unit = {}
+    onFilterSelected: (Int) -> Unit = {},
+    // My List's "Sort by" pills, shown after the filter pills in the same bar (GRID layout only). Empty by default,
+    // so every other screen is unchanged. The caller sorts the items itself; this only draws and reports the choice.
+    sortOptions: List<String> = emptyList(),
+    selectedSortIndex: Int = 0,
+    onSortSelected: (Int) -> Unit = {}
 ) {
     Box(Modifier.fillMaxSize().background(MangoBackground)) {
         when (uiState) {
@@ -153,7 +158,8 @@ fun RowsBrowseContent(
             is RowsBrowseUiState.Loaded -> if (layout == RowsBrowseLayout.GRID) {
                 RowsBrowseGridContent(
                     screenTitle, navLabel, uiState.sections.flatMap { it.items }, onNavigate, emptyMessage, onLoadMore,
-                    filterOptions, selectedFilterIndex, onFilterSelected
+                    filterOptions, selectedFilterIndex, onFilterSelected,
+                    sortOptions, selectedSortIndex, onSortSelected
                 )
             } else {
                 RowsBrowseLoadedContent(
@@ -588,7 +594,10 @@ private fun RowsBrowseGridContent(
     onLoadMore: () -> Unit,
     filterOptions: List<String> = emptyList(),
     selectedFilterIndex: Int = 0,
-    onFilterSelected: (Int) -> Unit = {}
+    onFilterSelected: (Int) -> Unit = {},
+    sortOptions: List<String> = emptyList(),
+    selectedSortIndex: Int = 0,
+    onSortSelected: (Int) -> Unit = {}
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -801,6 +810,25 @@ private fun RowsBrowseGridContent(
                                         focusUp = navFocusRequester,
                                         focusDown = firstCardFocusRequester
                                     )
+                                }
+                                if (sortOptions.isNotEmpty()) {
+                                    Text(
+                                        text = "Sort by",
+                                        color = TextSecondary,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        modifier = Modifier
+                                            .align(Alignment.CenterVertically)
+                                            .padding(start = 10.dp)
+                                    )
+                                    sortOptions.forEachIndexed { index, label ->
+                                        FilterPill(
+                                            label = label,
+                                            selected = index == selectedSortIndex,
+                                            onClick = { onSortSelected(index) },
+                                            focusUp = navFocusRequester,
+                                            focusDown = firstCardFocusRequester
+                                        )
+                                    }
                                 }
                             }
                         } else {

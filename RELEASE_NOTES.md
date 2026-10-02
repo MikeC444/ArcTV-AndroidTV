@@ -14,6 +14,7 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- My List has a "Sort by" row next to the All / Watched filter: Recently Added (the default), A–Z, Highest Rated and Newest
 - Each movie or show now appears in only one Home row (the first one it belongs to), instead of repeating down the page, and a title already on Home isn't repeated under Continue Watching
 - On Select a Source, the Recommended source is always the first row, whatever filter or sort you pick
 - Movies you removed from My List or took off Watched no longer come back after you sign out and in again, or sign in on another device

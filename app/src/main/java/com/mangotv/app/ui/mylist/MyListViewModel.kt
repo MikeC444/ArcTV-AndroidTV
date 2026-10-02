@@ -35,35 +35,27 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
     private val _selectedFilter = MutableStateFlow(MyListFilter.ALL)
     val selectedFilter: StateFlow<MyListFilter> = _selectedFilter.asStateFlow()
 
-    val uiState: StateFlow<RowsBrowseUiState> = combine(myListRepository.items, _selectedFilter) { items, filter ->
+    private val _selectedSort = MutableStateFlow(MyListSort.RECENT)
+    val selectedSort: StateFlow<MyListSort> = _selectedSort.asStateFlow()
+
+    val uiState: StateFlow<RowsBrowseUiState> = combine(myListRepository.items, _selectedFilter, _selectedSort) { items, filter, sort ->
         val filtered = if (filter == MyListFilter.WATCHED) items.filter { it.watched } else items
-        RowsBrowseUiState.Loaded(sections = filtered.toSections())
+        RowsBrowseUiState.Loaded(sections = sortSavedItems(filtered, sort).toSections())
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), RowsBrowseUiState.Loading)
 
     fun selectFilter(filter: MyListFilter) {
         _selectedFilter.value = filter
     }
 
+    fun selectSort(sort: MyListSort) {
+        _selectedSort.value = sort
+    }
+
+    // Already in display order (see sortSavedItems); myListRepository.items itself stays oldest-first for every
+    // other reader (savedIds, isInMyList, the sync repository).
     private fun List<SavedListItem>.toSections(): List<HomeSection> {
         if (isEmpty()) return emptyList()
-        return listOf(
-            HomeSection(
-                id = "my_list",
-                title = "My List",
-                // Newest-added first. myListRepository.items itself is
-                // maintained oldest-first throughout its whole lifecycle --
-                // toggle()/markWatched()/toggleWatched() append a genuinely
-                // new item to the end and never reorder an existing one on
-                // update, and a server pull replaces the list wholesale with
-                // the server's own `added_at ASC` order (see
-                // WatchlistSyncRepository.pullFromServer/reconcile) -- so
-                // reversing here is a pure display concern: every other
-                // reader of myListRepository.items (savedIds, isInMyList,
-                // the sync repository itself) still sees the untouched
-                // oldest-first list.
-                items = reversed().map { it.toContent() }
-            )
-        )
+        return listOf(HomeSection(id = "my_list", title = "My List", items = map { it.toContent() }))
     }
 
     private fun SavedListItem.toContent(): Content = Content(
