@@ -62,9 +62,13 @@ fun ColumnScope.PlusSettingsContent(
         item(key = "status") {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Pill(text = "Free plan", container = ArcAccent, content = MangoBackground)
+                    Pill(text = "Early access", container = ArcAccent, content = MangoBackground)
                     Spacer(Modifier.width(10.dp))
-                    Text(text = "You're on the free plan.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = "Arc TV Plus is in early access: its features are free for now and will need a Plus subscription once it launches.",
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
                 Text(text = PLUS_FREE_NOTE, color = TextPrimary, style = MaterialTheme.typography.bodyMedium)
                 Row(verticalAlignment = Alignment.Top) {
@@ -147,10 +151,12 @@ private fun PerkRow(perk: PlusPerk, focusRequester: FocusRequester?, focusUp: Fo
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(text = perk.title, color = TextPrimary, style = MaterialTheme.typography.titleSmall)
-                if (perk.comingSoon) {
-                    Spacer(Modifier.width(10.dp))
-                    Pill(text = "Coming soon", container = MangoSurfaceHigh, content = TextSecondary)
-                }
+                Spacer(Modifier.width(10.dp))
+                Pill(
+                    text = if (perk.comingSoon) "Coming soon" else "Included in early access",
+                    container = MangoSurfaceHigh,
+                    content = if (perk.comingSoon) TextSecondary else ArcAccent
+                )
             }
             Spacer(Modifier.height(4.dp))
             Text(text = perk.detail, color = TextSecondary, style = MaterialTheme.typography.bodySmall)

@@ -1,7 +1,5 @@
 package com.mangotv.app.ui.settings
 
-import com.mangotv.app.BuildConfig
-
 /**
  * Arc TV Plus -- the optional paid tier. The whole app stays free; Plus adds extras. Everything the Settings > Arc TV
  * Plus tab shows comes from here, so launching is a matter of filling this in, per plan (same shape as the web app):
@@ -25,13 +23,14 @@ val PLUS_PLANS: List<PlusPlan> = listOf(
     PlusPlan("lifetime", "Lifetime", price = null, per = "one-time payment", blurb = "Pay once, keep Plus forever. No renewals.", note = "Pay once")
 )
 
+/** [comingSoon] perks are announced but not on yet; the others are on for everyone while Plus is in early access. */
 data class PlusPerk(val title: String, val detail: String, val comingSoon: Boolean = true)
 
 val PLUS_PERKS: List<PlusPerk> = listOf(
+    PlusPerk("Picked for you", "A Home row chosen from the movies you like, finish and save, with the reason under each poster, plus Like and Not for me on movies.", comingSoon = false),
     PlusPerk("Profiles", "Separate profiles on one account, each with its own My List and Continue Watching."),
     PlusPerk("Parental controls", "A PIN, plus locks on genres and titles."),
-    PlusPerk("Smart source picking", "Automatically choose the best playable source for your device."),
-    PlusPerk("Picked for you", "A Home row chosen from what you like, have finished and have saved.")
+    PlusPerk("Smart source picking", "Automatically choose the best playable source for your device.")
 )
 
 const val PLUS_FREE_NOTE = "Everything you use today stays free: browsing, playing, My List, Continue Watching and addons."
@@ -42,7 +41,9 @@ const val PLUS_PROCEEDS_NOTE = "Every subscription goes straight back into build
 fun plusIsOnSale(plans: List<PlusPlan> = PLUS_PLANS): Boolean = plans.any { it.checkoutUrl.isNotBlank() }
 
 /**
- * Whether the Arc TV Plus tab is shown. Plus is not public yet (the web app hides it too), so it only appears in debug
- * builds, such as the CI-built APK used for testing. Switching it on for everyone at launch is changing this one line.
+ * Whether ArcTV Plus features are on: the Plus tab, "Picked for you" and Like / Not for me. Plus is in early access, so
+ * they are on for everyone, labelled as Plus features and free for now (the web app does the same). There is no
+ * subscription status to read yet; when subscriptions launch, make this read the account's status instead.
  */
-val PLUS_TAB_VISIBLE: Boolean = BuildConfig.DEBUG
+const val PLUS_EARLY_ACCESS: Boolean = true
+val PLUS_TAB_VISIBLE: Boolean = PLUS_EARLY_ACCESS

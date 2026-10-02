@@ -45,6 +45,6 @@ object RecommendConfig {
     const val FEATURE_CACHE_TTL_MS = 30L * 24 * 3600_000
 
     const val PICKED_ROW_ID = "picked_for_you"
-    const val PICKED_ROW_TITLE = "Picked for you"
-    const val POPULAR_ROW_TITLE = "Popular movies — not personalised yet"
+    const val PICKED_ROW_TITLE = "Picked for you · ArcTV Plus"
+    const val POPULAR_ROW_TITLE = "Popular movies, not personalised yet · ArcTV Plus"
 }

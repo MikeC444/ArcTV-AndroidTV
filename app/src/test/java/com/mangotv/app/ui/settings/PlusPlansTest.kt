@@ -16,9 +16,11 @@ class PlusPlansTest {
     }
 
     @Test
-    fun `every perk is announced as coming soon and every plan says what it is`() {
+    fun `every perk and plan says what it is, and the early access perks are the ones that are on`() {
         assertTrue(PLUS_PERKS.isNotEmpty())
-        assertTrue(PLUS_PERKS.all { it.comingSoon && it.title.isNotBlank() && it.detail.isNotBlank() })
+        assertTrue(PLUS_PERKS.all { it.title.isNotBlank() && it.detail.isNotBlank() })
+        assertEquals(listOf("Picked for you"), PLUS_PERKS.filter { !it.comingSoon }.map { it.title })
+        assertTrue(PLUS_EARLY_ACCESS && PLUS_TAB_VISIBLE)
         assertTrue(PLUS_PLANS.all { it.label.isNotBlank() && it.blurb.isNotBlank() && it.per.isNotBlank() })
     }
 }

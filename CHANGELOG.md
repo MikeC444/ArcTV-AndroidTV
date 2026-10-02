@@ -4007,7 +4007,7 @@ unoptimised Compose, so they will always feel slower than a release build on a F
 
 **App:** `FeedbackRepository` (local + sync, outbox for offline pushes, last-write-wins pull like the web store), wired into `SyncManager` (pull, retry) and sign-out. `HomeViewModel` recomputes the row (debounced, only when the pool, signals or exclusions change) and places it after Continue Watching; Not for me hides a title immediately. `ContentCard` shows the reason in place of the year. Like / Not for me are in the long-press menu and the Detail page's three-dot group, for movies.
 
-**Gating:** the row, the buttons and their sync follow the Plus preview flag (`PLUS_TAB_VISIBLE`, debug builds only), the same as the web's hidden preview, and need a signed-in account.
+**Gating:** ArcTV Plus is in early access. The Plus tab, the row, Like / Not for me and their sync are on for everyone (`PLUS_EARLY_ACCESS` in `PlusPlans.kt`, which `PLUS_TAB_VISIBLE` follows) and labelled as Plus features: the row titles end "· ArcTV Plus", and the Plus tab says "Early access" and lists "Picked for you" as included. They still need a signed-in account. The web app does the same (its `?plusPreview` flag is removed). When subscriptions launch, make the flag read the account's status.
 
 **Tests performed:** server `vitest` (all passing, locally against Postgres). The Kotlin has not been compiled here; it relies on the CI build, including `RecommendTest`.
 
