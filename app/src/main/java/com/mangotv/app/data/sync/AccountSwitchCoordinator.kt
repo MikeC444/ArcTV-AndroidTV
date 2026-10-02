@@ -5,6 +5,7 @@ import com.mangotv.app.data.auth.AuthRepository
 import com.mangotv.app.data.history.ContinueWatchingRepository
 import com.mangotv.app.data.player.LastSourceRepository
 import com.mangotv.app.data.player.PlayerPreferencesRepository
+import com.mangotv.app.data.feedback.FeedbackRepository
 import com.mangotv.app.data.provider.BlockedGenresRepository
 import com.mangotv.app.data.provider.HomeRowPreferencesRepository
 import com.mangotv.app.data.provider.MyListRepository
@@ -61,6 +62,7 @@ class AccountSwitchCoordinator(
     private val homeRowPreferencesRepository: HomeRowPreferencesRepository,
     private val playerPreferencesRepository: PlayerPreferencesRepository,
     private val blockedGenresRepository: BlockedGenresRepository,
+    private val feedbackRepository: FeedbackRepository,
     private val settingsSyncRepository: SettingsSyncRepository,
     private val watchlistSyncRepository: WatchlistSyncRepository,
     private val continueWatchingSyncRepository: ContinueWatchingSyncRepository,
@@ -97,6 +99,7 @@ class AccountSwitchCoordinator(
                 launch { watchlistSyncRepository.retryPending() }
                 launch { continueWatchingSyncRepository.retryPending() }
                 launch { addonSyncRepository.retryPending() }
+                launch { feedbackRepository.retryPending() }
             }
         }
 
@@ -109,6 +112,8 @@ class AccountSwitchCoordinator(
             launch { homeRowPreferencesRepository.clear() }
             launch { playerPreferencesRepository.clear() }
             launch { blockedGenresRepository.clear() }
+            launch { feedbackRepository.clear() }
+            launch { feedbackRepository.clearPending() }
             launch { settingsSyncRepository.clearPending() }
             launch { watchlistSyncRepository.clearPending() }
             launch { continueWatchingSyncRepository.clearPending() }

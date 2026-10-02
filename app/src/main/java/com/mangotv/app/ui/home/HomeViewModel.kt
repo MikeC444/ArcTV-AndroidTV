@@ -9,7 +9,22 @@ import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.HomeSection
 import com.mangotv.app.data.model.RowStyle
 import com.mangotv.app.data.model.WatchProgress
+import com.mangotv.app.data.feedback.FeedbackEntry
 import com.mangotv.app.data.provider.CatalogProvider
+import com.mangotv.app.data.recommend.EngineInput
+import com.mangotv.app.data.recommend.EngineResult
+import com.mangotv.app.data.recommend.Interaction
+import com.mangotv.app.data.recommend.MovieRef
+import com.mangotv.app.data.recommend.collectInteractions
+import com.mangotv.app.data.recommend.excludedFromPicks
+import com.mangotv.app.data.recommend.fetchMovieFeatures
+import com.mangotv.app.data.recommend.interactionInputs
+import com.mangotv.app.data.recommend.pickedSection
+import com.mangotv.app.data.recommend.recommend
+import com.mangotv.app.data.recommend.signatureOf
+import com.mangotv.app.data.recommend.toCandidate
+import com.mangotv.app.data.model.ContentType
+import com.mangotv.app.ui.settings.PLUS_TAB_VISIBLE
 import com.mangotv.app.data.provider.blockedGenreSet
 import com.mangotv.app.data.provider.withoutBlocked
 import com.mangotv.app.data.provider.HomeRowPreferences
@@ -21,6 +36,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 
 // How many random titles feed the hero -- HeroSection already rotates
@@ -28,6 +47,21 @@ import kotlinx.coroutines.launch
 // is the pool it rotates within, not a fixed set of items shown at once.
 // See applyPreferences' own comment for where/how those 10 are picked.
 private const val HERO_POOL_SIZE = 10
+
+/** How long Home's rows settle (they arrive in batches) before "Picked for you" is recomputed from them. */
+private const val PICKED_DEBOUNCE_MS = 1200L
+
+/** Everything one "Picked for you" run needs, equal exactly when the key is: the key changes only when a result could. */
+private class PickedInputs(
+    val key: String,
+    val movies: List<Content>,
+    val interactions: List<Interaction>,
+    val excludeIds: Set<String>,
+    val refs: Map<String, MovieRef>
+) {
+    override fun equals(other: Any?): Boolean = other is PickedInputs && other.key == key
+    override fun hashCode(): Int = key.hashCode()
+}
 
 sealed interface HomeUiState {
     data object Loading : HomeUiState
@@ -48,6 +82,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val trailerRepository = (application as MangoTvApplication).container.trailerRepository
     private val guestGate = (application as MangoTvApplication).container.guestGate
     private val blockedGenresRepository = (application as MangoTvApplication).container.blockedGenresRepository
+    private val feedbackRepository = (application as MangoTvApplication).container.feedbackRepository
+    private val featureCache = (application as MangoTvApplication).container.featureCacheRepository
+
+    // "Picked for you" (Plus preview, signed-in only): the latest engine result and the movies it was computed from.
+    private var feedbackEntries: Map<String, FeedbackEntry> = feedbackRepository.entries.value
+    private var pickedResult: EngineResult? = null
+    private var pickedMovies: List<Content> = emptyList()
+    private val pickedInputs = MutableStateFlow<PickedInputs?>(null)
+    private var lastPickedKey: String? = null
 
     // Genres the person has blocked, lower-cased -- read synchronously from applyPreferences, kept current by the collector in init.
     private var blockedGenres: Set<String> = blockedGenreSet(blockedGenresRepository.genres.value)
@@ -164,6 +207,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 applyPreferences(homeRowPreferences.preferences.value)
             }
         }
+        // Like / Not for me re-applies at once (a "Not for me" title leaves the row immediately) and, via the key, recomputes.
+        viewModelScope.launch {
+            feedbackRepository.entries.collect { entries ->
+                feedbackEntries = entries
+                applyPreferences(homeRowPreferences.preferences.value)
+            }
+        }
+        viewModelScope.launch { runPickedPipeline() }
+        // Signing in turns "Picked for you" on (a guest has nothing to learn from), signing out turns it off.
+        viewModelScope.launch {
+            guestGate.isGuest.collect { applyPreferences(homeRowPreferences.preferences.value) }
+        }
         // Blocking or unblocking a genre re-applies the already-fetched rows, no network re-fetch.
         viewModelScope.launch {
             blockedGenresRepository.genres.collect { genres ->
@@ -266,7 +321,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         ).map { it.withWatchedFlags() }
         // A title that already sits in a catalogue row is not repeated under Continue Watching.
         val continueWatching = continueWatchingSection?.let { withoutShownTitles(it, visibleSections) }
-        val sections = listOfNotNull(continueWatching?.withWatchedFlags()) + visibleSections
+        updatePickedInputs()
+        val picked = if (pickedAvailable()) pickedSection(pickedResult, pickedMovies.withoutBlocked(blockedGenres), feedbackEntries) else null
+        val sections = listOfNotNull(continueWatching?.withWatchedFlags()) + listOfNotNull(picked?.withWatchedFlags()) + visibleSections
 
         // HERO_POOL_SIZE random titles drawn from every visible row (not
         // just the first one), respecting manual reordering and hidden rows
@@ -300,6 +357,48 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             hero.isNotEmpty() || sections.isNotEmpty() -> HomeUiState.Success(hero, sections)
             lastFetchFailed -> HomeUiState.Error("Couldn't reach your installed addons. Check your connection and try again.")
             else -> HomeUiState.Empty
+        }
+    }
+
+    /** "Picked for you" is a Plus preview (debug builds until Plus launches) and needs an account: a guest has no feedback or history to learn from. */
+    private fun pickedAvailable(): Boolean = PLUS_TAB_VISIBLE && !guestGate.isGuest.value
+
+    /** Publishes what a "Picked for you" run would be computed from; unchanged inputs (same key) do nothing. */
+    private fun updatePickedInputs() {
+        if (!pickedAvailable()) return
+        // Every movie the addons listed on Home (hidden rows included) is a candidate.
+        val movies = rawSections.withoutBlocked(blockedGenres).flatMap { it.items }.filter { it.type == ContentType.MOVIE }.distinctBy { it.id }
+        if (movies.isEmpty()) return
+        val list = myListRepository.items.value
+        val interactions = collectInteractions(interactionInputs(list, feedbackEntries))
+        val excludeIds = excludedFromPicks(list, feedbackEntries, continueWatchingRepository.items.value)
+        val key = movies.map { it.id }.sorted().joinToString(",") + "#" + signatureOf(interactions) + "#" + excludeIds.sorted().joinToString(",")
+        if (key == lastPickedKey) return
+        lastPickedKey = key
+        val refs = HashMap<String, MovieRef>()
+        for (item in list) refs[item.id] = MovieRef(item.id, item.providerId)
+        for ((id, entry) in feedbackEntries) refs.putIfAbsent(id, MovieRef(id, entry.providerId))
+        pickedInputs.value = PickedInputs(key, movies, interactions, excludeIds, refs)
+    }
+
+    @OptIn(FlowPreview::class)
+    private suspend fun runPickedPipeline() {
+        pickedInputs.filterNotNull().debounce(PICKED_DEBOUNCE_MS).collectLatest { inputs ->
+            val providers = ProviderRegistry.activeProviders()
+            val result = runCatching {
+                recommend(
+                    EngineInput(
+                        interactions = inputs.interactions,
+                        excludeIds = inputs.excludeIds,
+                        pool = inputs.movies.map { it.toCandidate() },
+                        interactionRefs = inputs.refs,
+                        loadFeatures = { refs, limit -> featureCache.load(refs, limit) { ref -> fetchMovieFeatures(providers, ref) } }
+                    )
+                )
+            }.getOrNull() ?: return@collectLatest
+            pickedResult = result
+            pickedMovies = inputs.movies
+            applyPreferences(homeRowPreferences.preferences.value)
         }
     }
 

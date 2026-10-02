@@ -3994,3 +3994,19 @@ unoptimised Compose, so they will always feel slower than a release build on a F
 **Not changed:** the web app keeps its list in the browser; it would need a small change there to read and write `blockedGenres` on the account.
 
 **Tests performed:** server `vitest` (all passing, locally against Postgres) and schema verification. The Kotlin has not been compiled here; it relies on the CI build.
+
+## Post-Milestone-47 — Picked For You (the web recommendation algorithm) And Like / Not For Me Sync
+
+**Status:** Complete, not compiled or tried on a device (see Tests performed). The backend half is tested.
+
+**Context:** User request: implement the web app's "Picked for you" algorithm fully on the Firestick, with Like / Not for me kept on the account.
+
+**Backend (`server/`):** migration `0016` adds `movie_feedback` (per user, profile, addon, movie; soft-deleted like the watchlist); `GET / POST / DELETE /user/feedback` with last-write-wins on the client's timestamp. The route and wire shape match what the web app already calls, so the web's feedback sync works against this backend unchanged. `tests/feedback.test.ts` covers auth, round trip, newer / older writes, clear, re-set after clear, 204 for a never-existing slot, profile and account isolation, validation.
+
+**Algorithm (`data/recommend/`)**, a line-for-line port of the web's `domain/recommend`: `RecommendConfig` (every number, same values), `Signals` (strongest signal per movie: like 5, Not for me -5, finished 2, saved 1), `Features`, `Preferences` (a movie's weight split equally over its genres / directors / cast), `Score` (weighted cosine, 0.6 / 0.25 / 0.15, renormalised when a category is missing), `Explain` (the movie that contributed most, or "More from directors you enjoy"), `Diversity` (no movie explains more than 3 picks), `RecommendEngine` (shortlist from catalogue genres, round-robin over the profile's own movies, detail lookups bounded to 40 + 60, a candidate that is itself one of the profile's movies is scored without its own signal, popular fallback under 3 interactions). `FeatureCache` keeps looked-up features for 30 days (800 entries). `RecommendTest` ports the web's test file case for case.
+
+**App:** `FeedbackRepository` (local + sync, outbox for offline pushes, last-write-wins pull like the web store), wired into `SyncManager` (pull, retry) and sign-out. `HomeViewModel` recomputes the row (debounced, only when the pool, signals or exclusions change) and places it after Continue Watching; Not for me hides a title immediately. `ContentCard` shows the reason in place of the year. Like / Not for me are in the long-press menu and the Detail page's three-dot group, for movies.
+
+**Gating:** the row, the buttons and their sync follow the Plus preview flag (`PLUS_TAB_VISIBLE`, debug builds only), the same as the web's hidden preview, and need a signed-in account.
+
+**Tests performed:** server `vitest` (all passing, locally against Postgres). The Kotlin has not been compiled here; it relies on the CI build, including `RecommendTest`.

@@ -6,7 +6,9 @@ import com.mangotv.app.data.audio.SoundPreferencesRepository
 import com.mangotv.app.data.audio.UiSoundPlayer
 import com.mangotv.app.data.auth.AuthRepository
 import com.mangotv.app.data.auth.GuestGate
+import com.mangotv.app.data.feedback.FeedbackRepository
 import com.mangotv.app.data.history.ContinueWatchingRepository
+import com.mangotv.app.data.recommend.FeatureCacheRepository
 import com.mangotv.app.data.player.LastSourceRepository
 import com.mangotv.app.data.player.PlayerPreferencesRepository
 import com.mangotv.app.data.provider.BlockedGenresRepository
@@ -168,8 +170,9 @@ class AppContainer(context: Context) {
     val continueWatchingSyncRepository: ContinueWatchingSyncRepository = ContinueWatchingSyncRepository(
         context, continueWatchingRepository, authRepository
     )
+    val feedbackRepository: FeedbackRepository = FeedbackRepository(context, authRepository)
     val syncManager: SyncManager = SyncManager(
-        context, settingsSyncRepository, watchlistSyncRepository, continueWatchingSyncRepository, addonSyncRepository
+        context, settingsSyncRepository, watchlistSyncRepository, continueWatchingSyncRepository, addonSyncRepository, feedbackRepository
     )
     val firstSyncState: FirstSyncState = FirstSyncState(context)
     val firstLoginMigrationCoordinator: FirstLoginMigrationCoordinator by lazy {
@@ -200,12 +203,15 @@ class AppContainer(context: Context) {
             homeRowPreferencesRepository = homeRowPreferencesRepository,
             playerPreferencesRepository = playerPreferencesRepository,
             blockedGenresRepository = blockedGenresRepository,
+            feedbackRepository = feedbackRepository,
             settingsSyncRepository = settingsSyncRepository,
             watchlistSyncRepository = watchlistSyncRepository,
             continueWatchingSyncRepository = continueWatchingSyncRepository,
             addonSyncRepository = addonSyncRepository
         )
     }
+    // Lazy, same reasoning as trailerRepository below: only "Picked for you" (a Plus preview) reads it.
+    val featureCacheRepository: FeatureCacheRepository by lazy { FeatureCacheRepository(context) }
     val soundPreferencesRepository: SoundPreferencesRepository by lazy { SoundPreferencesRepository(context) }
     val uiSoundPlayer: UiSoundPlayer by lazy { UiSoundPlayer(context, soundPreferencesRepository) }
 

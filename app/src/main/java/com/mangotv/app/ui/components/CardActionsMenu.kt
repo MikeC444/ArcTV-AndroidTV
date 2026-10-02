@@ -22,6 +22,10 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.ThumbDown
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.outlined.ThumbDown
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -46,7 +50,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.mangotv.app.data.model.Content
+import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.auth.GuestGate
+import com.mangotv.app.data.feedback.FeedbackRepository
+import com.mangotv.app.data.feedback.FeedbackTarget
+import com.mangotv.app.data.recommend.Feedback
+import com.mangotv.app.ui.settings.PLUS_TAB_VISIBLE
 import com.mangotv.app.data.provider.MyListRepository
 import com.mangotv.app.data.sync.ContinueWatchingSyncRepository
 import com.mangotv.app.navigation.MangoRoutes
@@ -132,6 +141,8 @@ fun CardActionsMenuOverlay(
     continueWatchingSyncRepository: ContinueWatchingSyncRepository,
     // Saving a title (My List, Watched) needs an account: for someone browsing without one these ask them to sign in.
     guestGate: GuestGate,
+    // Like / Not for me on movies (the "Picked for you" preview).
+    feedbackRepository: FeedbackRepository,
     onNavigate: (String) -> Unit,
     resolvePlayRoute: (Content) -> String,
     modifier: Modifier = Modifier
@@ -148,6 +159,8 @@ fun CardActionsMenuOverlay(
     // always accurate regardless of which screen's Content this menu was
     // opened from -- some callers stamp watched onto Content, some don't.
     val isWatched = savedIds.any { it.id == content.id && it.watched }
+    val feedbackEntries by feedbackRepository.entries.collectAsStateWithLifecycle()
+    val feedback = feedbackEntries[content.id]?.feedback
     val firstRowFocusRequester = remember(content.id) { FocusRequester() }
 
     // Gated on canFocusActions rather than firing as soon as content is set
@@ -236,6 +249,25 @@ fun CardActionsMenuOverlay(
                         state.dismiss()
                     }
                 )
+                if (PLUS_TAB_VISIBLE && content.type == ContentType.MOVIE) {
+                    val target = FeedbackTarget(content.id, content.title, content.providerId)
+                    CardActionRow(
+                        icon = if (feedback == Feedback.LIKE) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                        label = if (feedback == Feedback.LIKE) "Remove like" else "Like",
+                        onClick = {
+                            guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.LIKE) } }
+                            state.dismiss()
+                        }
+                    )
+                    CardActionRow(
+                        icon = if (feedback == Feedback.DISLIKE) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
+                        label = if (feedback == Feedback.DISLIKE) "Remove \"Not for me\"" else "Not for me",
+                        onClick = {
+                            guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.DISLIKE) } }
+                            state.dismiss()
+                        }
+                    )
+                }
                 CardActionRow(
                     icon = Icons.Filled.Info,
                     label = "View Details",

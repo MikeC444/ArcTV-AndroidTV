@@ -31,7 +31,11 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Theaters
+import androidx.compose.material.icons.filled.ThumbDown
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ThumbDown
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -63,6 +67,7 @@ import com.mangotv.app.data.history.ContinueWatchingEntry
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.model.Episode
+import com.mangotv.app.data.recommend.Feedback
 import com.mangotv.app.ui.components.HeroIconButton
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
@@ -117,6 +122,9 @@ fun DetailHeroSection(
     // dimmed, and onTrailer says why nothing opened.
     onTrailer: (() -> Unit)? = null,
     trailerReady: Boolean = true,
+    // Like / Not for me (movies, Plus preview): null hides the two buttons. Both sit in the three-dot group.
+    feedback: Feedback? = null,
+    onFeedback: ((Feedback) -> Unit)? = null,
     // Idle/Loading hide the meta row's date slot entirely rather than
     // showing content.year and then visibly swapping it for the real TMDB
     // date a moment later -- see ReleaseDateState's own doc. NotFound falls
@@ -430,6 +438,24 @@ fun DetailHeroSection(
                             compact = compact
                         )
                         Spacer(Modifier.width(if (compact) 10.dp else 16.dp))
+                        if (onFeedback != null) {
+                            HeroIconButton(
+                                icon = if (feedback == Feedback.LIKE) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                                contentDescription = if (feedback == Feedback.LIKE) "Remove like" else "Like",
+                                onClick = { onFeedback(Feedback.LIKE) },
+                                focusUp = navUpFocusRequester,
+                                compact = compact
+                            )
+                            Spacer(Modifier.width(if (compact) 10.dp else 16.dp))
+                            HeroIconButton(
+                                icon = if (feedback == Feedback.DISLIKE) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
+                                contentDescription = if (feedback == Feedback.DISLIKE) "Remove Not for me" else "Not for me",
+                                onClick = { onFeedback(Feedback.DISLIKE) },
+                                focusUp = navUpFocusRequester,
+                                compact = compact
+                            )
+                            Spacer(Modifier.width(if (compact) 10.dp else 16.dp))
+                        }
                     }
                 }
                 HeroIconButton(

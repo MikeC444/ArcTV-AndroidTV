@@ -8,7 +8,9 @@ import com.mangotv.app.MangoTvApplication
 import com.mangotv.app.data.history.ContinueWatchingEntry
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
+import com.mangotv.app.data.feedback.FeedbackTarget
 import com.mangotv.app.data.provider.CatalogProvider
+import com.mangotv.app.data.recommend.Feedback
 import com.mangotv.app.data.provider.blockedGenreSet
 import com.mangotv.app.data.provider.withoutBlocked
 import com.mangotv.app.data.provider.ProviderRegistry
@@ -63,6 +65,7 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
     private val castRepository = (application as MangoTvApplication).container.castRepository
     private val guestGate = (application as MangoTvApplication).container.guestGate
     private val blockedGenresRepository = (application as MangoTvApplication).container.blockedGenresRepository
+    private val feedbackRepository = (application as MangoTvApplication).container.feedbackRepository
 
     private val providerId: String =
         URLDecoder.decode(savedStateHandle.get<String>("providerId").orEmpty(), "UTF-8")
@@ -94,6 +97,18 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
     val isInMyList: StateFlow<Boolean> = myListRepository.items
         .map { items -> items.any { it.id == contentId } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    /** This title's Like / Not for me, for the Detail buttons (movies only; the "Picked for you" preview). */
+    val feedback: StateFlow<Feedback?> = feedbackRepository.entries
+        .map { entries -> entries[contentId]?.feedback }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** Pressing Like when already liked clears it; pressing it when "Not for me" switches it. A guest is asked to sign in. */
+    fun toggleFeedback(value: Feedback) {
+        val content = (uiState.value as? DetailUiState.Success)?.content ?: return
+        val target = FeedbackTarget(content.id, content.title, content.providerId)
+        guestGate.requireAccount { viewModelScope.launch { feedbackRepository.toggle(target, value) } }
+    }
 
     // Pristine (never-stamped) content/similar backing whatever's currently
     // published -- publish() always re-derives from these rather than from

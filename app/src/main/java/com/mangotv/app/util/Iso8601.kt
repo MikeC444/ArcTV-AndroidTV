@@ -29,6 +29,9 @@ object Iso8601 {
 
     fun parseToEpochMillis(iso: String): Long = formatter.get()!!.parse(iso)!!.time
 
+    /** An epoch-millisecond instant in the same shape. */
+    fun format(epochMillis: Long): String = formatter.get()!!.format(Date(epochMillis))
+
     /** The current moment, in the same shape the backend expects for a client-supplied timestamp (e.g. a settings push's updatedAt). */
     fun nowString(): String = formatter.get()!!.format(Date())
 }

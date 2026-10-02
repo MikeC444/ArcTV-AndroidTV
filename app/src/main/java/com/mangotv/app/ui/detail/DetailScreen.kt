@@ -40,6 +40,8 @@ import com.mangotv.app.data.history.ContinueWatchingEntry
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.model.HomeSection
+import com.mangotv.app.data.recommend.Feedback
+import com.mangotv.app.ui.settings.PLUS_TAB_VISIBLE
 import com.mangotv.app.data.trailer.TrailerLauncher
 import com.mangotv.app.navigation.MangoRoutes
 import com.mangotv.app.navigation.routeForNavLabel
@@ -74,6 +76,7 @@ fun DetailScreen(
             )
             is DetailUiState.Success -> {
                 val isInMyList by viewModel.isInMyList.collectAsStateWithLifecycle()
+                val feedback by viewModel.feedback.collectAsStateWithLifecycle()
                 val resumeEntry by viewModel.resumeEntry.collectAsStateWithLifecycle()
                 val trailerState by viewModel.trailerState.collectAsStateWithLifecycle()
                 val foundTrailer = trailerState as? TrailerState.Found
@@ -85,6 +88,8 @@ fun DetailScreen(
                     isInMyList = isInMyList,
                     onToggleMyList = viewModel::toggleMyList,
                     onToggleWatched = viewModel::toggleWatched,
+                    feedback = feedback,
+                    onFeedback = viewModel::toggleFeedback,
                     resumeEntry = resumeEntry,
                     lastStreamIdFor = viewModel::lastStreamIdFor,
                     releaseDateState = releaseDateState,
@@ -114,6 +119,8 @@ private fun DetailContent(
     isInMyList: Boolean,
     onToggleMyList: () -> Unit,
     onToggleWatched: () -> Unit,
+    feedback: Feedback?,
+    onFeedback: (Feedback) -> Unit,
     resumeEntry: ContinueWatchingEntry?,
     lastStreamIdFor: (season: Int?, episode: Int?) -> String?,
     onTrailer: (() -> Unit)?,
@@ -263,6 +270,9 @@ private fun DetailContent(
                     isWatched = content.watched,
                     onWatchlist = onToggleMyList,
                     isInMyList = isInMyList,
+                    // Like / Not for me are a movie-only, Plus-preview feature (they feed "Picked for you").
+                    feedback = feedback,
+                    onFeedback = if (PLUS_TAB_VISIBLE && content.type == ContentType.MOVIE) onFeedback else null,
                     onTrailer = onTrailer,
                     trailerReady = trailerReady,
                     releaseDateState = releaseDateState,

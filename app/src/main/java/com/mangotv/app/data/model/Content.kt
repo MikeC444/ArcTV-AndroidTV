@@ -84,7 +84,10 @@ data class Content(
     // this onto the Content it builds (see e.g. HomeViewModel's own
     // watchedIds) rather than a provider ever knowing about it directly.
     // ContentCard reads it to draw the watched tick.
-    val watched: Boolean = false
+    val watched: Boolean = false,
+    // Why "Picked for you" chose this title ("Because you liked X"), shown on its poster card. Only ever set on
+    // that row's items; null everywhere else.
+    val recommendReason: String? = null
 )
 
 enum class RowStyle {
