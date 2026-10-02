@@ -58,7 +58,6 @@ private enum class SettingsCategory(val icon: ImageVector, val title: String, va
     BLOCKED_GENRES(Icons.Filled.Block, "Blocked Genres", "Hide genres you don't want to see"),
     SOUNDS(Icons.Filled.MusicNote, "Sounds", "Choose your app boot sound"),
     SUBTITLES(Icons.Filled.Subtitles, "Subtitles", "Default on/off and preferred language"),
-    // Not public yet: shown only while PLUS_TAB_VISIBLE is true (see PlusPlans.kt).
     PLUS(Icons.Filled.WorkspacePremium, "Arc TV Plus", "Extra features for supporters")
 }
 
@@ -119,7 +118,7 @@ fun SettingsScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(vertical = 4.dp)
             ) {
-                val categories = remember { SettingsCategory.values().filter { it != SettingsCategory.PLUS || PLUS_TAB_VISIBLE } }
+                val categories = remember { SettingsCategory.values().toList() }
                 categories.forEachIndexed { index, category ->
                     SettingsSidebarRow(
                         category = category,

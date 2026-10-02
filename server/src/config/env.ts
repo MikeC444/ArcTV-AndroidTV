@@ -46,3 +46,43 @@ export function getTmdbReadAccessToken(): string | null {
   const value = process.env.TMDB_READ_ACCESS_TOKEN;
   return value && value.trim() !== "" ? value : null;
 }
+
+export type PlusPlanId = "monthly" | "yearly" | "lifetime";
+
+export interface PlusConfig {
+  /** False (the default): Plus is in early access and every account has it. True: only paying accounts do. */
+  paywallOn: boolean;
+  stripeSecretKey: string | null;
+  stripeWebhookSecret: string | null;
+  /** Stripe Price ids, one per plan. A plan with no price id can't be bought. */
+  prices: Record<PlusPlanId, string | null>;
+  /** Where Stripe sends the person after paying / backing out (a small page on this backend). */
+  successUrl: string;
+  cancelUrl: string;
+}
+
+const optional = (name: string): string | null => {
+  const value = process.env[name];
+  return value && value.trim() !== "" ? value.trim() : null;
+};
+
+/**
+ * Read per request, not once at start-up, like the other optional integrations: the paywall is switched on by
+ * setting PLUS_PAYWALL=on (and the Stripe values) in the host's environment, and nothing here may stop the server
+ * booting when they are absent.
+ */
+export function getPlusConfig(): PlusConfig {
+  const base = optional("API_BASE_URL") ?? "";
+  return {
+    paywallOn: (optional("PLUS_PAYWALL") ?? "off").toLowerCase() === "on",
+    stripeSecretKey: optional("STRIPE_SECRET_KEY"),
+    stripeWebhookSecret: optional("STRIPE_WEBHOOK_SECRET"),
+    prices: {
+      monthly: optional("STRIPE_PRICE_MONTHLY"),
+      yearly: optional("STRIPE_PRICE_YEARLY"),
+      lifetime: optional("STRIPE_PRICE_LIFETIME"),
+    },
+    successUrl: optional("PLUS_SUCCESS_URL") ?? `${base}/plus/thanks`,
+    cancelUrl: optional("PLUS_CANCEL_URL") ?? `${base}/plus/thanks?cancelled=1`,
+  };
+}

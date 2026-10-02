@@ -54,8 +54,8 @@ import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.auth.GuestGate
 import com.mangotv.app.data.feedback.FeedbackRepository
 import com.mangotv.app.data.feedback.FeedbackTarget
+import com.mangotv.app.data.plus.PlusRepository
 import com.mangotv.app.data.recommend.Feedback
-import com.mangotv.app.ui.settings.PLUS_TAB_VISIBLE
 import com.mangotv.app.data.provider.MyListRepository
 import com.mangotv.app.data.sync.ContinueWatchingSyncRepository
 import com.mangotv.app.navigation.MangoRoutes
@@ -143,6 +143,8 @@ fun CardActionsMenuOverlay(
     guestGate: GuestGate,
     // Like / Not for me on movies (the "Picked for you" preview).
     feedbackRepository: FeedbackRepository,
+    // Whether this account has ArcTV Plus (the backend decides): Like / Not for me are Plus features.
+    plusRepository: PlusRepository,
     onNavigate: (String) -> Unit,
     resolvePlayRoute: (Content) -> String,
     modifier: Modifier = Modifier
@@ -160,6 +162,7 @@ fun CardActionsMenuOverlay(
     // opened from -- some callers stamp watched onto Content, some don't.
     val isWatched = savedIds.any { it.id == content.id && it.watched }
     val feedbackEntries by feedbackRepository.entries.collectAsStateWithLifecycle()
+    val plusStatus by plusRepository.status.collectAsStateWithLifecycle()
     val feedback = feedbackEntries[content.id]?.feedback
     val firstRowFocusRequester = remember(content.id) { FocusRequester() }
 
@@ -249,7 +252,7 @@ fun CardActionsMenuOverlay(
                         state.dismiss()
                     }
                 )
-                if (PLUS_TAB_VISIBLE && content.type == ContentType.MOVIE) {
+                if (plusStatus.active && content.type == ContentType.MOVIE) {
                     val target = FeedbackTarget(content.id, content.title, content.providerId)
                     CardActionRow(
                         icon = if (feedback == Feedback.LIKE) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,

@@ -39,6 +39,11 @@ Endpoints:
   of genre names; optional on `PUT` — an older client that omits it leaves
   the stored list alone), one row per account, last-write-wins on the
   client's own `updatedAt`.
+- `GET /user/plus` (authenticated) — `{ active, plan, validUntil, paywall }`: whether this account has ArcTV Plus.
+  With `PLUS_PAYWALL` off (the default) everyone is `active` with plan `early_access`; on, only paying accounts.
+  `POST /user/plus/checkout` `{ plan: "monthly"|"yearly"|"lifetime" }` returns `{ url }`, a Stripe Checkout page tied
+  to the account. `POST /stripe/webhook` (Stripe only, signature-verified) is what switches Plus on and off. See
+  [`docs/PAYWALL.md`](../docs/PAYWALL.md).
 - `GET /user/feedback?profileId=` / `POST /user/feedback` /
   `DELETE /user/feedback?profileId=&providerId=&contentId=&contentType=&updatedAt=`
   (authenticated) — Like / Not for me on movies, per profile (`main` by

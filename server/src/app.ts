@@ -15,6 +15,7 @@ import { historyRouter } from "./routes/history.js";
 import { releaseDatesRouter } from "./routes/releaseDates.js";
 import { castRouter } from "./routes/cast.js";
 import { feedbackRouter } from "./routes/feedback.js";
+import { plusRouter, stripeWebhookRouter } from "./routes/plus.js";
 import { settingsRouter } from "./routes/settings.js";
 import { trailersRouter } from "./routes/trailers.js";
 import { watchlistRouter } from "./routes/watchlist.js";
@@ -51,6 +52,8 @@ export function createApp(): Express {
   app.set("trust proxy", 1);
 
   app.use(helmet());
+  // Stripe's webhook needs the exact raw bytes to check its signature, so it is mounted before the JSON body parser.
+  app.use(stripeWebhookRouter);
   app.use(express.json({ limit: "100kb" }));
   // Registered before the rate limiter so every request gets logged
   // (including ones the limiter itself rejects), not just ones that reach
@@ -66,6 +69,10 @@ export function createApp(): Express {
   app.use(express.static(publicDir));
   app.get("/activate", (_req, res) => {
     res.sendFile(path.join(publicDir, "activate.html"));
+  });
+  // Where Stripe sends someone after paying (or backing out): a plain "you can go back to your TV" page.
+  app.get("/plus/thanks", (_req, res) => {
+    res.sendFile(path.join(publicDir, "plus-thanks.html"));
   });
 
   app.use("/health", healthRouter);
@@ -84,6 +91,7 @@ export function createApp(): Express {
   app.use("/user", trailersRouter);
   app.use("/user", releaseDatesRouter);
   app.use("/user", castRouter);
+  app.use("/user", plusRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

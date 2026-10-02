@@ -439,6 +439,7 @@ fun MangoNavHost() {
             continueWatchingSyncRepository = container.continueWatchingSyncRepository,
             guestGate = container.guestGate,
             feedbackRepository = container.feedbackRepository,
+            plusRepository = container.plusRepository,
             onNavigate = ::navigateTo,
             resolvePlayRoute = ::resolvePlayRoute
         )
