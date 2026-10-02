@@ -4148,3 +4148,11 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Tests performed:** none new (one string constant); not compiled or run locally (no Android SDK here), CI builds this branch. The release update check was not exercised.
 
+## Post-Milestone-58 — Fix the failing `RotationTest` on main (a wrong test, not wrong code)
+
+**Cause:** CI on `main` failed after Post-Milestone-56 on one unit test I wrote, `aRefreshSwapsMostOfTheRowWhenToldWhatTheLastLaunchShowed`, because it expected a refresh to swap most of the row on a tiny profile (4 liked movies, 42 candidates). There the "one liked movie explains at most 3 picks" rule leaves almost no room to rotate; the web app's engine does the same on that data (it kept all 20 titles each time). Merged before CI had finished, at the owner's request.
+
+**Change:** the test now uses a realistic profile (12 liked movies, 210 candidates), where the web engine keeps about 6 of 20 between launches, and asserts fewer than 10 are kept (and at least the 5 anchors). No app code changed.
+
+**Tests performed:** the same scenario run through the web engine (about 6 kept per launch for 12 and for 20 liked movies). The Kotlin test itself is run by CI (`build-apk.yml`); not run locally (no Android SDK here).
+

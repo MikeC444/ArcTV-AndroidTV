@@ -204,16 +204,61 @@ class RotationTest {
     }
 
     @Test
-    fun aRefreshSwapsMostOfTheRowWhenToldWhatTheLastLaunchShowed() {
-        setUpPool()
-        var previous = go(1).items.map { it.id }.toSet()
+    fun aRefreshSwapsMostOfTheRowOnARealisticProfile() {
+        // A profile of 12 liked movies (mostly horror) against 210 candidates. On a tiny pool (a handful of liked movies, a few dozen
+        // candidates) there is simply no room to rotate, because one liked movie can explain at most MAX_PICKS_PER_SOURCE picks. The
+        // web app's engine on this same data keeps about 6 of the 20 between launches, so most of the row changes.
+        val features = HashMap<String, Features>()
+        val candidates = ArrayList<Candidate>()
+        fun add(id: String, genres: List<String>, director: String, cast: String) {
+            features[id] = Features(genres = genres, directors = listOf(director), cast = listOf(cast))
+            candidates += Candidate(id, id, genres = genres, rating = (6 + id.length % 3).toDouble())
+        }
+        for (i in 0 until 150) {
+            val genres = when (i % 3) {
+                0 -> listOf("horror")
+                1 -> listOf("horror", "thriller")
+                else -> listOf("horror", "mystery")
+            }
+            add("hor$i", genres, "hd${i % 17}", "hc${i % 23}")
+        }
+        for (i in 0 until 60) add("com$i", if (i % 2 == 0) listOf("comedy") else listOf("comedy", "romance"), "cd${i % 11}", "cc${i % 13}")
+        val own = ArrayList<String>()
+        for (i in 0 until 9) {
+            val id = "lh$i"
+            own += id
+            features[id] = Features(genres = if (i % 2 == 1) listOf("horror", "thriller") else listOf("horror"), directors = listOf("hd${i % 17}"), cast = listOf("hc${i % 23}"))
+        }
+        for (i in 0 until 3) {
+            val id = "lc$i"
+            own += id
+            features[id] = Features(genres = listOf("comedy"), directors = listOf("cd${i % 11}"), cast = listOf("cc${i % 13}"))
+        }
+
+        fun launch(seed: Int, previous: Set<String>): List<String> = runBlocking {
+            recommend(
+                EngineInput(
+                    interactions = collectInteractions(own.map { InteractionInput(it, it, feedback = Feedback.LIKE) }),
+                    excludeIds = emptySet(),
+                    pool = candidates,
+                    interactionRefs = emptyMap(),
+                    loadFeatures = { refs, _ -> refs.associate { it.id to features[it.id] } },
+                    seed = seed,
+                    previousShown = previous
+                )
+            ).items.map { it.id }
+        }
+
+        var previous = launch(1, emptySet()).toSet()
         var kept = 0
         for (seed in 2 until 12) {
-            val ids = go(seed, previous).items.map { it.id }
+            val ids = launch(seed, previous)
             kept += ids.count { it in previous }
             previous = ids.toSet()
         }
-        assertTrue("kept on average: ${kept / 10.0}", kept / 10.0 < MAX_RESULTS * 0.75)
+        val average = kept / 10.0
+        assertTrue("kept on average: $average of $MAX_RESULTS", average < 10.0) // web engine: about 6
+        assertTrue("the strongest picks stay: $average", average >= ROTATION_ANCHORS)
     }
 
     // ── liked titles are not offered; hand-removed titles stay out ───────────────
