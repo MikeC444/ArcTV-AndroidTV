@@ -42,6 +42,7 @@ class PlusSettingsViewModel(application: Application) : AndroidViewModel(applica
     val checkout: StateFlow<PlusCheckoutState> = _checkout.asStateFlow()
 
     private var polling: Job? = null
+    private var starting: Job? = null
 
     /** Seconds left before the QR code stops waiting; drives the countdown beside it. */
     private val _remainingSeconds = MutableStateFlow(POLL_FOR_SECONDS)
@@ -55,7 +56,7 @@ class PlusSettingsViewModel(application: Application) : AndroidViewModel(applica
     fun choose(plan: String) {
         if (_checkout.value is PlusCheckoutState.Starting) return
         _checkout.value = PlusCheckoutState.Starting(plan)
-        viewModelScope.launch {
+        starting = viewModelScope.launch {
             try {
                 val link = plusRepository.startCheckout(plan)
                 _checkout.value = PlusCheckoutState.ShowingQr(plan, link.url, formatPlusPrice(link.amountTotal, link.currency))
@@ -79,6 +80,7 @@ class PlusSettingsViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun cancelCheckout() {
+        starting?.cancel()
         polling?.cancel()
         _checkout.value = PlusCheckoutState.Idle
     }

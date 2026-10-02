@@ -55,9 +55,14 @@ import com.mangotv.app.ui.theme.TextTertiary
  */
 @Composable
 fun PlusCheckoutPage(state: PlusCheckoutState, remainingSeconds: Int, onClose: () -> Unit) {
-    if (state !is PlusCheckoutState.ShowingQr && state !is PlusCheckoutState.Done) return
+    if (state !is PlusCheckoutState.ShowingQr && state !is PlusCheckoutState.Done && state !is PlusCheckoutState.Starting) return
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        val plan = if (state is PlusCheckoutState.ShowingQr) state.plan else (state as PlusCheckoutState.Done).plan
+        val plan = when (state) {
+            is PlusCheckoutState.ShowingQr -> state.plan
+            is PlusCheckoutState.Starting -> state.plan
+            is PlusCheckoutState.Done -> state.plan
+            else -> return@Dialog
+        }
         val planName = PLUS_PLANS.firstOrNull { it.id == plan }?.label ?: "Plus"
         Box(modifier = Modifier.fillMaxSize().background(MangoBackground).padding(horizontal = 56.dp, vertical = 32.dp)) {
             Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -67,7 +72,7 @@ fun PlusCheckoutPage(state: PlusCheckoutState, remainingSeconds: Int, onClose: (
                 Spacer(Modifier.height(16.dp))
                 if (state is PlusCheckoutState.Done) {
                     DonePanel(planName)
-                } else if (state is PlusCheckoutState.ShowingQr) {
+                } else {
                     Text(
                         text = "Finish payment on your phone",
                         color = TextPrimary,
@@ -77,8 +82,9 @@ fun PlusCheckoutPage(state: PlusCheckoutState, remainingSeconds: Int, onClose: (
                     Text(text = "Scan the code, pay on Stripe's secure page, and Plus switches on here by itself.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(18.dp))
                     Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
-                        PlanCardPanel(plan = plan, planName = planName, price = state.priceLabel, onChange = onClose, modifier = Modifier.weight(1f))
-                        QrPanel(url = state.url, remainingSeconds = remainingSeconds, modifier = Modifier.weight(1f))
+                        val ready = state as? PlusCheckoutState.ShowingQr
+                        PlanCardPanel(plan = plan, planName = planName, price = ready?.priceLabel, loading = ready == null, onChange = onClose, modifier = Modifier.weight(1f))
+                        QrPanel(url = ready?.url, remainingSeconds = remainingSeconds, modifier = Modifier.weight(1f))
                     }
                 }
                 Spacer(Modifier.height(10.dp))
@@ -121,7 +127,7 @@ private fun Steps(done: Boolean) {
 }
 
 @Composable
-private fun PlanCardPanel(plan: String, planName: String, price: String?, onChange: () -> Unit, modifier: Modifier) {
+private fun PlanCardPanel(plan: String, planName: String, price: String?, loading: Boolean, onChange: () -> Unit, modifier: Modifier) {
     val changeFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { changeFocus.requestFocus() } }
     Column(
@@ -133,7 +139,7 @@ private fun PlanCardPanel(plan: String, planName: String, price: String?, onChan
         Text(text = "YOUR PLAN", color = TextTertiary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
         Text(text = "Arc TV Plus · $planName", color = TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(text = price ?: "Shown on your phone", color = ArcAccent, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(text = if (loading) "" else price ?: "Shown on your phone", color = ArcAccent, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             val suffix = billingSuffix(plan)
             if (price != null && suffix != null) {
                 Spacer(Modifier.width(6.dp))
@@ -149,7 +155,7 @@ private fun PlanCardPanel(plan: String, planName: String, price: String?, onChan
         }
         Spacer(Modifier.height(2.dp))
         InfoRow("Billing", billingLabel(plan))
-        InfoRow("Due today", price ?: "-")
+        InfoRow("Due today", if (loading) "" else price ?: "-")
         Text(text = billingNote(plan), color = TextTertiary, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(6.dp))
         MangoButton(text = "Change plan", icon = Icons.Filled.ArrowBack, onClick = onChange, focusRequester = changeFocus, compact = true)
@@ -165,7 +171,7 @@ private fun InfoRow(label: String, value: String) {
 }
 
 @Composable
-private fun QrPanel(url: String, remainingSeconds: Int, modifier: Modifier) {
+private fun QrPanel(url: String?, remainingSeconds: Int, modifier: Modifier) {
     Column(
         modifier = modifier
             .background(MangoSurface, RoundedCornerShape(MangoDimens.CardCornerRadius))
@@ -174,9 +180,14 @@ private fun QrPanel(url: String, remainingSeconds: Int, modifier: Modifier) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(text = "Scan to pay", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        QrCodeImage(content = url, modifier = Modifier.size(280.dp), sizePx = 840)
+        if (url != null) {
+            QrCodeImage(content = url, modifier = Modifier.size(280.dp), sizePx = 840)
+        } else {
+            // Same size as the code, so the page doesn't jump when it arrives.
+            Box(modifier = Modifier.size(304.dp).background(MangoSurfaceHigh, RoundedCornerShape(12.dp)))
+        }
         Text(text = "Point your phone's camera at the code.", color = TextSecondary, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-        Text(text = "Waiting for payment…  ${formatCountdown(remainingSeconds)}", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+        Text(text = if (url == null) " " else "Waiting for payment…  ${formatCountdown(remainingSeconds)}", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
     }
 }
 

@@ -66,7 +66,7 @@ fun ColumnScope.PlusSettingsContent(
     val status by viewModel.status.collectAsStateWithLifecycle()
     val checkout by viewModel.checkout.collectAsStateWithLifecycle()
     val remaining by viewModel.remainingSeconds.collectAsStateWithLifecycle()
-    val showCheckout = checkout is PlusCheckoutState.Starting || checkout is PlusCheckoutState.Error
+    val showCheckout = checkout is PlusCheckoutState.Error
     val sellPlans = status.paywall && !status.active
 
     // The QR code gets a full-screen page of its own; Back or "Change plan" returns here.
@@ -79,7 +79,21 @@ fun ColumnScope.PlusSettingsContent(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item(key = "status") {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Focusable so the remote can step back up to the top of the tab (plain text can't take focus, which left the
+            // list stuck scrolled down), and it is where focus lands when the tab opens.
+            TvFocusSurface(
+                onClick = {},
+                clickSound = ClickSound.NONE,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
+                focusedScale = 1.01f,
+                backgroundColor = MangoBackground,
+                borderColor = TextPrimary,
+                focusRequester = contentFocusRequester,
+                focusUp = navFocusRequester,
+                focusLeft = sidebarFocusRequester
+            ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     when {
                         !status.paywall -> {
@@ -110,6 +124,7 @@ fun ColumnScope.PlusSettingsContent(
                     Text(text = PLUS_PROCEEDS_NOTE, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
             }
+            }
         }
 
         item(key = "perks_header") {
@@ -125,8 +140,8 @@ fun ColumnScope.PlusSettingsContent(
                 PerkRow(
                     perk = perk,
                     paywall = status.paywall,
-                    focusRequester = if (index == 0) contentFocusRequester else null,
-                    focusUp = if (index == 0) navFocusRequester else null,
+                    focusRequester = null,
+                    focusUp = null,
                     focusLeft = sidebarFocusRequester
                 )
             }
@@ -197,8 +212,7 @@ private fun CheckoutPanel(checkout: PlusCheckoutState, onCancel: () -> Unit, foc
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         when (checkout) {
-            is PlusCheckoutState.Starting -> Text(text = "Getting your checkout ready…", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-            is PlusCheckoutState.ShowingQr, is PlusCheckoutState.Done -> Unit
+            is PlusCheckoutState.Starting, is PlusCheckoutState.ShowingQr, is PlusCheckoutState.Done -> Unit
             is PlusCheckoutState.Error -> {
                 Text(text = checkout.message, color = ErrorCoral, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
                 MangoButton(text = "Close", icon = Icons.Filled.Close, onClick = onCancel, focusLeft = focusLeft, compact = true)

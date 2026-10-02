@@ -4051,3 +4051,7 @@ unoptimised Compose, so they will always feel slower than a release build on a F
 **Backend:** `POST /user/plus/checkout` now also returns `amountTotal` (smallest currency unit) and `currency` from the Stripe session, so the TV can show the real price; older apps ignore the extra fields.
 
 **App:** new `PlusCheckoutPage` (full-screen `Dialog`): logo, three-step indicator (Choose plan / Pay on phone / Start watching), "YOUR PLAN" card (plan, price from Stripe, included perks, billing, due today, note, "Change plan") and a large QR with a mm:ss countdown and "Waiting for payment…"; a thank-you screen for 3 seconds when the payment lands, then it closes. Back or "Change plan" returns to the plans. `PlusSettingsViewModel` now ticks every second and checks the payment every 4th tick over the same 10-minute window. `PlusPrice.kt` holds the price/countdown/billing text helpers, unit-tested. If the backend hasn't been redeployed the price reads "Shown on your phone".
+
+## Post-Milestone-50 refinement — Plus tab scrolling and instant checkout
+
+The Arc TV Plus tab's top block (plan status) is now a focusable surface and the first stop for the remote, so Up from the perks scrolls back to it (plain text can't take focus, which stranded the list scrolled down). Choosing a plan opens the full-screen checkout page at once, with the plan card and a same-size blank QR placeholder until the link arrives; the inline "Getting your checkout ready…" text is gone. "Change plan" during that moment now cancels the pending request. Errors still show under the plans.
