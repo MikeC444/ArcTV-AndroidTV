@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.theme.DividerSubtle
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoBackgroundElevated
 import com.mangotv.app.ui.theme.MangoSurface
 import com.mangotv.app.ui.theme.TextPrimary
@@ -106,7 +106,7 @@ private fun IconContainer(icon: ImageVector, size: Dp, iconSize: Dp) {
 
 /**
  * One settings row: icon container, title/subtitle, and a trailing chevron
- * (navigates) or [ToggleSwitch] (toggles in place). Shows a soft amber glow
+ * (navigates) or [ToggleSwitch] (toggles in place). Shows a soft accent glow
  * around itself while D-pad-focused — approximated with a radial-gradient
  * halo layered behind the row (same no-blur technique GlowPlayBadge already
  * uses) rather than a real blur, consistent with the rest of this app's
@@ -132,7 +132,7 @@ fun SettingsRow(
                 modifier = Modifier
                     .matchParentSize()
                     .background(
-                        Brush.radialGradient(listOf(MangoAmber.copy(alpha = 0.35f), Color.Transparent)),
+                        Brush.radialGradient(listOf(ArcAccent.copy(alpha = 0.35f), Color.Transparent)),
                         RowShape
                     )
             )
@@ -142,7 +142,7 @@ fun SettingsRow(
             shape = RowShape,
             backgroundColor = MangoSurface,
             focusRequester = focusRequester,
-            borderColor = MangoAmber,
+            borderColor = ArcAccent,
             onFocusChanged = { focused = it },
             bringIntoViewOnFocus = false,
             modifier = Modifier.fillMaxWidth().padding(4.dp)
@@ -184,7 +184,7 @@ fun ToggleSwitch(checked: Boolean, modifier: Modifier = Modifier) {
         modifier = modifier
             .width(44.dp)
             .height(26.dp)
-            .background(if (checked) MangoAmber else MangoSurface, RoundedCornerShape(percent = 50))
+            .background(if (checked) ArcAccent else MangoSurface, RoundedCornerShape(percent = 50))
             .border(BorderStroke(1.dp, DividerSubtle), RoundedCornerShape(percent = 50))
             .padding(3.dp),
         contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart

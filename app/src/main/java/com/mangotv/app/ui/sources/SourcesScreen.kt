@@ -52,7 +52,7 @@ import com.mangotv.app.ui.components.MangoButtonStyle
 import com.mangotv.app.ui.components.ShimmerBox
 import com.mangotv.app.ui.components.rememberOpaqueImageRequest
 import com.mangotv.app.ui.theme.DividerSubtle
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.TextPrimary
@@ -310,7 +310,7 @@ private fun SourcesContent(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.padding(bottom = 10.dp)
                             ) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MangoAmber, strokeWidth = 2.dp)
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = ArcAccent, strokeWidth = 2.dp)
                                 Spacer(Modifier.width(8.dp))
                                 Text(
                                     text = "Looking for more sources…",
@@ -397,7 +397,7 @@ private fun SourcesSearchingState(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        CircularProgressIndicator(modifier = Modifier.size(32.dp), color = MangoAmber, strokeWidth = 3.dp)
+        CircularProgressIndicator(modifier = Modifier.size(32.dp), color = ArcAccent, strokeWidth = 3.dp)
         Spacer(Modifier.height(16.dp))
         Text(
             text = "Searching for sources…",

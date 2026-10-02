@@ -56,7 +56,7 @@ class AddonPairingServer(
             input{width:100%;padding:16px;font-size:16px;border-radius:10px;border:1px solid #333;
                   margin-top:16px;box-sizing:border-box;background:#1c1c20;color:#fff;}
             button{width:100%;padding:16px;font-size:16px;font-weight:700;border-radius:10px;border:none;
-                   margin-top:16px;background:linear-gradient(90deg,#ffb020,#ff3d68);color:#08080a;}
+                   margin-top:16px;background:linear-gradient(90deg,#19e6ff,#2f80ff,#9b5cff);color:#08080a;}
         """
 
         private val FORM_HTML = """

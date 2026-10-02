@@ -64,7 +64,7 @@ import com.mangotv.app.data.model.Episode
 import com.mangotv.app.ui.components.HeroIconButton
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
@@ -205,7 +205,7 @@ fun DetailHeroSection(
                     Icon(
                         imageVector = Icons.Filled.Star,
                         contentDescription = null,
-                        tint = MangoAmber,
+                        tint = ArcAccent,
                         modifier = Modifier.height(if (compact) 16.dp else 22.dp)
                     )
                     Spacer(Modifier.width(if (compact) 6.dp else 8.dp))

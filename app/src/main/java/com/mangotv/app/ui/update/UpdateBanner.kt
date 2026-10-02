@@ -33,7 +33,8 @@ import com.mangotv.app.ui.components.HeroIconButton
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
 import com.mangotv.app.ui.theme.DividerSubtle
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
+import com.mangotv.app.ui.theme.ArcWarn
 import com.mangotv.app.ui.theme.MangoBackgroundElevated
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
@@ -69,7 +70,7 @@ internal fun UpdateBanner(
                 drawRect(MangoBackgroundElevated)
                 if (progress > 0f) {
                     drawRect(
-                        color = MangoAmber,
+                        color = ArcAccent,
                         alpha = 0.9f,
                         size = Size(width = size.width * progress, height = size.height)
                     )
@@ -111,7 +112,7 @@ internal fun UpdateBanner(
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (state.errorMessage != null) MangoAmber else TextSecondary,
+                    color = if (state.errorMessage != null) ArcWarn else TextSecondary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )

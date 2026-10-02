@@ -72,13 +72,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mangotv.app.navigation.MangoRoutes
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.settings.SettingsScaffold
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoAzure
-import com.mangotv.app.ui.theme.MangoCoral
+import com.mangotv.app.ui.theme.ArcViolet
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoMotion
 import com.mangotv.app.ui.theme.MangoSurfaceHigh
-import com.mangotv.app.ui.theme.MangoTangerine
+import com.mangotv.app.ui.theme.ArcBlue
 import com.mangotv.app.ui.theme.MangoTeal
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
@@ -93,11 +93,11 @@ private const val GENRE_GRID_COLUMNS = 5
 private const val GENRE_GRID_VISIBLE_ROWS = 4
 
 // Cycled by card position so the grid reads as a coherent set of accents
-// (the same amber/tangerine/coral/azure/teal family used sparingly
+// (the same cyan/blue/violet/azure/teal family used sparingly
 // elsewhere in the app) rather than one repeated color -- there's no
 // per-genre image or brand color to key off, since addons only ever
 // report genre names, never artwork.
-private val GenreCardAccents = listOf(MangoAmber, MangoTangerine, MangoCoral, MangoAzure, MangoTeal)
+private val GenreCardAccents = listOf(ArcAccent, ArcBlue, ArcViolet, MangoAzure, MangoTeal)
 
 // Best-effort keyword match against whatever string an addon happens to
 // report as a genre -- these aren't a fixed enum, so this only recognizes
@@ -198,7 +198,7 @@ fun GenresScreen(
         onNavigateDown = onNavigateDown
     ) {
         when (uiState) {
-            is GenresUiState.Loading -> CircularProgressIndicator(color = MangoAmber)
+            is GenresUiState.Loading -> CircularProgressIndicator(color = ArcAccent)
             is GenresUiState.NoAddons -> Text(
                 text = "Install an addon first — genres will show up here once it's added.",
                 color = TextSecondary,

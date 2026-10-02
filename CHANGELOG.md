@@ -3359,3 +3359,46 @@ Cast is capped at 20 people.
 
 **Issues fixed:** Cast avatars always showing the placeholder; TV shows with
 episodes showing no cast.
+
+## Post-Milestone-32 — Arc TV Colours
+
+**Status:** Complete, not compiled (see Tests performed). First of three
+commits for the Arc TV rebrand (colours, then name, then artwork).
+
+**Context:** Ported from the web app (MangotvWebb 08bc73a "Recolour the UI to
+the Arc TV logo palette"). The app's accent was amber with a
+tangerine/coral gradient; the Arc TV logo is cyan, blue and violet.
+
+**Changes:**
+- `Color.kt` -- the brand set is now `ArcCyan` (#19E6FF), `ArcBlue` (#2F80FF)
+  and `ArcViolet` (#9B5CFF), the same values the web uses. `ArcAccent` is the
+  single accent role (what `MangoAmber` was). `ArcWarn` (amber) is for warning
+  text only and `ErrorCoral` (red) for errors and destructive actions only, so
+  those still read as a warning and an error. `ArcBrandGradient` runs
+  cyan-blue-violet. `FocusGlow` follows the accent, `FocusBorder` is #8CF3FF
+  and `ProgressFill` is the accent, as on the web. Neutral surfaces, the text
+  colours, the watched-tick green and the azure/teal source-tier colours are
+  unchanged.
+- All users of the old names were renamed mechanically (`MangoAmber` to
+  `ArcAccent`, `MangoCoral` to `ErrorCoral`, `MangoBrandGradient` to
+  `ArcBrandGradient`, `mangoBrandGradient` to `arcBrandGradient`).
+  Behaviour changes beyond the colour itself: the update banner's error line is
+  now `ArcWarn` rather than the accent so it still reads as a warning, 4K
+  source badges take the accent as on the web, the Genres card accents are
+  cyan/blue/violet/azure/teal, and Material's `secondary`/`tertiary` are
+  violet/blue.
+- `AddonPairingServer.kt` -- the phone page's button gradient is
+  cyan-blue-violet to match. Comments that said "amber" were updated.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no
+Android SDK): a search confirming no reference to a removed name or an old
+orange hex value remains outside `Color.kt`, brace/paren balance on every
+touched file, and a manual re-read. The change is names and colour values only,
+so the GitHub Actions compile is what proves the renames are complete.
+**Not performed:** an on-device look -- check text on the gradient buttons is
+legible, the focus highlight is visible against posters, and no orange is left.
+
+**Issues discovered:** The boot video (`BootVideoScreen`) is an asset, not code;
+if it has orange or the old logo baked in it still shows the old look.
+
+**Issues fixed:** none beyond the colour change itself.

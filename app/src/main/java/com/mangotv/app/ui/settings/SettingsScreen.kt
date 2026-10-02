@@ -31,7 +31,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.mangotv.app.ui.components.TvFocusSurface
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoSurface
 import com.mangotv.app.ui.theme.MangoSurfaceHigh
@@ -149,7 +149,7 @@ private fun SettingsSidebarRow(
     focusUp: FocusRequester? = null,
     focusRight: FocusRequester? = null
 ) {
-    val contentColor = if (selected) MangoAmber else TextPrimary
+    val contentColor = if (selected) ArcAccent else TextPrimary
 
     TvFocusSurface(
         onClick = onClick,

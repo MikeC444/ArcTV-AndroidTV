@@ -14,6 +14,7 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- New look: the app's colours now follow the Arc TV logo (cyan, blue and violet) instead of amber and orange, across buttons, selected items, switches, the focus highlight and the progress bars. Warnings stay amber and errors stay red
 - Cast on a movie or show's page now shows each actor's photo and the character they play, instead of a blank circle with just a name, and TV shows now list their cast under the episodes
 - Pressing BACK from a movie or show's page now returns you to the exact poster you left on Home, in the same row and at the same scroll position, instead of jumping back to the top
 - My List has a "Sort by" row next to the All / Watched filter: Recently Added (the default), A–Z, Highest Rated and Newest

@@ -55,9 +55,9 @@ import com.mangotv.app.ui.components.MangoButtonStyle
 import com.mangotv.app.ui.detail.PendingDetailCache
 import com.mangotv.app.ui.home.MangoNavItems
 import com.mangotv.app.ui.home.TopNavBar
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoBackground
-import com.mangotv.app.ui.theme.MangoCoral
+import com.mangotv.app.ui.theme.ErrorCoral
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoSurface
 import com.mangotv.app.ui.theme.TextPrimary
@@ -152,8 +152,8 @@ fun SearchScreen(
                             unfocusedContainerColor = MangoSurface,
                             focusedTextColor = TextPrimary,
                             unfocusedTextColor = TextPrimary,
-                            cursorColor = MangoAmber,
-                            focusedIndicatorColor = MangoAmber,
+                            cursorColor = ArcAccent,
+                            focusedIndicatorColor = ArcAccent,
                             unfocusedIndicatorColor = TextTertiary
                         )
                     )
@@ -181,7 +181,7 @@ fun SearchScreen(
                         modifier = Modifier.padding(horizontal = MangoDimens.ScreenPaddingHorizontal),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MangoAmber, strokeWidth = 2.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = ArcAccent, strokeWidth = 2.dp)
                         Spacer(Modifier.width(10.dp))
                         Text(text = "Searching…", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                     }
@@ -220,7 +220,7 @@ fun SearchScreen(
                     )
                     is SearchUiState.Error -> Text(
                         text = state.message,
-                        color = MangoCoral,
+                        color = ErrorCoral,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(horizontal = MangoDimens.ScreenPaddingHorizontal)
                     )

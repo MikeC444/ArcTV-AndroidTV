@@ -196,13 +196,13 @@ private fun NavItem(
         onClick = onClick,
         shape = RoundedCornerShape(6.dp),
         backgroundColor = Color.Transparent,
-        // White rather than TvFocusSurface's default amber border -- scoped
+        // White rather than TvFocusSurface's default accent border -- scoped
         // to just the nav bar via this explicit override, not a global
         // FocusBorder change, so every other focusable element in the app
         // (cards, buttons) keeps its usual focus color.
         borderColor = TextPrimary,
         // TvFocusSurface's default focus shadow is a blurred black
-        // ambient/spot shadow -- invisible against the amber border/dark
+        // ambient/spot shadow -- invisible against the accent border/dark
         // cards it was designed for, but at nav-item size it sits right at
         // the white border's inner edge and reads as a faint dark ring
         // inside the border. Nav items don't need the "lift" effect anyway

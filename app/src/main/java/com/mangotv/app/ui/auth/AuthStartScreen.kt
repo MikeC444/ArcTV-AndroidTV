@@ -41,7 +41,7 @@ import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
 import com.mangotv.app.ui.components.MangoLogo
 import com.mangotv.app.ui.theme.MangoBackground
-import com.mangotv.app.ui.theme.MangoBrandGradient
+import com.mangotv.app.ui.theme.ArcBrandGradient
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
@@ -122,7 +122,7 @@ fun AuthStartScreen(
             Text(
                 text = buildAnnotatedString {
                     append("Your Entertainment,\n")
-                    withStyle(SpanStyle(brush = MangoBrandGradient)) { append("Your Way") }
+                    withStyle(SpanStyle(brush = ArcBrandGradient)) { append("Your Way") }
                 },
                 color = TextPrimary,
                 style = MaterialTheme.typography.displayMedium

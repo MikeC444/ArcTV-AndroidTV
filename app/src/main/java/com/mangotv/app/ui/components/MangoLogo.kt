@@ -12,7 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mangotv.app.ui.theme.MangoBrandGradient
+import com.mangotv.app.ui.theme.ArcBrandGradient
 import com.mangotv.app.ui.theme.TextPrimary
 
 @Composable
@@ -34,7 +34,7 @@ fun MangoLogo(
         Text(
             text = "TV",
             style = TextStyle(
-                brush = MangoBrandGradient,
+                brush = ArcBrandGradient,
                 fontWeight = FontWeight.Black,
                 fontSize = fontSize,
                 letterSpacing = 0.5.sp

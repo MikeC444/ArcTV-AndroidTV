@@ -140,10 +140,10 @@ fun SeasonsSection(
 
 /**
  * Styled to echo the hero's Play button and icon buttons rather than the
- * old flat amber-tinted circle: selected is a solid white fill with bold
+ * old flat accent-tinted circle: selected is a solid white fill with bold
  * black text (same "confident, high-contrast active state" as
  * MangoButtonStyle.LIGHT), unselected is the same frosted glass tint
- * HeroIconButton rests at. Focus (amber border/scale/elevation) still
+ * HeroIconButton rests at. Focus (accent border/scale/elevation) still
  * comes from TvFocusSurface's own default, unchanged from every other
  * focusable element on this screen.
  */

@@ -37,7 +37,7 @@ import com.mangotv.app.data.model.Stream
 import com.mangotv.app.ui.components.GlowPlayBadge
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.theme.FocusBorder
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoAzure
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoDimens
@@ -66,10 +66,10 @@ fun SourceRow(
             focusRequester = focusRequester,
             // Drawn by TvFocusSurface itself (inside its focus-scale
             // transform) rather than as a border on the modifier above, so
-            // the amber outline scales up together with the card instead
+            // the accent outline scales up together with the card instead
             // of staying a fixed size while the card grows around it.
             alwaysShowBorder = isRecommended,
-            borderColor = if (isRecommended) MangoAmber else FocusBorder,
+            borderColor = if (isRecommended) ArcAccent else FocusBorder,
             bringIntoViewOnFocus = false
         ) {
             Row(
@@ -221,7 +221,7 @@ fun SourceRow(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .offset(x = (-16).dp, y = (-10).dp)
-                    .background(MangoAmber, RoundedCornerShape(percent = 50))
+                    .background(ArcAccent, RoundedCornerShape(percent = 50))
                     .padding(horizontal = 10.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -246,7 +246,7 @@ fun SourceRow(
 @Composable
 private fun QualityBadge(stream: Stream) {
     val color = when (stream.resolutionTier) {
-        ResolutionTier.UHD_4K -> MangoAmber
+        ResolutionTier.UHD_4K -> ArcAccent
         ResolutionTier.FHD_1080P -> MangoAzure
         ResolutionTier.HD_720P -> MangoTeal
         ResolutionTier.OTHER -> TextTertiary

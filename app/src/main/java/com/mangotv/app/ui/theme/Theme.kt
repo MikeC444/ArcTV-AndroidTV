@@ -5,11 +5,11 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
 private val MangoColorScheme = darkColorScheme(
-    primary = MangoAmber,
+    primary = ArcAccent,
     onPrimary = MangoBackground,
-    secondary = MangoCoral,
+    secondary = ArcViolet,
     onSecondary = MangoBackground,
-    tertiary = MangoTangerine,
+    tertiary = ArcBlue,
     background = MangoBackground,
     onBackground = TextPrimary,
     surface = MangoSurface,

@@ -51,7 +51,7 @@ import com.mangotv.app.data.sync.ContinueWatchingSyncRepository
 import com.mangotv.app.navigation.MangoRoutes
 import com.mangotv.app.ui.theme.FocusBorder
 import com.mangotv.app.ui.theme.MangoBackgroundElevated
-import com.mangotv.app.ui.theme.MangoCoral
+import com.mangotv.app.ui.theme.ErrorCoral
 import com.mangotv.app.ui.theme.MangoSurface
 import com.mangotv.app.ui.theme.TextPrimary
 import kotlinx.coroutines.launch
@@ -303,7 +303,7 @@ private fun CardActionRow(
         shape = RoundedCornerShape(10.dp),
         backgroundColor = MangoSurface,
         focusRequester = focusRequester,
-        borderColor = if (destructive) MangoCoral else FocusBorder,
+        borderColor = if (destructive) ErrorCoral else FocusBorder,
         bringIntoViewOnFocus = false,
         modifier = modifier
             .fillMaxWidth()
@@ -319,13 +319,13 @@ private fun CardActionRow(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (destructive) MangoCoral else TextPrimary,
+                tint = if (destructive) ErrorCoral else TextPrimary,
                 modifier = Modifier.width(20.dp)
             )
             Spacer(Modifier.width(14.dp))
             Text(
                 text = label,
-                color = if (destructive) MangoCoral else TextPrimary,
+                color = if (destructive) ErrorCoral else TextPrimary,
                 style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

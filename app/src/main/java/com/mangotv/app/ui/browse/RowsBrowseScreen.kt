@@ -63,7 +63,7 @@ import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.detail.PendingDetailCache
 import com.mangotv.app.ui.home.MangoNavItems
 import com.mangotv.app.ui.home.TopNavBar
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoMotion
@@ -534,7 +534,7 @@ private fun CatalogSortPill(
     TvFocusSurface(
         onClick = onClick,
         shape = RoundedCornerShape(percent = 50),
-        backgroundColor = if (selected) MangoAmber else MangoSurfaceHigh,
+        backgroundColor = if (selected) ArcAccent else MangoSurfaceHigh,
         onFocusChanged = { focused = it },
         bringIntoViewOnFocus = false,
         focusRequester = focusRequester,
