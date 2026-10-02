@@ -81,6 +81,17 @@ object MangoRoutes {
 }
 
 /** Maps a top-nav label to the route it should navigate to, or null if that section isn't built yet. */
+/**
+ * Whether a guest (someone browsing without an account) has to sign in to open [route]: Play (the source picker and the
+ * player), My List and Settings. Everything else can be browsed.
+ */
+fun routeNeedsAccount(route: String): Boolean =
+    route == MangoRoutes.MY_LIST ||
+        route == MangoRoutes.SETTINGS ||
+        route == MangoRoutes.SETTINGS_ADD_ADDON ||
+        route.startsWith("sources/") ||
+        route.startsWith("player/")
+
 fun routeForNavLabel(label: String): String? = when (label) {
     "Home" -> MangoRoutes.HOME
     "Movies" -> MangoRoutes.MOVIES
@@ -89,5 +100,7 @@ fun routeForNavLabel(label: String): String? = when (label) {
     "Search" -> MangoRoutes.SEARCH
     "My List" -> MangoRoutes.MY_LIST
     "Settings" -> MangoRoutes.SETTINGS
+    // What a guest sees in place of Settings (see TopNavBar).
+    "Sign In" -> MangoRoutes.AUTH_START
     else -> null
 }

@@ -6,6 +6,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.mangotv.app.MangoTvApplication
 import com.mangotv.app.data.model.Content
+import com.mangotv.app.data.provider.blockedGenreSet
+import com.mangotv.app.data.provider.withoutBlocked
 import com.mangotv.app.data.model.HomeSection
 import com.mangotv.app.data.provider.CatalogProvider
 import com.mangotv.app.data.provider.ProviderRegistry
@@ -49,8 +51,19 @@ class GenreResultsViewModel(application: Application, savedStateHandle: SavedSta
     // (not a StateFlow) since it only needs to feed currentSection() below.
     private var watchedIds: Set<String> = emptySet()
 
+    private val blockedGenresRepository = (application as MangoTvApplication).container.blockedGenresRepository
+    private var blocked: Set<String> = blockedGenreSet(blockedGenresRepository.genres.value)
+
     init {
         load()
+        viewModelScope.launch {
+            blockedGenresRepository.genres.collect { genres ->
+                blocked = blockedGenreSet(genres)
+                if (_uiState.value is RowsBrowseUiState.Loaded && allItems.isNotEmpty()) {
+                    _uiState.value = RowsBrowseUiState.Loaded(listOf(currentSection()))
+                }
+            }
+        }
         // Re-publishes the already-loaded list whenever watched status
         // changes, so a title crossing the completion threshold (or being
         // removed from My List) ticks/unticks immediately even while this
@@ -68,7 +81,7 @@ class GenreResultsViewModel(application: Application, savedStateHandle: SavedSta
     private fun Content.withWatchedFlag(): Content = if (id in watchedIds) copy(watched = true) else this
 
     private fun currentSection(): HomeSection =
-        HomeSection(id = "genre_$genre", title = genre, items = allItems.map { it.withWatchedFlag() })
+        HomeSection(id = "genre_$genre", title = genre, items = allItems.withoutBlocked(blocked).map { it.withWatchedFlag() })
 
     fun load() {
         viewModelScope.launch {

@@ -39,7 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mangotv.app.ui.components.ClickSound
 import com.mangotv.app.ui.components.TvFocusSurface
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoSurface
 import com.mangotv.app.ui.theme.MangoSurfaceHigh
@@ -169,7 +169,7 @@ private fun NavigationVolumeRow(
                     modifier = Modifier
                         .fillMaxWidth(volume.coerceIn(0f, 1f))
                         .fillMaxHeight()
-                        .background(MangoAmber)
+                        .background(ArcAccent)
                 )
             }
             if (focused) {

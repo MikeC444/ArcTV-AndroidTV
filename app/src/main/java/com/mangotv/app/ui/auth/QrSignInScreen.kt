@@ -35,7 +35,7 @@ import com.mangotv.app.ui.components.FullScreenErrorState
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
 import com.mangotv.app.ui.components.QrCodeImage
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
@@ -74,7 +74,7 @@ fun QrSignInScreen(
         contentAlignment = Alignment.Center
     ) {
         when (val state = uiState) {
-            is QrUiState.Loading -> CircularProgressIndicator(color = MangoAmber)
+            is QrUiState.Loading -> CircularProgressIndicator(color = ArcAccent)
 
             is QrUiState.Error -> FullScreenErrorState(
                 message = state.message,
@@ -86,7 +86,7 @@ fun QrSignInScreen(
                 modifier = Modifier.widthIn(max = 520.dp)
             ) {
                 Text(
-                    text = "Sync existing MangoTV data to your account?",
+                    text = "Sync existing Arc TV data to your account?",
                     color = TextPrimary,
                     style = MaterialTheme.typography.headlineSmall,
                     textAlign = TextAlign.Center

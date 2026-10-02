@@ -2,6 +2,7 @@ package com.mangotv.app.data.addon
 
 import com.mangotv.app.data.model.CastMember
 import com.mangotv.app.data.model.Content
+import com.mangotv.app.data.model.DebridState
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.model.Episode
 import com.mangotv.app.data.model.Genre
@@ -122,6 +123,14 @@ private val AUDIO_TAG = Regex(
         "\\b7\\.1\\b|\\b5\\.1\\b|\\b2\\.0\\b",
     RegexOption.IGNORE_CASE
 )
+// "[RD+] Torrentio" = cached on Real-Debrid; "[RD download] Torrentio" = not cached (the service has to fetch it first).
+private val DEBRID_TAG = Regex("^\\s*\\[\\s*([A-Za-z]{2,3})\\s*(\\+|download)\\s*\\]", RegexOption.IGNORE_CASE)
+
+fun parseDebridTag(name: String?): DebridState? {
+    val match = DEBRID_TAG.find(name.orEmpty()) ?: return null
+    return DebridState(service = match.groupValues[1].uppercase(), cached = match.groupValues[2] == "+")
+}
+
 private val SIZE_PATTERN = Regex("(\\d+(?:\\.\\d+)?)\\s?(GB|MB)", RegexOption.IGNORE_CASE)
 private val SEEDERS_EMOJI = Regex("👤\\s?(\\d+)")
 private val SEEDERS_WORD = Regex("(\\d+)\\s*(?:seeds?|peers?)\\b", RegexOption.IGNORE_CASE)
@@ -199,6 +208,7 @@ fun StremioStream.toStream(providerId: String, providerLabel: String): Stream {
         sourceHealth = sourceHealth,
         url = url,
         infoHash = infoHash,
-        ytId = ytId
+        ytId = ytId,
+        debrid = parseDebridTag(name)
     )
 }

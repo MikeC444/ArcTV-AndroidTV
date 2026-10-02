@@ -20,6 +20,8 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -72,7 +74,8 @@ fun HomeScreen(
                     state = state,
                     onNavigate = onNavigate,
                     savedIds = savedIds,
-                    onToggleMyList = viewModel::toggleMyList
+                    onToggleMyList = viewModel::toggleMyList,
+                    findTrailer = viewModel::findTrailer
                 )
             }
         }
@@ -115,6 +118,7 @@ private fun HomeContent(
     onNavigate: (String) -> Unit,
     savedIds: Set<String>,
     onToggleMyList: (Content) -> Unit,
+    findTrailer: suspend (Content) -> String?,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -123,13 +127,40 @@ private fun HomeContent(
     val homeNavFocusRequester = remember { FocusRequester() }
     var hasRequestedInitialFocus by remember { mutableStateOf(false) }
 
+    // The poster that held focus when the person left Home (to a title's Detail page and so on), so BACK lands on that
+    // exact poster again instead of the nav bar at the top. rememberSaveable, not remember: Navigation-Compose tears
+    // down plain remembered state when Home leaves the screen, but keeps saveable state for the back-stack entry (the
+    // same choice RowsBrowseScreen makes for Movies / TV Shows). Ids, not indexes, so a changed row list can't point
+    // at the wrong title. Null while focus is in the nav bar or hero.
+    var lastFocusedSectionId by rememberSaveable { mutableStateOf<String?>(null) }
+    var lastFocusedContentId by rememberSaveable { mutableStateOf<String?>(null) }
+
+    // Fixed for this visit to Home -- read once so the row that gets the restore plumbing below can't change under a
+    // person who is moving between rows. A target that no longer exists (title or row gone) just means no restore.
+    val restoreSectionId = remember { lastFocusedSectionId }
+    val restoreContentId = remember { lastFocusedContentId }
+    val restoreTarget = findFocusRestoreTarget(state.sections, restoreSectionId, restoreContentId)
+    val restoreRowIndex = restoreTarget?.rowIndex
+    val restoreItemIndex = restoreTarget?.itemIndex
+    val isRestoring = restoreTarget != null
+    val restoreFocusRequester = remember { FocusRequester() }
+    val restoreRowListState = rememberLazyListState()
+
     // Whether focus is currently somewhere in the nav bar / hero region,
     // where the user asked the screen to stay completely static. True by
     // default since initial focus lands on the nav bar. Flipped false only
     // when focus intentionally leaves the hero downward into the first
     // content row (see onNavigateDownFromHero below); flipped back true by
     // every explicit path that returns focus to the nav bar or hero.
-    var heroRegionFocused by remember { mutableStateOf(true) }
+    var heroRegionFocused by remember { mutableStateOf(!isRestoring) }
+
+    // Focus is back in the nav bar or hero, so there is no poster to return to any more.
+    LaunchedEffect(heroRegionFocused) {
+        if (heroRegionFocused) {
+            lastFocusedSectionId = null
+            lastFocusedContentId = null
+        }
+    }
 
     // Which row (index into state.sections, not the LazyColumn's own item
     // index) currently holds focus -- drives the explicit centering effect
@@ -145,11 +176,26 @@ private fun HomeContent(
     LaunchedEffect(state) {
         if (!hasRequestedInitialFocus) {
             hasRequestedInitialFocus = true
-            // Land on the "Home" nav tab by default, not the Play button —
-            // homeNavFocusRequester targets the nav bar overlay, which is
-            // always composed (unlike anything inside the LazyColumn below),
-            // so this is safe even before the list has laid out.
-            runCatching { homeNavFocusRequester.requestFocus() }
+            if (restoreRowIndex != null && restoreItemIndex != null) {
+                // Coming back from another screen: bring the remembered row (and the poster within it) on screen if
+                // the restored scroll positions left it off screen, then put focus back on that exact poster.
+                val lazyIndex = restoreRowIndex + 1 // offset for the "hero" item at index 0
+                if (listState.layoutInfo.visibleItemsInfo.none { it.index == lazyIndex }) {
+                    listState.scrollToItem(lazyIndex)
+                    withFrameNanos { }
+                }
+                if (restoreRowListState.layoutInfo.visibleItemsInfo.none { it.index == restoreItemIndex }) {
+                    restoreRowListState.scrollToItem(restoreItemIndex)
+                    withFrameNanos { }
+                }
+                runCatching { restoreFocusRequester.requestFocus() }
+            } else {
+                // Land on the "Home" nav tab by default, not the Play button —
+                // homeNavFocusRequester targets the nav bar overlay, which is
+                // always composed (unlike anything inside the LazyColumn below),
+                // so this is safe even before the list has laid out.
+                runCatching { homeNavFocusRequester.requestFocus() }
+            }
         }
     }
 
@@ -248,6 +294,7 @@ private fun HomeContent(
                         savedIds = savedIds,
                         onAddToList = onToggleMyList,
                         onMoreInfo = ::navigateToContent,
+                        findTrailer = findTrailer,
                         navUpFocusRequester = homeNavFocusRequester,
                         onNavigateUpPastHero = {
                             // Imperative, not focusProperties-driven: pressing UP
@@ -278,6 +325,13 @@ private fun HomeContent(
                         modifier = Modifier.padding(bottom = MangoDimens.RowSpacing),
                         posterScale = 0.75f,
                         onFocusChanged = { hasFocus -> if (hasFocus) focusedRowIndex = index },
+                        firstItemFocusRequester = if (isRestoring && index == restoreRowIndex) restoreFocusRequester else null,
+                        targetItemIndex = if (isRestoring && index == restoreRowIndex) restoreItemIndex ?: 0 else 0,
+                        listState = if (isRestoring && index == restoreRowIndex) restoreRowListState else rememberLazyListState(),
+                        onItemFocusChanged = { itemIndex ->
+                            lastFocusedSectionId = section.id
+                            lastFocusedContentId = section.items.getOrNull(itemIndex)?.id
+                        },
                         onNavigateUpPastRow = if (index == 0) {
                             {
                                 // Hero buttons no longer auto-scroll into view

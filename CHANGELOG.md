@@ -3101,3 +3101,926 @@ one appears first in the grid.
 **Issues discovered:** none beyond the one described in Context.
 
 **Issues fixed:** see Changes above.
+
+## Post-Milestone-26 — Removed Titles Stay Removed (Watched-History Catch-Up Guard)
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** Ported from the web app's fix of the same name (MangotvWebb
+commits 826c753 and b641b28). The one-time watched-history catch-up
+(`WatchlistSyncRepository.backfillWatchedFromHistoryIfNeeded()`) replays
+every finished movie through `markWatched()`. Its done-flag is reset on
+sign-out (`AccountSwitchCoordinator`) and is device-scoped, and a title the
+person removed from My List is gone from the server's active list, so
+nothing distinguished "removed on purpose" from "never added". Signing out
+and in, or signing in on a second device, therefore put removed movies
+back with a watched tick. Un-watching a title that stayed in the list was
+undone the same way.
+
+**Changes:**
+- `WatchlistSyncRepository.kt` -- the catch-up now exits early (and marks
+  itself done) when My List already has any titles; it only runs for an
+  account whose list is empty. The decision is the small
+  `shouldRunWatchedBackfill(myListSize)` function so it can be unit tested.
+  `pullFromServer()` now returns whether the list was actually read.
+- `SyncManager.kt` -- `syncAll()` runs the catch-up only when that pull
+  succeeded, because a list that failed to load looks empty and would make
+  a long-used account look brand new.
+- `WatchedBackfillTest.kt` -- unit tests for the empty / non-empty rule.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no
+route to `dl.google.com`): unit tests written for the guard but not run
+here, a re-read of the touched files, and a trace of every caller of
+`pullFromServer()` (only `SyncManager.syncAll()` uses it, so the new
+Boolean return breaks nothing). **Not performed:** a Gradle build, the unit
+tests, or an on-device check -- on-device, remove a watched movie, sign out
+and back in, and confirm it stays gone.
+
+**Issues discovered:** An account whose My List is completely empty (every
+title removed) still gets the catch-up on a fresh device, since there is
+nothing left to tell removed titles apart from never-added ones; the web
+app has the same limit. Making it fully airtight needs a synced record of
+removed titles, which is a backend change and out of scope here.
+Separately, an account that already had titles but never ran the catch-up
+(upgraded from before it existed) now has it skipped for good.
+
+**Issues fixed:** Removed or un-watched titles reappearing after sign-in.
+
+## Post-Milestone-27 — Home Rows Without Repeats, Recommended Source Always First
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** Ported from three web-app changes (MangotvWebb b7566d5 "Show
+each title in only one Home row", 29a638f "Continue Watching without
+repeats", 127d207 "Recommended source always first"). Before this, a title
+could appear in several Home rows, Continue Watching could repeat a title
+already shown below it, and the "Recommended" badge on Select a Source sat on
+whatever row the current sort and filter placed it -- or vanished when the
+filter hid it.
+
+**Changes:**
+- `HomeRowLogic.kt` (new) -- `dedupeSections()` keeps a title in the first
+  row displayed that holds it and drops rows left empty;
+  `withoutShownTitles()` removes from Continue Watching any title a
+  catalogue row already shows, and returns null when nothing is left.
+- `HomeViewModel.kt` -- `applyPreferences()` dedupes after the hidden rows
+  are removed (so a hidden row never uses up a title) and before the hero
+  pool is drawn, so the hero's ten titles follow the same rule. Continue
+  Watching goes through `withoutShownTitles()` against the visible rows.
+- `SourceOrdering.kt` (new) -- `sortSources()` (the previous inline sort,
+  unchanged) and `orderSources()`, which puts the recommended source first
+  and the filtered, sorted rest after it, listing it once.
+- `SourcesScreen.kt` -- uses `orderSources()`. The recommended source stays
+  first even when the active resolution filter would otherwise hide it, which
+  is what the web does.
+- `HomeRowLogicTest.kt`, `SourceOrderingTest.kt` -- unit tests for all of the
+  above, including that inputs are never mutated and untouched rows are
+  returned as the same objects.
+- `RELEASE_NOTES.md` -- two user-facing lines under Unreleased.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no
+Android SDK, no route to `dl.google.com`): unit tests written but not run
+here, brace/paren balance check on every touched Kotlin file (clean), and a
+manual re-read. **Not performed:** a Gradle compile, the unit tests, or an
+on-device check -- on-device, confirm no title repeats across Home rows,
+Continue Watching shows only titles absent from the rows below it, and the
+Recommended source is on top after switching filter and sort.
+
+**Issues discovered:** Continue Watching now hides a half-watched title
+whenever any catalogue row also lists it, so that title loses its progress
+bar on Home. This matches the web exactly, but on a TV, where Continue
+Watching is the main way back into a show, it may not be wanted -- flipping
+it is a one-line change in `applyPreferences()`.
+
+**Issues fixed:** see Changes above.
+
+## Post-Milestone-28 — My List "Sort by"
+
+**Status:** Complete, not compiled (see Tests performed). Revised in place
+after review: it first shipped as a row of pills, and was changed to the web's
+drop-down (see Post-Milestone-37 for the shared drop-down component).
+
+**Context:** Ported from the web app (MangotvWebb 800068e "Add sort-by options
+to My List", restyled as a drop-down in bc71264). My List could only show
+newest-added first, with no way to reorder it.
+
+**Changes:**
+- `MyListSort.kt` (new) -- `MyListSort` (Recently Added, A-Z, Highest Rated,
+  Newest) and `sortSavedItems()`. Every sort starts from the newest-added-first
+  reading of the repository's oldest-first list, so ties (same rating or year)
+  stay in recently-added order, and a title with no rating or year goes last.
+  A-Z uses a primary-strength `Collator`, so it ignores case and accents.
+- `MyListViewModel.kt` -- holds the selected sort and sorts after the
+  All/Watched filter. `toSections()` no longer reverses; the order now comes
+  from `sortSavedItems()`. `myListRepository.items` itself is untouched, so
+  every other reader still sees the oldest-first list.
+- `MyListScreen.kt` -- a "Sort by: Recently Added" drop-down beside the "My List"
+  title, as on the web, built on `DropdownPicker`. The All / Watched pills stay
+  below it. It is left out while the list is empty, since there is nothing to
+  sort.
+- `MyListSortTest.kt` -- unit tests for each order, tie-breaking, missing values
+  and that the stored list is never mutated.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no
+Android SDK): unit tests for the sorting run on GitHub Actions, brace/paren
+balance check on every touched Kotlin file (clean), and a manual re-read.
+**Not performed:** an on-device check -- see Post-Milestone-37 for what to check
+on the drop-down itself.
+
+**Issues discovered:** none.
+
+**Issues fixed:** see Changes above.
+
+## Post-Milestone-29 — CI: Android SDK Setup Step Fixed
+
+**Status:** Complete (verified by a green "Set up Android SDK" step and a
+green unit-test step on GitHub Actions, run 121).
+
+**Context:** Not a port. `build-apk.yml`'s "Set up Android SDK" step started
+failing on 2026-10-02 with `Failed to find package 'tools'` before Gradle ever
+ran, so no branch could be built or tested. It had last passed on 2026-09-14
+(run 119 on `main`). The hosted runner image already ships the SDK; the
+`android-actions/setup-android@v3` default package list asks `sdkmanager` for
+the retired `tools` package.
+
+**Changes:**
+- `.github/workflows/build-apk.yml` -- `packages: ""` on the setup step, so it
+  installs nothing extra. The workflow also only triggers on `main` and
+  `claude/**` pushes, so a branch like `other_fixes` has to be built with the
+  manual "Run workflow" button (`workflow_dispatch`).
+
+**Tests performed:** Dispatched the workflow on `other_fixes`: SDK setup and
+`testDebugUnitTest` passed.
+
+**Issues discovered:** None beyond the above.
+
+**Issues fixed:** The SDK setup failure.
+
+## Post-Milestone-30 — Home Returns To The Exact Poster On BACK
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** Ported from the web app's "Back buttons that return to the exact
+place" (MangotvWebb 29a638f). The Firestick already did this on Movies, TV
+Shows, Genre Results and My List (`RowsBrowseScreen`), but not on Home. Opening
+a title from a Home row and pressing BACK reset Home's own remembered state:
+focus went to the nav bar, `heroRegionFocused` started true, and the
+top-pinning watchdog snapped the list back to the top.
+
+**Changes:**
+- `HomeScreen.kt` -- `HomeContent` now remembers the focused poster's row id and
+  title id with `rememberSaveable` (ids, not indexes), updated through
+  `ContentRow`'s existing `onItemFocusChanged`. On re-entry it reads them once,
+  starts with the hero lock off, scrolls the row and the poster into view if the
+  restored positions left them off screen, and focuses that exact poster through
+  `ContentRow`'s existing `firstItemFocusRequester` / `targetItemIndex`. The
+  remembered poster is cleared whenever focus returns to the nav bar or hero, so
+  BACK from the hero's More Info still lands where it did before.
+- `HomeRowLogic.kt` -- `findFocusRestoreTarget()`, the id-based lookup, kept pure
+  so it can be tested. It returns nothing when the row or title is gone.
+- `HomeRowLogicTest.kt` -- tests for a moved row, a missing title and a missing row.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**Tests performed:** The lookup is covered by unit tests, not run here (no
+Android SDK in this sandbox); run on GitHub Actions afterwards, see the commit's
+build. Brace/paren balance check on touched files (clean) and a manual re-read.
+**Not performed:** an on-device check -- open a title from the third row, press
+BACK, and confirm focus is on that poster, the row is centred, and the row's
+horizontal position is where it was.
+
+**Issues discovered:** BACK from the hero's More Info still lands on the nav bar,
+not the hero button. Not looked at on the web side; a possible follow-up rather
+than part of this change.
+
+**Issues fixed:** Home losing its place on BACK.
+
+## Post-Milestone-31 — Cast Photos And Characters (TMDB Lookup)
+
+**Status:** Server side verified (typecheck plus its tests run against a local
+Postgres). App side complete but not compiled here (see Tests performed).
+**Needs a backend redeploy before it has any visible effect.**
+
+**Context:** Ported from the web app (MangotvWebb 3d714f5, 9cf3490, 701095f).
+`CastRow` already drew a photo and a character line, but the Stremio base
+protocol gives cast as plain names, so `StremioMapper` only ever produced
+`CastMember(name = ...)` and every avatar was the placeholder icon. TV shows
+with season data also never showed a cast at all.
+
+**Changes:**
+- Server: `schemas/cast.ts`, `services/castService.ts`, `routes/cast.ts`
+  (mounted in `app.ts`) -- `GET /user/cast?imdbId=tt...&type=MOVIE|TV_SHOW`,
+  authenticated like every route under `/user`. It finds the title on TMDB by
+  IMDb id, then reads its credits: up to 20 people with the character played and
+  a `w185` photo address. Same pattern as the release-date lookup: the existing
+  `TMDB_READ_ACCESS_TOKEN`, a 24 hour in-memory cache of hits and misses, and an
+  empty list instead of an error when TMDB is unconfigured, has no match or
+  fails. The IMDb id is matched against `^tt\d{1,10}$` before it is placed in
+  the TMDB path, so nothing else a caller sends reaches TMDB.
+- Server: `tests/cast.test.ts` -- auth, id validation, unconfigured, movie and TV
+  paths, no match, caching and a TMDB error.
+- App: `CastApiClient`, `CastDtos`, `CastRepository` (wired lazily in
+  `AppContainer`), and `mergeCast()`. The merge fills photos and characters into
+  the addon's own list by name (ignoring case, accents and punctuation), never
+  overwrites anything the addon sent, keeps the addon's order, and uses TMDB's
+  list when the addon sent none.
+- App: `DetailViewModel.loadCast()` runs as its own coroutine alongside the
+  trailer and release-date lookups, never delaying the page, and republishes the
+  enriched cast. A late answer for a title the person has already left is dropped.
+- App: `DetailScreen` shows the cast under the episodes for a TV show with season
+  data, as the web does.
+- App: `CastMergeTest.kt`.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**Tests performed:** Server: `tsc --noEmit` clean; `npm test` for `cast.test.ts`
+and `releaseDates.test.ts` -- 15 of 15 passing against a local Postgres 16 with
+all 14 migrations applied. App: same sandbox limitation as every recent
+milestone (no Android SDK); unit tests written and run on GitHub Actions
+afterwards, brace/paren balance check on touched files, manual re-read.
+**Not performed:** an on-device check -- open a movie and a show whose addon
+sends names only, and confirm photos and character lines appear a moment after
+the page, and that a show lists its cast under the episodes.
+
+**Deployment note:** the app only calls the new endpoint. Until the backend is
+redeployed with this change, the call returns 404, which the app treats as "no
+photos", so the page looks exactly as before. No new setting is needed; it reuses
+the TMDB token the trailer and release-date lookups already use.
+
+**Issues discovered:** The lookup only runs for ids that are IMDb ids (`tt...`),
+which is what Cinemeta uses; an addon with other id schemes keeps plain names.
+Cast is capped at 20 people.
+
+**Issues fixed:** Cast avatars always showing the placeholder; TV shows with
+episodes showing no cast.
+
+## Post-Milestone-32 — Arc TV Colours
+
+**Status:** Complete, not compiled (see Tests performed). First of three
+commits for the Arc TV rebrand (colours, then name, then artwork).
+
+**Context:** Ported from the web app (MangotvWebb 08bc73a "Recolour the UI to
+the Arc TV logo palette"). The app's accent was amber with a
+tangerine/coral gradient; the Arc TV logo is cyan, blue and violet.
+
+**Changes:**
+- `Color.kt` -- the brand set is now `ArcCyan` (#19E6FF), `ArcBlue` (#2F80FF)
+  and `ArcViolet` (#9B5CFF), the same values the web uses. `ArcAccent` is the
+  single accent role (what `MangoAmber` was). `ArcWarn` (amber) is for warning
+  text only and `ErrorCoral` (red) for errors and destructive actions only, so
+  those still read as a warning and an error. `ArcBrandGradient` runs
+  cyan-blue-violet. `FocusGlow` follows the accent, `FocusBorder` is #8CF3FF
+  and `ProgressFill` is the accent, as on the web. Neutral surfaces, the text
+  colours, the watched-tick green and the azure/teal source-tier colours are
+  unchanged.
+- All users of the old names were renamed mechanically (`MangoAmber` to
+  `ArcAccent`, `MangoCoral` to `ErrorCoral`, `MangoBrandGradient` to
+  `ArcBrandGradient`, `mangoBrandGradient` to `arcBrandGradient`).
+  Behaviour changes beyond the colour itself: the update banner's error line is
+  now `ArcWarn` rather than the accent so it still reads as a warning, 4K
+  source badges take the accent as on the web, the Genres card accents are
+  cyan/blue/violet/azure/teal, and Material's `secondary`/`tertiary` are
+  violet/blue.
+- `AddonPairingServer.kt` -- the phone page's button gradient is
+  cyan-blue-violet to match. Comments that said "amber" were updated.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no
+Android SDK): a search confirming no reference to a removed name or an old
+orange hex value remains outside `Color.kt`, brace/paren balance on every
+touched file, and a manual re-read. The change is names and colour values only,
+so the GitHub Actions compile is what proves the renames are complete.
+**Not performed:** an on-device look -- check text on the gradient buttons is
+legible, the focus highlight is visible against posters, and no orange is left.
+
+**Issues discovered:** The boot video (`BootVideoScreen`) is an asset, not code;
+if it has orange or the old logo baked in it still shows the old look.
+
+**Issues fixed:** none beyond the colour change itself.
+
+## Post-Milestone-33 — Mango TV Becomes Arc TV (Name)
+
+**Status:** Complete, not compiled (see Tests performed). Second of three
+commits for the Arc TV rebrand.
+
+**Context:** Ported from the web app (MangotvWebb bc1a55c, 53757a8: "Rebrand
+visible text from Mango TV to Arc TV"). The web changed visible text only and
+left identifiers, storage keys and environment variables alone; this does the
+same.
+
+**Changes:**
+- `strings.xml` -- `app_name` is "Arc TV", so the launcher label, the Fire TV
+  home tile caption and the system's app list show it.
+- User-visible strings: the empty-state and Add Addon hints, the Account row's
+  description in Settings, the "Sync existing ... data to your account?" prompt
+  on both sign-in screens, the update banner's install-permission text, and the
+  phone page the QR add-addon flow serves (title, heading and button).
+- `README.md` and `RELEASE_NOTES.md` -- titled Arc TV, with a note that code
+  names are unchanged.
+
+**Deliberately not changed:** the package name `com.mangotv.app` (changing it
+would make Android treat the next build as a different app, so installed copies
+could not update in place and their saved data and sign-in would be lost);
+class, theme and resource names such as `MangoTvApplication` and
+`Theme.MangoTV`; the GitHub repository name in `UpdateRepository.kt` (the app
+finds updates by it); the APK/release asset names; the Gradle project name.
+Internal comments still say Mango. Fully renaming any of these is a separate,
+larger change.
+
+**Tests performed:** A search of every quoted string and XML resource for
+"Mango"; what remains is identifiers and the repository name listed above. A
+manual re-read of each edited string. **Not performed:** an on-device check of
+the launcher label and each screen.
+
+**Issues discovered:** The in-app wordmark is still the old "MANGO TV" text and
+the launcher icon and banner are still the mango artwork; both change in the
+next commit.
+
+**Issues fixed:** none beyond the rename itself.
+
+## Post-Milestone-34 — Arc TV Artwork And Logo
+
+**Status:** Complete, not compiled (see Tests performed). Last of three commits
+for the Arc TV rebrand.
+
+**Context:** Artwork supplied for this change (ArcTV Fire TV / Android assets),
+matching the logo the web app already uses (MangotvWebb 590b5d8, 6c51e99,
+6c818e6). The app still showed the mango launcher icon and TV banner, and drew
+its in-app logo as the text "MANGO TV" in a gradient, not from an image.
+
+**Changes:**
+- Replaced `drawable-xhdpi/banner.png` (640x360, the Fire TV home tile; black
+  background, full logo and name) and `mipmap-xxxhdpi/ic_launcher*.png`
+  (foreground 432x432 with the mark inside the adaptive-icon safe area, solid
+  black background, and the 192x192 legacy square and round icons). The
+  adaptive-icon XML and manifest already point at these files, so they needed no
+  change.
+- Added `drawable-nodpi/logo_arctv.png` (2232x676, transparent, white lettering,
+  about 3.3:1) and removed the old `drawable-xhdpi/logo_mango.png`, which nothing
+  in the code referenced.
+- `MangoLogo.kt` became `ArcLogo.kt`: it draws that image instead of two text
+  runs. Only the height is set, so the wide logo is never stretched to the old
+  tall proportions; the height is the old `fontSize` times 1.3, so all four call
+  sites (top nav, both sign-in screens, the player's top bar) keep their size
+  parameters and the wordmark lands at about the height the old text had.
+- `README.md` -- component list updated.
+
+**Tests performed:** Opened the supplied files and checked their pixel sizes
+against the spec (all six match), confirmed no remaining reference to the
+removed drawable or the old composable, and a manual re-read. The artwork was
+supplied already sized to the Fire TV requirements. **Not performed:** a Gradle
+resource build or any on-device look. On a Fire TV, check: the home-screen tile
+shows the banner without cropping the name, the app-list icon is not cut off,
+the logo fits the top bar without moving the nav items, and it is not too small
+or large on the sign-in screens and in the player.
+
+**Issues discovered:** The boot video (`BootVideoScreen`) is a video asset, so
+if it has the old logo or colours baked in it will still show them until the
+video is replaced.
+
+**Issues fixed:** none beyond the artwork itself.
+
+## Post-Milestone-35 — Debrid Cached Badges And What Each Addon Answered
+
+**Status:** Complete, not compiled (see Tests performed). Last phase of the web
+parity port.
+
+**Context:** Ported from the web app (MangotvWebb ee990c9 "Show whether debrid
+sources are cached; rank and explain the ones that aren't", and 7164349 "Show
+what each addon answered on Select a Source"). Two gaps: a Torrentio-style source
+that the debrid service hasn't stored yet (`[RD download]`) looked identical to a
+ready one (`[RD+]`) but made the player sit for minutes, and every failure on
+Select a Source was swallowed (`getStreams` turned any error into an empty list),
+so "an addon timed out", "no addons provide streams" and "nothing for this title"
+all read as the same "No sources found".
+
+**Changes:**
+- Debrid state: `Stream.debrid` (`DebridState(service, cached)`), parsed from the
+  leading tag of the stream name by `parseDebridTag()` in `StremioMapper.kt`
+  (`[RD+]` is cached, `[RD download]` is not). `DEBRID_NAMES` turns the code into
+  the service's name (RD is Real-Debrid and so on); an unknown code is shown as is.
+- `SourceRow.kt` -- a line under each debrid source: "Cached on Real-Debrid"
+  (teal, bolt) or "Not cached on Real-Debrid -- may take minutes" (amber,
+  hourglass). Sources that aren't debrid links show nothing.
+- `SourceOrdering.kt` -- the "Quality" order and the "Recommended" pick now put
+  sources that start at once ahead of uncached debrid ones, then resolution, then
+  seeders, so a ready 720p beats a 4K that makes you wait. Seeders and Size sorts
+  are untouched. `recommendedStreamId()` moved here from the view model so the
+  two share one comparator. (The web ranks cache state below its device-playability
+  level; the Firestick has no such level, so cache state comes first.)
+- Per-addon answers: `StreamLookup` (Ok, None, Unsupported, Failed) and
+  `StreamReport` in `data/model/StreamReport.kt`; `CatalogProvider.getStreamReport()`
+  (default wraps `getStreams`) overridden by `StremioAddonProvider`, which skips an
+  addon whose manifest lists resources without "stream" (Cinemeta), treats a 404 as
+  "no streams for this title", and otherwise records why it failed.
+  `AddonHttpException` (still an `IllegalStateException`, as the old bare `check`
+  was) carries the status; `describeAddonError()` turns it into a short reason that
+  never includes the address, which can hold an account key.
+- `SourcesViewModel.kt` -- `Loaded.addons` lists every addon with its answer, filled
+  in as each one replies (and all at once on the resume path).
+- `SourcesScreen.kt` / `SourcesHints.kt` -- the empty state now names the cause,
+  lists each addon's answer (first five), and offers Try Again when something
+  failed; if sources were found but some addons failed, a one-line note says the
+  list may be incomplete.
+- Tests: `DebridAndErrorsTest`, `ManifestOffersStreamsTest`, `SourcesHintsTest`, and
+  new cases in `SourceOrderingTest`.
+- `RELEASE_NOTES.md` -- two user-facing lines under Unreleased.
+
+**Not ported (web-only or deferred):** the "can this device play it" badges and
+device-capability panel (a browser concern; ExoPlayer plays far more), a
+collapsible "Addon results" panel (a TV list is shown inline instead, to avoid a
+new focus target), the "quality filter hides everything" message (the recommended
+source always stays listed, so the list can't empty that way), and the web player's
+"waiting on the debrid service" explanation for a stalled start.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android
+SDK): unit tests written, run on GitHub Actions afterwards; brace/paren balance
+check on every touched Kotlin file; a manual re-read. The addon-classification
+code in `StremioAddonProvider` is not unit tested, because the addon client is a
+concrete OkHttp class with no seam to fake. **Not performed:** an on-device check
+with a real debrid addon: confirm cached and uncached badges show, an uncached
+source lists below ready ones and is not "Recommended", and with the network off or
+an addon removed the empty state says the right thing and Try Again works.
+
+**Issues discovered:** `AddonHttpException` is thrown for every non-2xx answer from
+an addon, not just streams, so manifest, catalog and meta failures now carry a
+status too; none of those call sites read it, so nothing changes for them.
+
+**Issues fixed:** Uncached debrid sources looking identical to ready ones; every
+Select a Source failure reading as "No sources found".
+
+## Post-Milestone-36 — Boot Video Removed
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** User request, matching the web app, which dropped its boot video
+(MangotvWebb 71c7ce6). The cold-boot screen played `assets/newboot1.mp4` over the
+real nav graph and held the whole app, with every key swallowed, until both the
+video and Home's first batch of live rows had finished (bounded by a 10 second
+timeout), preloading six card images meanwhile.
+
+**Changes:**
+- Deleted `BootVideoScreen.kt` and `assets/newboot1.mp4`.
+- `MangoNavHost.kt` -- removed the overlay, the `isAppReady`/`dataReady` flag, the
+  key-swallowing modifier on the root `Box` and the comments that explained them.
+  `HomeViewModel` stays scoped to the Activity, as before, so Home still keeps its
+  rows across tab switches.
+- `HomeViewModel.kt` -- removed `liveDataReady`, which only the boot screen read.
+- Comments in `PlayerSurface.kt` and `SoundPreferencesRepository.kt` that mentioned
+  the boot video were updated.
+
+**Behaviour change to know about:** nothing now covers the very start. The app
+opens on the dark window background, the auth gate redirects to sign-in or Home as
+soon as its local check resolves, and Home shows its own loading skeleton while rows
+arrive, instead of staying hidden until the first batch was ready. The first six
+poster images are no longer preloaded, so they may pop in as they download. If the
+redirect shows a visible flash on a real device, a plain static cover (no video) is
+the fix to reach for.
+
+**Tests performed:** A search confirming nothing still references the deleted screen,
+the asset or `liveDataReady`, brace/paren balance on the two edited Kotlin files, and
+a manual re-read. **Not performed:** a Gradle build or a cold start on a device.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none beyond the removal.
+
+## Post-Milestone-37 — "All genres" Drop-Down On Movies And TV Shows, And A Shared Drop-Down
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** User request, ported from the web app (MangotvWebb e6db839 "genre
+drop-down on Movies and TV Shows"; the My List sort drop-down, bc71264, uses the
+same component). Movies and TV Shows could only be reordered (Featured / Highest
+Rated / Newest); there was no way to look at one genre.
+
+**Changes:**
+- `DropdownPicker.kt` (new) -- a pill showing a label and a chevron that opens a
+  list of options under it, like the web's. OK on the pill opens it with focus on
+  the chosen option, UP/DOWN move through the list, OK picks and closes, BACK closes
+  without changing anything and returns focus to the pill. The list is a `Popup`
+  window of its own, so opening it never disturbs the focus handling of the screen
+  behind it, and it scrolls when it is long. The popup inherits the browse grids'
+  `LocalBringIntoViewSpec = DisabledBringIntoViewSpec` (they switch off automatic
+  scroll-to-focus so the page doesn't shake), which left the list stuck on its first
+  rows while the remote moved focus below them; the list now restores the normal
+  behaviour for itself and also scrolls explicitly to any option that isn't fully
+  on screen when it gains focus.
+- `RowsBrowseScreen.kt` -- `RowsBrowseContent` takes an optional `headerAction`
+  (replacing the My List-only sort-pill parameters from Post-Milestone-28). It is
+  drawn beside the screen title and handed its focus wiring (`BrowseHeaderFocus`):
+  UP goes to the nav bar, DOWN to the filter or sort pills (or the grid). The nav
+  bar's DOWN now lands on it, and the pills' UP comes back to it. If a genre has no
+  titles, the title and drop-down stay on screen with the empty message, so another
+  genre can be picked. Every other screen passes nothing and is unchanged.
+- `GenreOptions.kt` (new) -- the genre list: exactly the genres Cinemeta's "top"
+  catalogue lists, read from the bundled `cinemeta_manifest.json`, with years
+  dropped (19 for Movies; TV Shows adds Reality-TV, Talk-Show and Game-Show), the
+  same list the web uses. Also `emptyBrowseMessage()` ("No Sci-Fi movies found right
+  now.").
+- `CatalogProvider` / `StremioAddonProvider` -- `getSectionsByType` and
+  `getMoreItemsByType` take an optional `genre`. With one, only that type's
+  catalogues that list the genre are asked, so Movies never gets series mixed in,
+  and an addon that doesn't list it answers with nothing without a request.
+- `TypeBrowseViewModel.kt` -- holds the chosen genre and `selectGenre()`. Choosing
+  one keeps the current grid on screen until the new one arrives (so the drop-down
+  never loses focus), pages with the same genre, and drops an answer that arrives
+  after the genre changed again. A chosen genre keeps the providers' popularity
+  order; "All genres" keeps the existing shuffle.
+- `GenreOptionsTest.kt` -- reads the real bundled manifest: 19 and 22 genres, no
+  years, TV equals Movies plus three, and the empty-message text.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**Differences from the web:** the web keeps the genre in the page address so Back
+returns to it; here the choice lives in the screen's view model, which survives
+leaving and coming back to the tab. The web has a Blocked Genres setting that hides
+genres from this list; the Firestick has none. The drop-down is a single scrolling
+column rather than two columns, to suit a D-pad.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android
+SDK): the genre-list and message tests run on GitHub Actions; brace/paren balance
+on every touched Kotlin file; a manual re-read. **Not performed:** an on-device
+check -- on a Fire TV: OK on "All genres" opens a list with the current choice
+focused; UP/DOWN scroll it; OK picks a genre and the grid changes; BACK closes it
+without changing anything and focus returns to the pill; nav bar DOWN lands on the
+pill and UP from the pills comes back to it; a genre with no titles still shows the
+drop-down. Same checks for My List's "Sort by" drop-down.
+
+**Issues discovered:** The genre is held in memory only, so it resets to "All
+genres" when the app restarts. Picking a genre in the list leaves the old grid up
+for a moment on a slow connection before the new one replaces it.
+
+**Issues fixed:** none beyond the new feature.
+
+## Post-Milestone-38 — Update Pop-Up, And Release Notes The Remote Can Scroll
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** User request. Two problems with the update flow. (1) The "What's new"
+overlay showed the release notes in a `Text` with `verticalScroll`, but that is not
+focusable and the only focusable thing on the overlay was the Close button, so a
+remote could never move it: with 13 bullets in Unreleased, only the first screenful
+(about 9 lines) was readable on a TV. (2) The update offer was a banner that pushed
+the whole screen down, reached through an info button to a second overlay.
+
+**Changes:**
+- `UpdatePopup.kt` (new) -- one pop-up, styled like the old "What's new" overlay
+  (dimmed screen, rounded card), that shows "Update available", the version and APK
+  size, download progress (a progress bar and percentage), "Ready to install" or the
+  error message, the release notes, and the Update / Install / Retry button plus
+  "Not now". It replaces `UpdateBanner.kt` and the separate release-notes overlay.
+- It is a real dialog window, so the remote stays inside it and BACK means "Not now".
+  While a download is running BACK is ignored and "Not now" is hidden, as the old
+  banner hid its close button then.
+- `ScrollableNotes` (in `UpdatePopup.kt`) -- the notes sit in a focusable box. UP from
+  the buttons selects it (it gets the focus border); DOWN and UP then scroll it, and
+  once it is at its end DOWN (or at its start UP) is left alone so focus moves on to
+  the buttons as normal. A thin scroll bar shows how far through you are, and a hint
+  line says the notes can be scrolled when they don't fit.
+- `UpdatePromptHost.kt` (was `UpdateBannerHost.kt`) -- shows the pop-up over the app
+  instead of a bar above it. It is still hidden while the video player is active and
+  steps aside while the "allow installing updates" prompt is up. `MangoNavHost.kt`
+  updated for the rename.
+- `UpdateViewModel` is unchanged: the same once-per-launch check, the same
+  "ignore this version" memory when dismissed, and the same download, install and
+  permission flow.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**Behaviour to know about:** the pop-up appears over whatever screen you are on as soon
+as the check finishes (a few seconds after launch), which is more noticeable than the
+bar was. Dismissing it, with Not now or BACK, remembers that version so it does not
+return until a newer one is released.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android
+SDK): brace/paren balance on the touched Kotlin files, a search for leftover references
+to the removed banner and overlay (none), and a manual re-read. There is no unit test
+for the scrolling: it is key handling and layout. **Not performed:** a Gradle compile
+or an on-device check. The update check only runs in release builds
+(`BuildConfig.DEBUG` skips it), so the CI debug APK will never show this pop-up; seeing
+it needs a release build and a newer published release, or a temporary debug override.
+On a Fire TV, check: it opens with Update focused; UP selects the notes (border
+appears) and DOWN/UP scroll all 13 bullets; at the end DOWN moves to the buttons; Not
+now and BACK close it; during a download the progress bar moves and BACK does nothing;
+Install and the permission prompt still work.
+
+**Issues discovered:** none beyond the above.
+
+**Issues fixed:** Release notes beyond the first screenful being unreadable with a remote.
+
+## Post-Milestone-39 — Home Hero: Trailer Button, Sharper Backdrops, Preloading
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** Ported from the web app (MangotvWebb 8f0a884, 1bc2db2, 8d02693 "Trailer
+button on the Home hero"; cb140e2 "largest hero background"; 060d440 "preload the Home
+hero pictures"). The Firestick's hero had no trailer shortcut (only Detail did), asked
+addons for whatever size they listed, and loaded each slide's picture only when its
+turn came.
+
+**Changes:**
+- `HeroSection.kt` -- a "Trailer" button between Play and My List, looked up once per
+  title as its slide comes round (`HomeViewModel.findTrailer`, the same server lookup
+  Detail uses) and opened with the same `TrailerLauncher` hand-off to whichever app the
+  person picks. It stays focusable but dimmed until a trailer is found; pressing it then
+  shows a short message ("Looking for a trailer..." or "No trailer found for this title").
+- `HeroImages.kt` (new) -- `sharpBackdrop()` asks Metahub (Cinemeta) for `large` instead
+  of `small`/`medium` and TMDB for `original` instead of `w300`..`w1280`, and leaves any
+  other address alone; `heroImages()` lists the hero's pictures in rotation order, each
+  title's backdrop then its logo, once each. Same rules as the web.
+- `HeroSection.kt` -- the Ken Burns backdrop requests the sharper address and falls back
+  to the original one if it fails to load; every hero picture is fetched ahead through
+  Coil as soon as the hero's titles are known (the cold-boot screen used to preload
+  images; removing it left nothing doing this).
+- `HomeScreen.kt` / `HomeViewModel.kt` -- plumbing for the trailer lookup.
+- `HeroImagesTest.kt` -- the address rules and the preload order.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**Not ported:** "Home hero pictures are no longer cropped" (3317cc8) and "Detail hero
+matches the Home hero" (1853db5) fix web-layout problems: the browser shows backdrops of
+any shape in windows of any shape, while the TV is always 16:9 and its backdrops are too,
+so there is nothing being cropped away to fix.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android SDK):
+unit tests for the address and preload rules run on GitHub Actions, brace/paren balance
+on touched files, and a manual re-read. **Not performed:** an on-device check: confirm
+the Trailer button sits between Play and the plus button, is dim at first and bright once
+found, opens the trailer, and that D-pad LEFT/RIGHT still moves across all four buttons.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none beyond the new behaviour.
+
+## Post-Milestone-40 — Trailer Button Always Shown On Detail, Sources Poster And Default Sort
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** Ported from the web app (MangotvWebb e6db839 "Trailer button always shown",
+bfa7a0f "Sources: bigger poster ... default sort by size"). Detail's Trailer button only
+appeared once the lookup had found a trailer, so the row of buttons shifted when it did.
+
+**Changes:**
+- `DetailHeroSection.kt` / `DetailScreen.kt` -- the Trailer button is drawn from the first
+  frame and dimmed (still focusable) until a trailer is found (`trailerReady`); pressed
+  early it shows "Looking for a trailer..." and after a lookup that found nothing it shows
+  "No trailer found for this title". `DetailViewModel`'s `TrailerState` doc updated.
+- `SourcesInfoPanel.kt` -- the poster is 120x180 (was 84x126).
+- `SourcesScreen.kt` -- the list starts sorted by size, biggest first, as on the web.
+  "Recommended" is unaffected (it still follows the Quality order, including ready debrid
+  sources ahead of uncached ones) and always sits on top.
+- `RELEASE_NOTES.md` -- two user-facing lines under Unreleased.
+
+**Not ported:** "no play button on 'What are sources?'": the Firestick's equivalent
+("How it works" in the footer) never had one.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android SDK):
+brace/paren balance on touched files and a manual re-read. There is no new logic to unit
+test; this is layout and wiring. **Not performed:** an on-device check: Detail's Trailer
+button is present and dim at first, brightens when found and opens the trailer; the Sources
+info panel still fits its title, genres and description at the bigger poster size.
+
+**Issues discovered:** With "Size" as the default, an uncached debrid file that is large
+can sit just under "Recommended" ahead of smaller ready ones; the Quality sort ranks ready
+sources first. The web behaves the same.
+
+**Issues fixed:** none beyond the above.
+
+## Post-Milestone-41 — Browse Without An Account
+
+**Status:** Complete, not compiled (see Tests performed). The largest port in this run;
+on-device testing of the sign-in round trip matters most here.
+
+**Context:** User request, ported from the web app (MangotvWebb 637d1a0 "Let visitors
+browse without an account; ask for one only on Play"). The Firestick opened on a Log In /
+Sign Up screen on every launch without a session, so nothing could be seen before signing
+in.
+
+**Changes:**
+- `AuthGateViewModel.kt` / `AuthGateScreen.kt` -- every launch goes to Home
+  (`GateDestination.AuthStart` is gone). With a usable session nothing else changes (the
+  token refresh and full sync still run). Without one, the person is a guest, and the
+  bundled Cinemeta is put back first if no addon is installed.
+- `GuestGate.kt` (new) -- `isGuest` (a stored session that has been read and is missing or
+  can no longer be renewed; `SessionManager.loaded` was added so a null session can be told
+  from "not read yet", and until it is read nobody counts as a guest, so a signed-in person
+  is never bounced to sign-in during start-up) and `requireAccount { }`, which runs an action
+  for a signed-in person and otherwise raises a sign-in request. Wired in `AppContainer`.
+- `MangoNavHost.kt` -- `navigateTo()` sends a guest to the sign-in screens for Play (the
+  source picker and the player), My List, Settings and the Sign In tab itself
+  (`routeNeedsAccount()` in `MangoRoutes.kt`); the sign-in screens are pushed on top, and
+  `finishSignIn()` pops back to where the guest was and carries on to what they asked for
+  (going straight to it rather than through the guest check, which could still see the old
+  state for a moment). Reached any other way (after signing out) the sign-in screens still
+  start fresh at Home. Sign-in requests from saving a title are handled the same way.
+- Saving needs an account: `requireAccount` wraps My List and Watched in `HomeViewModel`
+  (hero +), `DetailViewModel` (title page buttons) and `CardActionsMenu` (long-press menu).
+- `TopNavBar.kt` -- a guest sees "Sign In" where Settings would be (`navItemsForGuest`, same
+  position), and it routes to the sign-in screens.
+- `AuthStartScreen.kt` -- a "Browse without an account" button, shown only when the screen is
+  the first thing on the stack (right after signing out); inside the app BACK does the job.
+- `AddonRepository.ensureDefaultAddon()` -- restores the bundled Cinemeta when nothing is
+  installed (signing out wipes the device's addons and the first-launch default only installs
+  once). Signing in later replaces the list with the account's own, as it always has.
+- Tests: `GuestGateTest`, `GuestRoutesTest`.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**What a guest gets:** everything that doesn't need the server: Home, Movies, TV Shows,
+Genres, Search and title pages with the default addon. The trailer, release-date and cast
+lookups need an account, so they quietly come back empty (dimmed Trailer button, plain
+names) until signing in.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android SDK):
+unit tests for the guest rule and the route and nav-label rules run on GitHub Actions;
+brace/paren balance on touched files; a manual re-read, including the ordering of the local
+functions in `MangoNavHost` (Kotlin needs them declared before use). **Not performed:** an
+on-device run of any of this. Check on a Fire TV: (1) a launch with no account opens Home with
+Movies / TV Shows / Search working and the last tab reading "Sign In"; (2) pressing Play on a
+title, opening My List, pressing the + on a title, or Sign In shows the sign-in screens; BACK
+returns; (3) signing in by QR code or password lands back on that title and carries on to the
+sources list; (4) signing out offers "Browse without an account" and that works; (5) a signed-in
+launch is unchanged and never shows "Sign In".
+
+**Issues discovered:** After signing in, the guest's browsing screens are rebuilt from the
+account's own addon list, which may differ from the default Cinemeta; that is the existing
+sync behaviour, not something this adds. Process death while on the sign-in screens forgets
+where the guest was heading (the return target is held in memory only), so sign-in then starts
+fresh at Home.
+
+**Issues fixed:** none beyond the new behaviour.
+
+## Post-Milestone-42 — Arc TV Plus Tab (Hidden Until Launch)
+
+**Status:** Complete, not compiled (see Tests performed). No release-notes line: the tab is
+hidden in release builds, so nothing user-visible ships.
+
+**Context:** User request, ported from the web app (MangotvWebb fbcd56b, 4cdd012, fa77604
+"ArcTV Plus tab"). The web shows the tab only to a private preview (the "Picked for you"
+commit later hid it for everyone) because Plus is not on sale yet.
+
+**Changes:**
+- `PlusPlans.kt` (new) -- everything the tab shows, in one place, as on the web: the three
+  plans (Monthly, Yearly, Lifetime) with `price` and `checkoutUrl` to fill in at launch
+  (a blank checkout page reads "Opens soon", a null price "Price announced soon"), four
+  "coming soon" perks, and the two notes (what stays free; proceeds go back into the app).
+  The perks are the web's with Blocked Genres and relay-allowance wording swapped for what
+  exists on the Firestick. `PLUS_TAB_VISIBLE` is `BuildConfig.DEBUG`: the tab appears in debug
+  builds (such as the CI APK used for testing) and not in release builds. Showing it to
+  everyone at launch is changing that one line.
+- `PlusSettingsScreen.kt` (new) -- the pane: a "Free plan" badge, the notes, "What Plus adds"
+  (focusable perk rows with a "Coming soon" tag), "How to subscribe", and three plan cards.
+  Plain text can't be focused, so the perk rows and plan cards are focusable, which is what
+  lets the remote move down the whole tab. A plan with a checkout page opens it in whichever
+  app the person picks (nothing is paid for on the TV); without one it shows "Plus isn't on
+  sale yet".
+- `SettingsScreen.kt` -- an "Arc TV Plus" category, listed only while `PLUS_TAB_VISIBLE`. With six
+  categories the sidebar no longer fit the height under the nav bar on a TV and the last row was
+  squeezed (reported after the first on-device look), so the sidebar now scrolls with the remote
+  and its rows are tighter (10dp vertical padding and 6dp gaps, down from 14dp and 10dp), with a
+  little padding inside the scroll area so a focused row's scale-up isn't clipped.
+- `PlusPlansTest.kt` -- the plan list, the on-sale rule and that every perk and plan is filled in.
+
+**Not ported:** the web's per-account "Plus status" (there is none yet), and a checkout flow:
+there is no backend for subscriptions.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android SDK): unit
+tests run on GitHub Actions; brace/paren balance on touched files; a manual re-read.
+**Not performed:** an on-device look. In a debug build: Settings lists "Arc TV Plus" last; RIGHT
+from it reaches the first perk, DOWN steps through the perks and the plan cards and scrolls the
+tab, LEFT returns to the sidebar, and pressing a plan says it isn't on sale. A release build must
+not show the tab.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
+
+## Post-Milestone-43 — Hero Slide And Edge Shading, TV Show Detail Spacing
+
+**Status:** Complete, not compiled (see Tests performed). The Detail change is a blind layout
+tweak and needs an on-device look.
+
+**Context:** User request (the "smaller web updates" left from the parity list), ported from
+MangotvWebb 3c512ff (hero edge shading), a8dd936 (hero slide transition) and 11a20b6 (TV show
+Detail spacing).
+
+**Changes:**
+- `HeroSection.kt` -- edge shading: a second horizontal gradient dark at the very edges (88%,
+  55% at 4% of the width, clear by 10%, mirrored on the right), on top of the existing
+  left-to-right assist. The same numbers as the web.
+- `HeroSection.kt` -- slide transition: the backdrop (with its Ken Burns zoom) and the title,
+  details and description now slide in from the right while the old ones slide out to the left,
+  650 ms, each travelling the full screen width so they cross together (`MangoMotion.HeroSlideMillis`
+  replaces the 900 ms crossfade constant). Both are keyed by the title's id, so a watched-flag
+  refresh that hands the hero an equal copy of the same title doesn't replay the slide. The
+  Play / Trailer / My List / Info buttons are deliberately not part of the slide: they stay put,
+  so the remote's focus is undisturbed by the rotation every nine seconds.
+- `HeroSection.kt` -- page dots: one small dot per hero title at the bottom right, the current
+  one a longer, brighter pill (24 x 8 dp against 8 dp circles at 40% white) whose width animates
+  as the hero moves on, as on the web. They only show where you are: unlike the web's clickable
+  dots they are not focusable, so the remote's movement between the buttons and the rows below
+  is unchanged.
+- `DetailHeroSection.kt` -- TV show pages (the non-compact layout): the hero's minimum height is
+  60% of the screen (was 82%) and its bottom padding 24 dp (was 56 dp), so the seasons start
+  right below the Play row, and the rating badge is centred on the Play row's buttons (padded up
+  half a button and slid down half its own height, so its own height need not be known). Movie
+  pages are unchanged.
+- `RELEASE_NOTES.md` -- two user-facing lines under Unreleased.
+
+**Not ported:** making the dots clickable (a mouse control; on a TV they only show position).
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android SDK): brace/paren
+balance on touched files and a manual re-read. Animation and layout can't be unit tested.
+**Not performed:** an on-device look. Check on a Fire TV: Home's hero slides smoothly with picture
+and text together and the Play row doesn't flicker or lose focus as it rotates; the edge shading
+looks right; on a TV show page the seasons are visible without scrolling much, the title block
+still fits above the Play row, and the rating is level with the buttons. The 60% height is a
+starting point; it is one number to adjust.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
+
+## Post-Milestone-44 — Faster First Boot
+
+**Status:** Complete, not compiled or timed on a device (see Tests performed).
+
+**Context:** User report: the app is very slow for the first 5-10 seconds after launching.
+
+**Changes:**
+- `StremioAddonProvider.getHomeSections` -- the base row is now its own first batch and the genre
+  rows follow in batches of 8 (was 4), so the first rows no longer wait on the slowest genre
+  request and the last row is reached in about half as many sequential waves. The hero pool is now
+  drawn from the base row, which is the first thing to arrive, rather than from the first four rows.
+- `MangoTvApplication.warmUp` -- loads the UI sounds (`SoundPool`) and reads Home's cached rows on a
+  background thread at launch, so the first frame no longer waits on them.
+- `app/src/main/baseline-prof.txt` plus the `profileinstaller` dependency -- a baseline profile for
+  the app's own code (wildcard rules), so release builds start precompiled rather than interpreted.
+
+**Not changed:** the debug APKs the CI builds for sideloading do not use baseline profiles and run
+unoptimised Compose, so they will always feel slower than a release build on a Fire TV Stick.
+
+**Tests performed:** None runnable here; relies on the CI build. Needs a timed launch on a Fire TV
+(debug vs release) to confirm the improvement.
+
+## Post-Milestone-45 — Audio Decoder Fallback
+
+**Status:** Complete, not compiled or tried on a device (see Tests performed).
+
+**Context:** User report: a source fails on Fire TV with `MediaCodecAudioRenderer error, ... audio/mp4a-latm, mp4a.40.1 ... format_supported=YES`. `mp4a.40.1` is AAC Main profile, which a hardware decoder can claim to support and then fail on.
+
+**Changes:**
+- `PlayerEngine.buildExoPlayer` -- uses a `DefaultRenderersFactory` with decoder fallback on, so a decoder that fails to start is replaced by the next one the device offers (usually software).
+- `PlayerListenerBridge` / `describePlaybackError` -- the error screen now appends the underlying cause and the ExoPlayer error code name.
+- `PlayerListenerBridge.switchToOtherAudioTrack` -- the first on-device failure showed the decoder was already the software one
+  (`c2.android.aac.decoder`, `ERROR_CODE_DECODING_FAILED`), so fallback alone did not help. On an audio decode/track failure the
+  player now overrides the selection to the next supported audio track in the file (each failed track is remembered, so it
+  cannot loop) and re-prepares from the same position. Shows the error only when no other audio track is left.
+
+**Limits:** a file with only one audio track, all of it undecodable, still fails. The real fix for AAC "Main" or similar would be an FFmpeg audio decoder, but the Jellyfin build of it has no release matching Media3 1.4.1, so that needs a Media3 upgrade first.
+
+**Tests performed:** None runnable here; relies on the CI build and the same source on a Fire TV.
+
+## Post-Milestone-46 — Blocked Genres (synced to the account)
+
+**Status:** Complete, not compiled or tried on a device (see Tests performed). The backend half is tested.
+
+**Context:** User request: port the web app's Blocked Genres, stored on the account so it syncs across devices.
+
+**Backend (`server/`):** migration `0015` adds `user_settings.blocked_genres` (jsonb, default `[]`); `PUT/GET /user/settings` carry `blockedGenres`, optional on `PUT` so an older client leaves the stored list alone; same last-write-wins as the rest of the row. `settings.test.ts` extended (round trip, omitted list preserved, stale push ignored, validation, per-account isolation).
+
+**App:**
+- `BlockedGenresRepository` (DataStore + a StateFlow) with `onLocalChange`, hooked by `SettingsSyncRepository`, which now sends the list on every settings push and applies it on pull (a backend without the field never wipes the local list). Cleared on account switch; counts as local data for the first-login migration choice.
+- `BlockedGenres.kt` -- the pure matching rules (trim / lower-case, a title with no genres is never hidden), unit-tested in `BlockedGenresTest`.
+- Applied in `HomeViewModel` (rows and so the hero), `TypeBrowseViewModel` (grid and genre drop-down), `SearchViewModel`, `GenresViewModel`, `GenreResultsViewModel` and `DetailViewModel.loadSimilar`; blocking or unblocking re-filters what is already loaded without a re-fetch.
+- Settings > Blocked Genres (`BlockedGenresScreen`, `BlockedGenresViewModel`): a toggle row per genre the addons offer (a blocked one an addon no longer lists stays visible so it can be unblocked) and a Clear all button.
+
+**Not changed:** the web app keeps its list in the browser; it would need a small change there to read and write `blockedGenres` on the account.
+
+**Tests performed:** server `vitest` (all passing, locally against Postgres) and schema verification. The Kotlin has not been compiled here; it relies on the CI build.
+
+## Post-Milestone-47 — Picked For You (the web recommendation algorithm) And Like / Not For Me Sync
+
+**Status:** Complete, not compiled or tried on a device (see Tests performed). The backend half is tested.
+
+**Context:** User request: implement the web app's "Picked for you" algorithm fully on the Firestick, with Like / Not for me kept on the account.
+
+**Backend (`server/`):** migration `0016` adds `movie_feedback` (per user, profile, addon, movie; soft-deleted like the watchlist); `GET / POST / DELETE /user/feedback` with last-write-wins on the client's timestamp. The route and wire shape match what the web app already calls, so the web's feedback sync works against this backend unchanged. `tests/feedback.test.ts` covers auth, round trip, newer / older writes, clear, re-set after clear, 204 for a never-existing slot, profile and account isolation, validation.
+
+**Algorithm (`data/recommend/`)**, a line-for-line port of the web's `domain/recommend`: `RecommendConfig` (every number, same values), `Signals` (strongest signal per movie: like 5, Not for me -5, finished 2, saved 1), `Features`, `Preferences` (a movie's weight split equally over its genres / directors / cast), `Score` (weighted cosine, 0.6 / 0.25 / 0.15, renormalised when a category is missing), `Explain` (the movie that contributed most, or "More from directors you enjoy"), `Diversity` (no movie explains more than 3 picks), `RecommendEngine` (shortlist from catalogue genres, round-robin over the profile's own movies, detail lookups bounded to 40 + 60, a candidate that is itself one of the profile's movies is scored without its own signal, popular fallback under 3 interactions). `FeatureCache` keeps looked-up features for 30 days (800 entries). `RecommendTest` ports the web's test file case for case.
+
+**App:** `FeedbackRepository` (local + sync, outbox for offline pushes, last-write-wins pull like the web store), wired into `SyncManager` (pull, retry) and sign-out. `HomeViewModel` recomputes the row (debounced, only when the pool, signals or exclusions change) and places it after Continue Watching; Not for me hides a title immediately. `ContentCard` shows the reason in place of the year. Like / Not for me are in the long-press menu and the Detail page's three-dot group, for movies.
+
+**Gating:** the row, the buttons and their sync follow the Plus preview flag (`PLUS_TAB_VISIBLE`, debug builds only), the same as the web's hidden preview, and need a signed-in account.
+
+**Tests performed:** server `vitest` (all passing, locally against Postgres). The Kotlin has not been compiled here; it relies on the CI build, including `RecommendTest`.
+
+## Post-Milestone-48 — Update Pop-Up Shows All The Notes
+
+**Status:** Complete, not compiled or tried on a device (see Tests performed).
+
+**Context:** User request: the update pop-up must be able to show all the patch notes, and never tell people to go to GitHub.
+
+**Changes:**
+- `UpdateNotes.kt` -- `combineReleaseNotes` builds the pop-up text from every published release newer than the installed version up to the one on offer, newest first, each under "Version x" when there is more than one (drafts and pre-releases ignored). `plainNotes` turns the Markdown into plain text (dots for bullets, no `**` / backticks / link syntax) and drops lines that only point elsewhere ("Full Changelog", "see commit history", github.com links).
+- `GitHubUpdateApiClient.listReleases` and `UpdateRepository.getLatestUpdate(installedVersion)` fetch the last 30 releases for that; if the list can't be read, the newest release's own notes are used.
+- The pop-up's empty-notes text and the release workflow's fallback (which wrote "See commit history for changes in this release.") are now "Bug fixes and improvements."
+- The notes box already scrolls with the remote and has no length limit, so nothing is cut off.
+
+**Tests performed:** `UpdateNotesTest` (Markdown clean-up, pointer lines, one / several / ignored releases, fallback) -- not run here; relies on the CI build.

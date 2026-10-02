@@ -35,8 +35,17 @@ Endpoints:
   `/auth/qr/*` are same-origin and need no CORS configuration.
 - `GET /user/settings` / `PUT /user/settings` (authenticated) — this
   account's Home Rows order/hidden state + Player autoplay/skip-intro
-  preferences, one row per account, last-write-wins on the client's own
-  `updatedAt`.
+  preferences, plus the account's blocked genres (`blockedGenres`, a list
+  of genre names; optional on `PUT` — an older client that omits it leaves
+  the stored list alone), one row per account, last-write-wins on the
+  client's own `updatedAt`.
+- `GET /user/feedback?profileId=` / `POST /user/feedback` /
+  `DELETE /user/feedback?profileId=&providerId=&contentId=&contentType=&updatedAt=`
+  (authenticated) — Like / Not for me on movies, per profile (`main` by
+  default), the input to "Picked for you". Same shape and last-write-wins
+  rules as the watchlist: `GET` returns only feedback that is currently
+  set, `POST` returns the slot's authoritative state, `DELETE` clears it
+  (`204` if it never existed).
 - `GET /user/watchlist` (authenticated) — this account's active My List
   items.
 - `POST /user/watchlist` (authenticated) — add (or un-remove/refresh) one

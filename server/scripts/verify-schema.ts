@@ -21,6 +21,7 @@ const EXPECTED_TABLES = [
   "watchlist_items",
   "watch_history",
   "continue_watching",
+  "movie_feedback",
   "schema_migrations",
 ];
 

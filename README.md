@@ -1,4 +1,6 @@
-# Mango TV
+# Arc TV
+
+(Formerly Mango TV. Code identifiers, the package name `com.mangotv.app` and this repository's name are unchanged.)
 
 A premium, Netflix-inspired streaming app for Amazon Fire TV / Firestick, built with Kotlin and Jetpack Compose. Content comes from Stremio-protocol addons (`data/provider`, `data/addon`) rather than a fixed built-in catalog — a user installs whichever addons they want, the same way Stremio itself works.
 
@@ -20,7 +22,7 @@ app/src/main/java/com/mangotv/app/
   data/history/        Local Continue Watching cache
   data/player/         Local player-preferences cache
   ui/theme/            Colors, typography, motion tokens, dimens — the design system
-  ui/components/       Reusable focusable primitives: TvFocusSurface, ContentCard, ContentRow, MangoButton, MangoLogo, loading/error states
+  ui/components/       Reusable focusable primitives: TvFocusSurface, ContentCard, ContentRow, MangoButton, ArcLogo, loading/error states
   ui/loading/          Branded cold-boot loading screen
   ui/home/ ui/browse/ ui/detail/ ui/genres/ ui/search/ ui/mylist/ ui/sources/ ui/player/  The main app screens
   ui/player/overlay/   In-player menus: quality, audio/subtitle tracks, playback speed, source info, settings

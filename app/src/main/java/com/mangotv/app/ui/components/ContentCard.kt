@@ -233,6 +233,15 @@ fun ContentCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+        } else if (content.recommendReason != null) {
+            // "Picked for you" says why, in place of the year ("Because you liked X").
+            Text(
+                text = content.recommendReason,
+                color = TextTertiary,
+                style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
         } else {
             content.year?.let {
                 Text(

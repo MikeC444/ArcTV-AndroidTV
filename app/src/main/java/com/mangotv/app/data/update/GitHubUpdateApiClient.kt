@@ -2,6 +2,7 @@ package com.mangotv.app.data.update
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -22,6 +23,21 @@ class GitHubUpdateApiClient(private val owner: String, private val repo: String)
         .readTimeout(10, TimeUnit.SECONDS)
         .build()
     private val json = Json { ignoreUnknownKeys = true }
+
+    /** The most recent published releases (newest first), so the notes of any releases the person skipped can be shown too. */
+    suspend fun listReleases(perPage: Int = 30): List<GitHubReleaseDto> = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("https://api.github.com/repos/$owner/$repo/releases?per_page=$perPage")
+            .header("Accept", "application/vnd.github+json")
+            .build()
+        httpClient.newCall(request).execute().use { response ->
+            val bodyString = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                error("GitHub API error: HTTP ${response.code}")
+            }
+            json.decodeFromString(ListSerializer(GitHubReleaseDto.serializer()), bodyString)
+        }
+    }
 
     suspend fun getLatestRelease(): GitHubReleaseDto = withContext(Dispatchers.IO) {
         val request = Request.Builder()

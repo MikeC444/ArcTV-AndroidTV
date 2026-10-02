@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import com.mangotv.app.data.feedback.FeedbackRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -14,8 +15,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 
 /**
- * Orchestrates the four cloud-sync domains (Settings, Watchlist, Continue
- * Watching, Addons) as one coherent system (Milestone 10), rather than
+ * Orchestrates the cloud-sync domains (Settings, Watchlist, Continue
+ * Watching, Addons, and Like / Not for me feedback) as one coherent system (Milestone 10), rather than
  * each ViewModel call site independently invoking all four
  * pullFromServer() methods by hand, as AuthGateViewModel/QrSignInViewModel
  * did through Milestone 9.
@@ -72,7 +73,8 @@ class SyncManager(
     private val settingsSyncRepository: SettingsSyncRepository,
     private val watchlistSyncRepository: WatchlistSyncRepository,
     private val continueWatchingSyncRepository: ContinueWatchingSyncRepository,
-    private val addonSyncRepository: AddonSyncRepository
+    private val addonSyncRepository: AddonSyncRepository,
+    private val feedbackRepository: FeedbackRepository
 ) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -117,16 +119,20 @@ class SyncManager(
      * whatever was cached locally before this call.
      */
     suspend fun syncAll() {
+        var watchlistRead = false
         scope.launch {
             supervisorScope {
                 launch { settingsSyncRepository.pullFromServer() }
-                launch { watchlistSyncRepository.pullFromServer() }
+                launch { watchlistRead = watchlistSyncRepository.pullFromServer() }
                 launch { continueWatchingSyncRepository.pullFromServer() }
                 launch { addonSyncRepository.pullFromServer() }
+                launch { feedbackRepository.pullFromServer() }
             }
             retryPendingAll()
         }.join()
-        watchlistSyncRepository.backfillWatchedFromHistoryIfNeeded()
+        // Only once the account's My List has really been read: a list that failed to load looks empty, and the
+        // backfill would then wrongly treat a long-used account as a brand-new one.
+        if (watchlistRead) watchlistSyncRepository.backfillWatchedFromHistoryIfNeeded()
     }
 
     /** Drains every domain's retry queue without a full pull -- what a network reconnect (or the periodic timer below) triggers, and what [syncAll] runs after its own pulls complete. */
@@ -135,6 +141,7 @@ class SyncManager(
         launch { watchlistSyncRepository.retryPending() }
         launch { continueWatchingSyncRepository.retryPending() }
         launch { addonSyncRepository.retryPending() }
+        launch { feedbackRepository.retryPending() }
     }
 
     /**

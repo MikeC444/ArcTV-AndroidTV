@@ -45,9 +45,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoBackground
-import com.mangotv.app.ui.theme.MangoCoral
+import com.mangotv.app.ui.theme.ErrorCoral
 import com.mangotv.app.ui.theme.MangoSurface
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
@@ -110,7 +110,7 @@ fun PasswordSignInScreen(
                 modifier = Modifier.widthIn(max = 520.dp)
             ) {
                 Text(
-                    text = "Sync existing MangoTV data to your account?",
+                    text = "Sync existing Arc TV data to your account?",
                     color = TextPrimary,
                     style = MaterialTheme.typography.headlineSmall,
                     textAlign = TextAlign.Center
@@ -219,7 +219,7 @@ fun PasswordSignInScreen(
             if (state is PasswordAuthUiState.Error) {
                 Text(
                     text = state.message,
-                    color = MangoCoral,
+                    color = ErrorCoral,
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center
                 )
@@ -241,7 +241,7 @@ fun PasswordSignInScreen(
             if (isLoading) {
                 Spacer(Modifier.height(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MangoAmber, strokeWidth = 2.dp)
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = ArcAccent, strokeWidth = 2.dp)
                     Spacer(Modifier.width(10.dp))
                     Text(
                         text = if (isRegister) "Creating account…" else "Signing in…",
@@ -274,7 +274,7 @@ private fun mangoTextFieldColors() = TextFieldDefaults.colors(
     unfocusedContainerColor = MangoSurface,
     focusedTextColor = TextPrimary,
     unfocusedTextColor = TextPrimary,
-    cursorColor = MangoAmber,
-    focusedIndicatorColor = MangoAmber,
+    cursorColor = ArcAccent,
+    focusedIndicatorColor = ArcAccent,
     unfocusedIndicatorColor = TextTertiary
 )

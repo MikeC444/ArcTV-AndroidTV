@@ -4,6 +4,8 @@ import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.model.HomeSection
 import com.mangotv.app.data.model.Stream
+import com.mangotv.app.data.model.StreamLookup
+import com.mangotv.app.data.model.StreamReport
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -46,10 +48,23 @@ interface CatalogProvider {
     suspend fun getStreams(type: ContentType, id: String, season: Int? = null, episode: Int? = null): List<Stream>
 
     /**
+     * Like [getStreams], but says what happened (sources / none / not a stream addon / failed and why) so Select a
+     * Source can show what each addon answered. Never throws.
+     */
+    suspend fun getStreamReport(type: ContentType, id: String, season: Int? = null, episode: Int? = null): StreamReport =
+        runCatching { getStreams(type, id, season, episode) }.fold(
+            onSuccess = { streams -> StreamReport(name, streams, if (streams.isEmpty()) StreamLookup.None else StreamLookup.Ok(streams.size)) },
+            onFailure = { StreamReport(name, emptyList(), StreamLookup.Failed("couldn't be reached")) }
+        )
+
+    /**
      * The same base+genre row set [getHomeSections] builds, restricted to
      * one content type — backs the dedicated Movies/TV Shows browse screens.
+     * With [genre], only the titles of that type in that genre (the Movies /
+     * TV Shows genre drop-down); a provider whose catalogues for that type
+     * don't list the genre answers with nothing rather than asking.
      */
-    suspend fun getSectionsByType(type: ContentType): List<HomeSection>
+    suspend fun getSectionsByType(type: ContentType, genre: String? = null): List<HomeSection>
 
     /** Every genre name this provider's catalogs declare, deduplicated. Backs the Genres picker screen. */
     suspend fun getAvailableGenres(): List<String>
@@ -77,7 +92,7 @@ interface CatalogProvider {
      * (implicit page 0) results. Returns an empty list once the provider has
      * no more pages. Backs infinite scroll on Movies/TV Shows.
      */
-    suspend fun getMoreItemsByType(type: ContentType, page: Int): List<Content>
+    suspend fun getMoreItemsByType(type: ContentType, page: Int, genre: String? = null): List<Content>
 
     /**
      * The next page of [getGenreSection]'s content for [genre], same

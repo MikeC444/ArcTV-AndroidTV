@@ -5,12 +5,17 @@ import com.mangotv.app.data.addon.AddonRepository
 import com.mangotv.app.data.audio.SoundPreferencesRepository
 import com.mangotv.app.data.audio.UiSoundPlayer
 import com.mangotv.app.data.auth.AuthRepository
+import com.mangotv.app.data.auth.GuestGate
+import com.mangotv.app.data.feedback.FeedbackRepository
 import com.mangotv.app.data.history.ContinueWatchingRepository
+import com.mangotv.app.data.recommend.FeatureCacheRepository
 import com.mangotv.app.data.player.LastSourceRepository
 import com.mangotv.app.data.player.PlayerPreferencesRepository
+import com.mangotv.app.data.provider.BlockedGenresRepository
 import com.mangotv.app.data.provider.HomeCacheRepository
 import com.mangotv.app.data.provider.HomeRowPreferencesRepository
 import com.mangotv.app.data.provider.MyListRepository
+import com.mangotv.app.data.cast.CastRepository
 import com.mangotv.app.data.releasedate.ReleaseDateRepository
 import com.mangotv.app.data.sync.AccountSwitchCoordinator
 import com.mangotv.app.data.sync.AddonSyncRepository
@@ -146,11 +151,13 @@ import com.mangotv.app.data.update.UpdateRepository
 class AppContainer(context: Context) {
     val addonRepository: AddonRepository = AddonRepository(context)
     val authRepository: AuthRepository = AuthRepository(context)
+    val guestGate: GuestGate = GuestGate(authRepository)
     val addonSyncRepository: AddonSyncRepository = AddonSyncRepository(context, addonRepository, authRepository)
     val playerPreferencesRepository: PlayerPreferencesRepository = PlayerPreferencesRepository(context)
     val homeRowPreferencesRepository: HomeRowPreferencesRepository = HomeRowPreferencesRepository(context)
+    val blockedGenresRepository: BlockedGenresRepository = BlockedGenresRepository(context)
     val settingsSyncRepository: SettingsSyncRepository = SettingsSyncRepository(
-        context, homeRowPreferencesRepository, playerPreferencesRepository, authRepository
+        context, homeRowPreferencesRepository, playerPreferencesRepository, blockedGenresRepository, authRepository
     )
     val myListRepository: MyListRepository = MyListRepository(context)
     val homeCacheRepository: HomeCacheRepository by lazy { HomeCacheRepository(context) }
@@ -163,8 +170,9 @@ class AppContainer(context: Context) {
     val continueWatchingSyncRepository: ContinueWatchingSyncRepository = ContinueWatchingSyncRepository(
         context, continueWatchingRepository, authRepository
     )
+    val feedbackRepository: FeedbackRepository = FeedbackRepository(context, authRepository)
     val syncManager: SyncManager = SyncManager(
-        context, settingsSyncRepository, watchlistSyncRepository, continueWatchingSyncRepository, addonSyncRepository
+        context, settingsSyncRepository, watchlistSyncRepository, continueWatchingSyncRepository, addonSyncRepository, feedbackRepository
     )
     val firstSyncState: FirstSyncState = FirstSyncState(context)
     val firstLoginMigrationCoordinator: FirstLoginMigrationCoordinator by lazy {
@@ -175,6 +183,7 @@ class AppContainer(context: Context) {
             continueWatchingRepository = continueWatchingRepository,
             homeRowPreferencesRepository = homeRowPreferencesRepository,
             playerPreferencesRepository = playerPreferencesRepository,
+            blockedGenresRepository = blockedGenresRepository,
             settingsSyncRepository = settingsSyncRepository,
             watchlistSyncRepository = watchlistSyncRepository,
             continueWatchingSyncRepository = continueWatchingSyncRepository,
@@ -193,12 +202,16 @@ class AppContainer(context: Context) {
             addonRepository = addonRepository,
             homeRowPreferencesRepository = homeRowPreferencesRepository,
             playerPreferencesRepository = playerPreferencesRepository,
+            blockedGenresRepository = blockedGenresRepository,
+            feedbackRepository = feedbackRepository,
             settingsSyncRepository = settingsSyncRepository,
             watchlistSyncRepository = watchlistSyncRepository,
             continueWatchingSyncRepository = continueWatchingSyncRepository,
             addonSyncRepository = addonSyncRepository
         )
     }
+    // Lazy, same reasoning as trailerRepository below: only "Picked for you" (a Plus preview) reads it.
+    val featureCacheRepository: FeatureCacheRepository by lazy { FeatureCacheRepository(context) }
     val soundPreferencesRepository: SoundPreferencesRepository by lazy { SoundPreferencesRepository(context) }
     val uiSoundPlayer: UiSoundPlayer by lazy { UiSoundPlayer(context, soundPreferencesRepository) }
 
@@ -212,6 +225,10 @@ class AppContainer(context: Context) {
     // arm early, and nothing needs it before a movie's Detail page is
     // actually opened.
     val releaseDateRepository: ReleaseDateRepository by lazy { ReleaseDateRepository(authRepository) }
+
+    // Lazy, same reasoning as releaseDateRepository: no side effect to arm early, and nothing needs it before a
+    // Detail page is actually opened.
+    val castRepository: CastRepository by lazy { CastRepository(authRepository) }
 
     // Both lazy, same reasoning as trailerRepository above: no side effect
     // to arm early, and UpdateViewModel (the only caller of either) isn't

@@ -22,7 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.mangotv.app.ui.theme.FocusBorder
 import com.mangotv.app.ui.theme.MangoBackground
-import com.mangotv.app.ui.theme.MangoBrandGradient
+import com.mangotv.app.ui.theme.ArcBrandGradient
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.TextPrimary
 
@@ -90,7 +90,7 @@ fun MangoButton(
             MangoButtonStyle.LIGHT -> Color.White
             MangoButtonStyle.FILLED -> Color.Transparent
         },
-        backgroundBrush = if (backgroundOverride == null && style == MangoButtonStyle.FILLED) MangoBrandGradient else null,
+        backgroundBrush = if (backgroundOverride == null && style == MangoButtonStyle.FILLED) ArcBrandGradient else null,
         focusRequester = focusRequester,
         focusUp = focusUp,
         focusDown = focusDown,

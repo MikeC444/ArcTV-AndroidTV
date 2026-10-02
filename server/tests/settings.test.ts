@@ -20,6 +20,7 @@ function validBody(overrides: Partial<Record<string, unknown>> = {}) {
     skipIntroEnabled: true,
     subtitlesEnabled: false,
     defaultSubtitleLanguage: "es",
+    blockedGenres: ["Horror", "Reality-TV"],
     updatedAt: "2025-01-01T00:00:00.000Z",
     ...overrides,
   };
@@ -42,6 +43,7 @@ describe("GET /user/settings", () => {
       skipIntroEnabled: true,
       subtitlesEnabled: true,
       defaultSubtitleLanguage: null,
+      blockedGenres: [],
       updatedAt: null,
     });
   });
@@ -179,6 +181,7 @@ describe("cross-user isolation", () => {
       skipIntroEnabled: true,
       subtitlesEnabled: true,
       defaultSubtitleLanguage: null,
+      blockedGenres: [],
       updatedAt: null,
     });
 
@@ -187,5 +190,50 @@ describe("cross-user isolation", () => {
 
     const aliceGet = await request(app).get("/user/settings").set("Authorization", `Bearer ${alice.token}`);
     expect(aliceGet.body).toEqual(aliceSettings);
+  });
+});
+
+describe("blocked genres on the account", () => {
+  const put = (app: Express, token: string, body: Record<string, unknown>) =>
+    request(app).put("/user/settings").set("Authorization", `Bearer ${token}`).send(body);
+
+  it("round-trips the list and a newer push replaces it, including with an empty list", async () => {
+    const session = await createTestSession();
+    expect((await put(app, session.token, validBody({ blockedGenres: ["Horror"] }))).body.blockedGenres).toEqual(["Horror"]);
+    const cleared = await put(app, session.token, validBody({ blockedGenres: [], updatedAt: "2025-01-02T00:00:00.000Z" }));
+    expect(cleared.body.blockedGenres).toEqual([]);
+    const got = await request(app).get("/user/settings").set("Authorization", `Bearer ${session.token}`);
+    expect(got.body.blockedGenres).toEqual([]);
+  });
+
+  it("a client that doesn't send the list leaves the stored one alone", async () => {
+    const session = await createTestSession();
+    await put(app, session.token, validBody({ blockedGenres: ["Horror", "Romance"] }));
+    const { blockedGenres: _omitted, ...withoutList } = validBody();
+    const response = await put(app, session.token, { ...withoutList, updatedAt: "2025-01-03T00:00:00.000Z", autoplayNextEpisode: true });
+    expect(response.status).toBe(200);
+    expect(response.body.autoplayNextEpisode).toBe(true);
+    expect(response.body.blockedGenres).toEqual(["Horror", "Romance"]);
+  });
+
+  it("an older push does not change the blocked list", async () => {
+    const session = await createTestSession();
+    await put(app, session.token, validBody({ blockedGenres: ["Horror"], updatedAt: "2025-01-05T00:00:00.000Z" }));
+    const stale = await put(app, session.token, validBody({ blockedGenres: [], updatedAt: "2025-01-01T00:00:00.000Z" }));
+    expect(stale.body.blockedGenres).toEqual(["Horror"]);
+  });
+
+  it("rejects a list that isn't an array of non-empty strings", async () => {
+    const session = await createTestSession();
+    expect((await put(app, session.token, validBody({ blockedGenres: "Horror" }))).status).toBe(400);
+    expect((await put(app, session.token, validBody({ blockedGenres: [""] }))).status).toBe(400);
+  });
+
+  it("keeps each account's list to itself", async () => {
+    const a = await createTestSession();
+    const b = await createTestSession();
+    await put(app, a.token, validBody({ blockedGenres: ["Horror"] }));
+    const seenByB = await request(app).get("/user/settings").set("Authorization", `Bearer ${b.token}`);
+    expect(seenByB.body.blockedGenres).toEqual([]);
   });
 });

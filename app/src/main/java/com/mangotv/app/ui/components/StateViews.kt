@@ -156,7 +156,7 @@ fun HomeEmptyState(
 ) = EmptyState(
     icon = Icons.Filled.Extension,
     title = "Your library is empty",
-    message = "Install an addon to bring movies and TV shows into Mango TV.",
+    message = "Install an addon to bring movies and TV shows into Arc TV.",
     modifier = modifier,
     actionLabel = "Browse Addons",
     actionIcon = Icons.Filled.Extension,

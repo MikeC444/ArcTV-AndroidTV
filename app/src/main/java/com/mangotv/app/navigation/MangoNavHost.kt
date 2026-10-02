@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
@@ -39,7 +41,6 @@ import com.mangotv.app.ui.detail.DetailScreen
 import com.mangotv.app.ui.genres.GenreResultsScreen
 import com.mangotv.app.ui.genres.GenresScreen
 import com.mangotv.app.ui.search.SearchScreen
-import com.mangotv.app.ui.loading.BootVideoScreen
 import com.mangotv.app.ui.mylist.MyListScreen
 import com.mangotv.app.ui.home.HomeScreen
 import com.mangotv.app.ui.home.HomeViewModel
@@ -50,9 +51,10 @@ import com.mangotv.app.ui.sources.SourcesScreen
 import com.mangotv.app.ui.components.CardActionsMenuOverlay
 import com.mangotv.app.ui.components.CardActionsMenuState
 import com.mangotv.app.ui.components.LocalCardActionsMenu
-import com.mangotv.app.ui.update.UpdateBannerHost
+import com.mangotv.app.ui.update.UpdatePromptHost
 import com.mangotv.app.ui.update.UpdateViewModel
 import java.net.URLDecoder
+import kotlinx.coroutines.launch
 
 // Static, argument-less top-level destinations reached from the top nav bar.
 // Navigating to one of these reuses/restores its existing back-stack entry
@@ -65,17 +67,18 @@ private val TAB_ROOT_ROUTES = setOf(
     MangoRoutes.GENRES, MangoRoutes.SEARCH, MangoRoutes.MY_LIST, MangoRoutes.SETTINGS
 )
 
+/** A guest sent to sign in: the route they were heading for once signed in, or null to just return to where they were. */
+private data class SignInReturn(val target: String?)
+
 @Composable
 fun MangoNavHost() {
     val context = LocalContext.current
     val container = remember { (context.applicationContext as MangoTvApplication).container }
 
     // Constructed here, outside any NavHost destination, so it's scoped to
-    // the Activity rather than to Home's own back-stack entry -- BootVideoScreen
-    // and the HOME destination below share this exact instance instead of
-    // each getting their own. Sharing it is what lets BootVideoScreen observe
-    // (and preload images for) the SAME fetch Home itself ends up showing,
-    // rather than duplicating that fetch a second time once Home mounts.
+    // the Activity rather than to Home's own back-stack entry -- the HOME
+    // destination below uses this exact instance, so Home keeps its fetched
+    // rows across tab switches instead of rebuilding from scratch.
     val homeViewModel: HomeViewModel = viewModel()
 
     // Scoped to the Activity, same as homeViewModel above -- checks GitHub
@@ -89,55 +92,18 @@ fun MangoNavHost() {
     // CardActionsMenu.kt's own doc.
     val cardActionsMenuState = remember { CardActionsMenuState() }
 
-    // Shown once, as an opaque overlay ON TOP of the real nav graph, on cold
-    // boot -- see BootVideoScreen's own doc. Never reset once true, so
-    // isAppReady is "never re-armed for the rest of the process's lifetime"
-    // (tab switches, backgrounding, etc. don't recompose MangoNavHost from
-    // scratch). BootVideoScreen itself owns waiting on both its own video
-    // and Home's data readiness before calling onReady() -- this is a
-    // single flag, not a combination of separately-tracked conditions.
-    //
-    // The NavHost below is ALWAYS composed, not gated behind isAppReady --
-    // only this overlay is. That's deliberate: NavHost's startDestination is
-    // the auth gate, which redirects to Home or AuthStart the moment its own
-    // (local-only, fast) check resolves via a hard back-stack-clearing
-    // navigate -- the same kind of pop-and-recreate that tears down and
-    // rebuilds a screen's whole composition elsewhere in this file (see
-    // navigateTo's own doc on the black-flash bug that caused). Gating
-    // NavHost's own existence behind isAppReady used to mean that redirect,
-    // plus Home's own first composition, only ever happened AFTER this
-    // overlay was dismissed -- right in front of the user, as a brief blank
-    // flash before Home reappeared. Keeping NavHost always mounted instead
-    // lets all of that settle underneath this overlay while it's still
-    // covering the screen, so by the time isAppReady flips and this overlay
-    // disappears, Home is already sitting there fully composed with nothing
-    // left to visibly transition.
-    var dataReady by remember { mutableStateOf(false) }
-    val isAppReady = dataReady
+    // Where a guest was heading when they were sent to sign in (null target: just back to where they were). Null
+    // when the sign-in screens were reached any other way, e.g. after signing out.
+    var signInReturn by remember { mutableStateOf<SignInReturn?>(null) }
 
-    // Provided here, above both the loading screen and the real nav graph,
-    // so every TvFocusSurface anywhere in the app (cards, buttons, nav
+    // Provided here, above the nav graph, so every TvFocusSurface anywhere in the app (cards, buttons, nav
     // items) can play the nav/click sounds without each screen having to
     // thread UiSoundPlayer through its own parameters.
     CompositionLocalProvider(
         LocalUiSoundPlayer provides container.uiSoundPlayer,
         LocalCardActionsMenu provides cardActionsMenuState
     ) {
-        // Stacks the real nav graph and the cold-boot overlay on top of each
-        // other (declaration order = z-order in a Box, so BootVideoScreen
-        // below, composed last, draws on top) -- see the isAppReady doc
-        // above for why both need to be mounted together instead of one
-        // gating the other's existence. The onPreviewKeyEvent here swallows
-        // every key while the overlay is covering the screen: NavHost's
-        // content underneath is a real, focusable composition the whole
-        // time now (not merely invisible), so without this a D-pad press
-        // during that window could silently move focus around, or even
-        // fire a click, on whatever's hidden behind the splash.
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .onPreviewKeyEvent { !isAppReady }
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
         val navController = rememberNavController()
 
         // NavHost registers its OWN back-press handling internally (it's
@@ -164,7 +130,16 @@ fun MangoNavHost() {
         val currentBackStackEntry by navController.currentBackStackEntryAsState()
         val isPlayerActive = currentBackStackEntry?.destination?.route == MangoRoutes.PLAYER_PATTERN
 
-        fun navigateTo(route: String) {
+        // A guest (someone browsing without an account) is asked to sign in for Play, My List, Settings and saving a
+        // title. The sign-in screens are pushed on top of where they were, so once signed in they pop straight back to
+        // it, and carry on to what they were heading for (see finishSignIn).
+        fun askToSignIn(target: String?) {
+            if (navController.currentDestination?.route?.startsWith("auth/") == true) return
+            signInReturn = SignInReturn(target)
+            navController.navigate(MangoRoutes.AUTH_START)
+        }
+
+        fun openRoute(route: String) {
             if (route in TAB_ROOT_ROUTES) {
                 // Re-tapping the tab you're already on: with the popUpTo +
                 // saveState + restoreState combo below (the standard bottom-
@@ -191,6 +166,14 @@ fun MangoNavHost() {
             }
         }
 
+        fun navigateTo(route: String) {
+            if (container.guestGate.isGuest.value && (routeNeedsAccount(route) || route == MangoRoutes.AUTH_START)) {
+                askToSignIn(target = route.takeIf { it != MangoRoutes.AUTH_START })
+                return
+            }
+            openRoute(route)
+        }
+
         // A signed-out user is never left with anything to navigate back
         // into: both transitions below (auth gate -> a destination, and
         // sign-out -> AuthStart) clear the *entire* back stack via
@@ -200,6 +183,24 @@ fun MangoNavHost() {
             navController.navigate(route) {
                 popUpTo(navController.graph.id) { inclusive = true }
             }
+        }
+
+        // Signed in: if the sign-in screens were opened from inside the app (a guest pressing Play, say), pop back to
+        // where they were and carry on to what they asked for; otherwise start fresh at Home. Goes straight to the
+        // target rather than through navigateTo's guest check, which could still see the old state for a moment.
+        fun finishSignIn() {
+            val pending = signInReturn
+            signInReturn = null
+            if (pending != null && navController.popBackStack(MangoRoutes.AUTH_START, inclusive = true)) {
+                pending.target?.let { openRoute(it) }
+            } else {
+                navigateClearingBackStack(MangoRoutes.HOME)
+            }
+        }
+
+        // Saving a title (My List, Watched) from a card menu, the hero or a title page asks a guest to sign in.
+        LaunchedEffect(Unit) {
+            container.guestGate.signInRequests.collect { askToSignIn(target = null) }
         }
 
         // Same "skip the picker if a source is already remembered for this
@@ -258,23 +259,37 @@ fun MangoNavHost() {
             // nav-sound listener just above: an "Update available" banner
             // over the video is exactly the kind of interface chrome that
             // shouldn't compete with what the user is actually watching.
-            UpdateBannerHost(viewModel = updateViewModel, suppressed = isPlayerActive) {
+            UpdatePromptHost(viewModel = updateViewModel, suppressed = isPlayerActive) {
             NavHost(navController = navController, startDestination = MangoRoutes.AUTH_GATE) {
                 composable(MangoRoutes.AUTH_GATE) {
                     AuthGateScreen(
                         onNavigate = { destination ->
                             val target = when (destination) {
                                 GateDestination.Home -> MangoRoutes.HOME
-                                GateDestination.AuthStart -> MangoRoutes.AUTH_START
                             }
                             navigateClearingBackStack(target)
                         }
                     )
                 }
                 composable(MangoRoutes.AUTH_START) {
+                    val scope = rememberCoroutineScope()
+                    // Only when this is the first screen (after signing out): a guest sent here from inside the app
+                    // can press BACK instead.
+                    val browseAsGuest: (() -> Unit)? = if (signInReturn == null) {
+                        {
+                            scope.launch {
+                                container.addonRepository.ensureDefaultAddon()
+                                navigateClearingBackStack(MangoRoutes.HOME)
+                            }
+                            Unit
+                        }
+                    } else {
+                        null
+                    }
                     AuthStartScreen(
                         onSignIn = { navController.navigate(MangoRoutes.authMethod("login")) },
-                        onCreateAccount = { navController.navigate(MangoRoutes.authMethod("register")) }
+                        onCreateAccount = { navController.navigate(MangoRoutes.authMethod("register")) },
+                        onBrowseAsGuest = browseAsGuest
                     )
                 }
                 composable(MangoRoutes.AUTH_METHOD_PATTERN) { backStackEntry ->
@@ -287,12 +302,12 @@ fun MangoNavHost() {
                 }
                 composable(MangoRoutes.AUTH_QR_PATTERN) {
                     QrSignInScreen(
-                        onAuthenticated = { navigateClearingBackStack(MangoRoutes.HOME) }
+                        onAuthenticated = { finishSignIn() }
                     )
                 }
                 composable(MangoRoutes.AUTH_PASSWORD_PATTERN) {
                     PasswordSignInScreen(
-                        onAuthenticated = { navigateClearingBackStack(MangoRoutes.HOME) }
+                        onAuthenticated = { finishSignIn() }
                     )
                 }
                 composable(MangoRoutes.HOME) {
@@ -396,7 +411,7 @@ fun MangoNavHost() {
                     }
                 }
             }
-            } // UpdateBannerHost
+            } // UpdatePromptHost
         }
 
         // Global fallback for the hardware/remote BACK button -- see the
@@ -422,17 +437,11 @@ fun MangoNavHost() {
             state = cardActionsMenuState,
             myListRepository = container.myListRepository,
             continueWatchingSyncRepository = container.continueWatchingSyncRepository,
+            guestGate = container.guestGate,
+            feedbackRepository = container.feedbackRepository,
             onNavigate = ::navigateTo,
             resolvePlayRoute = ::resolvePlayRoute
         )
         } // Box
-
-        // Declared last, so it draws on top of everything else in the Box
-        // above -- see the isAppReady doc near the top of this function for
-        // why NavHost stays mounted underneath this the whole time instead
-        // of being gated by it.
-        if (!isAppReady) {
-            BootVideoScreen(homeViewModel = homeViewModel, onReady = { dataReady = true })
-        }
     }
 }

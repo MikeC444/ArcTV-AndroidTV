@@ -24,6 +24,26 @@ enum class SourceHealth(val label: String) {
     LOW("Poor Health")
 }
 
+/**
+ * Whether a debrid link is ready at the debrid service: [cached] sources start at once, the others make the service
+ * fetch the file first, which can take minutes. [service] is the short code the addon puts in the stream name ("RD").
+ */
+data class DebridState(val service: String, val cached: Boolean)
+
+/** The debrid services' short codes as addons write them in a stream name, with the name to show. */
+val DEBRID_NAMES: Map<String, String> = mapOf(
+    "RD" to "Real-Debrid",
+    "AD" to "AllDebrid",
+    "PM" to "Premiumize",
+    "DL" to "Debrid-Link",
+    "TB" to "TorBox",
+    "OC" to "Offcloud",
+    "PP" to "PikPak",
+    "ED" to "EasyDebrid"
+)
+
+fun DebridState.serviceName(): String = DEBRID_NAMES[service] ?: service
+
 data class Stream(
     val id: String,
     val providerId: String,
@@ -41,5 +61,7 @@ data class Stream(
     val sourceHealth: SourceHealth? = null,
     val url: String? = null,
     val infoHash: String? = null,
-    val ytId: String? = null
+    val ytId: String? = null,
+    // Null for a source that isn't a debrid link at all (a plain file or a torrent).
+    val debrid: DebridState? = null
 )

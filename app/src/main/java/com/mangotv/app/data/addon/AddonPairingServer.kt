@@ -56,17 +56,17 @@ class AddonPairingServer(
             input{width:100%;padding:16px;font-size:16px;border-radius:10px;border:1px solid #333;
                   margin-top:16px;box-sizing:border-box;background:#1c1c20;color:#fff;}
             button{width:100%;padding:16px;font-size:16px;font-weight:700;border-radius:10px;border:none;
-                   margin-top:16px;background:linear-gradient(90deg,#ffb020,#ff3d68);color:#08080a;}
+                   margin-top:16px;background:linear-gradient(90deg,#19e6ff,#2f80ff,#9b5cff);color:#08080a;}
         """
 
         private val FORM_HTML = """
             <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
-            <title>Add Addon to Mango TV</title><style>$PAGE_STYLE</style></head><body>
-            <h2>Add Addon to Mango TV</h2>
+            <title>Add Addon to Arc TV</title><style>$PAGE_STYLE</style></head><body>
+            <h2>Add Addon to Arc TV</h2>
             <p>Paste the addon's manifest URL below, then send it to your TV.</p>
             <form method="POST" action="/submit">
               <input type="url" name="url" placeholder="https://example.com/manifest.json" required autofocus />
-              <button type="submit">Send to Mango TV</button>
+              <button type="submit">Send to Arc TV</button>
             </form>
             </body></html>
         """.trimIndent()

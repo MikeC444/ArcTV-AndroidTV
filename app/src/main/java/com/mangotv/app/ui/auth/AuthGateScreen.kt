@@ -11,14 +11,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.mangotv.app.ui.components.MangoLogo
+import com.mangotv.app.ui.components.ArcLogo
 import com.mangotv.app.ui.theme.MangoBackground
 
 /**
- * The very first thing rendered on every launch — resolves to Home or
- * AuthStart almost immediately (a local-only check, see
- * AuthGateViewModel) and is gone from the back stack the moment it
- * decides, so it's never something a user can navigate back into. Kept
+ * The very first thing rendered on every launch — resolves to Home
+ * almost immediately (a local-only check, see AuthGateViewModel) and is
+ * gone from the back stack the moment it decides, so it's never something a user can navigate back into. Kept
  * deliberately minimal (just the logo — no spinner, no copy) since it's
  * expected to be on screen for a very short time.
  */
@@ -39,6 +38,6 @@ fun AuthGateScreen(
             .background(MangoBackground),
         contentAlignment = Alignment.Center
     ) {
-        MangoLogo(fontSize = 32.sp)
+        ArcLogo(fontSize = 32.sp)
     }
 }

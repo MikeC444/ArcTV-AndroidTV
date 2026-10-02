@@ -97,8 +97,15 @@ class StremioAddonClient {
     private fun get(url: String): String {
         val request = Request.Builder().url(url).build()
         httpClient.newCall(request).execute().use { response ->
-            check(response.isSuccessful) { "HTTP ${response.code} from $url" }
+            if (!response.isSuccessful) throw AddonHttpException(response.code, url)
             return response.body?.string() ?: error("Empty response from $url")
         }
     }
 }
+
+/**
+ * A non-2xx answer from an addon. Still an [IllegalStateException], as this used to be (a bare `check`), so nothing
+ * that already caught the old failure behaves differently; the status code is there so callers can tell "I don't know
+ * this id" (404) from "I'm having a problem" (5xx).
+ */
+class AddonHttpException(val status: Int, url: String) : IllegalStateException("HTTP $status from $url")

@@ -14,7 +14,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoSurfaceHigh
 import com.mangotv.app.ui.theme.TextPrimary
@@ -49,7 +49,7 @@ fun FilterPill(
         onClick = onClick,
         modifier = modifier,
         shape = RoundedCornerShape(percent = 50),
-        backgroundColor = if (selected) MangoAmber else MangoSurfaceHigh,
+        backgroundColor = if (selected) ArcAccent else MangoSurfaceHigh,
         focusRequester = focusRequester,
         focusUp = focusUp,
         focusDown = focusDown,

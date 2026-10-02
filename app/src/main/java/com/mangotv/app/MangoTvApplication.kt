@@ -5,6 +5,7 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import kotlinx.coroutines.runBlocking
 
 class MangoTvApplication : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
@@ -13,6 +14,21 @@ class MangoTvApplication : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        warmUp()
+    }
+
+    // Work the first screen would otherwise do on the main thread (and the first frame would wait for): loading the
+    // UI sounds, and reading Home's cached rows off disk. Both are lazy and thread-safe, so doing them here, off the
+    // main thread, only means they are already finished by the time Home asks.
+    private fun warmUp() {
+        Thread {
+            runCatching { container.uiSoundPlayer }
+            runCatching { runBlocking { container.homeCacheRepository.read() } }
+        }.apply {
+            name = "mango-warmup"
+            priority = Thread.MIN_PRIORITY
+            start()
+        }
     }
 
     // Home's poster grid got a lot denser recently -- smaller poster cards

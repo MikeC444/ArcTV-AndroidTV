@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -39,9 +40,9 @@ import androidx.compose.ui.unit.sp
 import com.mangotv.app.R
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
-import com.mangotv.app.ui.components.MangoLogo
+import com.mangotv.app.ui.components.ArcLogo
 import com.mangotv.app.ui.theme.MangoBackground
-import com.mangotv.app.ui.theme.MangoBrandGradient
+import com.mangotv.app.ui.theme.ArcBrandGradient
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
@@ -71,7 +72,10 @@ import com.mangotv.app.ui.theme.TextTertiary
 @Composable
 fun AuthStartScreen(
     onSignIn: () -> Unit,
-    onCreateAccount: () -> Unit
+    onCreateAccount: () -> Unit,
+    // Shown only when there is nowhere to go back to (e.g. right after signing out): carries on to Home as a guest.
+    // Null hides the button, since someone sent here from inside the app can just press BACK.
+    onBrowseAsGuest: (() -> Unit)? = null
 ) {
     val logInFocusRequester = remember { FocusRequester() }
     val signUpFocusRequester = remember { FocusRequester() }
@@ -117,12 +121,12 @@ fun AuthStartScreen(
                 .padding(horizontal = MangoDimens.ScreenPaddingHorizontal)
                 .widthIn(max = 400.dp)
         ) {
-            MangoLogo(fontSize = 32.sp)
+            ArcLogo(fontSize = 32.sp)
             Spacer(Modifier.height(40.dp))
             Text(
                 text = buildAnnotatedString {
                     append("Your Entertainment,\n")
-                    withStyle(SpanStyle(brush = MangoBrandGradient)) { append("Your Way") }
+                    withStyle(SpanStyle(brush = ArcBrandGradient)) { append("Your Way") }
                 },
                 color = TextPrimary,
                 style = MaterialTheme.typography.displayMedium
@@ -155,6 +159,18 @@ fun AuthStartScreen(
                 focusRequester = signUpFocusRequester,
                 focusUp = logInFocusRequester
             )
+            if (onBrowseAsGuest != null) {
+                Spacer(Modifier.height(16.dp))
+                MangoButton(
+                    text = "Browse without an account",
+                    icon = Icons.Filled.Search,
+                    trailingIcon = Icons.Filled.ChevronRight,
+                    onClick = onBrowseAsGuest,
+                    style = MangoButtonStyle.GLASS,
+                    modifier = Modifier.fillMaxWidth(),
+                    focusUp = signUpFocusRequester
+                )
+            }
             Spacer(Modifier.height(28.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(

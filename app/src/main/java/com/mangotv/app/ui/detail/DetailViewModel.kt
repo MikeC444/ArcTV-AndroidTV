@@ -8,7 +8,11 @@ import com.mangotv.app.MangoTvApplication
 import com.mangotv.app.data.history.ContinueWatchingEntry
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
+import com.mangotv.app.data.feedback.FeedbackTarget
 import com.mangotv.app.data.provider.CatalogProvider
+import com.mangotv.app.data.recommend.Feedback
+import com.mangotv.app.data.provider.blockedGenreSet
+import com.mangotv.app.data.provider.withoutBlocked
 import com.mangotv.app.data.provider.ProviderRegistry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,7 +30,7 @@ sealed interface DetailUiState {
     data class Error(val message: String) : DetailUiState
 }
 
-/** Backs DetailHeroSection's Trailer button -- Idle/Loading before/while a lookup is running, so the button can stay hidden rather than flashing in only to disappear a moment later on NotFound. */
+/** Backs DetailHeroSection's Trailer button -- Idle/Loading before/while a lookup is running and NotFound after one that found nothing: the button is shown throughout but dimmed until Found. */
 sealed interface TrailerState {
     data object Idle : TrailerState
     data object Loading : TrailerState
@@ -58,6 +62,10 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
     private val lastSourceRepository = (application as MangoTvApplication).container.lastSourceRepository
     private val trailerRepository = (application as MangoTvApplication).container.trailerRepository
     private val releaseDateRepository = (application as MangoTvApplication).container.releaseDateRepository
+    private val castRepository = (application as MangoTvApplication).container.castRepository
+    private val guestGate = (application as MangoTvApplication).container.guestGate
+    private val blockedGenresRepository = (application as MangoTvApplication).container.blockedGenresRepository
+    private val feedbackRepository = (application as MangoTvApplication).container.feedbackRepository
 
     private val providerId: String =
         URLDecoder.decode(savedStateHandle.get<String>("providerId").orEmpty(), "UTF-8")
@@ -89,6 +97,18 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
     val isInMyList: StateFlow<Boolean> = myListRepository.items
         .map { items -> items.any { it.id == contentId } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    /** This title's Like / Not for me, for the Detail buttons (movies only; the "Picked for you" preview). */
+    val feedback: StateFlow<Feedback?> = feedbackRepository.entries
+        .map { entries -> entries[contentId]?.feedback }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** Pressing Like when already liked clears it; pressing it when "Not for me" switches it. A guest is asked to sign in. */
+    fun toggleFeedback(value: Feedback) {
+        val content = (uiState.value as? DetailUiState.Success)?.content ?: return
+        val target = FeedbackTarget(content.id, content.title, content.providerId)
+        guestGate.requireAccount { viewModelScope.launch { feedbackRepository.toggle(target, value) } }
+    }
 
     // Pristine (never-stamped) content/similar backing whatever's currently
     // published -- publish() always re-derives from these rather than from
@@ -140,7 +160,8 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
 
     fun toggleMyList() {
         val content = (uiState.value as? DetailUiState.Success)?.content ?: return
-        viewModelScope.launch { myListRepository.toggle(content) }
+        // Saving a title needs an account: a guest is asked to sign in instead.
+        guestGate.requireAccount { viewModelScope.launch { myListRepository.toggle(content) } }
     }
 
     /**
@@ -163,7 +184,7 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
      */
     fun toggleWatched() {
         val content = (uiState.value as? DetailUiState.Success)?.content ?: return
-        myListRepository.toggleWatched(content)
+        guestGate.requireAccount { myListRepository.toggleWatched(content) }
     }
 
     init {
@@ -219,6 +240,7 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
             publish()
             loadTrailer(detail)
             loadReleaseDate(detail)
+            loadCast(detail)
 
             val similar = runCatching { loadSimilar(provider, detail) }.getOrDefault(emptyList())
             if (similar.isNotEmpty()) {
@@ -260,6 +282,21 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
         }
     }
 
+    // A separate child coroutine, same reasoning as loadTrailer/loadReleaseDate above: an extra network round trip that
+    // must never delay (or be delayed by) the rest of the page. Addons only send cast names; this fills in photos and
+    // characters from TMDB when it can and republishes, so the avatars pop in a moment after the page appears. Guarded
+    // so a slow answer for a title the person has already left can't overwrite the one now on screen.
+    private fun loadCast(content: Content) {
+        viewModelScope.launch {
+            val enriched = castRepository.withTmdbDetails(content.id, content.type, content.cast)
+            val current = rawContent
+            if (enriched !== content.cast && current != null && current.id == content.id) {
+                rawContent = current.copy(cast = enriched)
+                publish()
+            }
+        }
+    }
+
     private suspend fun loadSimilar(
         provider: CatalogProvider,
         detail: Content
@@ -270,6 +307,7 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
             .flatMap { it.items }
             .distinctBy { it.id }
             .filterNot { it.id == detail.id }
+            .withoutBlocked(blockedGenreSet(blockedGenresRepository.genres.value))
 
         val detailGenreIds = detail.genres.map { it.id }.toSet()
         val genreMatches = if (detailGenreIds.isEmpty()) {

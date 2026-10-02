@@ -9,6 +9,8 @@ export interface UserSettings {
   subtitlesEnabled: boolean;
   /** An ISO 639-1 code (e.g. "en"), or null for "no preference". */
   defaultSubtitleLanguage: string | null;
+  /** Genre names hidden from every browse surface; empty means nothing is blocked. */
+  blockedGenres: string[];
   /** null only for an account that has never pushed settings from any device. */
   updatedAt: Date | null;
 }
@@ -20,6 +22,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   skipIntroEnabled: true,
   subtitlesEnabled: true,
   defaultSubtitleLanguage: null,
+  blockedGenres: [],
   updatedAt: null,
 };
 
@@ -30,6 +33,7 @@ interface SettingsRow {
   skip_intro_enabled: boolean;
   subtitles_enabled: boolean;
   default_subtitle_language: string | null;
+  blocked_genres: string[];
   updated_at: Date;
 }
 
@@ -41,6 +45,7 @@ function mapRow(row: SettingsRow): UserSettings {
     skipIntroEnabled: row.skip_intro_enabled,
     subtitlesEnabled: row.subtitles_enabled,
     defaultSubtitleLanguage: row.default_subtitle_language,
+    blockedGenres: row.blocked_genres,
     updatedAt: row.updated_at,
   };
 }
@@ -49,7 +54,7 @@ function mapRow(row: SettingsRow): UserSettings {
 export async function getUserSettings(userId: string): Promise<UserSettings> {
   const result = await pool.query<SettingsRow>(
     `SELECT home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled,
-            subtitles_enabled, default_subtitle_language, updated_at
+            subtitles_enabled, default_subtitle_language, blocked_genres, updated_at
      FROM user_settings WHERE user_id = $1`,
     [userId]
   );
@@ -77,8 +82,8 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
  */
 export async function upsertUserSettings(userId: string, input: SettingsInput): Promise<UserSettings> {
   const result = await pool.query<SettingsRow>(
-    `INSERT INTO user_settings (user_id, home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled, subtitles_enabled, default_subtitle_language, updated_at)
-     VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7, $8)
+    `INSERT INTO user_settings (user_id, home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled, subtitles_enabled, default_subtitle_language, blocked_genres, updated_at)
+     VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7, COALESCE($9::jsonb, '[]'::jsonb), $8)
      ON CONFLICT (user_id) DO UPDATE SET
        home_row_order = EXCLUDED.home_row_order,
        hidden_row_ids = EXCLUDED.hidden_row_ids,
@@ -86,9 +91,11 @@ export async function upsertUserSettings(userId: string, input: SettingsInput): 
        skip_intro_enabled = EXCLUDED.skip_intro_enabled,
        subtitles_enabled = EXCLUDED.subtitles_enabled,
        default_subtitle_language = EXCLUDED.default_subtitle_language,
+       -- A client that didn't send the list (an older build) keeps what is stored.
+       blocked_genres = COALESCE($9::jsonb, user_settings.blocked_genres),
        updated_at = EXCLUDED.updated_at
      WHERE EXCLUDED.updated_at > user_settings.updated_at
-     RETURNING home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled, subtitles_enabled, default_subtitle_language, updated_at`,
+     RETURNING home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled, subtitles_enabled, default_subtitle_language, blocked_genres, updated_at`,
     [
       userId,
       JSON.stringify(input.homeRowOrder),
@@ -98,6 +105,7 @@ export async function upsertUserSettings(userId: string, input: SettingsInput): 
       input.subtitlesEnabled,
       input.defaultSubtitleLanguage,
       new Date(input.updatedAt),
+      input.blockedGenres === undefined ? null : JSON.stringify(input.blockedGenres),
     ]
   );
 

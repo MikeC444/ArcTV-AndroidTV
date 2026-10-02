@@ -1,6 +1,8 @@
 package com.mangotv.app.data.provider
 
+import com.mangotv.app.data.addon.AddonHttpException
 import com.mangotv.app.data.addon.StremioAddonClient
+import com.mangotv.app.data.addon.describeAddonError
 import com.mangotv.app.data.addon.toContent
 import com.mangotv.app.data.addon.toStream
 import com.mangotv.app.data.model.AddonCatalogDef
@@ -9,11 +11,18 @@ import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.model.HomeSection
 import com.mangotv.app.data.model.Stream
+import com.mangotv.app.data.model.StreamLookup
+import com.mangotv.app.data.model.StreamReport
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 private val SUPPORTED_CATALOG_TYPES = setOf("movie", "series")
 
@@ -34,14 +43,11 @@ private const val MAX_GENRE_ROWS = 30
 // between pages, not a crash.
 private const val PAGE_SIZE = 100
 
-// How many base/genre row requests getHomeSections() fans out per batch --
-// matches the batch size Nuvio (a comparable Stremio-client app) uses for
-// the same job. Small on purpose: it's not about raw throughput (this app's
-// own OkHttp client already allows far more concurrent requests than this),
-// it's about how soon the FIRST batch -- and therefore the first visible
-// rows -- lands, and about being a reasonably polite load against a shared,
+// How many genre row requests getHomeSections() fans out per batch (the base row is always its own first batch, so
+// the first visible rows aren't held up by the slowest genre request). Bigger batches mean fewer sequential waves to
+// reach the last row -- there were eight waves of four -- while still being a reasonably polite load against a shared,
 // free community addon server rather than firing 30 requests at once.
-private const val HOME_BATCH_SIZE = 4
+private const val HOME_BATCH_SIZE = 8
 
 /**
  * A [CatalogProvider] backed by a real, user-installed Stremio-protocol
@@ -78,8 +84,16 @@ class StremioAddonProvider(
     // MAX_GENRE_ROWS extra HTTP requests just to throw the grouping away
     // again on the client). The base catalog alone is plenty of content for
     // a shuffled browse row.
-    override suspend fun getSectionsByType(type: ContentType): List<HomeSection> {
+    override suspend fun getSectionsByType(type: ContentType, genre: String?): List<HomeSection> {
         val stremioType = if (type == ContentType.TV_SHOW) "series" else "movie"
+        if (genre != null) {
+            // Only this type's catalogues that list the genre, so a Movies page never gets series mixed in.
+            val genreCatalogs = catalogsMatchingGenre(genre).filter { it.type == stremioType }
+            if (genreCatalogs.isEmpty()) return emptyList()
+            return listOfNotNull(
+                fetchMergedSection(genreCatalogs, title = genre, extra = mapOf("genre" to genre), rowKey = "${stremioType}_genre_$genre")
+            )
+        }
         val catalogs = supportedCatalogs.filter { it.type == stremioType }
         val baseCatalogs = catalogs.filter { catalogDef ->
             catalogDef.extra.firstOrNull { it.name == "genre" }?.isRequired != true
@@ -96,8 +110,12 @@ class StremioAddonProvider(
         return fetchMergedSection(catalogsForGenre, title = genre, extra = mapOf("genre" to genre), rowKey = "genre_$genre")
     }
 
-    override suspend fun getMoreItemsByType(type: ContentType, page: Int): List<Content> {
+    override suspend fun getMoreItemsByType(type: ContentType, page: Int, genre: String?): List<Content> {
         val stremioType = if (type == ContentType.TV_SHOW) "series" else "movie"
+        if (genre != null) {
+            val genreCatalogs = catalogsMatchingGenre(genre).filter { it.type == stremioType }
+            return if (genreCatalogs.isEmpty()) emptyList() else fetchPage(genreCatalogs, extra = mapOf("genre" to genre), page = page)
+        }
         val baseCatalogs = supportedCatalogs.filter { it.type == stremioType }
             .filter { catalogDef -> catalogDef.extra.firstOrNull { it.name == "genre" }?.isRequired != true }
         if (baseCatalogs.isEmpty()) return emptyList()
@@ -229,8 +247,13 @@ class StremioAddonProvider(
         // batches (awaitAll returns results in input order, not completion
         // order), it just controls how many requests are in flight at once
         // and how often a batch's worth of rows gets published.
-        val allFetches = listOfNotNull(baseRowFetch) + genreRowFetches
-        allFetches.chunked(HOME_BATCH_SIZE).forEach { batch ->
+        //
+        // The base row goes out on its own: a batch is only published once its slowest request lands, so sharing a
+        // batch with genre rows made the first paint wait for the slowest of them (and, on a slow device, for the
+        // rest of the batch to be parsed). Alone, it shows as soon as it arrives and the genre rows follow in waves.
+        val genreBatches = genreRowFetches.chunked(HOME_BATCH_SIZE)
+        val allBatches = listOfNotNull(baseRowFetch?.let { listOf(it) }) + genreBatches
+        allBatches.forEach { batch ->
             val ready = coroutineScope {
                 batch.map { fetchRow -> async { fetchRow() } }.awaitAll()
             }.filterNotNull()
@@ -281,12 +304,45 @@ class StremioAddonProvider(
             ?.toContent(providerId = this.id)
     }
 
-    override suspend fun getStreams(type: ContentType, id: String, season: Int?, episode: Int?): List<Stream> {
+    override suspend fun getStreams(type: ContentType, id: String, season: Int?, episode: Int?): List<Stream> =
+        getStreamReport(type, id, season, episode).streams
+
+    /**
+     * A manifest that lists its resources without "stream" (Cinemeta: catalog and meta only) has nothing to ask. An
+     * empty or missing list is asked anyway, since an addon that doesn't declare its resources may still answer.
+     */
+    private fun offersStreams(): Boolean = manifestOffersStreams(manifest.resources)
+
+    override suspend fun getStreamReport(type: ContentType, id: String, season: Int?, episode: Int?): StreamReport {
+        if (!offersStreams()) return StreamReport(name, emptyList(), StreamLookup.Unsupported)
         val stremioType = if (type == ContentType.TV_SHOW) "series" else "movie"
         val requestId = if (season != null && episode != null) "$id:$season:$episode" else id
-        return runCatching { client.fetchStreams(manifestUrl, stremioType, requestId) }
-            .getOrDefault(emptyList())
-            .map { it.toStream(providerId = this.id, providerLabel = this.name) }
+        return try {
+            val streams = client.fetchStreams(manifestUrl, stremioType, requestId)
+                .map { it.toStream(providerId = this.id, providerLabel = this.name) }
+            StreamReport(name, streams, if (streams.isEmpty()) StreamLookup.None else StreamLookup.Ok(streams.size))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: AddonHttpException) {
+            // 404 is "I don't know this id", which is an answer, not a failure.
+            if (e.status == 404) StreamReport(name, emptyList(), StreamLookup.None)
+            else StreamReport(name, emptyList(), StreamLookup.Failed(describeAddonError(e)))
+        } catch (e: Exception) {
+            StreamReport(name, emptyList(), StreamLookup.Failed(describeAddonError(e)))
+        }
+    }
+}
+
+/** The names a manifest's `resources` list declares: each entry is a plain string or an object with a "name". */
+internal fun manifestOffersStreams(resources: List<JsonElement>): Boolean {
+    if (resources.isEmpty()) return true
+    return resources.any { element ->
+        val name = when (element) {
+            is JsonPrimitive -> element.contentOrNull
+            is JsonObject -> (element["name"] as? JsonPrimitive)?.contentOrNull
+            else -> null
+        }
+        name == "stream"
     }
 }
 

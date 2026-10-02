@@ -14,11 +14,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoBackground
 
 /**
- * A solid amber play circle with a soft glow behind it, built entirely from
+ * A solid accent-coloured play circle with a soft glow behind it, built entirely from
  * plain background/gradient draws — no Modifier.blur() or colored-shadow
  * APIs, both of which are silent no-ops or look wrong below API 31/28 and
  * this app's minSdk is 23. Purely decorative: neither circle is focusable,
@@ -36,14 +36,14 @@ fun GlowPlayBadge(
             modifier = Modifier
                 .size(glowSize)
                 .background(
-                    Brush.radialGradient(listOf(MangoAmber.copy(alpha = 0.45f), Color.Transparent)),
+                    Brush.radialGradient(listOf(ArcAccent.copy(alpha = 0.45f), Color.Transparent)),
                     CircleShape
                 )
         )
         Box(
             modifier = Modifier
                 .size(size)
-                .background(MangoAmber, CircleShape),
+                .background(ArcAccent, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(

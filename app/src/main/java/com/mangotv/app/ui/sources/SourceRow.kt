@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.Wifi
@@ -32,12 +34,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.mangotv.app.data.model.ResolutionTier
+import com.mangotv.app.data.model.DebridState
 import com.mangotv.app.data.model.SourceHealth
+import com.mangotv.app.data.model.serviceName
 import com.mangotv.app.data.model.Stream
 import com.mangotv.app.ui.components.GlowPlayBadge
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.theme.FocusBorder
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
+import com.mangotv.app.ui.theme.ArcWarn
 import com.mangotv.app.ui.theme.MangoAzure
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoDimens
@@ -66,10 +71,10 @@ fun SourceRow(
             focusRequester = focusRequester,
             // Drawn by TvFocusSurface itself (inside its focus-scale
             // transform) rather than as a border on the modifier above, so
-            // the amber outline scales up together with the card instead
+            // the accent outline scales up together with the card instead
             // of staying a fixed size while the card grows around it.
             alwaysShowBorder = isRecommended,
-            borderColor = if (isRecommended) MangoAmber else FocusBorder,
+            borderColor = if (isRecommended) ArcAccent else FocusBorder,
             bringIntoViewOnFocus = false
         ) {
             Row(
@@ -174,6 +179,28 @@ fun SourceRow(
                             }
                         }
                     }
+                    // Whether a debrid link is ready: "cached" starts at once, anything else makes the debrid
+                    // service fetch the file first, which can take minutes, so say so before it is picked.
+                    stream.debrid?.let { debrid ->
+                        Spacer(Modifier.height(4.dp))
+                        val debridColor = if (debrid.cached) MangoTeal else ArcWarn
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (debrid.cached) Icons.Filled.Bolt else Icons.Filled.HourglassTop,
+                                contentDescription = null,
+                                tint = debridColor,
+                                modifier = Modifier.width(13.dp)
+                            )
+                            Spacer(Modifier.width(3.dp))
+                            Text(
+                                text = debridLabel(debrid),
+                                color = debridColor,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
 
                 Spacer(Modifier.width(8.dp))
@@ -221,7 +248,7 @@ fun SourceRow(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .offset(x = (-16).dp, y = (-10).dp)
-                    .background(MangoAmber, RoundedCornerShape(percent = 50))
+                    .background(ArcAccent, RoundedCornerShape(percent = 50))
                     .padding(horizontal = 10.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -246,7 +273,7 @@ fun SourceRow(
 @Composable
 private fun QualityBadge(stream: Stream) {
     val color = when (stream.resolutionTier) {
-        ResolutionTier.UHD_4K -> MangoAmber
+        ResolutionTier.UHD_4K -> ArcAccent
         ResolutionTier.FHD_1080P -> MangoAzure
         ResolutionTier.HD_720P -> MangoTeal
         ResolutionTier.OTHER -> TextTertiary
@@ -278,3 +305,8 @@ private fun QualityBadge(stream: Stream) {
         }
     }
 }
+
+/** "Cached on Real-Debrid", or "Not cached on Real-Debrid \u2014 may take minutes" for a file the service still has to fetch. */
+fun debridLabel(debrid: DebridState): String =
+    if (debrid.cached) "Cached on ${debrid.serviceName()}"
+    else "Not cached on ${debrid.serviceName()} \u2014 may take minutes"

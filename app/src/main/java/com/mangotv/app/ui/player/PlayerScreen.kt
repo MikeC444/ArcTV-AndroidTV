@@ -169,7 +169,7 @@ private fun PlaybackContent(
     }
 
     DisposableEffect(exoPlayer) {
-        val listener = PlayerListenerBridge(onPhaseChanged, onTracksChanged)
+        val listener = PlayerListenerBridge(onPhaseChanged, onTracksChanged, exoPlayer)
         exoPlayer.addListener(listener)
         onDispose {
             exoPlayer.removeListener(listener)

@@ -51,8 +51,16 @@ class SessionManager(context: Context) {
     private val _session = MutableStateFlow<Session?>(null)
     val session: StateFlow<Session?> = _session.asStateFlow()
 
+    // False until the stored session has been read: [session] starts out null, which on its own can't tell "nobody is
+    // signed in" from "not read yet".
+    private val _loaded = MutableStateFlow(false)
+    val loaded: StateFlow<Boolean> = _loaded.asStateFlow()
+
     init {
-        scope.launch { _session.value = readPersisted() }
+        scope.launch {
+            _session.value = readPersisted()
+            _loaded.value = true
+        }
     }
 
     suspend fun save(session: Session) = withContext(Dispatchers.IO) {
@@ -61,11 +69,13 @@ class SessionManager(context: Context) {
         val encoded = Base64.encodeToString(ciphertext, Base64.NO_WRAP)
         appContext.sessionDataStore.edit { it[SESSION_KEY] = encoded }
         _session.value = session
+        _loaded.value = true
     }
 
     suspend fun clear() = withContext(Dispatchers.IO) {
         appContext.sessionDataStore.edit { it.remove(SESSION_KEY) }
         _session.value = null
+        _loaded.value = true
     }
 
     /** The authoritative current session, read fresh from disk every call. */

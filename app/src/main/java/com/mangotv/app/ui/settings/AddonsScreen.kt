@@ -35,7 +35,7 @@ import com.mangotv.app.data.model.InstalledAddon
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
 import com.mangotv.app.ui.components.TvFocusSurface
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoSurface
@@ -117,7 +117,7 @@ private fun EmptyAddonsHint() {
         )
         Spacer(Modifier.height(6.dp))
         Text(
-            text = "Add a Stremio-compatible addon to bring its catalog into Mango TV.",
+            text = "Add a Stremio-compatible addon to bring its catalog into Arc TV.",
             color = TextSecondary,
             style = MaterialTheme.typography.bodySmall
         )
@@ -168,7 +168,7 @@ private fun AddonRow(
         Switch(
             checked = addon.enabled,
             onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(checkedTrackColor = MangoAmber)
+            colors = SwitchDefaults.colors(checkedTrackColor = ArcAccent)
         )
 
         Spacer(Modifier.width(12.dp))

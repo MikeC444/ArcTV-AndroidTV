@@ -23,6 +23,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import com.mangotv.app.MangoTvApplication
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,7 +39,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.mangotv.app.ui.components.MangoLogo
+import com.mangotv.app.ui.components.ArcLogo
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoDimens
@@ -45,6 +48,9 @@ import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
 
 val MangoNavItems = listOf("Home", "Movies", "TV Shows", "Genres", "Search", "My List", "Settings")
+
+/** The nav items for someone without an account: the same tabs in the same places, with Settings replaced by Sign In. */
+fun navItemsForGuest(items: List<String>): List<String> = items.map { if (it == "Settings") "Sign In" else it }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -66,6 +72,12 @@ fun TopNavBar(
     // screens, where the declarative path is already safe).
     onNavigateDown: (() -> Unit)? = null
 ) {
+    // Someone browsing without an account sees "Sign In" where Settings would be (Settings needs an account).
+    val context = LocalContext.current
+    val guestGate = remember { (context.applicationContext as MangoTvApplication).container.guestGate }
+    val isGuest by guestGate.isGuest.collectAsStateWithLifecycle()
+    val navItems = if (isGuest) navItemsForGuest(MangoNavItems) else MangoNavItems
+
     val scrimAlpha by animateFloatAsState(
         // Was 0.45f, then 0.6f -- against a bright/busy hero image behind
         // it (the common case: transparentBackground is true right when
@@ -135,7 +147,7 @@ fun TopNavBar(
             ),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        MangoLogo()
+        ArcLogo()
         Spacer(Modifier.width(56.dp))
         // LazyRow rather than a plain Row: with enough nav items (this list
         // has grown since this bar was first built), the fully laid-out
@@ -169,7 +181,7 @@ fun TopNavBar(
                 // need to anymore.
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                itemsIndexed(MangoNavItems) { index, label ->
+                itemsIndexed(navItems) { index, label ->
                     NavItem(
                         label = label,
                         selected = index == selectedIndex,
@@ -196,13 +208,13 @@ private fun NavItem(
         onClick = onClick,
         shape = RoundedCornerShape(6.dp),
         backgroundColor = Color.Transparent,
-        // White rather than TvFocusSurface's default amber border -- scoped
+        // White rather than TvFocusSurface's default accent border -- scoped
         // to just the nav bar via this explicit override, not a global
         // FocusBorder change, so every other focusable element in the app
         // (cards, buttons) keeps its usual focus color.
         borderColor = TextPrimary,
         // TvFocusSurface's default focus shadow is a blurred black
-        // ambient/spot shadow -- invisible against the amber border/dark
+        // ambient/spot shadow -- invisible against the accent border/dark
         // cards it was designed for, but at nav-item size it sits right at
         // the white border's inner edge and reads as a faint dark ring
         // inside the border. Nav items don't need the "lift" effect anyway

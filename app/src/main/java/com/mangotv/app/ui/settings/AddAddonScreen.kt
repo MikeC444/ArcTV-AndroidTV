@@ -36,8 +36,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
 import com.mangotv.app.ui.components.QrCodeImage
-import com.mangotv.app.ui.theme.MangoAmber
-import com.mangotv.app.ui.theme.MangoCoral
+import com.mangotv.app.ui.theme.ArcAccent
+import com.mangotv.app.ui.theme.ErrorCoral
 import com.mangotv.app.ui.theme.MangoSurface
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
@@ -91,7 +91,7 @@ fun AddAddonScreen(
                             .background(MangoSurface, RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = MangoAmber)
+                        CircularProgressIndicator(color = ArcAccent)
                     }
                 }
 
@@ -123,8 +123,8 @@ fun AddAddonScreen(
                         unfocusedContainerColor = MangoSurface,
                         focusedTextColor = TextPrimary,
                         unfocusedTextColor = TextPrimary,
-                        cursorColor = MangoAmber,
-                        focusedIndicatorColor = MangoAmber,
+                        cursorColor = ArcAccent,
+                        focusedIndicatorColor = ArcAccent,
                         unfocusedIndicatorColor = TextTertiary
                     )
                 )
@@ -144,18 +144,18 @@ fun AddAddonScreen(
                 when (val state = uiState) {
                     is AddAddonUiState.Idle -> {}
                     is AddAddonUiState.Installing -> Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MangoAmber, strokeWidth = 2.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = ArcAccent, strokeWidth = 2.dp)
                         Spacer(Modifier.width(10.dp))
                         Text(text = "Installing…", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                     }
                     is AddAddonUiState.Success -> Text(
                         text = "${state.addon.manifest.name} installed ✓",
-                        color = MangoAmber,
+                        color = ArcAccent,
                         style = MaterialTheme.typography.bodyLarge
                     )
                     is AddAddonUiState.Error -> Text(
                         text = "Couldn't install that addon: ${state.message}",
-                        color = MangoCoral,
+                        color = ErrorCoral,
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Start
                     )

@@ -1,8 +1,10 @@
 package com.mangotv.app.ui.detail
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +40,8 @@ import com.mangotv.app.data.history.ContinueWatchingEntry
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.model.HomeSection
+import com.mangotv.app.data.recommend.Feedback
+import com.mangotv.app.ui.settings.PLUS_TAB_VISIBLE
 import com.mangotv.app.data.trailer.TrailerLauncher
 import com.mangotv.app.navigation.MangoRoutes
 import com.mangotv.app.navigation.routeForNavLabel
@@ -72,6 +76,7 @@ fun DetailScreen(
             )
             is DetailUiState.Success -> {
                 val isInMyList by viewModel.isInMyList.collectAsStateWithLifecycle()
+                val feedback by viewModel.feedback.collectAsStateWithLifecycle()
                 val resumeEntry by viewModel.resumeEntry.collectAsStateWithLifecycle()
                 val trailerState by viewModel.trailerState.collectAsStateWithLifecycle()
                 val foundTrailer = trailerState as? TrailerState.Found
@@ -83,19 +88,23 @@ fun DetailScreen(
                     isInMyList = isInMyList,
                     onToggleMyList = viewModel::toggleMyList,
                     onToggleWatched = viewModel::toggleWatched,
+                    feedback = feedback,
+                    onFeedback = viewModel::toggleFeedback,
                     resumeEntry = resumeEntry,
                     lastStreamIdFor = viewModel::lastStreamIdFor,
                     releaseDateState = releaseDateState,
-                    // Null (no button shown at all) unless a lookup has
-                    // actually found one -- see DetailHeroSection's own
-                    // kdoc on why this is a nullable lambda, not a
-                    // separate boolean. Hands the trailer off to whichever
-                    // app the user picks rather than playing it in-app --
-                    // see TrailerLauncher's own kdoc for why MangoTV stopped
-                    // trying to play YouTube video itself.
-                    onTrailer = foundTrailer?.let { found ->
-                        { TrailerLauncher.launch(context, found.youtubeVideoId) }
-                    }
+                    // The button is always there, dimmed until a lookup has found a trailer (trailerReady).
+                    // Hands the trailer off to whichever app the user picks rather than playing it in-app --
+                    // see TrailerLauncher's own kdoc for why MangoTV stopped trying to play YouTube video itself.
+                    // Pressed before one is found, it says why nothing opened.
+                    onTrailer = {
+                        when {
+                            foundTrailer != null -> TrailerLauncher.launch(context, foundTrailer.youtubeVideoId)
+                            trailerState == TrailerState.NotFound -> Toast.makeText(context, "No trailer found for this title", Toast.LENGTH_SHORT).show()
+                            else -> Toast.makeText(context, "Looking for a trailer\u2026", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    trailerReady = foundTrailer != null
                 )
             }
         }
@@ -110,9 +119,12 @@ private fun DetailContent(
     isInMyList: Boolean,
     onToggleMyList: () -> Unit,
     onToggleWatched: () -> Unit,
+    feedback: Feedback?,
+    onFeedback: (Feedback) -> Unit,
     resumeEntry: ContinueWatchingEntry?,
     lastStreamIdFor: (season: Int?, episode: Int?) -> String?,
     onTrailer: (() -> Unit)?,
+    trailerReady: Boolean,
     releaseDateState: ReleaseDateState,
     modifier: Modifier = Modifier
 ) {
@@ -258,7 +270,11 @@ private fun DetailContent(
                     isWatched = content.watched,
                     onWatchlist = onToggleMyList,
                     isInMyList = isInMyList,
+                    // Like / Not for me are a movie-only, Plus-preview feature (they feed "Picked for you").
+                    feedback = feedback,
+                    onFeedback = if (PLUS_TAB_VISIBLE && content.type == ContentType.MOVIE) onFeedback else null,
                     onTrailer = onTrailer,
+                    trailerReady = trailerReady,
                     releaseDateState = releaseDateState,
                     onMore = {},
                     navUpFocusRequester = navFocusRequester,
@@ -282,20 +298,29 @@ private fun DetailContent(
             }
             item(key = "seasons_or_cast_and_similar") {
                 // TV shows with real season/episode data get a season
-                // picker + episode list instead — cast and "similar" don't
-                // apply the same way once there's something more useful
-                // (and more central to actually watching the show) to show.
+                // picker + episode list instead — "similar" doesn't apply
+                // the same way once there's something more useful (and more
+                // central to actually watching the show) to show. The cast
+                // still sits under the episodes.
                 if (content.type == ContentType.TV_SHOW && content.seasons.isNotEmpty()) {
-                    SeasonsSection(
-                        seasons = content.seasons,
-                        modifier = Modifier.fillMaxWidth(),
-                        onNavigateUpPastRow = { returnToHero() },
-                        onEpisodeClick = { episode ->
-                            content.providerId?.let { pid ->
-                                navigateToPlayback(pid, episode.seasonNumber, episode.episodeNumber)
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        SeasonsSection(
+                            seasons = content.seasons,
+                            modifier = Modifier.fillMaxWidth(),
+                            onNavigateUpPastRow = { returnToHero() },
+                            onEpisodeClick = { episode ->
+                                content.providerId?.let { pid ->
+                                    navigateToPlayback(pid, episode.seasonNumber, episode.episodeNumber)
+                                }
                             }
+                        )
+                        // The cast sits under the episodes, as on the web. Nothing is drawn for a show with no
+                        // cast; UP from here falls through to the episode list above rather than the hero.
+                        if (content.cast.isNotEmpty()) {
+                            Spacer(Modifier.height(24.dp))
+                            CastRow(cast = content.cast, modifier = Modifier.fillMaxWidth())
                         }
-                    )
+                    }
                 } else {
                     Row(modifier = Modifier.fillMaxWidth()) {
                         CastRow(

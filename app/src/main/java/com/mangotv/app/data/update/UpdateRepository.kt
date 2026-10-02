@@ -14,7 +14,7 @@ internal class NoEligibleUpdateException : IllegalStateException("Latest release
 class UpdateRepository(
     private val apiClient: GitHubUpdateApiClient = GitHubUpdateApiClient(GITHUB_OWNER, GITHUB_REPO)
 ) {
-    suspend fun getLatestUpdate(): Result<AppUpdate> {
+    suspend fun getLatestUpdate(installedVersion: String): Result<AppUpdate> {
         return runCatching {
             val dto = apiClient.getLatestRelease()
             val asset = AbiSelector.chooseBestApkAsset(dto.assets) ?: throw NoEligibleUpdateException()
@@ -22,9 +22,14 @@ class UpdateRepository(
                 ?: dto.name?.takeIf { it.isNotBlank() }
                 ?: error("Release has no tag/name")
 
+            // Notes for every release the person is missing, not only the newest; if the list can't be read, the newest
+            // release's own notes still show.
+            val notes = runCatching { combineReleaseNotes(apiClient.listReleases(), installedVersion, tag) }
+                .getOrElse { plainNotes(dto.body.orEmpty()).ifBlank { NO_NOTES_FALLBACK } }
+
             AppUpdate(
                 tag = tag,
-                notes = dto.body.orEmpty(),
+                notes = notes,
                 assetUrl = asset.browserDownloadUrl,
                 assetSizeBytes = asset.size
             )

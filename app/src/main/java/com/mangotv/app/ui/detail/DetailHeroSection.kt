@@ -31,7 +31,11 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Theaters
+import androidx.compose.material.icons.filled.ThumbDown
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ThumbDown
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -42,10 +46,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -61,10 +67,11 @@ import com.mangotv.app.data.history.ContinueWatchingEntry
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.model.Episode
+import com.mangotv.app.data.recommend.Feedback
 import com.mangotv.app.ui.components.HeroIconButton
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
@@ -109,11 +116,15 @@ fun DetailHeroSection(
     // tapping it again when already watched flips it back, the same
     // add/remove symmetry the neighboring watchlist button already has.
     isWatched: Boolean = false,
-    // Null hides the button entirely -- shown only once a lookup has
-    // actually found a YouTube trailer for this title (see
-    // DetailViewModel.TrailerState), never as a dead/no-op button for a
-    // title with no trailer available.
+    // The Trailer button is shown from the first frame (null hides it, for any caller that has no trailer
+    // lookup at all) so the row of buttons never shifts when a lookup finishes. [trailerReady] is false until
+    // a lookup has actually found a YouTube trailer (see DetailViewModel.TrailerState): the button is then
+    // dimmed, and onTrailer says why nothing opened.
     onTrailer: (() -> Unit)? = null,
+    trailerReady: Boolean = true,
+    // Like / Not for me (movies, Plus preview): null hides the two buttons. Both sit in the three-dot group.
+    feedback: Feedback? = null,
+    onFeedback: ((Feedback) -> Unit)? = null,
     // Idle/Loading hide the meta row's date slot entirely rather than
     // showing content.year and then visibly swapping it for the real TMDB
     // date a moment later -- see ReleaseDateState's own doc. NotFound falls
@@ -142,9 +153,14 @@ fun DetailHeroSection(
         // sitting high up with dead space beneath it.
         (screenHeightDp - 176.dp).coerceAtLeast(320.dp)
     } else {
-        screenHeightDp * 0.82f
+        // A TV show's hero is no longer a tall, mostly empty picture: it is just tall enough for the title, details
+        // and Play row, so the seasons and episodes start right below it instead of a screenful down (as on the web).
+        screenHeightDp * 0.6f
     }
-    val bottomPadding = if (compact) 24.dp else 56.dp
+    val bottomPadding = 24.dp
+    // Height of a TV show's Play-row buttons, used to put the rating level with them. A movie's page (compact) keeps
+    // its rating where it was.
+    val buttonRowHeight = 52.dp
 
     // Watched/Watchlist stay hidden until the user opens them via the
     // three-dot button, then pop out next to Play instead of always
@@ -194,7 +210,11 @@ fun DetailHeroSection(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = MangoDimens.ScreenPaddingHorizontal, bottom = bottomPadding)
+                    // Level with the Play row: the badge's centre on the buttons' centre, half a button above the
+                    // row's bottom edge. Padding by that much and then sliding the badge down by half its own height
+                    // does it without needing to know how tall the badge is.
+                    .padding(end = MangoDimens.ScreenPaddingHorizontal, bottom = if (compact) bottomPadding else bottomPadding + buttonRowHeight / 2)
+                    .graphicsLayer { translationY = if (compact) 0f else size.height / 2f }
                     .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
                     .padding(
                         horizontal = if (compact) 14.dp else 20.dp,
@@ -205,7 +225,7 @@ fun DetailHeroSection(
                     Icon(
                         imageVector = Icons.Filled.Star,
                         contentDescription = null,
-                        tint = MangoAmber,
+                        tint = ArcAccent,
                         modifier = Modifier.height(if (compact) 16.dp else 22.dp)
                     )
                     Spacer(Modifier.width(if (compact) 6.dp else 8.dp))
@@ -383,15 +403,17 @@ fun DetailHeroSection(
                 )
                 if (onTrailer != null) {
                     Spacer(Modifier.width(if (compact) 10.dp else 16.dp))
-                    MangoButton(
-                        text = "Trailer",
-                        icon = Icons.Filled.Theaters,
-                        onClick = onTrailer,
-                        style = MangoButtonStyle.GLASS,
-                        focusUp = navUpFocusRequester,
-                        bringIntoViewOnFocus = false,
-                        compact = compact
-                    )
+                    Box(modifier = Modifier.alpha(if (trailerReady) 1f else 0.45f)) {
+                        MangoButton(
+                            text = "Trailer",
+                            icon = Icons.Filled.Theaters,
+                            onClick = onTrailer,
+                            style = MangoButtonStyle.GLASS,
+                            focusUp = navUpFocusRequester,
+                            bringIntoViewOnFocus = false,
+                            compact = compact
+                        )
+                    }
                 }
                 Spacer(Modifier.width(if (compact) 10.dp else 16.dp))
                 AnimatedVisibility(
@@ -416,6 +438,24 @@ fun DetailHeroSection(
                             compact = compact
                         )
                         Spacer(Modifier.width(if (compact) 10.dp else 16.dp))
+                        if (onFeedback != null) {
+                            HeroIconButton(
+                                icon = if (feedback == Feedback.LIKE) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                                contentDescription = if (feedback == Feedback.LIKE) "Remove like" else "Like",
+                                onClick = { onFeedback(Feedback.LIKE) },
+                                focusUp = navUpFocusRequester,
+                                compact = compact
+                            )
+                            Spacer(Modifier.width(if (compact) 10.dp else 16.dp))
+                            HeroIconButton(
+                                icon = if (feedback == Feedback.DISLIKE) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
+                                contentDescription = if (feedback == Feedback.DISLIKE) "Remove Not for me" else "Not for me",
+                                onClick = { onFeedback(Feedback.DISLIKE) },
+                                focusUp = navUpFocusRequester,
+                                compact = compact
+                            )
+                            Spacer(Modifier.width(if (compact) 10.dp else 16.dp))
+                        }
                     }
                 }
                 HeroIconButton(

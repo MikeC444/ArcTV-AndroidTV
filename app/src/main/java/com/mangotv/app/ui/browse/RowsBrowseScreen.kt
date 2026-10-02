@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -55,6 +58,7 @@ import com.mangotv.app.navigation.MangoRoutes
 import com.mangotv.app.navigation.routeForNavLabel
 import com.mangotv.app.ui.components.ContentCard
 import com.mangotv.app.ui.components.ContentRow
+import com.mangotv.app.ui.components.DropdownPicker
 import com.mangotv.app.ui.components.FilterPill
 import com.mangotv.app.ui.components.FullScreenErrorState
 import com.mangotv.app.ui.components.GridLoadingSkeleton
@@ -63,7 +67,7 @@ import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.detail.PendingDetailCache
 import com.mangotv.app.ui.home.MangoNavItems
 import com.mangotv.app.ui.home.TopNavBar
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoMotion
@@ -127,7 +131,11 @@ fun RowsBrowseContent(
     // nav-bar-seam changes it requires.
     filterOptions: List<String> = emptyList(),
     selectedFilterIndex: Int = 0,
-    onFilterSelected: (Int) -> Unit = {}
+    onFilterSelected: (Int) -> Unit = {},
+    // A drop-down beside the screen title (GRID layout only): "All genres" on Movies / TV Shows, "Sort by" on My List,
+    // as on the web. Null by default, so every other screen is unchanged. The lambda is given the focus wiring that
+    // joins it to the nav bar above and the filter / sort pills (or the grid) below.
+    headerAction: (@Composable (BrowseHeaderFocus) -> Unit)? = null
 ) {
     Box(Modifier.fillMaxSize().background(MangoBackground)) {
         when (uiState) {
@@ -153,7 +161,8 @@ fun RowsBrowseContent(
             is RowsBrowseUiState.Loaded -> if (layout == RowsBrowseLayout.GRID) {
                 RowsBrowseGridContent(
                     screenTitle, navLabel, uiState.sections.flatMap { it.items }, onNavigate, emptyMessage, onLoadMore,
-                    filterOptions, selectedFilterIndex, onFilterSelected
+                    filterOptions, selectedFilterIndex, onFilterSelected,
+                    headerAction
                 )
             } else {
                 RowsBrowseLoadedContent(
@@ -469,6 +478,39 @@ private fun RowsBrowseLoadedContent(
     }
 }
 
+/** Focus wiring handed to a screen's header drop-down: its own requester, where UP goes (the nav bar) and where DOWN goes. */
+data class BrowseHeaderFocus(
+    val requester: FocusRequester,
+    val up: FocusRequester,
+    val down: FocusRequester?
+)
+
+/** The screen title with its drop-down (if any) beside it, as on the web. */
+@Composable
+private fun BrowseTitleRow(
+    screenTitle: String,
+    headerAction: (@Composable (BrowseHeaderFocus) -> Unit)?,
+    headerFocus: BrowseHeaderFocus
+) {
+    Row(
+        modifier = Modifier.padding(
+            horizontal = MangoDimens.ScreenPaddingHorizontal,
+            vertical = 4.dp
+        ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = screenTitle,
+            color = TextPrimary,
+            style = MaterialTheme.typography.displayMedium
+        )
+        if (headerAction != null) {
+            Spacer(Modifier.width(18.dp))
+            headerAction(headerFocus)
+        }
+    }
+}
+
 enum class CatalogSort(val label: String) {
     FEATURED("Featured"),
     HIGHEST_RATED("Highest Rated"),
@@ -528,7 +570,7 @@ private fun CatalogSortPill(
     TvFocusSurface(
         onClick = onClick,
         shape = RoundedCornerShape(percent = 50),
-        backgroundColor = if (selected) MangoAmber else MangoSurfaceHigh,
+        backgroundColor = if (selected) ArcAccent else MangoSurfaceHigh,
         onFocusChanged = { focused = it },
         bringIntoViewOnFocus = false,
         focusRequester = focusRequester,
@@ -588,7 +630,8 @@ private fun RowsBrowseGridContent(
     onLoadMore: () -> Unit,
     filterOptions: List<String> = emptyList(),
     selectedFilterIndex: Int = 0,
-    onFilterSelected: (Int) -> Unit = {}
+    onFilterSelected: (Int) -> Unit = {},
+    headerAction: (@Composable (BrowseHeaderFocus) -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -598,6 +641,10 @@ private fun RowsBrowseGridContent(
     var hasRequestedInitialFocus by remember { mutableStateOf(false) }
 
     val hasFilterBar = filterOptions.isNotEmpty()
+    // The drop-down beside the title, when there is one. It is the first focusable thing under the nav bar, so the
+    // nav bar's DOWN lands on it; from it, DOWN goes on to the filter / sort bar (or straight to the grid) below.
+    val hasHeader = headerAction != null
+    val headerFocusRequester = remember { FocusRequester() }
     // One per chip, so returning from the nav bar lands on whichever filter
     // is currently selected -- unlike CatalogSortBar's single "always
     // Featured" focus target (sorting never changes which items exist, so
@@ -753,7 +800,28 @@ private fun RowsBrowseGridContent(
         val cardWidth = (availableWidth - MangoDimens.CardSpacing * (GRID_COLUMNS - 1)) / GRID_COLUMNS
         val posterScale = (cardWidth / MangoDimens.PosterWidth).coerceIn(0.3f, 1f)
 
-        if (items.isEmpty()) {
+        if (items.isEmpty() && headerAction != null) {
+            // Keep the title and drop-down on screen so a genre with nothing in it can be changed.
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = MangoDimens.NavBarHeight + 24.dp)
+            ) {
+                BrowseTitleRow(
+                    screenTitle = screenTitle,
+                    headerAction = headerAction,
+                    headerFocus = BrowseHeaderFocus(headerFocusRequester, navFocusRequester, null)
+                )
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = emptyMessage,
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(horizontal = MangoDimens.ScreenPaddingHorizontal)
+                    )
+                }
+            }
+        } else if (items.isEmpty()) {
             Text(
                 text = emptyMessage,
                 color = TextSecondary,
@@ -772,13 +840,17 @@ private fun RowsBrowseGridContent(
                         .padding(top = MangoDimens.NavBarHeight + 24.dp)
                 ) {
                     item(key = "title") {
-                        Text(
-                            text = screenTitle,
-                            color = TextPrimary,
-                            style = MaterialTheme.typography.displayMedium,
-                            modifier = Modifier.padding(
-                                horizontal = MangoDimens.ScreenPaddingHorizontal,
-                                vertical = 4.dp
+                        BrowseTitleRow(
+                            screenTitle = screenTitle,
+                            headerAction = headerAction,
+                            headerFocus = BrowseHeaderFocus(
+                                requester = headerFocusRequester,
+                                up = navFocusRequester,
+                                down = if (hasFilterBar) {
+                                    filterChipFocusRequesters.getOrNull(selectedFilterIndex)
+                                } else {
+                                    sortBarFocusRequester
+                                }
                             )
                         )
                     }
@@ -798,7 +870,7 @@ private fun RowsBrowseGridContent(
                                         selected = index == selectedFilterIndex,
                                         onClick = { onFilterSelected(index) },
                                         focusRequester = filterChipFocusRequesters[index],
-                                        focusUp = navFocusRequester,
+                                        focusUp = if (hasHeader) headerFocusRequester else navFocusRequester,
                                         focusDown = firstCardFocusRequester
                                     )
                                 }
@@ -809,7 +881,7 @@ private fun RowsBrowseGridContent(
                                 onSelect = { selectedSort = it },
                                 modifier = Modifier.padding(bottom = MangoDimens.RowSpacing / 2),
                                 focusRequester = sortBarFocusRequester,
-                                focusUp = navFocusRequester,
+                                focusUp = if (hasHeader) headerFocusRequester else navFocusRequester,
                                 focusDown = firstCardFocusRequester
                             )
                         }
@@ -885,12 +957,16 @@ private fun RowsBrowseGridContent(
             // DOWN press on through to whichever card lastFocusedContentId
             // points at.
             contentFocusRequester = when {
+                hasHeader -> headerFocusRequester
                 items.isEmpty() -> null
                 hasFilterBar -> filterChipFocusRequesters.getOrNull(selectedFilterIndex)
                 else -> sortBarFocusRequester
             },
             onItemClick = { label -> routeForNavLabel(label)?.let(onNavigate) },
-            onNavigateDown = if (items.isNotEmpty()) {
+            onNavigateDown = if (items.isEmpty() && hasHeader) {
+                // Nothing to scroll to (a genre with no titles): just land on the drop-down so it can be changed.
+                { runCatching { headerFocusRequester.requestFocus() } }
+            } else if (items.isNotEmpty()) {
                 {
                     navRegionFocused = false
                     coroutineScope.launch {
@@ -907,7 +983,9 @@ private fun RowsBrowseGridContent(
                             listState.animateScrollToItem(lazyIndex)
                         }
                         runCatching {
-                            if (hasFilterBar) {
+                            if (hasHeader) {
+                                headerFocusRequester.requestFocus()
+                            } else if (hasFilterBar) {
                                 filterChipFocusRequesters[selectedFilterIndex].requestFocus()
                             } else {
                                 sortBarFocusRequester.requestFocus()
@@ -924,28 +1002,47 @@ private fun RowsBrowseGridContent(
 
 @Composable
 fun MoviesScreen(onNavigate: (String) -> Unit, viewModel: MoviesViewModel = viewModel()) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    RowsBrowseContent(
-        screenTitle = "Movies",
-        navLabel = "Movies",
-        uiState = uiState,
-        onNavigate = onNavigate,
-        onRetry = viewModel::load,
-        layout = RowsBrowseLayout.GRID,
-        onLoadMore = viewModel::loadMore
-    )
+    TypeBrowseScreen(title = "Movies", onNavigate = onNavigate, viewModel = viewModel)
 }
 
 @Composable
 fun TvShowsScreen(onNavigate: (String) -> Unit, viewModel: TvShowsViewModel = viewModel()) {
+    TypeBrowseScreen(title = "TV Shows", onNavigate = onNavigate, viewModel = viewModel)
+}
+
+/** Movies and TV Shows: the same grid, with the "All genres" drop-down beside the title (as on the web). */
+@Composable
+private fun TypeBrowseScreen(title: String, onNavigate: (String) -> Unit, viewModel: TypeBrowseViewModel) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val genre by viewModel.selectedGenre.collectAsStateWithLifecycle()
+    val genres by viewModel.genreOptions.collectAsStateWithLifecycle()
+    // Built as a value first: a lambda written straight after `else` would be read as a block, not a function.
+    val genreHeader: (@Composable (BrowseHeaderFocus) -> Unit)? = if (genres.isEmpty()) {
+        null
+    } else {
+        { focus ->
+            DropdownPicker(
+                buttonLabel = genre ?: ALL_GENRES_LABEL,
+                options = listOf(ALL_GENRES_LABEL) + genres,
+                selectedIndex = genre?.let { genres.indexOf(it) + 1 } ?: 0,
+                onSelect = { index -> viewModel.selectGenre(if (index == 0) null else genres[index - 1]) },
+                focusRequester = focus.requester,
+                focusUp = focus.up,
+                focusDown = focus.down
+            )
+        }
+    }
     RowsBrowseContent(
-        screenTitle = "TV Shows",
-        navLabel = "TV Shows",
+        screenTitle = title,
+        navLabel = title,
         uiState = uiState,
         onNavigate = onNavigate,
         onRetry = viewModel::load,
         layout = RowsBrowseLayout.GRID,
-        onLoadMore = viewModel::loadMore
+        onLoadMore = viewModel::loadMore,
+        emptyMessage = emptyBrowseMessage(title, genre),
+        headerAction = genreHeader
     )
 }
+
+private const val ALL_GENRES_LABEL = "All genres"

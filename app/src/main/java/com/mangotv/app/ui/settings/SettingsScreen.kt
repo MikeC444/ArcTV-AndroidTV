@@ -10,13 +10,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,7 +35,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.mangotv.app.ui.components.TvFocusSurface
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoSurface
 import com.mangotv.app.ui.theme.MangoSurfaceHigh
@@ -39,7 +43,7 @@ import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
 
 /**
- * The 5 existing Settings destinations, now presented as a two-pane
+ * The Settings destinations, now presented as a two-pane
  * master/detail layout (sidebar left, selected category's content filling
  * the remaining 75% on the right) instead of each being its own full-screen
  * navigation destination. icon/title/subtitle are exactly what each
@@ -48,11 +52,14 @@ import com.mangotv.app.ui.theme.TextSecondary
  * sidebar row and the detail pane's header stay in sync automatically.
  */
 private enum class SettingsCategory(val icon: ImageVector, val title: String, val subtitle: String) {
-    ACCOUNT(Icons.Filled.AccountCircle, "Account", "Manage your MangoTV account"),
+    ACCOUNT(Icons.Filled.AccountCircle, "Account", "Manage your Arc TV account"),
     ADDONS(Icons.Filled.Extension, "Addons", "Manage installed content providers"),
     HOME_ROWS(Icons.Filled.GridView, "Home Rows", "Choose which rows show up on Home"),
+    BLOCKED_GENRES(Icons.Filled.Block, "Blocked Genres", "Hide genres you don't want to see"),
     SOUNDS(Icons.Filled.MusicNote, "Sounds", "Choose your app boot sound"),
-    SUBTITLES(Icons.Filled.Subtitles, "Subtitles", "Default on/off and preferred language")
+    SUBTITLES(Icons.Filled.Subtitles, "Subtitles", "Default on/off and preferred language"),
+    // Not public yet: shown only while PLUS_TAB_VISIBLE is true (see PlusPlans.kt).
+    PLUS(Icons.Filled.WorkspacePremium, "Arc TV Plus", "Extra features for supporters")
 }
 
 @Composable
@@ -65,8 +72,10 @@ fun SettingsScreen(
     val accountRowFocusRequester = remember { FocusRequester() }
     val addonsRowFocusRequester = remember { FocusRequester() }
     val homeRowsRowFocusRequester = remember { FocusRequester() }
+    val blockedGenresRowFocusRequester = remember { FocusRequester() }
     val soundsRowFocusRequester = remember { FocusRequester() }
     val subtitlesRowFocusRequester = remember { FocusRequester() }
+    val plusRowFocusRequester = remember { FocusRequester() }
 
     // Shared by every sidebar row's focusRight: only the selected category's
     // content is ever actually composed on the right (see the `when` in
@@ -81,8 +90,10 @@ fun SettingsScreen(
         SettingsCategory.ACCOUNT -> accountRowFocusRequester
         SettingsCategory.ADDONS -> addonsRowFocusRequester
         SettingsCategory.HOME_ROWS -> homeRowsRowFocusRequester
+        SettingsCategory.BLOCKED_GENRES -> blockedGenresRowFocusRequester
         SettingsCategory.SOUNDS -> soundsRowFocusRequester
         SettingsCategory.SUBTITLES -> subtitlesRowFocusRequester
+        SettingsCategory.PLUS -> plusRowFocusRequester
     }
 
     SettingsScaffold(
@@ -96,13 +107,19 @@ fun SettingsScreen(
                 .fillMaxWidth()
                 .weight(1f)
         ) {
+            // Six categories no longer fit in the height under the nav bar on a TV (the last row, Arc TV Plus, was
+            // squeezed), so the list scrolls with the remote like every other long list here, and its rows are a
+            // little tighter. The vertical padding inside the scroll leaves room for a focused row's scale-up,
+            // which the scroll area would otherwise clip at its top and bottom edges.
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
                     .padding(end = 12.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 4.dp)
             ) {
-                val categories = remember { SettingsCategory.values() }
+                val categories = remember { SettingsCategory.values().filter { it != SettingsCategory.PLUS || PLUS_TAB_VISIBLE } }
                 categories.forEachIndexed { index, category ->
                     SettingsSidebarRow(
                         category = category,
@@ -113,7 +130,7 @@ fun SettingsScreen(
                         focusRight = paneContentFocusRequester
                     )
                     if (index != categories.lastIndex) {
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(6.dp))
                     }
                 }
             }
@@ -149,7 +166,7 @@ private fun SettingsSidebarRow(
     focusUp: FocusRequester? = null,
     focusRight: FocusRequester? = null
 ) {
-    val contentColor = if (selected) MangoAmber else TextPrimary
+    val contentColor = if (selected) ArcAccent else TextPrimary
 
     TvFocusSurface(
         onClick = onClick,
@@ -173,7 +190,7 @@ private fun SettingsSidebarRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(imageVector = category.icon, contentDescription = null, tint = contentColor)
@@ -227,11 +244,21 @@ private fun SettingsDetailPane(
                 contentFocusRequester = contentFocusRequester,
                 sidebarFocusRequester = sidebarFocusRequester
             )
+            SettingsCategory.BLOCKED_GENRES -> BlockedGenresSettingsContent(
+                navFocusRequester = navFocusRequester,
+                contentFocusRequester = contentFocusRequester,
+                sidebarFocusRequester = sidebarFocusRequester
+            )
             SettingsCategory.SOUNDS -> SoundSettingsContent(
                 navFocusRequester = navFocusRequester,
                 contentFocusRequester = contentFocusRequester
             )
             SettingsCategory.SUBTITLES -> SubtitleSettingsContent(
+                navFocusRequester = navFocusRequester,
+                contentFocusRequester = contentFocusRequester,
+                sidebarFocusRequester = sidebarFocusRequester
+            )
+            SettingsCategory.PLUS -> PlusSettingsContent(
                 navFocusRequester = navFocusRequester,
                 contentFocusRequester = contentFocusRequester,
                 sidebarFocusRequester = sidebarFocusRequester

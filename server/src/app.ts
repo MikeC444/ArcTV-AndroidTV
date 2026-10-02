@@ -13,6 +13,8 @@ import { createQrRouter } from "./routes/qr.js";
 import { addonsRouter } from "./routes/addons.js";
 import { historyRouter } from "./routes/history.js";
 import { releaseDatesRouter } from "./routes/releaseDates.js";
+import { castRouter } from "./routes/cast.js";
+import { feedbackRouter } from "./routes/feedback.js";
 import { settingsRouter } from "./routes/settings.js";
 import { trailersRouter } from "./routes/trailers.js";
 import { watchlistRouter } from "./routes/watchlist.js";
@@ -76,10 +78,12 @@ export function createApp(): Express {
   app.use("/user", meRouter);
   app.use("/user", settingsRouter);
   app.use("/user", watchlistRouter);
+  app.use("/user", feedbackRouter);
   app.use("/user", historyRouter);
   app.use("/user", addonsRouter);
   app.use("/user", trailersRouter);
   app.use("/user", releaseDatesRouter);
+  app.use("/user", castRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mangotv.app.ui.components.TvFocusSurface
-import com.mangotv.app.ui.theme.MangoAmber
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoSurface
 import com.mangotv.app.ui.theme.TextPrimary
@@ -185,7 +185,7 @@ private fun SubtitlesToggleRow(
             Switch(
                 checked = enabled,
                 onCheckedChange = onToggle,
-                colors = SwitchDefaults.colors(checkedTrackColor = MangoAmber)
+                colors = SwitchDefaults.colors(checkedTrackColor = ArcAccent)
             )
         }
     }
@@ -221,7 +221,7 @@ private fun LanguageOptionRow(
                 modifier = Modifier.weight(1f)
             )
             if (selected) {
-                Icon(imageVector = Icons.Filled.Check, contentDescription = "Selected", tint = MangoAmber)
+                Icon(imageVector = Icons.Filled.Check, contentDescription = "Selected", tint = ArcAccent)
                 Spacer(Modifier.width(4.dp))
             }
         }

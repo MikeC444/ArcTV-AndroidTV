@@ -114,6 +114,19 @@ class AddonRepository(context: Context) {
         json.decodeFromString(AddonManifest.serializer(), raw)
     }.getOrNull()
 
+    /**
+     * Makes sure a person browsing without an account has something to browse: if no addon is installed on this device
+     * (a sign-out wipes them, and the first-launch default is only installed once), puts the bundled Cinemeta back.
+     * Leaves the first-launch flag alone, and does nothing when any addon is already there. Signing in later replaces
+     * the list with the account's own, as it always has.
+     */
+    suspend fun ensureDefaultAddon() = withContext(Dispatchers.IO) {
+        if (_installedAddons.value.isNotEmpty() || readPersisted().isNotEmpty()) return@withContext
+        val bundled = readBundledCinemetaManifest() ?: return@withContext
+        registerAndPersist(CINEMETA_MANIFEST_URL, bundled)
+        Unit
+    }
+
     suspend fun installAddon(rawUrl: String): Result<InstalledAddon> = withContext(Dispatchers.IO) {
         runCatching {
             require(rawUrl.isNotBlank()) { "Enter an addon URL first." }
