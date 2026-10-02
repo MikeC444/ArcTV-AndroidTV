@@ -4166,3 +4166,9 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Tests performed:** none new: `SyncManager` needs an Android `Context` and real repositories, and this failure is about coroutine cancellation at the caller. CI compiles it and runs the existing unit tests. Not tried on a device. (This is the change first made on `claude/fix-sync-cancel`, whose pull request #22 was closed unmerged; it is re-applied here on top of the current `main`.)
 
+
+## Post-Milestone-60 — TV sign-in page (`/activate`) restyled to ArcTV
+
+**Change:** `server/public/activate.html` / `activate.js` now use the ArcTV look (logo, cyan → blue → violet gradient, dark glow background, same as `plus-thanks.html`) instead of the old orange MangoTV page: "Sign in to your TV" heading, a "Fire TV · Waiting to connect" status card (turns "Connected" once the code is used), Sign In / Create Account switch, email and password fields with icons and a show-password button, "Sign in & connect TV", and a "New to ArcTV? Create an account" link. The form ids and the `/auth/qr/*` calls are unchanged. Not added from the reference mock: Continue with Google / Apple and Forgot password, because the backend has no such sign-in or reset routes. No app release needed (server page; goes live when Render deploys).
+
+**Tests performed:** `node --check activate.js`; page rendered in headless Chromium at phone width (sign-in and create-account states) and checked by eye. The submit flow against a live backend was not run.
