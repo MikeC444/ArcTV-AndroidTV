@@ -1,7 +1,7 @@
 package com.mangotv.app.data.update
 
 private const val GITHUB_OWNER = "MikeC444"
-private const val GITHUB_REPO = "MangoTV-Live-TV"
+private const val GITHUB_REPO = "ArcTV-AndroidTV"
 
 internal class NoEligibleUpdateException : IllegalStateException("Latest release has no APK asset")
 
