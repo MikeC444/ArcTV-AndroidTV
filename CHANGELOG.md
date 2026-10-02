@@ -3958,3 +3958,17 @@ unoptimised Compose, so they will always feel slower than a release build on a F
 
 **Tests performed:** None runnable here; relies on the CI build. Needs a timed launch on a Fire TV
 (debug vs release) to confirm the improvement.
+
+## Post-Milestone-45 — Audio Decoder Fallback
+
+**Status:** Complete, not compiled or tried on a device (see Tests performed).
+
+**Context:** User report: a source fails on Fire TV with `MediaCodecAudioRenderer error, ... audio/mp4a-latm, mp4a.40.1 ... format_supported=YES`. `mp4a.40.1` is AAC Main profile, which a hardware decoder can claim to support and then fail on.
+
+**Changes:**
+- `PlayerEngine.buildExoPlayer` -- uses a `DefaultRenderersFactory` with decoder fallback on, so a decoder that fails to start is replaced by the next one the device offers (usually software).
+- `PlayerListenerBridge` / `describePlaybackError` -- the error screen now appends the underlying cause and the ExoPlayer error code name.
+
+**Limits:** decoder fallback only covers a decoder that fails to initialise; a failure after playback has started is not retried. The error code on the next failure will say which kind it was.
+
+**Tests performed:** None runnable here; relies on the CI build and the same source on a Fire TV.

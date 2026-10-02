@@ -8,6 +8,7 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.mangotv.app.data.model.PlayerPreferences
@@ -32,7 +33,13 @@ import okhttp3.OkHttpClient
 fun buildExoPlayer(context: Context, preferences: PlayerPreferences): ExoPlayer {
     val httpDataSourceFactory = OkHttpDataSource.Factory(OkHttpClient.Builder().build())
     val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
-    val player = ExoPlayer.Builder(context)
+    // Decoder fallback: when the first-choice hardware decoder for a track can't start (some Fire TV audio decoders
+    // accept a format on paper, e.g. AAC "Main" profile, then fail when asked to play it), try the next decoder the
+    // device offers -- usually the software one -- instead of giving up with "Unable to play this source".
+    val renderersFactory = DefaultRenderersFactory(context)
+        .setEnableDecoderFallback(true)
+        .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
+    val player = ExoPlayer.Builder(context, renderersFactory)
         .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
         .build()
 
@@ -75,11 +82,22 @@ class PlayerListenerBridge(
 
     override fun onPlayerError(error: PlaybackException) {
         onPhaseChanged(
-            PlaybackPhase.Error(PlaybackErrorType.UNKNOWN, error.message ?: "The selected stream could not be played.")
+            PlaybackPhase.Error(PlaybackErrorType.UNKNOWN, describePlaybackError(error))
         )
     }
 
     override fun onTracksChanged(tracks: Tracks) {
         onTracksChangedCallback(tracks)
+    }
+}
+
+/** The player's message plus its error code (and the underlying cause when there is one), so a failure on a device is diagnosable from a photo of the screen. */
+internal fun describePlaybackError(error: PlaybackException): String {
+    val base = error.message ?: "The selected stream could not be played."
+    val cause = error.cause?.message?.takeIf { it.isNotBlank() && it !in base }
+    return buildString {
+        append(base)
+        if (cause != null) append(" (").append(cause).append(')')
+        append(" [").append(error.errorCodeName).append(']')
     }
 }
