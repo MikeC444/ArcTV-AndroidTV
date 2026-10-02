@@ -15,6 +15,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Orchestrates the cloud-sync domains (Settings, Watchlist, Continue
@@ -129,15 +130,21 @@ class SyncManager(
      * whatever was cached locally before this call.
      */
     suspend fun syncAll() {
-        // Which profile this device is on comes first: every library below is that profile's. Needs a fresh answer about Plus (the
-        // profiles are Plus-only); if that can't be read (offline) the saved profile is kept as it is.
-        if (!plusRepository.pullFromServer()) {
-            profileRepository.noteProblem("couldn't read whether this account has ArcTV Plus")
-        } else if (profileRepository.pullFromServer(plusRepository.status.value.active)) {
-            onActiveProfileLost?.invoke()
-        }
         var watchlistRead = false
         scope.launch {
+            // Which profile this device is on comes first: every library below is that profile's. Needs a fresh answer about Plus
+            // (the profiles are Plus-only); if that can't be read (offline) the saved profile is kept as it is. This MUST run in here
+            // (on this long-lived scope), not before it: the callers navigate away the moment they call syncAll, which cancels their own
+            // coroutine, and a profile step running in theirs would be cancelled mid-request and take the whole sync with it (no library
+            // pulled at all). Bounded, so a slow answer can't hold the library back.
+            val answered = withTimeoutOrNull(PROFILE_STEP_TIMEOUT_MS) {
+                if (!plusRepository.pullFromServer()) {
+                    profileRepository.noteProblem("couldn't read whether this account has ArcTV Plus")
+                } else if (profileRepository.pullFromServer(plusRepository.status.value.active)) {
+                    onActiveProfileLost?.invoke()
+                }
+            }
+            if (answered == null) profileRepository.noteProblem("the ArcTV service took too long to answer")
             supervisorScope {
                 launch { settingsSyncRepository.pullFromServer() }
                 launch { watchlistRead = watchlistSyncRepository.pullFromServer() }
@@ -203,5 +210,8 @@ class SyncManager(
         // meaningful drain on a mains-powered Fire TV that's usually idle
         // between the network-reconnect and login/launch triggers anyway.
         private const val PERIODIC_RETRY_INTERVAL_MS = 5 * 60 * 1000L
+
+        // How long the profile / Plus step at the start of a sync may take before the library is pulled anyway.
+        private const val PROFILE_STEP_TIMEOUT_MS = 12_000L
     }
 }

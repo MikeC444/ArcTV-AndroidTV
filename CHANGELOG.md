@@ -4156,3 +4156,13 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Tests performed:** the same scenario run through the web engine (about 6 kept per launch for 12 and for 20 liked movies). The Kotlin test itself is run by CI (`build-apk.yml`); not run locally (no Android SDK here).
 
+## Post-Milestone-59 — Fix: sync cancelled before it pulled the library (introduced in 0.1.5)
+
+**Status:** Fix written; CI builds and tests it. Not run on a device here.
+
+**Cause:** Post-Milestone-52 put the profile / Plus step at the start of `SyncManager.syncAll`, in the *caller's* coroutine, before the work launched onto the manager's own scope. `syncAll`'s own kdoc explains why that matters: AuthGateViewModel, QrSignInViewModel and PasswordSignInViewModel call it and navigate away at once, which cancels their `viewModelScope`. A step running in that coroutine is cancelled mid-request and `syncAll` ends before it ever launches the pulls: settings, My List, Continue Watching, addons and feedback were never pulled, and `ProfileRepository` never became ready ("Profiles: still loading"). A device with a filled cache hid it; a fresh install / sign-in showed an empty My List.
+
+**Change:** the profile / Plus step now runs inside the `scope.launch { ... }` that `syncAll` joins, before the parallel pulls, bounded by `PROFILE_STEP_TIMEOUT_MS` (12 s) so a slow answer can't hold the library back (a timeout is recorded as the profile problem shown in Settings > Account).
+
+**Tests performed:** none new: `SyncManager` needs an Android `Context` and real repositories, and this failure is about coroutine cancellation at the caller. CI compiles it and runs the existing unit tests. Not tried on a device. (This is the change first made on `claude/fix-sync-cancel`, whose pull request #22 was closed unmerged; it is re-applied here on top of the current `main`.)
+
