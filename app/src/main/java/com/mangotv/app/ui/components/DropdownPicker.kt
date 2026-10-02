@@ -1,7 +1,10 @@
 package com.mangotv.app.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -24,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +48,7 @@ import androidx.compose.ui.window.PopupProperties
 import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.DividerSubtle
 import com.mangotv.app.ui.theme.MangoBackgroundElevated
+import com.mangotv.app.ui.theme.MangoMotion
 import com.mangotv.app.ui.theme.MangoSurfaceHigh
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
@@ -135,6 +140,10 @@ fun DropdownPicker(
     }
 }
 
+// The popup inherits composition locals from the screen that opened it. The browse grids switch off Compose's automatic
+// scroll-to-focus (LocalBringIntoViewSpec = DisabledBringIntoViewSpec) so the page doesn't shake, which would leave this
+// list stuck on its first rows while the remote moves focus below them -- so the list puts the normal behaviour back.
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DropdownPanel(options: List<String>, selectedIndex: Int, onPick: (Int) -> Unit) {
     val listState = rememberLazyListState()
@@ -149,6 +158,21 @@ private fun DropdownPanel(options: List<String>, selectedIndex: Int, onPick: (In
         runCatching { selectedRequester.requestFocus() }
     }
 
+    // Belt and braces for the automatic scroll-to-focus restored below: whenever focus moves to an option that is not
+    // fully on screen, scroll just enough to show it. Whichever mechanism gets there first, the other then finds the
+    // option already visible and does nothing.
+    var focusedIndex by remember { mutableStateOf(-1) }
+    LaunchedEffect(focusedIndex) {
+        if (focusedIndex < 0) return@LaunchedEffect
+        val info = listState.layoutInfo
+        val item = info.visibleItemsInfo.firstOrNull { it.index == focusedIndex }
+        when {
+            item == null || item.offset < info.viewportStartOffset -> listState.animateScrollToItem(focusedIndex)
+            item.offset + item.size > info.viewportEndOffset ->
+                listState.animateScrollBy((item.offset + item.size - info.viewportEndOffset).toFloat())
+        }
+    }
+
     val shape = RoundedCornerShape(14.dp)
     Box(
         modifier = Modifier
@@ -157,6 +181,7 @@ private fun DropdownPanel(options: List<String>, selectedIndex: Int, onPick: (In
             .border(1.dp, DividerSubtle, shape)
             .padding(8.dp)
     ) {
+        CompositionLocalProvider(LocalBringIntoViewSpec provides MangoMotion.FastBringIntoViewSpec) {
         LazyColumn(
             state = listState,
             modifier = Modifier.heightIn(max = RowHeight * 7),
@@ -170,7 +195,7 @@ private fun DropdownPanel(options: List<String>, selectedIndex: Int, onPick: (In
                     shape = RoundedCornerShape(8.dp),
                     backgroundColor = Color.Transparent,
                     focusRequester = if (selected) selectedRequester else null,
-                    bringIntoViewOnFocus = false,
+                    onFocusChanged = { focused -> if (focused) focusedIndex = index },
                     focusedScale = 1f
                 ) {
                     Row(
@@ -199,6 +224,7 @@ private fun DropdownPanel(options: List<String>, selectedIndex: Int, onPick: (In
                     }
                 }
             }
+        }
         }
     }
 }

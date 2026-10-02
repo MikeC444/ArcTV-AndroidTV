@@ -3599,7 +3599,12 @@ Rated / Newest); there was no way to look at one genre.
   the chosen option, UP/DOWN move through the list, OK picks and closes, BACK closes
   without changing anything and returns focus to the pill. The list is a `Popup`
   window of its own, so opening it never disturbs the focus handling of the screen
-  behind it, and it scrolls when it is long.
+  behind it, and it scrolls when it is long. The popup inherits the browse grids'
+  `LocalBringIntoViewSpec = DisabledBringIntoViewSpec` (they switch off automatic
+  scroll-to-focus so the page doesn't shake), which left the list stuck on its first
+  rows while the remote moved focus below them; the list now restores the normal
+  behaviour for itself and also scrolls explicitly to any option that isn't fully
+  on screen when it gains focus.
 - `RowsBrowseScreen.kt` -- `RowsBrowseContent` takes an optional `headerAction`
   (replacing the My List-only sort-pill parameters from Post-Milestone-28). It is
   drawn beside the screen title and handed its focus wiring (`BrowseHeaderFocus`):
