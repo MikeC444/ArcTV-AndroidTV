@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -89,8 +90,9 @@ fun ColumnScope.PlusSettingsContent(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
                 focusedScale = 1f,
+                focusedElevation = 0f,
                 backgroundColor = MangoBackground,
-                borderColor = TextPrimary,
+                borderColor = Color.Transparent,
                 focusRequester = contentFocusRequester,
                 focusUp = navFocusRequester,
                 focusLeft = sidebarFocusRequester
@@ -183,24 +185,11 @@ fun ColumnScope.PlusSettingsContent(
         }
 
         item(key = "footer") {
-            // Focusable so Down from the plans has somewhere to go, which also scrolls the tab to its end.
-            TvFocusSurface(
-                onClick = {},
-                clickSound = ClickSound.NONE,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
-                focusedScale = 1f,
-                backgroundColor = MangoBackground,
-                borderColor = TextPrimary,
-                focusLeft = sidebarFocusRequester
-            ) {
-                Text(
-                    text = if (sellPlans) "Payments are handled by Stripe's secure checkout page; Arc TV never sees your card." else "Plus features appear on your account by themselves.",
-                    color = TextTertiary,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)
-                )
-            }
+            Text(
+                text = if (sellPlans) "Payments are handled by Stripe's secure checkout page; Arc TV never sees your card." else "Plus features appear on your account by themselves.",
+                color = TextTertiary,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
