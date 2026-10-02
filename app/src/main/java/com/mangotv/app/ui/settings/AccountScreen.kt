@@ -23,6 +23,7 @@ import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
+import com.mangotv.app.ui.theme.TextTertiary
 
 /**
  * Minimal on purpose — device management (Milestone 3's /auth/sessions:
@@ -82,6 +83,17 @@ fun ColumnScope.AccountSettingsContent(
         compact = true,
         borderColor = TextPrimary
     )
+    if (activeProfile == null) {
+        // Say why, instead of just not showing profiles: no Plus, an older service, or the list couldn't be read.
+        val why = when {
+            !plus.active -> "ArcTV Plus isn't active on this account"
+            profiles.problem != null -> profiles.problem
+            !profiles.ready -> "still loading"
+            else -> "not available"
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(text = "Profiles: $why.", color = TextTertiary, style = MaterialTheme.typography.bodySmall)
+    }
     if (activeProfile != null) {
         Spacer(Modifier.height(16.dp))
         Text(text = "Watching as ${activeProfile.name}", color = TextSecondary, style = MaterialTheme.typography.bodySmall)

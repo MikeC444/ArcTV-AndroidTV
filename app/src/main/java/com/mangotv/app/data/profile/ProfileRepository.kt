@@ -32,7 +32,9 @@ data class ProfilesState(
     val profiles: List<Profile> = emptyList(),
     val activeId: String = ActiveProfile.DEFAULT_ID,
     /** True once a profile has been picked since the app started (the picker is shown once per launch, not on every screen). */
-    val chosen: Boolean = false
+    val chosen: Boolean = false,
+    /** Why the list isn't available, in words (shown in Settings > Account). Null when it loaded fine. */
+    val problem: String? = null
 ) {
     val active: Profile? get() = profiles.firstOrNull { it.id == activeId }
 }
@@ -95,7 +97,7 @@ class ProfileRepository(context: Context, private val authRepository: AuthReposi
             val before = ActiveProfile.id
             val activeId = activeIdOrDefault(before, usable)
             applyActive(activeId, all)
-            _state.value = _state.value.copy(ready = true, supported = true, profiles = all, activeId = activeId)
+            _state.value = _state.value.copy(ready = true, supported = true, profiles = all, activeId = activeId, problem = null)
             store(session.user.id)
             return activeId != before
         } catch (e: ApiException) {
@@ -103,20 +105,31 @@ class ProfileRepository(context: Context, private val authRepository: AuthReposi
                 // An older backend: one implicit profile, exactly as before profiles existed.
                 val before = ActiveProfile.id
                 applyActive(ActiveProfile.DEFAULT_ID, emptyList())
-                _state.value = _state.value.copy(ready = true, supported = false, profiles = emptyList(), activeId = ActiveProfile.DEFAULT_ID)
+                _state.value = _state.value.copy(ready = true, supported = false, profiles = emptyList(), activeId = ActiveProfile.DEFAULT_ID, problem = "the ArcTV service doesn't have profiles yet (it answered 404)")
                 store(session.user.id)
                 return before != ActiveProfile.DEFAULT_ID
             }
             if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
+            noteProblem("the ArcTV service answered HTTP ${e.statusCode}")
+            return false
         } catch (e: IOException) {
             // Offline or the service is down: keep the saved copy.
+            noteProblem("couldn't reach the ArcTV service (${e.javaClass.simpleName})")
+            return false
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             // Unexpected (e.g. a malformed answer): same as being offline.
+            noteProblem("unexpected answer (${e.javaClass.simpleName}: ${e.message.orEmpty().take(80)})")
+            return false
         }
         _state.value = _state.value.copy(ready = true)
         return false
+    }
+
+    /** Remembers why the profile list couldn't be read, for Settings > Account (the saved copy, if any, stays in use). */
+    fun noteProblem(problem: String) {
+        _state.value = _state.value.copy(ready = true, problem = problem)
     }
 
     /** Records which profile this device is on (the caller has already checked the PIN and swapped the library). */
