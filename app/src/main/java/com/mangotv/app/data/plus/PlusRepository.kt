@@ -10,6 +10,7 @@ import com.mangotv.app.BuildConfig
 import com.mangotv.app.data.auth.AuthRepository
 import com.mangotv.app.data.network.ApiException
 import com.mangotv.app.data.network.PlusApiClient
+import com.mangotv.app.data.network.PlusCheckoutLink
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -80,10 +81,10 @@ class PlusRepository(context: Context, private val authRepository: AuthRepositor
     }
 
     /**
-     * Starts a checkout for [plan] and returns the payment page's URL, which the TV shows as a QR code to scan with a
-     * phone. Throws [ApiException] (409: already Plus for life; 503: checkout isn't available yet) or an IOException.
+     * Starts a checkout for [plan] and returns the payment page's URL (which the TV shows as a QR code to scan with a
+     * phone) and what it will charge. Throws [ApiException] (409: already Plus for life; 503: checkout isn't available yet) or an IOException.
      */
-    suspend fun startCheckout(plan: String): String {
+    suspend fun startCheckout(plan: String): PlusCheckoutLink {
         val token = freshAccessTokenOrNull() ?: throw IOException("Not signed in")
         return apiClient.startCheckout(token, plan)
     }

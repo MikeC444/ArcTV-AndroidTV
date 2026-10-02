@@ -4043,3 +4043,11 @@ unoptimised Compose, so they will always feel slower than a release build on a F
 - Settings > Arc TV Plus: "Early access" while the paywall is off; "Arc TV Plus" with plan and period when owned; "Free plan" plus plan cards otherwise. Choosing a plan shows the checkout URL as a QR code and asks every 4 seconds (up to 10 minutes) whether the payment went through, closing itself when it did.
 
 **Switching it on:** see `docs/PAYWALL.md`. Until `PLUS_PAYWALL=on` is set on the host nothing changes for anyone.
+
+## Post-Milestone-50 — Full-Screen Plus Checkout Page (Firestick)
+
+**Context:** User request: the plan-then-QR step looked cramped inline; replace it with a proper page (reference: a "Finish payment on your phone" screen). Firestick only.
+
+**Backend:** `POST /user/plus/checkout` now also returns `amountTotal` (smallest currency unit) and `currency` from the Stripe session, so the TV can show the real price; older apps ignore the extra fields.
+
+**App:** new `PlusCheckoutPage` (full-screen `Dialog`): logo, three-step indicator (Choose plan / Pay on phone / Start watching), "YOUR PLAN" card (plan, price from Stripe, included perks, billing, due today, note, "Change plan") and a large QR with a mm:ss countdown and "Waiting for payment…"; a thank-you screen for 3 seconds when the payment lands, then it closes. Back or "Change plan" returns to the plans. `PlusSettingsViewModel` now ticks every second and checks the payment every 4th tick over the same 10-minute window. `PlusPrice.kt` holds the price/countdown/billing text helpers, unit-tested. If the backend hasn't been redeployed the price reads "Shown on your phone".

@@ -192,11 +192,11 @@ describe("POST /user/plus/checkout", () => {
     let sent: { url: string; headers: Record<string, string>; form: URLSearchParams } | null = null;
     setStripeFetch(async (url, init) => {
       sent = { url, headers: init.headers, form: new URLSearchParams(init.body) };
-      return { ok: true, status: 200, json: async () => ({ url: "https://checkout.stripe.test/c/pay_123" }) };
+      return { ok: true, status: 200, json: async () => ({ url: "https://checkout.stripe.test/c/pay_123", amount_total: 2999, currency: "GBP" }) };
     });
     const response = await post(s.token, { plan: "yearly" });
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ url: "https://checkout.stripe.test/c/pay_123" });
+    expect(response.body).toEqual({ url: "https://checkout.stripe.test/c/pay_123", amountTotal: 2999, currency: "gbp" });
     expect(sent!.url).toBe("https://api.stripe.com/v1/checkout/sessions");
     expect(sent!.headers.Authorization).toBe("Bearer sk_test_x");
     expect(sent!.form.get("mode")).toBe("subscription");

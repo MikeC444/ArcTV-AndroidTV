@@ -18,4 +18,13 @@ data class PlusStatusDto(
 data class PlusCheckoutRequest(val plan: String)
 
 @Serializable
-data class PlusCheckoutResponse(val url: String)
+data class PlusCheckoutResponse(
+    val url: String,
+    /** What the checkout will charge, in the currency's smallest unit (pence, cents). Absent from an older backend. */
+    val amountTotal: Long? = null,
+    /** Lower-case ISO currency code ("gbp"). Absent from an older backend. */
+    val currency: String? = null
+)
+
+/** A started checkout: the payment page to open (shown as a QR code) and, when the backend says, what it will charge. */
+data class PlusCheckoutLink(val url: String, val amountTotal: Long?, val currency: String?)

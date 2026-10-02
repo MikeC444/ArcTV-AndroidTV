@@ -20,13 +20,16 @@ sealed interface PlusCheckoutState {
     data object Idle : PlusCheckoutState
     data class Starting(val plan: String) : PlusCheckoutState
     /** The payment page's URL, shown as a QR code to scan with a phone. */
-    data class ShowingQr(val plan: String, val url: String) : PlusCheckoutState
+    data class ShowingQr(val plan: String, val url: String, val priceLabel: String?) : PlusCheckoutState
+    /** Payment went through; the page shows a thank-you for a moment before closing. */
+    data class Done(val plan: String) : PlusCheckoutState
     data class Error(val message: String) : PlusCheckoutState
 }
 
 /** How often, and for how long, the TV asks whether the payment has gone through once a QR code is up. */
-private const val POLL_EVERY_MS = 4_000L
-private const val POLL_FOR_MS = 10 * 60_000L
+private const val POLL_EVERY_TICKS = 4
+private const val POLL_FOR_SECONDS = 10 * 60
+private const val DONE_SHOWN_MS = 3_000L
 
 /** Backs Settings > Arc TV Plus: the account's status, and buying a plan by scanning a QR code with a phone. */
 class PlusSettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -40,6 +43,10 @@ class PlusSettingsViewModel(application: Application) : AndroidViewModel(applica
 
     private var polling: Job? = null
 
+    /** Seconds left before the QR code stops waiting; drives the countdown beside it. */
+    private val _remainingSeconds = MutableStateFlow(POLL_FOR_SECONDS)
+    val remainingSeconds: StateFlow<Int> = _remainingSeconds.asStateFlow()
+
     init {
         // A fresh read whenever this tab opens, so what it shows is current.
         viewModelScope.launch { plusRepository.pullFromServer() }
@@ -50,9 +57,9 @@ class PlusSettingsViewModel(application: Application) : AndroidViewModel(applica
         _checkout.value = PlusCheckoutState.Starting(plan)
         viewModelScope.launch {
             try {
-                val url = plusRepository.startCheckout(plan)
-                _checkout.value = PlusCheckoutState.ShowingQr(plan, url)
-                startPolling()
+                val link = plusRepository.startCheckout(plan)
+                _checkout.value = PlusCheckoutState.ShowingQr(plan, link.url, formatPlusPrice(link.amountTotal, link.currency))
+                startPolling(plan)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: ApiException) {
@@ -76,15 +83,21 @@ class PlusSettingsViewModel(application: Application) : AndroidViewModel(applica
         _checkout.value = PlusCheckoutState.Idle
     }
 
-    /** Asks every few seconds whether Plus is on yet; closes the QR code by itself when it is. */
-    private fun startPolling() {
+    /** Counts down once a second, asks every few seconds whether Plus is on yet, and thanks the person when it is. */
+    private fun startPolling(plan: String) {
         polling?.cancel()
+        _remainingSeconds.value = POLL_FOR_SECONDS
         polling = viewModelScope.launch {
-            val until = System.currentTimeMillis() + POLL_FOR_MS
-            while (System.currentTimeMillis() < until) {
-                delay(POLL_EVERY_MS)
+            var tick = 0
+            while (_remainingSeconds.value > 0) {
+                delay(1_000L)
+                _remainingSeconds.value -= 1
+                tick++
+                if (tick % POLL_EVERY_TICKS != 0) continue
                 plusRepository.pullFromServer()
                 if (plusRepository.status.value.owned) {
+                    _checkout.value = PlusCheckoutState.Done(plan)
+                    delay(DONE_SHOWN_MS)
                     _checkout.value = PlusCheckoutState.Idle
                     return@launch
                 }

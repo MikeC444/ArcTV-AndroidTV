@@ -21,7 +21,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -34,7 +33,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mangotv.app.ui.components.ClickSound
 import com.mangotv.app.ui.components.MangoButton
-import com.mangotv.app.ui.components.QrCodeImage
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.ArcViolet
@@ -67,14 +65,12 @@ fun ColumnScope.PlusSettingsContent(
 ) {
     val status by viewModel.status.collectAsStateWithLifecycle()
     val checkout by viewModel.checkout.collectAsStateWithLifecycle()
-    val cancelFocus = remember { FocusRequester() }
-    val showCheckout = checkout !is PlusCheckoutState.Idle
+    val remaining by viewModel.remainingSeconds.collectAsStateWithLifecycle()
+    val showCheckout = checkout is PlusCheckoutState.Starting || checkout is PlusCheckoutState.Error
     val sellPlans = status.paywall && !status.active
 
-    // Once a QR code is up, the remote lands on its Cancel button, so Back / Select leaves it without hunting.
-    LaunchedEffect(checkout is PlusCheckoutState.ShowingQr) {
-        if (checkout is PlusCheckoutState.ShowingQr) runCatching { cancelFocus.requestFocus() }
-    }
+    // The QR code gets a full-screen page of its own; Back or "Change plan" returns here.
+    PlusCheckoutPage(state = checkout, remainingSeconds = remaining, onClose = viewModel::cancelCheckout)
 
     LazyColumn(
         modifier = Modifier.weight(1f),
@@ -163,7 +159,7 @@ fun ColumnScope.PlusSettingsContent(
 
         if (showCheckout) {
             item(key = "checkout") {
-                CheckoutPanel(checkout = checkout, onCancel = viewModel::cancelCheckout, cancelFocus = cancelFocus, focusLeft = sidebarFocusRequester)
+                CheckoutPanel(checkout = checkout, onCancel = viewModel::cancelCheckout, focusLeft = sidebarFocusRequester)
             }
         }
 
@@ -191,7 +187,7 @@ private fun formatDate(iso: String): String {
 }
 
 @Composable
-private fun CheckoutPanel(checkout: PlusCheckoutState, onCancel: () -> Unit, cancelFocus: FocusRequester, focusLeft: FocusRequester?) {
+private fun CheckoutPanel(checkout: PlusCheckoutState, onCancel: () -> Unit, focusLeft: FocusRequester?) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -202,22 +198,7 @@ private fun CheckoutPanel(checkout: PlusCheckoutState, onCancel: () -> Unit, can
     ) {
         when (checkout) {
             is PlusCheckoutState.Starting -> Text(text = "Getting your checkout ready…", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-            is PlusCheckoutState.ShowingQr -> {
-                Text(
-                    text = "Scan with your phone to pay for ${PLUS_PLANS.firstOrNull { it.id == checkout.plan }?.label ?: "Plus"}",
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    textAlign = TextAlign.Center
-                )
-                QrCodeImage(content = checkout.url, modifier = Modifier.size(300.dp), sizePx = 720)
-                Text(
-                    text = "Waiting for your payment… this closes by itself when it goes through.",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center
-                )
-                MangoButton(text = "Cancel", icon = Icons.Filled.Close, onClick = onCancel, focusRequester = cancelFocus, focusLeft = focusLeft, compact = true)
-            }
+            is PlusCheckoutState.ShowingQr, is PlusCheckoutState.Done -> Unit
             is PlusCheckoutState.Error -> {
                 Text(text = checkout.message, color = ErrorCoral, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
                 MangoButton(text = "Close", icon = Icons.Filled.Close, onClick = onCancel, focusLeft = focusLeft, compact = true)

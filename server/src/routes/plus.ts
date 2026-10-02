@@ -29,8 +29,9 @@ plusRouter.post("/plus/checkout", requireAuth, validate({ body: checkoutBody }),
     const entitlement = await getEntitlement(req.user!.id);
     if (entitlement.active && entitlement.plan === "lifetime") throw new HttpError(409, "You already have Plus for life");
     const row = await getPlusRow(req.user!.id);
-    const url = await createCheckoutSession({ userId: req.user!.id, email: req.user!.email, plan, stripeCustomerId: row?.stripeCustomerId ?? null });
-    res.json({ url });
+    const session = await createCheckoutSession({ userId: req.user!.id, email: req.user!.email, plan, stripeCustomerId: row?.stripeCustomerId ?? null });
+    // The page to open, plus what it will charge so a TV can show the price next to the QR code.
+    res.json({ url: session.url, amountTotal: session.amountTotal, currency: session.currency });
   } catch (error) {
     next(error);
   }
