@@ -131,7 +131,9 @@ class SyncManager(
     suspend fun syncAll() {
         // Which profile this device is on comes first: every library below is that profile's. Needs a fresh answer about Plus (the
         // profiles are Plus-only); if that can't be read (offline) the saved profile is kept as it is.
-        if (plusRepository.pullFromServer() && profileRepository.pullFromServer(plusRepository.status.value.active)) {
+        if (!plusRepository.pullFromServer()) {
+            profileRepository.noteProblem("couldn't read whether this account has ArcTV Plus")
+        } else if (profileRepository.pullFromServer(plusRepository.status.value.active)) {
             onActiveProfileLost?.invoke()
         }
         var watchlistRead = false

@@ -4107,3 +4107,15 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues discovered:** none yet (not run).
 
+## Post-Milestone-53 — Profile picture in the top bar, and a reason when profiles don't load
+
+**Context:** User report after 0.1.5: profiles were not visible on the TV, and profiles must be switched from the top bar like on the web (profile picture at the top right, pressing it opens "Who's watching?"), not from Settings.
+
+**Changes (`app/`):**
+- `TopNavBar`: the profile's picture (`ProfileNavButton`) is at the far right of the bar and opens the profile screen; the profile-name item at the end of the list is gone. The item list now fills the space between the logo and the picture. Shown only when the account has Plus and profiles loaded, as before.
+- `ProfilesState.problem` (new): why the profile list isn't available (no Plus status, a 404 from an older service, another HTTP status, no connection, an unreadable answer). `SyncManager.syncAll` records "couldn't read whether this account has ArcTV Plus" when the Plus read fails. Settings > Account shows it as "Profiles: ..." in place of the "Watching as" block, so a missing profile list is explained on screen instead of silently hiding every profile control.
+
+**Tests performed:** none new (UI and error text only); **not compiled or run locally** (no Android SDK here), CI (`build-apk.yml`) builds this branch. Not tried on a device.
+
+**Issues discovered:** the cause of profiles not showing on the user's TV with 0.1.5 is not known yet; the on-screen reason is there to find it.
+

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import com.mangotv.app.navigation.PROFILES_NAV_LABEL
 import com.mangotv.app.ui.components.ArcLogo
 import com.mangotv.app.ui.components.TvFocusSurface
+import com.mangotv.app.ui.profiles.ProfileAvatarTile
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoMotion
@@ -77,14 +79,13 @@ fun TopNavBar(
     val context = LocalContext.current
     val guestGate = remember { (context.applicationContext as MangoTvApplication).container.guestGate }
     val isGuest by guestGate.isGuest.collectAsStateWithLifecycle()
-    // ArcTV Plus profiles: the active profile's name is the last item (it opens "Who's watching?"), and a kids profile has no Settings.
+    // ArcTV Plus profiles: the active profile's picture sits at the top right (it opens "Who's watching?", like the web app), and a kids profile has no Settings.
     val container = remember { (context.applicationContext as MangoTvApplication).container }
     val profiles by container.profileRepository.state.collectAsStateWithLifecycle()
     val plus by container.plusRepository.status.collectAsStateWithLifecycle()
     val activeProfile = if (!isGuest && plus.active && profiles.supported) profiles.active else null
     val baseItems = if (isGuest) navItemsForGuest(MangoNavItems) else MangoNavItems.filterNot { activeProfile?.isKids == true && it == "Settings" }
-    val navItems = if (activeProfile != null) baseItems + activeProfile.name else baseItems
-    val profileItemIndex = if (activeProfile != null) navItems.lastIndex else -1
+    val navItems = baseItems
 
     val scrimAlpha by animateFloatAsState(
         // Was 0.45f, then 0.6f -- against a bright/busy hero image behind
@@ -171,7 +172,8 @@ fun TopNavBar(
         // slower default spring-based scroll and stutter.
         CompositionLocalProvider(LocalBringIntoViewSpec provides MangoMotion.FastBringIntoViewSpec) {
             LazyRow(
-                modifier = Modifier.weight(1f, fill = false),
+                // Fills the space between the logo and the profile picture, so the picture sits at the far right (the items stay at the left).
+                modifier = Modifier.weight(1f),
                 // LazyRow clips its content to its own laid-out bounds --
                 // with no content padding, that boundary sat exactly at
                 // the first/last item's un-scaled edge, so the focused
@@ -193,13 +195,34 @@ fun TopNavBar(
                     NavItem(
                         label = label,
                         selected = index == selectedIndex,
-                        onClick = { onItemClick(if (index == profileItemIndex) PROFILES_NAV_LABEL else label) },
+                        onClick = { onItemClick(label) },
                         focusRequester = if (index == selectedIndex) selectedItemFocusRequester else null,
                         focusDown = contentFocusRequester
                     )
                 }
             }
         }
+        if (activeProfile != null) {
+            Spacer(Modifier.width(12.dp))
+            ProfileNavButton(avatar = activeProfile.avatar, onClick = { onItemClick(PROFILES_NAV_LABEL) }, focusDown = contentFocusRequester)
+        }
+    }
+}
+
+/** The active profile's picture at the top right of the bar: pressing it opens "Who's watching?" (same place and behaviour as the web app). */
+@Composable
+private fun ProfileNavButton(avatar: String, onClick: () -> Unit, focusDown: FocusRequester?) {
+    TvFocusSurface(
+        onClick = onClick,
+        shape = RoundedCornerShape(8.dp),
+        backgroundColor = Color.Transparent,
+        borderColor = TextPrimary,
+        focusedElevation = 0f,
+        borderAnimationSpec = snap(),
+        focusDown = focusDown,
+        modifier = Modifier.size(42.dp)
+    ) {
+        ProfileAvatarTile(avatar = avatar, size = 42.dp)
     }
 }
 
