@@ -3442,3 +3442,45 @@ the launcher icon and banner are still the mango artwork; both change in the
 next commit.
 
 **Issues fixed:** none beyond the rename itself.
+
+## Post-Milestone-34 — Arc TV Artwork And Logo
+
+**Status:** Complete, not compiled (see Tests performed). Last of three commits
+for the Arc TV rebrand.
+
+**Context:** Artwork supplied for this change (ArcTV Fire TV / Android assets),
+matching the logo the web app already uses (MangotvWebb 590b5d8, 6c51e99,
+6c818e6). The app still showed the mango launcher icon and TV banner, and drew
+its in-app logo as the text "MANGO TV" in a gradient, not from an image.
+
+**Changes:**
+- Replaced `drawable-xhdpi/banner.png` (640x360, the Fire TV home tile; black
+  background, full logo and name) and `mipmap-xxxhdpi/ic_launcher*.png`
+  (foreground 432x432 with the mark inside the adaptive-icon safe area, solid
+  black background, and the 192x192 legacy square and round icons). The
+  adaptive-icon XML and manifest already point at these files, so they needed no
+  change.
+- Added `drawable-nodpi/logo_arctv.png` (2232x676, transparent, white lettering,
+  about 3.3:1) and removed the old `drawable-xhdpi/logo_mango.png`, which nothing
+  in the code referenced.
+- `MangoLogo.kt` became `ArcLogo.kt`: it draws that image instead of two text
+  runs. Only the height is set, so the wide logo is never stretched to the old
+  tall proportions; the height is the old `fontSize` times 1.3, so all four call
+  sites (top nav, both sign-in screens, the player's top bar) keep their size
+  parameters and the wordmark lands at about the height the old text had.
+- `README.md` -- component list updated.
+
+**Tests performed:** Opened the supplied files and checked their pixel sizes
+against the spec (all six match), confirmed no remaining reference to the
+removed drawable or the old composable, and a manual re-read. The artwork was
+supplied already sized to the Fire TV requirements. **Not performed:** a Gradle
+resource build or any on-device look. On a Fire TV, check: the home-screen tile
+shows the banner without cropping the name, the app-list icon is not cut off,
+the logo fits the top bar without moving the nav items, and it is not too small
+or large on the sign-in screens and in the player.
+
+**Issues discovered:** The boot video (`BootVideoScreen`) is a video asset, so
+if it has the old logo or colours baked in it will still show them until the
+video is replaced.
+
+**Issues fixed:** none beyond the artwork itself.

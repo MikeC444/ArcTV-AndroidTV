@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.mangotv.app.ui.components.MangoLogo
+import com.mangotv.app.ui.components.ArcLogo
 import com.mangotv.app.ui.theme.MangoBackground
 
 /**
@@ -39,6 +39,6 @@ fun AuthGateScreen(
             .background(MangoBackground),
         contentAlignment = Alignment.Center
     ) {
-        MangoLogo(fontSize = 32.sp)
+        ArcLogo(fontSize = 32.sp)
     }
 }

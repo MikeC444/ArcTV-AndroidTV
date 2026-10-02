@@ -14,6 +14,7 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- New Arc TV logo, launcher icon and Fire TV home-screen banner, and the logo in the top bar, sign-in screens and the player now use the full Arc TV artwork instead of the old "MANGO TV" text
 - Mango TV is now Arc TV: the app's name, and every place that used to say Mango TV (sign-in, Settings, the update prompt, the add-addon page on your phone), now say Arc TV
 - New look: the app's colours now follow the Arc TV logo (cyan, blue and violet) instead of amber and orange, across buttons, selected items, switches, the focus highlight and the progress bars. Warnings stay amber and errors stay red
 - Cast on a movie or show's page now shows each actor's photo and the character they play, instead of a blank circle with just a name, and TV shows now list their cast under the episodes

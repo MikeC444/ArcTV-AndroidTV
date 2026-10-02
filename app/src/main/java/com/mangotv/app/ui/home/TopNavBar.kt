@@ -36,7 +36,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.mangotv.app.ui.components.MangoLogo
+import com.mangotv.app.ui.components.ArcLogo
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoDimens
@@ -135,7 +135,7 @@ fun TopNavBar(
             ),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        MangoLogo()
+        ArcLogo()
         Spacer(Modifier.width(56.dp))
         // LazyRow rather than a plain Row: with enough nav items (this list
         // has grown since this bar was first built), the fully laid-out

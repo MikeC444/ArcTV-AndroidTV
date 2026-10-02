@@ -22,7 +22,7 @@ app/src/main/java/com/mangotv/app/
   data/history/        Local Continue Watching cache
   data/player/         Local player-preferences cache
   ui/theme/            Colors, typography, motion tokens, dimens — the design system
-  ui/components/       Reusable focusable primitives: TvFocusSurface, ContentCard, ContentRow, MangoButton, MangoLogo, loading/error states
+  ui/components/       Reusable focusable primitives: TvFocusSurface, ContentCard, ContentRow, MangoButton, ArcLogo, loading/error states
   ui/loading/          Branded cold-boot loading screen
   ui/home/ ui/browse/ ui/detail/ ui/genres/ ui/search/ ui/mylist/ ui/sources/ ui/player/  The main app screens
   ui/player/overlay/   In-player menus: quality, audio/subtitle tracks, playback speed, source info, settings

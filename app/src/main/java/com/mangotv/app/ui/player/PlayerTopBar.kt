@@ -21,7 +21,7 @@ import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.Episode
 import com.mangotv.app.ui.components.ClickSound
 import com.mangotv.app.ui.components.HeroIconButton
-import com.mangotv.app.ui.components.MangoLogo
+import com.mangotv.app.ui.components.ArcLogo
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
 
@@ -103,6 +103,6 @@ fun PlayerTopBar(
             }
         }
 
-        MangoLogo(fontSize = 16.sp)
+        ArcLogo(fontSize = 16.sp)
     }
 }

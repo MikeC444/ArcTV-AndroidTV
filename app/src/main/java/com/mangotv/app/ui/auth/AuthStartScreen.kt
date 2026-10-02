@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.sp
 import com.mangotv.app.R
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
-import com.mangotv.app.ui.components.MangoLogo
+import com.mangotv.app.ui.components.ArcLogo
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.ArcBrandGradient
 import com.mangotv.app.ui.theme.MangoDimens
@@ -117,7 +117,7 @@ fun AuthStartScreen(
                 .padding(horizontal = MangoDimens.ScreenPaddingHorizontal)
                 .widthIn(max = 400.dp)
         ) {
-            MangoLogo(fontSize = 32.sp)
+            ArcLogo(fontSize = 32.sp)
             Spacer(Modifier.height(40.dp))
             Text(
                 text = buildAnnotatedString {
