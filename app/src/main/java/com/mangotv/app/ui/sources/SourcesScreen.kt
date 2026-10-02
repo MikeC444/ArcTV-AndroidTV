@@ -212,14 +212,9 @@ private fun SourcesContent(
         val tier = selectedFilter.tier
         if (tier == null) state.streams else state.streams.filter { it.resolutionTier == tier }
     }
-    val sorted = remember(filtered, selectedSort) {
-        when (selectedSort) {
-            SourceSort.QUALITY -> filtered.sortedWith(
-                compareBy<Stream> { it.resolutionTier.ordinal }.thenByDescending { it.seeders ?: -1 }
-            )
-            SourceSort.SEEDERS -> filtered.sortedByDescending { it.seeders ?: -1 }
-            SourceSort.SIZE -> filtered.sortedByDescending { it.sizeBytes ?: -1 }
-        }
+    // The recommended source is always the first row, whatever the filter and sort -- see orderSources().
+    val sorted = remember(state.streams, filtered, state.recommendedStreamId, selectedSort) {
+        orderSources(state.streams, filtered, state.recommendedStreamId, selectedSort)
     }
 
     // Land the D-pad cursor on the first (top/best) source as soon as the

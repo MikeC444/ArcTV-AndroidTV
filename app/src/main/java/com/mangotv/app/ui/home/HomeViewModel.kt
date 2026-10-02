@@ -259,9 +259,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun applyPreferences(rowPreferences: HomeRowPreferences) {
         if (!hasFetchedOnce) return
 
-        val visibleSections = rowPreferences.applyOrder(rawSections).filterNot { it.id in rowPreferences.hiddenRowIds }
-            .map { it.withWatchedFlags() }
-        val sections = listOfNotNull(continueWatchingSection?.withWatchedFlags()) + visibleSections
+        // Each title shows in only one row (the first one displayed that holds it). Done after hidden rows are
+        // removed so a hidden row never uses up a title, and before the hero pool is drawn so the hero follows suit.
+        val visibleSections = dedupeSections(
+            rowPreferences.applyOrder(rawSections).filterNot { it.id in rowPreferences.hiddenRowIds }
+        ).map { it.withWatchedFlags() }
+        // A title that already sits in a catalogue row is not repeated under Continue Watching.
+        val continueWatching = continueWatchingSection?.let { withoutShownTitles(it, visibleSections) }
+        val sections = listOfNotNull(continueWatching?.withWatchedFlags()) + visibleSections
 
         // HERO_POOL_SIZE random titles drawn from every visible row (not
         // just the first one), respecting manual reordering and hidden rows

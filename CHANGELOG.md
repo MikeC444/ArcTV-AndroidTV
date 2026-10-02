@@ -3146,3 +3146,51 @@ Separately, an account that already had titles but never ran the catch-up
 (upgraded from before it existed) now has it skipped for good.
 
 **Issues fixed:** Removed or un-watched titles reappearing after sign-in.
+
+## Post-Milestone-27 — Home Rows Without Repeats, Recommended Source Always First
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** Ported from three web-app changes (MangotvWebb b7566d5 "Show
+each title in only one Home row", 29a638f "Continue Watching without
+repeats", 127d207 "Recommended source always first"). Before this, a title
+could appear in several Home rows, Continue Watching could repeat a title
+already shown below it, and the "Recommended" badge on Select a Source sat on
+whatever row the current sort and filter placed it -- or vanished when the
+filter hid it.
+
+**Changes:**
+- `HomeRowLogic.kt` (new) -- `dedupeSections()` keeps a title in the first
+  row displayed that holds it and drops rows left empty;
+  `withoutShownTitles()` removes from Continue Watching any title a
+  catalogue row already shows, and returns null when nothing is left.
+- `HomeViewModel.kt` -- `applyPreferences()` dedupes after the hidden rows
+  are removed (so a hidden row never uses up a title) and before the hero
+  pool is drawn, so the hero's ten titles follow the same rule. Continue
+  Watching goes through `withoutShownTitles()` against the visible rows.
+- `SourceOrdering.kt` (new) -- `sortSources()` (the previous inline sort,
+  unchanged) and `orderSources()`, which puts the recommended source first
+  and the filtered, sorted rest after it, listing it once.
+- `SourcesScreen.kt` -- uses `orderSources()`. The recommended source stays
+  first even when the active resolution filter would otherwise hide it, which
+  is what the web does.
+- `HomeRowLogicTest.kt`, `SourceOrderingTest.kt` -- unit tests for all of the
+  above, including that inputs are never mutated and untouched rows are
+  returned as the same objects.
+- `RELEASE_NOTES.md` -- two user-facing lines under Unreleased.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no
+Android SDK, no route to `dl.google.com`): unit tests written but not run
+here, brace/paren balance check on every touched Kotlin file (clean), and a
+manual re-read. **Not performed:** a Gradle compile, the unit tests, or an
+on-device check -- on-device, confirm no title repeats across Home rows,
+Continue Watching shows only titles absent from the rows below it, and the
+Recommended source is on top after switching filter and sort.
+
+**Issues discovered:** Continue Watching now hides a half-watched title
+whenever any catalogue row also lists it, so that title loses its progress
+bar on Home. This matches the web exactly, but on a TV, where Continue
+Watching is the main way back into a show, it may not be wanted -- flipping
+it is a one-line change in `applyPreferences()`.
+
+**Issues fixed:** see Changes above.
