@@ -13,6 +13,16 @@
   var tabLogin = document.getElementById("tab-login");
   var tabRegister = document.getElementById("tab-register");
   var mode = "login";
+  var nameWrap = document.getElementById("name-wrap");
+  var submitLabel = document.getElementById("submit-label");
+  var heading = document.getElementById("heading");
+  var switchText = document.getElementById("switch-text");
+  var switchBtn = document.getElementById("switch-btn");
+  var switchEl = document.getElementById("switch");
+  var noteEl = document.getElementById("note");
+  var toggleBtn = document.getElementById("toggle");
+  var deviceState = document.getElementById("device-state");
+  var deviceDot = document.getElementById("device-dot");
 
   function setMessage(text, kind) {
     messageEl.textContent = text || "";
@@ -22,17 +32,31 @@
   function hideForm() {
     formEl.style.display = "none";
     tabsEl.style.display = "none";
+    switchEl.style.display = "none";
+    noteEl.style.display = "none";
   }
 
   function setMode(next) {
     mode = next;
     tabLogin.classList.toggle("active", mode === "login");
     tabRegister.classList.toggle("active", mode === "register");
-    displayNameField.style.display = mode === "register" ? "block" : "none";
+    nameWrap.hidden = mode !== "register";
+    heading.textContent = mode === "register" ? "Create your account" : "Sign in to your TV";
+    switchText.textContent = mode === "register" ? "Already have an account?" : "New to ArcTV?";
+    switchBtn.textContent = mode === "register" ? "Sign in" : "Create an account";
     passwordField.autocomplete = mode === "register" ? "new-password" : "current-password";
-    submitButton.textContent = mode === "register" ? "Create Account" : "Sign In";
+    submitLabel.textContent = mode === "register" ? "Create account & connect TV" : "Sign in & connect TV";
     setMessage("");
   }
+
+  switchBtn.addEventListener("click", function () {
+    setMode(mode === "login" ? "register" : "login");
+  });
+  toggleBtn.addEventListener("click", function () {
+    var show = passwordField.type === "password";
+    passwordField.type = show ? "text" : "password";
+    toggleBtn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+  });
 
   tabLogin.addEventListener("click", function () {
     setMode("login");
@@ -54,9 +78,12 @@
     .then(function (data) {
       if (data.status === "expired" || data.status === "not_found") {
         hideForm();
+        deviceState.textContent = "Code expired";
         setMessage("This code has expired. Go back to your TV and try again.", "error");
       } else if (data.status === "consumed" || data.status === "completed") {
         hideForm();
+        deviceState.textContent = "Connected";
+        deviceDot.className = "dot ok";
         setMessage("This code has already been used. Check your TV — it may already be signed in.", "success");
       }
     })
@@ -89,6 +116,8 @@
       .then(function (response) {
         if (response.status === 204) {
           hideForm();
+          deviceState.textContent = "Connected";
+          deviceDot.className = "dot ok";
           setMessage("You're signed in! Check your TV.", "success");
           return;
         }
