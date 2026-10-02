@@ -10,6 +10,18 @@ skip it because the change feels small.
   heading at the top of the file.
 - Write it for the person using the app, not for another engineer: plain
   language, no file names, no internal implementation detail.
+- **Keep it short and exciting.** These notes are what people read in the
+  app's update pop-up, so make them quick to read and something to look
+  forward to:
+  - One line per change, about 20 words at most. Lead with what the person
+    gets, not how it works.
+  - Upbeat, energetic wording ("Your row just got smarter", "Switch
+    profile in one press"), not dry ("The row now follows..."). No
+    exaggeration, and nothing that isn't true.
+  - No explanations of why or how, no edge cases, no version history of
+    the fix. Merge several small changes to one feature into one bullet.
+  - Plain text only (the pop-up shows it as plain text): no Markdown
+    beyond the leading dash, no file names, no jargon.
 - Cutting a release (rename `## Unreleased` to the version, e.g.
   `## 0.1.3`, and start a fresh empty `## Unreleased` above it) is a
   separate, explicit request -- only do it when actually asked to cut a
