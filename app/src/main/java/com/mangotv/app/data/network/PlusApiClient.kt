@@ -18,15 +18,16 @@ class PlusApiClient(private val baseUrl: String) {
         json.decodeFromString(PlusStatusDto.serializer(), execute(request))
     }
 
-    /** Starts a Stripe Checkout for [plan] ("monthly", "yearly" or "lifetime") and returns the hosted payment page's URL. */
-    suspend fun startCheckout(accessToken: String, plan: String): String = withContext(Dispatchers.IO) {
+    /** Starts a Stripe Checkout for [plan] ("monthly", "yearly" or "lifetime") and returns the hosted payment page's URL and price. */
+    suspend fun startCheckout(accessToken: String, plan: String): PlusCheckoutLink = withContext(Dispatchers.IO) {
         val body = json.encodeToString(PlusCheckoutRequest.serializer(), PlusCheckoutRequest(plan))
         val request = Request.Builder()
             .url("$baseUrl/user/plus/checkout")
             .header("Authorization", "Bearer $accessToken")
             .post(body.toRequestBody(JSON_MEDIA_TYPE))
             .build()
-        json.decodeFromString(PlusCheckoutResponse.serializer(), execute(request)).url
+        val response = json.decodeFromString(PlusCheckoutResponse.serializer(), execute(request))
+        PlusCheckoutLink(response.url, response.amountTotal, response.currency)
     }
 
     private fun execute(request: Request): String {

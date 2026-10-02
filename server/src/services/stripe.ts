@@ -49,7 +49,16 @@ export interface CheckoutInput {
  * `client_reference_id` (and the plan as metadata), so the webhook can tell who paid for what without trusting
  * anything the client sends back. Subscriptions use subscription mode; Lifetime is a one-time payment.
  */
-export async function createCheckoutSession(input: CheckoutInput): Promise<string> {
+export interface CheckoutSession {
+  /** The hosted payment page. */
+  url: string;
+  /** What the person will be charged, in the currency's smallest unit (pence, cents), as Stripe worked it out; null if Stripe didn't say. */
+  amountTotal: number | null;
+  /** Lower-case ISO currency code ("gbp"); null if Stripe didn't say. */
+  currency: string | null;
+}
+
+export async function createCheckoutSession(input: CheckoutInput): Promise<CheckoutSession> {
   const config = getPlusConfig();
   const priceId = config.prices[input.plan];
   if (!config.paywallOn || !config.stripeSecretKey || !priceId) {
@@ -77,9 +86,13 @@ export async function createCheckoutSession(input: CheckoutInput): Promise<strin
     headers: { Authorization: `Bearer ${config.stripeSecretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
     body: form.toString(),
   });
-  const body = (await response.json().catch(() => null)) as { url?: unknown } | null;
+  const body = (await response.json().catch(() => null)) as { url?: unknown; amount_total?: unknown; currency?: unknown } | null;
   if (!response.ok || !body || typeof body.url !== "string") {
     throw new Error(`Stripe checkout session failed (HTTP ${response.status})`);
   }
-  return body.url;
+  return {
+    url: body.url,
+    amountTotal: typeof body.amount_total === "number" ? body.amount_total : null,
+    currency: typeof body.currency === "string" ? body.currency.toLowerCase() : null,
+  };
 }
