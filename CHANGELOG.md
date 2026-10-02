@@ -3890,3 +3890,44 @@ not show the tab.
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-43 — Hero Slide And Edge Shading, TV Show Detail Spacing
+
+**Status:** Complete, not compiled (see Tests performed). The Detail change is a blind layout
+tweak and needs an on-device look.
+
+**Context:** User request (the "smaller web updates" left from the parity list), ported from
+MangotvWebb 3c512ff (hero edge shading), a8dd936 (hero slide transition) and 11a20b6 (TV show
+Detail spacing).
+
+**Changes:**
+- `HeroSection.kt` -- edge shading: a second horizontal gradient dark at the very edges (88%,
+  55% at 4% of the width, clear by 10%, mirrored on the right), on top of the existing
+  left-to-right assist. The same numbers as the web.
+- `HeroSection.kt` -- slide transition: the backdrop (with its Ken Burns zoom) and the title,
+  details and description now slide in from the right while the old ones slide out to the left,
+  650 ms, each travelling the full screen width so they cross together (`MangoMotion.HeroSlideMillis`
+  replaces the 900 ms crossfade constant). Both are keyed by the title's id, so a watched-flag
+  refresh that hands the hero an equal copy of the same title doesn't replay the slide. The
+  Play / Trailer / My List / Info buttons are deliberately not part of the slide: they stay put,
+  so the remote's focus is undisturbed by the rotation every nine seconds.
+- `DetailHeroSection.kt` -- TV show pages (the non-compact layout): the hero's minimum height is
+  60% of the screen (was 82%) and its bottom padding 24 dp (was 56 dp), so the seasons start
+  right below the Play row, and the rating badge is centred on the Play row's buttons (padded up
+  half a button and slid down half its own height, so its own height need not be known). Movie
+  pages are unchanged.
+- `RELEASE_NOTES.md` -- two user-facing lines under Unreleased.
+
+**Not ported:** the hero's clickable page dots (a mouse control; the TV has no pointer).
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android SDK): brace/paren
+balance on touched files and a manual re-read. Animation and layout can't be unit tested.
+**Not performed:** an on-device look. Check on a Fire TV: Home's hero slides smoothly with picture
+and text together and the Play row doesn't flicker or lose focus as it rotates; the edge shading
+looks right; on a TV show page the seasons are visible without scrolling much, the title block
+still fits above the Play row, and the rating is level with the buttons. The 60% height is a
+starting point; it is one number to adjust.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

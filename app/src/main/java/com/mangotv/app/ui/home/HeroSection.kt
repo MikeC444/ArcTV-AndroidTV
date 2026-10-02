@@ -1,6 +1,11 @@
 package com.mangotv.app.ui.home
 
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -59,6 +64,8 @@ import androidx.compose.material.icons.filled.Theaters
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import coil.compose.AsyncImage
 import coil.imageLoader
 import coil.request.ImageRequest
@@ -140,6 +147,8 @@ fun HeroSection(
     // text column actually needs (at least this floor, more if required),
     // rather than the other way around.
     val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
+    // How far a slide travels: the whole screen width, so the picture and the text cross together.
+    val screenWidthPx = with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.roundToPx() }
     val heroMinHeight = screenHeightDp * 0.82f
 
     Box(
@@ -156,13 +165,16 @@ fun HeroSection(
             // scale.
             .clipToBounds()
     ) {
-        Crossfade(
-            targetState = current,
-            animationSpec = tween(MangoMotion.HeroCrossfadeMillis),
+        // Each title is a slide: the next one slides in from the right as the old one slides out to the left (as on
+        // the web). Keyed by id, not by the Content itself: a watched-flag refresh hands the hero an equal-looking copy
+        // of the same title, which must not replay the slide.
+        AnimatedContent(
+            targetState = current.id,
+            transitionSpec = { heroSlideTransition(screenWidthPx) },
             label = "heroBackdrop",
             modifier = Modifier.matchParentSize()
-        ) { item ->
-            KenBurnsBackdrop(url = item.backdropUrl)
+        ) { id ->
+            KenBurnsBackdrop(url = (items.firstOrNull { it.id == id } ?: current).backdropUrl)
         }
 
         // A much lighter left-to-right gradient than before — just enough
@@ -179,6 +191,25 @@ fun HeroSection(
                             MangoBackground.copy(alpha = 0.55f),
                             MangoBackground.copy(alpha = 0.2f),
                             Color.Transparent
+                        )
+                    )
+                )
+        )
+
+        // The same soft shade as the top bar also wraps the left and right edges of the picture (as on the web): dark at
+        // the very edge, gone by 10% of the width.
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.horizontalGradient(
+                        colorStops = arrayOf(
+                            0f to MangoBackground.copy(alpha = 0.88f),
+                            0.04f to MangoBackground.copy(alpha = 0.55f),
+                            0.10f to Color.Transparent,
+                            0.90f to Color.Transparent,
+                            0.96f to MangoBackground.copy(alpha = 0.55f),
+                            1f to MangoBackground.copy(alpha = 0.88f)
                         )
                     )
                 )
@@ -221,88 +252,100 @@ fun HeroSection(
             // bottom edge instead of stranding a gap below the buttons.
             verticalArrangement = Arrangement.Bottom
         ) {
-            // Prefer the addon-supplied clearlogo (a stylized title graphic,
-            // the way Stremio/Nuvio render hero titles) when one's
-            // available, falling back to plain text otherwise — catalog
-            // preview responses don't always carry a logo the way a full
-            // meta fetch does, so this is frequently the fallback path here
-            // even when it isn't on the detail page.
-            if (current.logoUrl != null) {
-                // A fully fixed box (not height-plus-max-width) so the
-                // rendered logo is always the same footprint regardless of
-                // the source image's own aspect ratio — a height-plus-
-                // widthIn(max) combination let a wide logo render far
-                // beyond the intended cap.
-                AsyncImage(
-                    model = current.logoUrl,
-                    contentDescription = current.title,
-                    contentScale = ContentScale.Fit,
-                    alignment = Alignment.CenterStart,
-                    modifier = Modifier.size(width = 380.dp, height = 90.dp)
-                )
-            } else {
-                Text(
-                    text = current.title,
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.displayMedium.copy(shadow = HeroTextShadow),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Spacer(Modifier.height(14.dp))
-
-            Row {
-                val metaParts = buildList {
-                    current.year?.let { add(it.toString()) }
-                    current.ageRating?.let { add(it) }
-                    current.runtimeMinutes?.let { add("${it / 60}h ${it % 60}m") }
-                    current.rating?.let { add("★ ${"%.1f".format(it)}") }
+            // The title, details and description slide with the picture; the buttons below stay where they are, so
+            // the remote's focus is never disturbed by the rotation. Same slide as the backdrop, in step with it.
+            AnimatedContent(
+                targetState = current.id,
+                transitionSpec = { heroSlideTransition(screenWidthPx) },
+                contentAlignment = Alignment.BottomStart,
+                label = "heroText"
+            ) { id ->
+                val item = items.firstOrNull { it.id == id } ?: current
+                Column {
+                // Prefer the addon-supplied clearlogo (a stylized title graphic,
+                // the way Stremio/Nuvio render hero titles) when one's
+                // available, falling back to plain text otherwise — catalog
+                // preview responses don't always carry a logo the way a full
+                // meta fetch does, so this is frequently the fallback path here
+                // even when it isn't on the detail page.
+                if (item.logoUrl != null) {
+                    // A fully fixed box (not height-plus-max-width) so the
+                    // rendered logo is always the same footprint regardless of
+                    // the source image's own aspect ratio — a height-plus-
+                    // widthIn(max) combination let a wide logo render far
+                    // beyond the intended cap.
+                    AsyncImage(
+                        model = item.logoUrl,
+                        contentDescription = item.title,
+                        contentScale = ContentScale.Fit,
+                        alignment = Alignment.CenterStart,
+                        modifier = Modifier.size(width = 380.dp, height = 90.dp)
+                    )
+                } else {
+                    Text(
+                        text = item.title,
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.displayMedium.copy(shadow = HeroTextShadow),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
-                // Sized down from the shared titleMedium/bodyMedium/bodyLarge
-                // tokens via .copy() (font family/weight/letter-spacing still
-                // come from them) rather than editing those tokens directly
-                // in Type.kt -- this is scoped to the hero's own meta/genre/
-                // description text specifically, not every other screen that
-                // happens to use the same named styles.
+
+                Spacer(Modifier.height(14.dp))
+
+                Row {
+                    val metaParts = buildList {
+                        item.year?.let { add(it.toString()) }
+                        item.ageRating?.let { add(it) }
+                        item.runtimeMinutes?.let { add("${it / 60}h ${it % 60}m") }
+                        item.rating?.let { add("★ ${"%.1f".format(it)}") }
+                    }
+                    // Sized down from the shared titleMedium/bodyMedium/bodyLarge
+                    // tokens via .copy() (font family/weight/letter-spacing still
+                    // come from them) rather than editing those tokens directly
+                    // in Type.kt -- this is scoped to the hero's own meta/genre/
+                    // description text specifically, not every other screen that
+                    // happens to use the same named styles.
+                    Text(
+                        text = metaParts.joinToString("   •   "),
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontSize = 14.sp,
+                            lineHeight = 18.sp,
+                            shadow = HeroTextShadow
+                        ),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                if (item.genres.isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = item.genres.joinToString("  ·  ") { it.name },
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp,
+                            shadow = HeroTextShadow
+                        )
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
                 Text(
-                    text = metaParts.joinToString("   •   "),
+                    text = item.description,
                     color = Color.White,
-                    style = MaterialTheme.typography.titleMedium.copy(
+                    style = MaterialTheme.typography.bodyLarge.copy(
                         fontSize = 14.sp,
-                        lineHeight = 18.sp,
+                        lineHeight = 20.sp,
                         shadow = HeroTextShadow
                     ),
-                    fontWeight = FontWeight.Medium
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
                 )
+                }
             }
-
-            if (current.genres.isNotEmpty()) {
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = current.genres.joinToString("  ·  ") { it.name },
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        shadow = HeroTextShadow
-                    )
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            Text(
-                text = current.description,
-                color = Color.White,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                    shadow = HeroTextShadow
-                ),
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
-            )
 
             Spacer(Modifier.height(28.dp))
 
@@ -405,6 +448,13 @@ fun HeroSection(
             }
         }
     }
+}
+
+/** The next title slides in from the right while the old one slides out to the left, [screenWidthPx] each, in step. */
+private fun heroSlideTransition(screenWidthPx: Int): ContentTransform {
+    val spec = tween<IntOffset>(durationMillis = MangoMotion.HeroSlideMillis, easing = MangoMotion.StandardEasing)
+    return (slideInHorizontally(animationSpec = spec) { screenWidthPx } togetherWith
+        slideOutHorizontally(animationSpec = spec) { -screenWidthPx }) using SizeTransform(clip = false)
 }
 
 @Composable

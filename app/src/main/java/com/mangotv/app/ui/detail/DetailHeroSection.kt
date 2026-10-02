@@ -47,6 +47,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -144,9 +145,14 @@ fun DetailHeroSection(
         // sitting high up with dead space beneath it.
         (screenHeightDp - 176.dp).coerceAtLeast(320.dp)
     } else {
-        screenHeightDp * 0.82f
+        // A TV show's hero is no longer a tall, mostly empty picture: it is just tall enough for the title, details
+        // and Play row, so the seasons and episodes start right below it instead of a screenful down (as on the web).
+        screenHeightDp * 0.6f
     }
-    val bottomPadding = if (compact) 24.dp else 56.dp
+    val bottomPadding = 24.dp
+    // Height of a TV show's Play-row buttons, used to put the rating level with them. A movie's page (compact) keeps
+    // its rating where it was.
+    val buttonRowHeight = 52.dp
 
     // Watched/Watchlist stay hidden until the user opens them via the
     // three-dot button, then pop out next to Play instead of always
@@ -196,7 +202,11 @@ fun DetailHeroSection(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = MangoDimens.ScreenPaddingHorizontal, bottom = bottomPadding)
+                    // Level with the Play row: the badge's centre on the buttons' centre, half a button above the
+                    // row's bottom edge. Padding by that much and then sliding the badge down by half its own height
+                    // does it without needing to know how tall the badge is.
+                    .padding(end = MangoDimens.ScreenPaddingHorizontal, bottom = if (compact) bottomPadding else bottomPadding + buttonRowHeight / 2)
+                    .graphicsLayer { translationY = if (compact) 0f else size.height / 2f }
                     .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
                     .padding(
                         horizontal = if (compact) 14.dp else 20.dp,

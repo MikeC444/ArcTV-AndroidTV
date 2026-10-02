@@ -17,7 +17,7 @@ object MangoMotion {
     const val FastMillis = 150
     const val MediumMillis = 280
     const val SlowMillis = 550
-    const val HeroCrossfadeMillis = 900
+    const val HeroSlideMillis = 650
     const val HeroKenBurnsMillis = 9000
 
     val StandardEasing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
