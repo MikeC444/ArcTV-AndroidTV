@@ -4172,3 +4172,9 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Change:** `server/public/activate.html` / `activate.js` now use the ArcTV look (logo, cyan → blue → violet gradient, dark glow background, same as `plus-thanks.html`) instead of the old orange MangoTV page: "Sign in to your TV" heading, a "Fire TV · Waiting to connect" status card (turns "Connected" once the code is used), Sign In / Create Account switch, email and password fields with icons and a show-password button, "Sign in & connect TV", and a "New to ArcTV? Create an account" link. The form ids and the `/auth/qr/*` calls are unchanged. Not added from the reference mock: Continue with Google / Apple and Forgot password, because the backend has no such sign-in or reset routes. No app release needed (server page; goes live when Render deploys).
 
 **Tests performed:** `node --check activate.js`; page rendered in headless Chromium at phone width (sign-in and create-account states) and checked by eye. The submit flow against a live backend was not run.
+
+## Post-Milestone-61 — TV sign-in page: display name required when creating an account
+
+**Change:** on `/activate`, the display name field is now required in Create Account mode (the browser blocks an empty submit; the page always sends it). Page only: the backend schema still treats `displayName` as optional so other clients are unaffected.
+
+**Tests performed:** `node --check activate.js`. Not run against a live backend.

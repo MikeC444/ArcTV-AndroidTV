@@ -41,6 +41,7 @@
     tabLogin.classList.toggle("active", mode === "login");
     tabRegister.classList.toggle("active", mode === "register");
     nameWrap.hidden = mode !== "register";
+    displayNameField.required = mode === "register";
     heading.textContent = mode === "register" ? "Create your account" : "Sign in to your TV";
     switchText.textContent = mode === "register" ? "Already have an account?" : "New to ArcTV?";
     switchBtn.textContent = mode === "register" ? "Sign in" : "Create an account";
@@ -104,7 +105,7 @@
       email: emailField.value,
       password: passwordField.value,
     };
-    if (mode === "register" && displayNameField.value.trim()) {
+    if (mode === "register") {
       body.displayName = displayNameField.value.trim();
     }
 
