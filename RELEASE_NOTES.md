@@ -14,6 +14,8 @@ run the release workflow for that version.
 
 ## Unreleased
 
+## 0.1.5
+
 - Profiles are here for Arc TV Plus: each person on your account can have their own profile (up to 5, any mix of adult and kids) with their own My List, Continue Watching, settings, addons and Likes. If your account has more than one profile, the app opens on "Who's watching?" each time you start it; pick one with the remote. Add, rename, change the picture of, or remove profiles under "Manage profiles", and lock any profile with a 4-digit PIN (asked when you open, change or remove it; five wrong tries in a row pause guessing for five minutes). Your name sits at the end of the top bar to switch profiles, and Settings > Account says who is watching. A kids profile has no Settings and never shows horror, thriller, crime, war, mystery or other mature-genre titles (titles an addon gives no genres for can't be filtered, as with Blocked Genres). Everything you already had stays on your main profile.
 
 ## 0.1.4
