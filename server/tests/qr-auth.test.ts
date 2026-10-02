@@ -211,7 +211,7 @@ describe("the activation page itself", () => {
     const response = await request(app).get("/activate").query({ token: "whatever" });
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toContain("text/html");
-    expect(response.text).toContain("MangoTV");
+    expect(response.text).toContain("ArcTV");
   });
 
   it("serves its own script same-origin, so no CORS configuration is needed", async () => {
