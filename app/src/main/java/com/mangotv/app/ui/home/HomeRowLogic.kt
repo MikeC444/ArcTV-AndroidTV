@@ -26,3 +26,20 @@ fun withoutShownTitles(continueWatching: HomeSection, catalogueRows: List<HomeSe
     val kept = continueWatching.items.filter { it.id !in shown }
     return if (kept.isEmpty()) null else if (kept.size == continueWatching.items.size) continueWatching else continueWatching.copy(items = kept)
 }
+
+/** Where focus returns to on Home: [rowIndex] into the sections and [itemIndex] into that row. */
+data class FocusRestoreTarget(val rowIndex: Int, val itemIndex: Int)
+
+/**
+ * Finds the remembered poster again after Home is re-entered. Matches by id, never by position, so a row list that
+ * changed in the meantime can't send focus to the wrong title. Null when either the row or the title is gone, or
+ * nothing was remembered (focus was in the nav bar or hero), which means "no restore".
+ */
+fun findFocusRestoreTarget(sections: List<HomeSection>, sectionId: String?, contentId: String?): FocusRestoreTarget? {
+    if (sectionId == null || contentId == null) return null
+    val rowIndex = sections.indexOfFirst { it.id == sectionId }
+    if (rowIndex < 0) return null
+    val itemIndex = sections[rowIndex].items.indexOfFirst { it.id == contentId }
+    if (itemIndex < 0) return null
+    return FocusRestoreTarget(rowIndex, itemIndex)
+}

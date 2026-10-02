@@ -3238,3 +3238,66 @@ DOWN reaches the first poster, and each sort reorders the grid.
 **Issues discovered:** none beyond the layout check above.
 
 **Issues fixed:** see Changes above.
+
+## Post-Milestone-29 — CI: Android SDK Setup Step Fixed
+
+**Status:** Complete (verified by a green "Set up Android SDK" step and a
+green unit-test step on GitHub Actions, run 121).
+
+**Context:** Not a port. `build-apk.yml`'s "Set up Android SDK" step started
+failing on 2026-10-02 with `Failed to find package 'tools'` before Gradle ever
+ran, so no branch could be built or tested. It had last passed on 2026-09-14
+(run 119 on `main`). The hosted runner image already ships the SDK; the
+`android-actions/setup-android@v3` default package list asks `sdkmanager` for
+the retired `tools` package.
+
+**Changes:**
+- `.github/workflows/build-apk.yml` -- `packages: ""` on the setup step, so it
+  installs nothing extra. The workflow also only triggers on `main` and
+  `claude/**` pushes, so a branch like `other_fixes` has to be built with the
+  manual "Run workflow" button (`workflow_dispatch`).
+
+**Tests performed:** Dispatched the workflow on `other_fixes`: SDK setup and
+`testDebugUnitTest` passed.
+
+**Issues discovered:** None beyond the above.
+
+**Issues fixed:** The SDK setup failure.
+
+## Post-Milestone-30 — Home Returns To The Exact Poster On BACK
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** Ported from the web app's "Back buttons that return to the exact
+place" (MangotvWebb 29a638f). The Firestick already did this on Movies, TV
+Shows, Genre Results and My List (`RowsBrowseScreen`), but not on Home. Opening
+a title from a Home row and pressing BACK reset Home's own remembered state:
+focus went to the nav bar, `heroRegionFocused` started true, and the
+top-pinning watchdog snapped the list back to the top.
+
+**Changes:**
+- `HomeScreen.kt` -- `HomeContent` now remembers the focused poster's row id and
+  title id with `rememberSaveable` (ids, not indexes), updated through
+  `ContentRow`'s existing `onItemFocusChanged`. On re-entry it reads them once,
+  starts with the hero lock off, scrolls the row and the poster into view if the
+  restored positions left them off screen, and focuses that exact poster through
+  `ContentRow`'s existing `firstItemFocusRequester` / `targetItemIndex`. The
+  remembered poster is cleared whenever focus returns to the nav bar or hero, so
+  BACK from the hero's More Info still lands where it did before.
+- `HomeRowLogic.kt` -- `findFocusRestoreTarget()`, the id-based lookup, kept pure
+  so it can be tested. It returns nothing when the row or title is gone.
+- `HomeRowLogicTest.kt` -- tests for a moved row, a missing title and a missing row.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**Tests performed:** The lookup is covered by unit tests, not run here (no
+Android SDK in this sandbox); run on GitHub Actions afterwards, see the commit's
+build. Brace/paren balance check on touched files (clean) and a manual re-read.
+**Not performed:** an on-device check -- open a title from the third row, press
+BACK, and confirm focus is on that poster, the row is centred, and the row's
+horizontal position is where it was.
+
+**Issues discovered:** BACK from the hero's More Info still lands on the nav bar,
+not the hero button. Not looked at on the web side; a possible follow-up rather
+than part of this change.
+
+**Issues fixed:** Home losing its place on BACK.

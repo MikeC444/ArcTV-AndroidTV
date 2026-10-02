@@ -56,4 +56,19 @@ class HomeRowLogicTest {
         assertNull(withoutShownTitles(cw, listOf(row("popular", "a", "b"))))
         assertSame(cw, withoutShownTitles(cw, listOf(row("popular", "q"))))
     }
+
+    @Test
+    fun `focus returns to the same poster by id even when rows moved`() {
+        val rows = listOf(row("new", "x"), row("popular", "a", "b", "c"))
+        assertEquals(FocusRestoreTarget(rowIndex = 1, itemIndex = 2), findFocusRestoreTarget(rows, "popular", "c"))
+    }
+
+    @Test
+    fun `no restore when nothing was remembered or the title or row is gone`() {
+        val rows = listOf(row("popular", "a", "b"))
+        assertNull(findFocusRestoreTarget(rows, null, null))
+        assertNull(findFocusRestoreTarget(rows, "popular", null))
+        assertNull(findFocusRestoreTarget(rows, "popular", "zzz"))
+        assertNull(findFocusRestoreTarget(rows, "gone", "a"))
+    }
 }

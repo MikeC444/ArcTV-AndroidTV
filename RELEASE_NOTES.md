@@ -14,6 +14,7 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- Pressing BACK from a movie or show's page now returns you to the exact poster you left on Home, in the same row and at the same scroll position, instead of jumping back to the top
 - My List has a "Sort by" row next to the All / Watched filter: Recently Added (the default), A–Z, Highest Rated and Newest
 - Each movie or show now appears in only one Home row (the first one it belongs to), instead of repeating down the page, and a title already on Home isn't repeated under Continue Watching
 - On Select a Source, the Recommended source is always the first row, whatever filter or sort you pick
