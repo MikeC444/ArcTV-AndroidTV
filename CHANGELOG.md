@@ -3197,10 +3197,12 @@ it is a one-line change in `applyPreferences()`.
 
 ## Post-Milestone-28 — My List "Sort by"
 
-**Status:** Complete, not compiled (see Tests performed).
+**Status:** Complete, not compiled (see Tests performed). Revised in place
+after review: it first shipped as a row of pills, and was changed to the web's
+drop-down (see Post-Milestone-37 for the shared drop-down component).
 
 **Context:** Ported from the web app (MangotvWebb 800068e "Add sort-by options
-to My List", later restyled as a drop-down in bc71264). My List could only show
+to My List", restyled as a drop-down in bc71264). My List could only show
 newest-added first, with no way to reorder it.
 
 **Changes:**
@@ -3213,29 +3215,21 @@ newest-added first, with no way to reorder it.
   All/Watched filter. `toSections()` no longer reverses; the order now comes
   from `sortSavedItems()`. `myListRepository.items` itself is untouched, so
   every other reader still sees the oldest-first list.
-- `RowsBrowseScreen.kt` -- `RowsBrowseContent` and the grid layout take optional
-  `sortOptions` / `selectedSortIndex` / `onSortSelected`. When given, a "Sort by"
-  label and one pill per option are drawn after the filter pills in the same bar
-  slot, with the same up/down focus wiring, so the grid's row offsets and the
-  nav-bar seam are unchanged. Movies, TV Shows and Genre Results pass nothing and
-  render exactly as before.
-- `MyListScreen.kt` -- wires the new parameters.
+- `MyListScreen.kt` -- a "Sort by: Recently Added" drop-down beside the "My List"
+  title, as on the web, built on `DropdownPicker`. The All / Watched pills stay
+  below it. It is left out while the list is empty, since there is nothing to
+  sort.
 - `MyListSortTest.kt` -- unit tests for each order, tie-breaking, missing values
   and that the stored list is never mutated.
 - `RELEASE_NOTES.md` -- user-facing line under Unreleased.
 
-**Deliberate difference from the web:** the web shows the sort as a drop-down;
-here it is a row of pills, which suits a D-pad and matches the app's existing
-All/Watched pills and Source filters.
-
 **Tests performed:** Same sandbox limitation as every recent milestone (no
-Android SDK): unit tests written but not run here, brace/paren balance check on
-every touched Kotlin file (clean), and a manual re-read. **Not performed:** a
-Gradle compile or an on-device check -- on-device, confirm the six pills fit on
-one line at TV size, LEFT/RIGHT moves between them, UP reaches the nav bar and
-DOWN reaches the first poster, and each sort reorders the grid.
+Android SDK): unit tests for the sorting run on GitHub Actions, brace/paren
+balance check on every touched Kotlin file (clean), and a manual re-read.
+**Not performed:** an on-device check -- see Post-Milestone-37 for what to check
+on the drop-down itself.
 
-**Issues discovered:** none beyond the layout check above.
+**Issues discovered:** none.
 
 **Issues fixed:** see Changes above.
 
@@ -3589,3 +3583,65 @@ a manual re-read. **Not performed:** a Gradle build or a cold start on a device.
 **Issues discovered:** none.
 
 **Issues fixed:** none beyond the removal.
+
+## Post-Milestone-37 — "All genres" Drop-Down On Movies And TV Shows, And A Shared Drop-Down
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** User request, ported from the web app (MangotvWebb e6db839 "genre
+drop-down on Movies and TV Shows"; the My List sort drop-down, bc71264, uses the
+same component). Movies and TV Shows could only be reordered (Featured / Highest
+Rated / Newest); there was no way to look at one genre.
+
+**Changes:**
+- `DropdownPicker.kt` (new) -- a pill showing a label and a chevron that opens a
+  list of options under it, like the web's. OK on the pill opens it with focus on
+  the chosen option, UP/DOWN move through the list, OK picks and closes, BACK closes
+  without changing anything and returns focus to the pill. The list is a `Popup`
+  window of its own, so opening it never disturbs the focus handling of the screen
+  behind it, and it scrolls when it is long.
+- `RowsBrowseScreen.kt` -- `RowsBrowseContent` takes an optional `headerAction`
+  (replacing the My List-only sort-pill parameters from Post-Milestone-28). It is
+  drawn beside the screen title and handed its focus wiring (`BrowseHeaderFocus`):
+  UP goes to the nav bar, DOWN to the filter or sort pills (or the grid). The nav
+  bar's DOWN now lands on it, and the pills' UP comes back to it. If a genre has no
+  titles, the title and drop-down stay on screen with the empty message, so another
+  genre can be picked. Every other screen passes nothing and is unchanged.
+- `GenreOptions.kt` (new) -- the genre list: exactly the genres Cinemeta's "top"
+  catalogue lists, read from the bundled `cinemeta_manifest.json`, with years
+  dropped (19 for Movies; TV Shows adds Reality-TV, Talk-Show and Game-Show), the
+  same list the web uses. Also `emptyBrowseMessage()` ("No Sci-Fi movies found right
+  now.").
+- `CatalogProvider` / `StremioAddonProvider` -- `getSectionsByType` and
+  `getMoreItemsByType` take an optional `genre`. With one, only that type's
+  catalogues that list the genre are asked, so Movies never gets series mixed in,
+  and an addon that doesn't list it answers with nothing without a request.
+- `TypeBrowseViewModel.kt` -- holds the chosen genre and `selectGenre()`. Choosing
+  one keeps the current grid on screen until the new one arrives (so the drop-down
+  never loses focus), pages with the same genre, and drops an answer that arrives
+  after the genre changed again. A chosen genre keeps the providers' popularity
+  order; "All genres" keeps the existing shuffle.
+- `GenreOptionsTest.kt` -- reads the real bundled manifest: 19 and 22 genres, no
+  years, TV equals Movies plus three, and the empty-message text.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**Differences from the web:** the web keeps the genre in the page address so Back
+returns to it; here the choice lives in the screen's view model, which survives
+leaving and coming back to the tab. The web has a Blocked Genres setting that hides
+genres from this list; the Firestick has none. The drop-down is a single scrolling
+column rather than two columns, to suit a D-pad.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android
+SDK): the genre-list and message tests run on GitHub Actions; brace/paren balance
+on every touched Kotlin file; a manual re-read. **Not performed:** an on-device
+check -- on a Fire TV: OK on "All genres" opens a list with the current choice
+focused; UP/DOWN scroll it; OK picks a genre and the grid changes; BACK closes it
+without changing anything and focus returns to the pill; nav bar DOWN lands on the
+pill and UP from the pills comes back to it; a genre with no titles still shows the
+drop-down. Same checks for My List's "Sort by" drop-down.
+
+**Issues discovered:** The genre is held in memory only, so it resets to "All
+genres" when the app restarts. Picking a genre in the list leaves the old grid up
+for a moment on a slow connection before the new one replaces it.
+
+**Issues fixed:** none beyond the new feature.

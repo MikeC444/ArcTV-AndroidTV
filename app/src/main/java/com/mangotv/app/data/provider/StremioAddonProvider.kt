@@ -87,8 +87,16 @@ class StremioAddonProvider(
     // MAX_GENRE_ROWS extra HTTP requests just to throw the grouping away
     // again on the client). The base catalog alone is plenty of content for
     // a shuffled browse row.
-    override suspend fun getSectionsByType(type: ContentType): List<HomeSection> {
+    override suspend fun getSectionsByType(type: ContentType, genre: String?): List<HomeSection> {
         val stremioType = if (type == ContentType.TV_SHOW) "series" else "movie"
+        if (genre != null) {
+            // Only this type's catalogues that list the genre, so a Movies page never gets series mixed in.
+            val genreCatalogs = catalogsMatchingGenre(genre).filter { it.type == stremioType }
+            if (genreCatalogs.isEmpty()) return emptyList()
+            return listOfNotNull(
+                fetchMergedSection(genreCatalogs, title = genre, extra = mapOf("genre" to genre), rowKey = "${stremioType}_genre_$genre")
+            )
+        }
         val catalogs = supportedCatalogs.filter { it.type == stremioType }
         val baseCatalogs = catalogs.filter { catalogDef ->
             catalogDef.extra.firstOrNull { it.name == "genre" }?.isRequired != true
@@ -105,8 +113,12 @@ class StremioAddonProvider(
         return fetchMergedSection(catalogsForGenre, title = genre, extra = mapOf("genre" to genre), rowKey = "genre_$genre")
     }
 
-    override suspend fun getMoreItemsByType(type: ContentType, page: Int): List<Content> {
+    override suspend fun getMoreItemsByType(type: ContentType, page: Int, genre: String?): List<Content> {
         val stremioType = if (type == ContentType.TV_SHOW) "series" else "movie"
+        if (genre != null) {
+            val genreCatalogs = catalogsMatchingGenre(genre).filter { it.type == stremioType }
+            return if (genreCatalogs.isEmpty()) emptyList() else fetchPage(genreCatalogs, extra = mapOf("genre" to genre), page = page)
+        }
         val baseCatalogs = supportedCatalogs.filter { it.type == stremioType }
             .filter { catalogDef -> catalogDef.extra.firstOrNull { it.name == "genre" }?.isRequired != true }
         if (baseCatalogs.isEmpty()) return emptyList()

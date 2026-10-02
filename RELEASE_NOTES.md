@@ -22,7 +22,8 @@ run the release workflow for that version.
 - New look: the app's colours now follow the Arc TV logo (cyan, blue and violet) instead of amber and orange, across buttons, selected items, switches, the focus highlight and the progress bars. Warnings stay amber and errors stay red
 - Cast on a movie or show's page now shows each actor's photo and the character they play, instead of a blank circle with just a name, and TV shows now list their cast under the episodes
 - Pressing BACK from a movie or show's page now returns you to the exact poster you left on Home, in the same row and at the same scroll position, instead of jumping back to the top
-- My List has a "Sort by" row next to the All / Watched filter: Recently Added (the default), A–Z, Highest Rated and Newest
+- My List has a "Sort by" drop-down beside its title: Recently Added (the default), A–Z, Highest Rated and Newest
+- Movies and TV Shows have an "All genres" drop-down beside the title, so you can browse just one genre (Action, Comedy, Sci-Fi and so on)
 - Each movie or show now appears in only one Home row (the first one it belongs to), instead of repeating down the page, and a title already on Home isn't repeated under Continue Watching
 - On Select a Source, the Recommended source is always the first row, whatever filter or sort you pick
 - Movies you removed from My List or took off Watched no longer come back after you sign out and in again, or sign in on another device

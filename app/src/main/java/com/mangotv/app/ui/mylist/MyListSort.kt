@@ -3,7 +3,7 @@ package com.mangotv.app.ui.mylist
 import com.mangotv.app.data.provider.SavedListItem
 import java.text.Collator
 
-/** How My List is ordered. The labels are the pills shown beside "Sort by". */
+/** How My List is ordered. The labels are the options in the "Sort by" drop-down. */
 enum class MyListSort(val label: String) {
     RECENT("Recently Added"),
     TITLE("A\u2013Z"),

@@ -26,6 +26,11 @@ import kotlinx.coroutines.launch
  * a hidden Home row still shows up here. loadMore() extends that same row
  * with additional pages as the user scrolls, so it doesn't dead-end after
  * one base-catalog page's worth of items.
+ *
+ * The "All genres" drop-down (as on the web) narrows that to one genre of
+ * this type: [selectGenre] reloads with it, and paging keeps using it. A
+ * chosen genre keeps the providers' own (popularity) order instead of being
+ * shuffled, since the point of picking one is to look through it.
  */
 open class TypeBrowseViewModel(application: Application, private val type: ContentType) : AndroidViewModel(application) {
 
@@ -33,6 +38,12 @@ open class TypeBrowseViewModel(application: Application, private val type: Conte
 
     private val _uiState = MutableStateFlow<RowsBrowseUiState>(RowsBrowseUiState.Loading)
     val uiState: StateFlow<RowsBrowseUiState> = _uiState.asStateFlow()
+
+    /** The genres the drop-down offers (empty hides it), and the one chosen (null is "All genres"). */
+    val genreOptions: List<String> = bundledGenreOptions(application.assets, type)
+
+    private val _selectedGenre = MutableStateFlow<String?>(null)
+    val selectedGenre: StateFlow<String?> = _selectedGenre.asStateFlow()
 
     private val allItems = mutableListOf<Content>()
     private val seenIds = mutableSetOf<String>()
@@ -73,8 +84,16 @@ open class TypeBrowseViewModel(application: Application, private val type: Conte
         viewModelScope.launch { load(ProviderRegistry.activeProviders()) }
     }
 
-    private suspend fun load(providers: List<CatalogProvider>) {
-        _uiState.value = RowsBrowseUiState.Loading
+    /** Narrows Movies / TV Shows to [genre] (null for all genres). Keeps the current grid on screen until the new one arrives, so the drop-down never loses focus. */
+    fun selectGenre(genre: String?) {
+        if (genre == _selectedGenre.value) return
+        _selectedGenre.value = genre
+        viewModelScope.launch { load(ProviderRegistry.activeProviders(), showLoading = false) }
+    }
+
+    private suspend fun load(providers: List<CatalogProvider>, showLoading: Boolean = true) {
+        if (showLoading) _uiState.value = RowsBrowseUiState.Loading
+        val genre = _selectedGenre.value
         providersSnapshot = providers
         nextPage = 1
         hasMore = true
@@ -88,8 +107,10 @@ open class TypeBrowseViewModel(application: Application, private val type: Conte
         }
 
         val results = coroutineScope {
-            providers.map { provider -> async { runCatching { provider.getSectionsByType(type) } } }.awaitAll()
+            providers.map { provider -> async { runCatching { provider.getSectionsByType(type, genre) } } }.awaitAll()
         }
+        // The person changed genre again while this was loading: that newer load owns the screen.
+        if (genre != _selectedGenre.value) return
         val sections = mutableListOf<HomeSection>()
         var anyProviderFailed = false
         results.forEach { result ->
@@ -99,7 +120,7 @@ open class TypeBrowseViewModel(application: Application, private val type: Conte
         // Flatten every provider's base + genre rows into one deduplicated,
         // shuffled row -- no genre breakdown here, and a fresh shuffle each
         // time this loads so the order varies on revisit.
-        val items = sections.flatMap { it.items }.distinctBy { it.id }.shuffled()
+        val items = sections.flatMap { it.items }.distinctBy { it.id }.let { if (genre == null) it.shuffled() else it }
         allItems += items
         seenIds += items.map { it.id }
 
@@ -121,13 +142,19 @@ open class TypeBrowseViewModel(application: Application, private val type: Conte
         isLoadingMore = true
         viewModelScope.launch {
             val page = nextPage
+            val genre = _selectedGenre.value
             val results = coroutineScope {
-                providersSnapshot.map { provider -> async { runCatching { provider.getMoreItemsByType(type, page) } } }.awaitAll()
+                providersSnapshot.map { provider -> async { runCatching { provider.getMoreItemsByType(type, page, genre) } } }.awaitAll()
+            }
+            // The genre changed while this page was loading: it belongs to the old list, so drop it.
+            if (genre != _selectedGenre.value) {
+                isLoadingMore = false
+                return@launch
             }
             val newItems = results.flatMap { it.getOrElse { emptyList() } }
                 .filterNot { it.id in seenIds }
                 .distinctBy { it.id }
-                .shuffled()
+                .let { if (genre == null) it.shuffled() else it }
 
             if (newItems.isEmpty()) {
                 hasMore = false
