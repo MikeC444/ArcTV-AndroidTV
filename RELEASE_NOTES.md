@@ -14,6 +14,7 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- Settings > Arc TV Plus: the "Payments are handled by Stripe's secure checkout page" note can no longer be selected, and the plan summary at the top no longer shows a white outline when the remote is on it.
 - Settings: Arc TV Plus now sits between Account and Addons. On the Arc TV Plus tab, pressing Down on the plan cards no longer jumps sideways between them (it moves down the tab), and the tab no longer shakes slightly while you are on it.
 - Settings > Arc TV Plus: you can now scroll back up to the top of the tab (where it shows your plan), and picking a plan goes straight to the payment page with no "Getting your checkout ready" message under the plans.
 - Subscribing to Arc TV Plus now has a proper full-screen page: a step indicator, your chosen plan and its price on the left, a large QR code on the right with a countdown while it waits for your payment (no spinner), a "Change plan" button, and a thank-you when it goes through.

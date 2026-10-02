@@ -4059,3 +4059,7 @@ The Arc TV Plus tab's top block (plan status) is now a focusable surface and the
 ## Post-Milestone-50 refinement — Plus tab focus, jitter and order
 
 Plan cards are now equal height (`IntrinsicSize.Min` row, `fillMaxHeight` cards): uneven heights made the taller card count as "below" its neighbours, so Down moved sideways. The tab's footer note is focusable so Down has a target and the tab scrolls to its end. The plan block no longer scales on focus, and the Settings category list has more vertical padding, to stop the scroll area nudging a scaled focused row back and forth (the slight shake). Arc TV Plus is now second in the Settings list, between Account and Addons.
+
+## Post-Milestone-50 refinement — Plus tab: no selectable footer, invisible top focus
+
+The footer note is plain text again (equal-height plan cards already stop Down jumping sideways, so it no longer needs to be a focus target). The plan summary at the top stays the first focus stop, which is what lets the remote scroll back up, but its focus border, scale and shadow are all off, so nothing is drawn when it is selected.
