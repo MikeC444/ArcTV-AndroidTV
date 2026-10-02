@@ -25,6 +25,20 @@ export function createApiRateLimiter(): RateLimitRequestHandler {
 }
 
 /**
+ * POST /user/profiles/:id/verify-pin: per address, on top of the per-profile lockout in profileService (which is what
+ * really stops guessing, however many addresses it comes from). Generous, since a household shares one address.
+ */
+export function createPinRateLimiter(): RateLimitRequestHandler {
+  return rateLimit({
+    windowMs: 60_000,
+    limit: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (_req, _res, next) => next(new HttpError(429, "Too many requests", 60)),
+  });
+}
+
+/**
  * Applied to the whole /auth router on top of the general limiter above —
  * register/login are password-guessing/account-spam surfaces that
  * deserve a much tighter per-IP ceiling than general authenticated

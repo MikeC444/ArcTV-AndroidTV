@@ -15,6 +15,7 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
 
   if (err instanceof HttpError) {
     if (err.status >= 500) console.error(`[${requestId}]`, err);
+    if (err.retryAfterSeconds) res.setHeader("Retry-After", String(err.retryAfterSeconds));
     res.status(err.status).json({ error: err.message, requestId });
     return;
   }

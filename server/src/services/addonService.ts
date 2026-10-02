@@ -40,12 +40,12 @@ function mapRow(row: AddonRow): UserAddon {
 }
 
 /** This account's currently-installed addons, in display order -- what a fresh sign-in or app launch pulls down to seed/replace ProviderRegistry. Never includes soft-deleted rows. */
-export async function listActiveAddons(userId: string): Promise<UserAddon[]> {
+export async function listActiveAddons(userId: string, profileId: string): Promise<UserAddon[]> {
   const result = await pool.query<AddonRow>(
     `SELECT ${ROW_COLUMNS} FROM user_addons
-     WHERE user_id = $1 AND deleted_at IS NULL
+     WHERE user_id = $1 AND profile_id = $2 AND deleted_at IS NULL
      ORDER BY sort_order ASC`,
-    [userId]
+    [userId, profileId]
   );
   return result.rows.map(mapRow);
 }
@@ -61,11 +61,11 @@ export async function listActiveAddons(userId: string): Promise<UserAddon[]> {
  * same addon is a metadata update to one durable slot, not a fresh
  * install.
  */
-export async function upsertAddon(userId: string, input: AddonInput): Promise<UserAddon> {
+export async function upsertAddon(userId: string, profileId: string, input: AddonInput): Promise<UserAddon> {
   const result = await pool.query<AddonRow>(
-    `INSERT INTO user_addons (user_id, manifest_url, addon_id, name, manifest_json, enabled, sort_order, updated_at, deleted_at)
-     VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, NULL)
-     ON CONFLICT (user_id, manifest_url) DO UPDATE SET
+    `INSERT INTO user_addons (user_id, manifest_url, addon_id, name, manifest_json, enabled, sort_order, updated_at, deleted_at, profile_id)
+     VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, NULL, $9)
+     ON CONFLICT (user_id, profile_id, manifest_url) DO UPDATE SET
        addon_id = EXCLUDED.addon_id,
        name = EXCLUDED.name,
        manifest_json = EXCLUDED.manifest_json,
@@ -84,13 +84,14 @@ export async function upsertAddon(userId: string, input: AddonInput): Promise<Us
       input.enabled,
       input.sortOrder,
       new Date(input.updatedAt),
+      profileId,
     ]
   );
 
   if (result.rows.length > 0) return mapRow(result.rows[0]!);
   // Lost the race (not newer than what's already stored) -- fetch and
   // return the still-current row instead.
-  return getAddon(userId, input.manifestUrl) as Promise<UserAddon>;
+  return getAddon(userId, profileId, input.manifestUrl) as Promise<UserAddon>;
 }
 
 /**
@@ -101,24 +102,24 @@ export async function upsertAddon(userId: string, input: AddonInput): Promise<Us
  * row does exist, always returns its current state, whether this call
  * actually removed it or lost the race to a newer write elsewhere.
  */
-export async function removeAddon(userId: string, input: AddonDeleteInput): Promise<UserAddon | null> {
+export async function removeAddon(userId: string, profileId: string, input: AddonDeleteInput): Promise<UserAddon | null> {
   const result = await pool.query<AddonRow>(
     `UPDATE user_addons
      SET deleted_at = $3, updated_at = $3
      WHERE user_id = $1 AND manifest_url = $2
-       AND updated_at < $3
+       AND updated_at < $3 AND profile_id = $4
      RETURNING ${ROW_COLUMNS}`,
-    [userId, input.manifestUrl, new Date(input.updatedAt)]
+    [userId, input.manifestUrl, new Date(input.updatedAt), profileId]
   );
 
   if (result.rows.length > 0) return mapRow(result.rows[0]!);
-  return getAddon(userId, input.manifestUrl);
+  return getAddon(userId, profileId, input.manifestUrl);
 }
 
-async function getAddon(userId: string, manifestUrl: string): Promise<UserAddon | null> {
+async function getAddon(userId: string, profileId: string, manifestUrl: string): Promise<UserAddon | null> {
   const result = await pool.query<AddonRow>(
-    `SELECT ${ROW_COLUMNS} FROM user_addons WHERE user_id = $1 AND manifest_url = $2`,
-    [userId, manifestUrl]
+    `SELECT ${ROW_COLUMNS} FROM user_addons WHERE user_id = $1 AND manifest_url = $2 AND profile_id = $3`,
+    [userId, manifestUrl, profileId]
   );
   return result.rows[0] ? mapRow(result.rows[0]) : null;
 }

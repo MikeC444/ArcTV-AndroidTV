@@ -49,12 +49,12 @@ function mapRow(row: WatchlistRow): WatchlistItem {
 const ROW_COLUMNS = `provider_id, content_id, content_type, title, poster_url, backdrop_url, year, rating, watched, updated_at, deleted_at`;
 
 /** This account's currently-active watchlist -- what a fresh sign-in or app launch pulls down to seed/replace the local cache. Never includes soft-deleted rows. */
-export async function listActiveWatchlist(userId: string): Promise<WatchlistItem[]> {
+export async function listActiveWatchlist(userId: string, profileId: string): Promise<WatchlistItem[]> {
   const result = await pool.query<WatchlistRow>(
     `SELECT ${ROW_COLUMNS} FROM watchlist_items
-     WHERE user_id = $1 AND deleted_at IS NULL
+     WHERE user_id = $1 AND profile_id = $2 AND deleted_at IS NULL
      ORDER BY added_at ASC`,
-    [userId]
+    [userId, profileId]
   );
   return result.rows.map(mapRow);
 }
@@ -76,11 +76,11 @@ export async function listActiveWatchlist(userId: string): Promise<WatchlistItem
  * beat this add) if it lost -- so the caller can reconcile its local cache
  * from the response either way without needing to know which happened.
  */
-export async function upsertWatchlistItem(userId: string, input: WatchlistItemInput): Promise<WatchlistItem> {
+export async function upsertWatchlistItem(userId: string, profileId: string, input: WatchlistItemInput): Promise<WatchlistItem> {
   const result = await pool.query<WatchlistRow>(
-    `INSERT INTO watchlist_items (user_id, provider_id, content_id, content_type, title, poster_url, backdrop_url, year, rating, watched, updated_at, deleted_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NULL)
-     ON CONFLICT (user_id, provider_id, content_id, content_type) DO UPDATE SET
+    `INSERT INTO watchlist_items (user_id, provider_id, content_id, content_type, title, poster_url, backdrop_url, year, rating, watched, updated_at, deleted_at, profile_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NULL, $12)
+     ON CONFLICT (user_id, profile_id, provider_id, content_id, content_type) DO UPDATE SET
        title = EXCLUDED.title,
        poster_url = EXCLUDED.poster_url,
        backdrop_url = EXCLUDED.backdrop_url,
@@ -103,6 +103,7 @@ export async function upsertWatchlistItem(userId: string, input: WatchlistItemIn
       input.rating ?? null,
       input.watched,
       new Date(input.updatedAt),
+      profileId,
     ]
   );
 
@@ -110,7 +111,7 @@ export async function upsertWatchlistItem(userId: string, input: WatchlistItemIn
   // Lost the race (not newer than what's already stored) -- the INSERT/DO
   // UPDATE above is a no-op in that case, so fetch and return the
   // still-current row instead.
-  return getWatchlistItem(userId, input.providerId, input.contentId, input.contentType) as Promise<WatchlistItem>;
+  return getWatchlistItem(userId, profileId, input.providerId, input.contentId, input.contentType) as Promise<WatchlistItem>;
 }
 
 /**
@@ -123,31 +124,32 @@ export async function upsertWatchlistItem(userId: string, input: WatchlistItemIn
  * or lost the race to a newer write elsewhere (in which case the returned
  * deletedAt is null, telling the caller to keep the item active locally).
  */
-export async function removeWatchlistItem(userId: string, input: WatchlistDeleteInput): Promise<WatchlistItem | null> {
+export async function removeWatchlistItem(userId: string, profileId: string, input: WatchlistDeleteInput): Promise<WatchlistItem | null> {
   const result = await pool.query<WatchlistRow>(
     `UPDATE watchlist_items
      SET deleted_at = $5, updated_at = $5
      WHERE user_id = $1 AND provider_id = $2 AND content_id = $3 AND content_type = $4
-       AND updated_at < $5
+       AND updated_at < $5 AND profile_id = $6
      RETURNING ${ROW_COLUMNS}`,
-    [userId, input.providerId, input.contentId, input.contentType, new Date(input.updatedAt)]
+    [userId, input.providerId, input.contentId, input.contentType, new Date(input.updatedAt), profileId]
   );
 
   if (result.rows.length > 0) return mapRow(result.rows[0]!);
-  const current = await getWatchlistItem(userId, input.providerId, input.contentId, input.contentType);
+  const current = await getWatchlistItem(userId, profileId, input.providerId, input.contentId, input.contentType);
   return current;
 }
 
 async function getWatchlistItem(
   userId: string,
+  profileId: string,
   providerId: string,
   contentId: string,
   contentType: string
 ): Promise<WatchlistItem | null> {
   const result = await pool.query<WatchlistRow>(
     `SELECT ${ROW_COLUMNS} FROM watchlist_items
-     WHERE user_id = $1 AND provider_id = $2 AND content_id = $3 AND content_type = $4`,
-    [userId, providerId, contentId, contentType]
+     WHERE user_id = $1 AND profile_id = $5 AND provider_id = $2 AND content_id = $3 AND content_type = $4`,
+    [userId, providerId, contentId, contentType, profileId]
   );
   return result.rows[0] ? mapRow(result.rows[0]) : null;
 }

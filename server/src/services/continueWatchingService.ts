@@ -54,12 +54,12 @@ export function mapContinueWatchingRow(row: ContinueWatchingRow): ContinueWatchi
 }
 
 /** This account's currently-resumable titles, most recently watched first -- what a fresh sign-in or app launch pulls down to seed/replace Home's Continue Watching row. Never includes soft-deleted (completed/removed) rows. */
-export async function listActiveContinueWatching(userId: string): Promise<ContinueWatchingEntry[]> {
+export async function listActiveContinueWatching(userId: string, profileId: string): Promise<ContinueWatchingEntry[]> {
   const result = await pool.query<ContinueWatchingRow>(
     `SELECT ${CONTINUE_WATCHING_COLUMNS} FROM continue_watching
-     WHERE user_id = $1 AND deleted_at IS NULL
+     WHERE user_id = $1 AND profile_id = $2 AND deleted_at IS NULL
      ORDER BY last_watched_at DESC`,
-    [userId]
+    [userId, profileId]
   );
   return result.rows.map(mapContinueWatchingRow);
 }

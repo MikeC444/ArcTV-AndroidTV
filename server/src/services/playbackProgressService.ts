@@ -55,6 +55,7 @@ function mapHistoryRow(row: WatchHistoryRow): WatchHistoryEntry {
 async function getHistoryEntry(
   client: PoolClient,
   userId: string,
+  profileId: string,
   providerId: string,
   contentId: string,
   contentType: string,
@@ -64,8 +65,8 @@ async function getHistoryEntry(
   const result = await client.query<WatchHistoryRow>(
     `SELECT ${HISTORY_COLUMNS} FROM watch_history
      WHERE user_id = $1 AND provider_id = $2 AND content_id = $3 AND content_type = $4
-       AND season_number IS NOT DISTINCT FROM $5 AND episode_number IS NOT DISTINCT FROM $6`,
-    [userId, providerId, contentId, contentType, seasonNumber, episodeNumber]
+       AND season_number IS NOT DISTINCT FROM $5 AND episode_number IS NOT DISTINCT FROM $6 AND profile_id = $7`,
+    [userId, providerId, contentId, contentType, seasonNumber, episodeNumber, profileId]
   );
   // recordProgress always inserts before falling back to this lookup, so a
   // row is guaranteed to exist by the time this is called.
@@ -93,6 +94,7 @@ async function getHistoryEntry(
  */
 export async function recordProgress(
   userId: string,
+  profileId: string,
   input: WatchProgressInput
 ): Promise<{ historyEntry: WatchHistoryEntry; continueWatching: ContinueWatchingEntry | null }> {
   const client = await pool.connect();
@@ -116,9 +118,9 @@ export async function recordProgress(
     const completed = input.completed || isMovieMostlyWatched;
 
     const historyResult = await client.query<WatchHistoryRow>(
-      `INSERT INTO watch_history (user_id, provider_id, content_id, content_type, season_number, episode_number, episode_title, title, poster_url, position_ms, duration_ms, completed, watched_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)
-       ON CONFLICT (user_id, provider_id, content_id, content_type, episode_key) DO UPDATE SET
+      `INSERT INTO watch_history (user_id, provider_id, content_id, content_type, season_number, episode_number, episode_title, title, poster_url, position_ms, duration_ms, completed, watched_at, updated_at, profile_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, $14)
+       ON CONFLICT (user_id, profile_id, provider_id, content_id, content_type, episode_key) DO UPDATE SET
          episode_title = EXCLUDED.episode_title,
          title = EXCLUDED.title,
          poster_url = EXCLUDED.poster_url,
@@ -143,11 +145,12 @@ export async function recordProgress(
         input.durationMs,
         completed,
         watchedAt,
+        profileId,
       ]
     );
     const historyEntry = historyResult.rows[0]
       ? mapHistoryRow(historyResult.rows[0])
-      : await getHistoryEntry(client, userId, input.providerId, input.contentId, input.contentType, seasonNumber, episodeNumber);
+      : await getHistoryEntry(client, userId, profileId, input.providerId, input.contentId, input.contentType, seasonNumber, episodeNumber);
 
     let continueWatching: ContinueWatchingEntry | null;
     if (completed) {
@@ -155,16 +158,16 @@ export async function recordProgress(
         `UPDATE continue_watching
          SET deleted_at = $5, updated_at = $5
          WHERE user_id = $1 AND provider_id = $2 AND content_id = $3 AND content_type = $4
-           AND updated_at < $5
+           AND updated_at < $5 AND profile_id = $6
          RETURNING ${CONTINUE_WATCHING_COLUMNS}`,
-        [userId, input.providerId, input.contentId, input.contentType, watchedAt]
+        [userId, input.providerId, input.contentId, input.contentType, watchedAt, profileId]
       );
       continueWatching = deleteResult.rows[0] ? mapContinueWatchingRow(deleteResult.rows[0]) : null;
     } else {
       const upsertResult = await client.query<ContinueWatchingRow>(
-        `INSERT INTO continue_watching (user_id, provider_id, content_id, content_type, season_number, episode_number, episode_title, title, poster_url, backdrop_url, position_ms, duration_ms, last_watched_at, updated_at, deleted_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, NULL)
-         ON CONFLICT (user_id, provider_id, content_id, content_type) DO UPDATE SET
+        `INSERT INTO continue_watching (user_id, provider_id, content_id, content_type, season_number, episode_number, episode_title, title, poster_url, backdrop_url, position_ms, duration_ms, last_watched_at, updated_at, deleted_at, profile_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, NULL, $14)
+         ON CONFLICT (user_id, profile_id, provider_id, content_id, content_type) DO UPDATE SET
            season_number = EXCLUDED.season_number,
            episode_number = EXCLUDED.episode_number,
            episode_title = EXCLUDED.episode_title,
@@ -192,11 +195,12 @@ export async function recordProgress(
           input.positionMs,
           input.durationMs,
           watchedAt,
+          profileId,
         ]
       );
       continueWatching = upsertResult.rows[0]
         ? mapContinueWatchingRow(upsertResult.rows[0])
-        : await getContinueWatchingEntryForTransaction(client, userId, input.providerId, input.contentId, input.contentType);
+        : await getContinueWatchingEntryForTransaction(client, userId, profileId, input.providerId, input.contentId, input.contentType);
     }
 
     await client.query("COMMIT");
@@ -212,14 +216,15 @@ export async function recordProgress(
 async function getContinueWatchingEntryForTransaction(
   client: PoolClient,
   userId: string,
+  profileId: string,
   providerId: string,
   contentId: string,
   contentType: string
 ): Promise<ContinueWatchingEntry | null> {
   const result = await client.query<ContinueWatchingRow>(
     `SELECT ${CONTINUE_WATCHING_COLUMNS} FROM continue_watching
-     WHERE user_id = $1 AND provider_id = $2 AND content_id = $3 AND content_type = $4`,
-    [userId, providerId, contentId, contentType]
+     WHERE user_id = $1 AND provider_id = $2 AND content_id = $3 AND content_type = $4 AND profile_id = $5`,
+    [userId, providerId, contentId, contentType, profileId]
   );
   return result.rows[0] ? mapContinueWatchingRow(result.rows[0]) : null;
 }
@@ -229,8 +234,8 @@ async function getContinueWatchingEntryForTransaction(
  * own (user_id, watched_at DESC) index rather than OFFSET -- this table has
  * no upper bound on size for an active account, unlike watchlist/settings.
  */
-export async function listWatchHistory(userId: string, query: HistoryQuery): Promise<WatchHistoryEntry[]> {
-  const params: unknown[] = [userId];
+export async function listWatchHistory(userId: string, profileId: string, query: HistoryQuery): Promise<WatchHistoryEntry[]> {
+  const params: unknown[] = [userId, profileId];
   let whereBefore = "";
   if (query.before) {
     params.push(new Date(query.before));
@@ -240,7 +245,7 @@ export async function listWatchHistory(userId: string, query: HistoryQuery): Pro
 
   const result = await pool.query<WatchHistoryRow>(
     `SELECT ${HISTORY_COLUMNS} FROM watch_history
-     WHERE user_id = $1 ${whereBefore}
+     WHERE user_id = $1 AND profile_id = $2 ${whereBefore}
      ORDER BY watched_at DESC
      LIMIT $${params.length}`,
     params
