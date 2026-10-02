@@ -52,7 +52,7 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
     private fun checkForUpdates() {
         viewModelScope.launch {
             val dismissedTag = updatePreferences.getIgnoredTag()
-            updateRepository.getLatestUpdate()
+            updateRepository.getLatestUpdate(BuildConfig.VERSION_NAME)
                 .onSuccess { update ->
                     val remoteNewer = VersionUtils.isRemoteNewer(update.tag, BuildConfig.VERSION_NAME)
                     _uiState.update {

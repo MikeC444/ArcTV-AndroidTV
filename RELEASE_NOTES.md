@@ -14,6 +14,7 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- The update pop-up now shows the notes for every release you missed, newest first, all in the pop-up itself (scroll them with the remote). It never sends you to GitHub, and a release with no notes says "Bug fixes and improvements."
 - "Picked for you" (preview): a Home row chosen from the movies you've liked, finished and saved, matched on genre, director and cast, with a short reason under each poster ("Because you liked ..."). Like and Not for me are in a poster's long-press menu and on a movie's page, they sync across your devices, and a Not for me title leaves the row at once. Until you have a few movies to learn from, the row says plainly that it is just popular movies. Only in test builds for now.
 - New Settings > Blocked Genres: switch off any genre and its titles disappear from Home, Movies, TV Shows, Search, Genres and "More like this". The list is saved to your account, so it follows you to every device you sign in on. Titles an addon gives no genres for can't be filtered.
 - Sources whose audio the device can't decode (it stopped with "Unable to play this source" and an audio error) now switch to the next audio track in the file and carry on from the same place, and also try the device's other audio decoder first. Playback errors also show an error code to help track down any that remain.

@@ -4010,3 +4010,17 @@ unoptimised Compose, so they will always feel slower than a release build on a F
 **Gating:** the row, the buttons and their sync follow the Plus preview flag (`PLUS_TAB_VISIBLE`, debug builds only), the same as the web's hidden preview, and need a signed-in account.
 
 **Tests performed:** server `vitest` (all passing, locally against Postgres). The Kotlin has not been compiled here; it relies on the CI build, including `RecommendTest`.
+
+## Post-Milestone-48 — Update Pop-Up Shows All The Notes
+
+**Status:** Complete, not compiled or tried on a device (see Tests performed).
+
+**Context:** User request: the update pop-up must be able to show all the patch notes, and never tell people to go to GitHub.
+
+**Changes:**
+- `UpdateNotes.kt` -- `combineReleaseNotes` builds the pop-up text from every published release newer than the installed version up to the one on offer, newest first, each under "Version x" when there is more than one (drafts and pre-releases ignored). `plainNotes` turns the Markdown into plain text (dots for bullets, no `**` / backticks / link syntax) and drops lines that only point elsewhere ("Full Changelog", "see commit history", github.com links).
+- `GitHubUpdateApiClient.listReleases` and `UpdateRepository.getLatestUpdate(installedVersion)` fetch the last 30 releases for that; if the list can't be read, the newest release's own notes are used.
+- The pop-up's empty-notes text and the release workflow's fallback (which wrote "See commit history for changes in this release.") are now "Bug fixes and improvements."
+- The notes box already scrolls with the remote and has no length limit, so nothing is cut off.
+
+**Tests performed:** `UpdateNotesTest` (Markdown clean-up, pointer lines, one / several / ignored releases, fallback) -- not run here; relies on the CI build.

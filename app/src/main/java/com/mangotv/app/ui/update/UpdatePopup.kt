@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.mangotv.app.data.update.AppUpdate
+import com.mangotv.app.data.update.NO_NOTES_FALLBACK
 import com.mangotv.app.ui.components.ClickSound
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
@@ -150,7 +151,7 @@ internal fun UpdatePopup(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.height(8.dp))
-                ScrollableNotes(update.notes.ifBlank { "No release notes were provided for this update." })
+                ScrollableNotes(update.notes.ifBlank { NO_NOTES_FALLBACK })
 
                 Spacer(Modifier.height(20.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

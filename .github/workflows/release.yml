@@ -74,7 +74,7 @@ jobs:
             found { print }
           ' RELEASE_NOTES.md > "$RUNNER_TEMP/release_notes.md"
           if [ ! -s "$RUNNER_TEMP/release_notes.md" ]; then
-            echo "See commit history for changes in this release." > "$RUNNER_TEMP/release_notes.md"
+            echo "Bug fixes and improvements." > "$RUNNER_TEMP/release_notes.md"
           fi
 
       - name: Decode release keystore
