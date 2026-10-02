@@ -4140,3 +4140,11 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Tests performed:** `RotationTest` (new, ported from the web's `rotation.test.ts`: the genre split of a horror-heavy row, anchors kept, repeatability, most of the row swapped on the next launch, nothing at or below zero or far below its genre's best, running short, the PRNG against the web's own values for three seeds, taste shares, the engine on a mostly-horror profile, liked/removed titles excluded and dropped from the row). **Not run locally**: no Android SDK here. CI (`build-apk.yml`, `testDebugUnitTest` then `assembleDebug`) runs it on this branch. Not tried on a device.
 
+## Post-Milestone-57 — Repository renamed to ArcTV-AndroidTV
+
+**Context:** The product is now Arc TV and the app is a standard Android TV app (it declares the leanback launcher and no touchscreen), not only a Fire TV one, so the repository `MangoTV-Live-TV` was renamed `ArcTV-AndroidTV` on GitHub (the owner did the rename; GitHub redirects the old address).
+
+**Changes:** `UpdateRepository.GITHUB_REPO` (the repository the in-app update check reads releases from) now names `ArcTV-AndroidTV`. Installed apps keep updating either way: until this ships they follow GitHub's redirect from the old name, which keeps working as long as no new repository takes the old name. Nothing else in this repository named the old repository. The Android package id (`com.mangotv.app`) is deliberately unchanged, because changing it would make Android treat the app as a different one and block updating existing TVs. Older entries in this file keep the old name, since that was the name at the time.
+
+**Tests performed:** none new (one string constant); not compiled or run locally (no Android SDK here), CI builds this branch. The release update check was not exercised.
+
