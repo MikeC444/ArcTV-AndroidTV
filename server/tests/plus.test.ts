@@ -222,3 +222,14 @@ describe("POST /user/plus/checkout", () => {
     expect((await post(s.token, { plan: "yearly" })).status).toBe(409);
   });
 });
+
+describe("the page Stripe sends people back to", () => {
+  it("is served with its logo and script (no login needed)", async () => {
+    const page = await request(app).get("/plus/thanks");
+    expect(page.status).toBe(200);
+    expect(page.text).toContain("/arctv-logo.png");
+    expect(page.text).toContain("Checkout cancelled");
+    expect((await request(app).get("/arctv-logo.png")).status).toBe(200);
+    expect((await request(app).get("/plus-thanks.js")).status).toBe(200);
+  });
+});
