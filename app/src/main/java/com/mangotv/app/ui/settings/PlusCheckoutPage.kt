@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -177,11 +176,7 @@ private fun QrPanel(url: String, remainingSeconds: Int, modifier: Modifier) {
         Text(text = "Scan to pay", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         QrCodeImage(content = url, modifier = Modifier.size(280.dp), sizePx = 840)
         Text(text = "Point your phone's camera at the code.", color = TextSecondary, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = ArcAccent)
-            Spacer(Modifier.width(8.dp))
-            Text(text = "Waiting for payment…  ${formatCountdown(remainingSeconds)}", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-        }
+        Text(text = "Waiting for payment…  ${formatCountdown(remainingSeconds)}", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
