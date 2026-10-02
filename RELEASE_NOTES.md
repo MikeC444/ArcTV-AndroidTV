@@ -14,7 +14,7 @@ run the release workflow for that version.
 
 ## Unreleased
 
-- Some sources that stopped with "Unable to play this source" and an audio error now try the device's other audio decoder before giving up, and playback errors also show an error code to help track down any that remain.
+- Sources whose audio the device can't decode (it stopped with "Unable to play this source" and an audio error) now switch to the next audio track in the file and carry on from the same place, and also try the device's other audio decoder first. Playback errors also show an error code to help track down any that remain.
 - The app starts faster, especially the first time you open it after installing or updating: Home's rows now load in fewer, bigger steps with the first row on its own so something shows sooner, and the app prepares its own code ahead of time instead of working it out while you wait.
 - The featured titles on Home now slide in from the right (picture and text together) instead of fading, small dots at the bottom right show which of them you're on, and the picture's left and right edges have the same soft shade as the top bar
 - TV show pages are tighter: the title, details and Play button sit lower on a shorter picture so the seasons and episodes start right below instead of a screenful down, and the rating sits level with the Play button

@@ -3968,7 +3968,11 @@ unoptimised Compose, so they will always feel slower than a release build on a F
 **Changes:**
 - `PlayerEngine.buildExoPlayer` -- uses a `DefaultRenderersFactory` with decoder fallback on, so a decoder that fails to start is replaced by the next one the device offers (usually software).
 - `PlayerListenerBridge` / `describePlaybackError` -- the error screen now appends the underlying cause and the ExoPlayer error code name.
+- `PlayerListenerBridge.switchToOtherAudioTrack` -- the first on-device failure showed the decoder was already the software one
+  (`c2.android.aac.decoder`, `ERROR_CODE_DECODING_FAILED`), so fallback alone did not help. On an audio decode/track failure the
+  player now overrides the selection to the next supported audio track in the file (each failed track is remembered, so it
+  cannot loop) and re-prepares from the same position. Shows the error only when no other audio track is left.
 
-**Limits:** decoder fallback only covers a decoder that fails to initialise; a failure after playback has started is not retried. The error code on the next failure will say which kind it was.
+**Limits:** a file with only one audio track, all of it undecodable, still fails. The real fix for AAC "Main" or similar would be an FFmpeg audio decoder, but the Jellyfin build of it has no release matching Media3 1.4.1, so that needs a Media3 upgrade first.
 
 **Tests performed:** None runnable here; relies on the CI build and the same source on a Fire TV.

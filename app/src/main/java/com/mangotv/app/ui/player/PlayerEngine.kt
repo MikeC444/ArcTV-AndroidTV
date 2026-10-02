@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.TrackGroup
+import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
@@ -61,8 +63,12 @@ fun buildExoPlayer(context: Context, preferences: PlayerPreferences): ExoPlayer 
  */
 class PlayerListenerBridge(
     private val onPhaseChanged: (PlaybackPhase) -> Unit,
-    private val onTracksChangedCallback: (Tracks) -> Unit = {}
+    private val onTracksChangedCallback: (Tracks) -> Unit = {},
+    private val player: Player? = null
 ) : Player.Listener {
+
+    // Audio tracks that already failed to decode in this session, so the automatic switch below can't loop.
+    private val failedAudioGroups = mutableSetOf<TrackGroup>()
 
     override fun onPlaybackStateChanged(playbackState: Int) {
         when (playbackState) {
@@ -81,9 +87,36 @@ class PlayerListenerBridge(
     }
 
     override fun onPlayerError(error: PlaybackException) {
+        if (switchToOtherAudioTrack(error)) return
         onPhaseChanged(
             PlaybackPhase.Error(PlaybackErrorType.UNKNOWN, describePlaybackError(error))
         )
+    }
+
+    /**
+     * A device whose decoder can't handle one audio track (e.g. AAC "Main" profile on a Fire TV's AAC decoder) often
+     * handles another one in the same file. When the audio decoder fails, pick the next playable audio track and
+     * carry on from the same position instead of showing an error; false when there is nothing else to try.
+     */
+    private fun switchToOtherAudioTrack(error: PlaybackException): Boolean {
+        val player = player ?: return false
+        val audioFailure = error.errorCode == PlaybackException.ERROR_CODE_DECODING_FAILED ||
+            error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED ||
+            error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED ||
+            error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED
+        if (!audioFailure) return false
+        val audioGroups = player.currentTracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+        val failing = audioGroups.firstOrNull { it.isSelected } ?: return false
+        // Only a failure of the audio side is handled here (the message names MediaCodecAudioRenderer / AudioTrack); a video one still shows the error.
+        if (error.message?.contains("Audio") != true) return false
+        failedAudioGroups += failing.mediaTrackGroup
+        val next = audioGroups.firstOrNull { it.mediaTrackGroup !in failedAudioGroups && it.isTrackSupported(0) } ?: return false
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setOverrideForType(TrackSelectionOverride(next.mediaTrackGroup, 0))
+            .build()
+        player.prepare()
+        player.playWhenReady = true
+        return true
     }
 
     override fun onTracksChanged(tracks: Tracks) {
