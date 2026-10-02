@@ -4178,3 +4178,11 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Change:** on `/activate`, the display name field is now required in Create Account mode (the browser blocks an empty submit; the page always sends it). Page only: the backend schema still treats `displayName` as optional so other clients are unaffected.
 
 **Tests performed:** `node --check activate.js`. Not run against a live backend.
+
+## Post-Milestone-62 — Fix: Server CI failed on the restyled sign-in page
+
+**Cause:** `tests/qr-auth.test.ts` checked that `/activate` contains the word "MangoTV"; the restyled page says ArcTV. Test expectation only, no app or server code was wrong.
+
+**Change:** the test now expects "ArcTV".
+
+**Tests performed:** read the CI log: 219 of 220 passed, this was the only failure. The fixed test is run by Server CI.
