@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { z } from "zod";
 import { requireAuth } from "../middleware/auth.js";
+import { profileOf, resolveProfile } from "../middleware/profile.js";
 import { validate } from "../middleware/validate.js";
 import { settingsBodySchema } from "../schemas/settings.js";
 import * as settingsService from "../services/settingsService.js";
@@ -20,19 +21,19 @@ function serialize(settings: settingsService.UserSettings) {
   };
 }
 
-settingsRouter.get("/settings", requireAuth, async (req, res, next) => {
+settingsRouter.get("/settings", requireAuth, resolveProfile, async (req, res, next) => {
   try {
-    const settings = await settingsService.getUserSettings(req.user!.id);
+    const settings = await settingsService.getUserSettings(req.user!.id, profileOf(req));
     res.json(serialize(settings));
   } catch (error) {
     next(error);
   }
 });
 
-settingsRouter.put("/settings", requireAuth, validate({ body: settingsBodySchema }), async (req, res, next) => {
+settingsRouter.put("/settings", requireAuth, resolveProfile, validate({ body: settingsBodySchema }), async (req, res, next) => {
   try {
     const input = req.validated!.body as z.infer<typeof settingsBodySchema>;
-    const settings = await settingsService.upsertUserSettings(req.user!.id, input);
+    const settings = await settingsService.upsertUserSettings(req.user!.id, profileOf(req), input);
     res.json(serialize(settings));
   } catch (error) {
     next(error);

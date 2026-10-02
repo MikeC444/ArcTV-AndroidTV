@@ -51,12 +51,12 @@ function mapRow(row: SettingsRow): UserSettings {
 }
 
 /** No row yet (brand new account, never synced from any device) reads as the same defaults the column definitions themselves use, not an error. */
-export async function getUserSettings(userId: string): Promise<UserSettings> {
+export async function getUserSettings(userId: string, profileId: string): Promise<UserSettings> {
   const result = await pool.query<SettingsRow>(
     `SELECT home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled,
             subtitles_enabled, default_subtitle_language, blocked_genres, updated_at
-     FROM user_settings WHERE user_id = $1`,
-    [userId]
+     FROM user_settings WHERE user_id = $1 AND profile_id = $2`,
+    [userId, profileId]
   );
   const row = result.rows[0];
   return row ? mapRow(row) : DEFAULT_SETTINGS;
@@ -80,11 +80,11 @@ export async function getUserSettings(userId: string): Promise<UserSettings> {
  * it lost -- so a caller can simply persist the response as its new local
  * cache either way, without needing to know which one happened.
  */
-export async function upsertUserSettings(userId: string, input: SettingsInput): Promise<UserSettings> {
+export async function upsertUserSettings(userId: string, profileId: string, input: SettingsInput): Promise<UserSettings> {
   const result = await pool.query<SettingsRow>(
-    `INSERT INTO user_settings (user_id, home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled, subtitles_enabled, default_subtitle_language, blocked_genres, updated_at)
-     VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7, COALESCE($9::jsonb, '[]'::jsonb), $8)
-     ON CONFLICT (user_id) DO UPDATE SET
+    `INSERT INTO user_settings (user_id, home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled, subtitles_enabled, default_subtitle_language, blocked_genres, updated_at, profile_id)
+     VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7, COALESCE($9::jsonb, '[]'::jsonb), $8, $10)
+     ON CONFLICT (user_id, profile_id) DO UPDATE SET
        home_row_order = EXCLUDED.home_row_order,
        hidden_row_ids = EXCLUDED.hidden_row_ids,
        autoplay_next_episode = EXCLUDED.autoplay_next_episode,
@@ -106,6 +106,7 @@ export async function upsertUserSettings(userId: string, input: SettingsInput): 
       input.defaultSubtitleLanguage,
       new Date(input.updatedAt),
       input.blockedGenres === undefined ? null : JSON.stringify(input.blockedGenres),
+      profileId,
     ]
   );
 
@@ -113,5 +114,5 @@ export async function upsertUserSettings(userId: string, input: SettingsInput): 
   // The incoming write lost the race (not newer than what's already
   // stored) -- the INSERT/DO UPDATE above is a no-op in that case, so
   // there's nothing to map; fetch and return the still-current row.
-  return getUserSettings(userId);
+  return getUserSettings(userId, profileId);
 }

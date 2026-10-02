@@ -16,6 +16,7 @@ import { releaseDatesRouter } from "./routes/releaseDates.js";
 import { castRouter } from "./routes/cast.js";
 import { feedbackRouter } from "./routes/feedback.js";
 import { plusRouter, stripeWebhookRouter } from "./routes/plus.js";
+import { createProfilesRouter } from "./routes/profiles.js";
 import { settingsRouter } from "./routes/settings.js";
 import { trailersRouter } from "./routes/trailers.js";
 import { watchlistRouter } from "./routes/watchlist.js";
@@ -92,6 +93,7 @@ export function createApp(): Express {
   app.use("/user", releaseDatesRouter);
   app.use("/user", castRouter);
   app.use("/user", plusRouter);
+  app.use("/user", createProfilesRouter());
 
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { z } from "zod";
 import { requireAuth } from "../middleware/auth.js";
+import { profileOf, resolveProfile } from "../middleware/profile.js";
 import { validate } from "../middleware/validate.js";
 import { historyQuerySchema, watchProgressBodySchema } from "../schemas/watchProgress.js";
 import * as continueWatchingService from "../services/continueWatchingService.js";
@@ -46,11 +47,12 @@ function serializeContinueWatching(entry: continueWatchingService.ContinueWatchi
 historyRouter.post(
   "/watch-progress",
   requireAuth,
+  resolveProfile,
   validate({ body: watchProgressBodySchema }),
   async (req, res, next) => {
     try {
       const input = req.validated!.body as z.infer<typeof watchProgressBodySchema>;
-      const { historyEntry, continueWatching } = await playbackProgressService.recordProgress(req.user!.id, input);
+      const { historyEntry, continueWatching } = await playbackProgressService.recordProgress(req.user!.id, profileOf(req), input);
       res.json({
         historyEntry: serializeHistoryEntry(historyEntry),
         continueWatching: continueWatching ? serializeContinueWatching(continueWatching) : null,
@@ -61,19 +63,19 @@ historyRouter.post(
   }
 );
 
-historyRouter.get("/history", requireAuth, validate({ query: historyQuerySchema }), async (req, res, next) => {
+historyRouter.get("/history", requireAuth, resolveProfile, validate({ query: historyQuerySchema }), async (req, res, next) => {
   try {
     const query = req.validated!.query as z.infer<typeof historyQuerySchema>;
-    const entries = await playbackProgressService.listWatchHistory(req.user!.id, query);
+    const entries = await playbackProgressService.listWatchHistory(req.user!.id, profileOf(req), query);
     res.json({ items: entries.map(serializeHistoryEntry) });
   } catch (error) {
     next(error);
   }
 });
 
-historyRouter.get("/continue-watching", requireAuth, async (req, res, next) => {
+historyRouter.get("/continue-watching", requireAuth, resolveProfile, async (req, res, next) => {
   try {
-    const entries = await continueWatchingService.listActiveContinueWatching(req.user!.id);
+    const entries = await continueWatchingService.listActiveContinueWatching(req.user!.id, profileOf(req));
     res.json({ items: entries.map(serializeContinueWatching) });
   } catch (error) {
     next(error);

@@ -9,10 +9,13 @@
  */
 export class HttpError extends Error {
   readonly status: number;
+  /** Sent as Retry-After on a 429 so a client knows how long to wait. */
+  readonly retryAfterSeconds?: number;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, retryAfterSeconds?: number) {
     super(message);
     this.name = "HttpError";
     this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }

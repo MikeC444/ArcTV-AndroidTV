@@ -23,6 +23,7 @@ const EXPECTED_TABLES = [
   "continue_watching",
   "movie_feedback",
   "user_plus",
+  "profiles",
   "schema_migrations",
 ];
 

@@ -18,6 +18,8 @@ declare global {
     interface Request {
       user?: AuthenticatedUser;
       session?: AuthenticatedSession;
+      /** The profile named by X-ArcTV-Profile, once checked to belong to this account; undefined when the request names none (= the account's own, 'main'). Set by middleware/profile.ts. */
+      profileId?: string;
     }
   }
 }

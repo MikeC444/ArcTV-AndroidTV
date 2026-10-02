@@ -51,6 +51,31 @@ Endpoints:
   rules as the watchlist: `GET` returns only feedback that is currently
   set, `POST` returns the slot's authoritative state, `DELETE` clears it
   (`204` if it never existed).
+- `GET /user/profiles` / `POST /user/profiles` / `PUT /user/profiles/:id` /
+  `DELETE /user/profiles/:id` / `POST /user/profiles/:id/verify-pin`
+  (authenticated) — ArcTV Plus profiles: up to 5 per account (any adult /
+  kids mix), each with its own library. `GET` returns `{ profiles: [{ id,
+  name, avatar, kind, hasPin, isDefault }] }`, the account's own profile
+  (`main`, created on first use, never removed, never a kids profile)
+  first. `POST` `{ name, avatar, kind, pin? }`, `PUT` `{ name?, avatar?,
+  kind?, pin? | null }` (a string sets the 4-digit PIN, `null` removes it)
+  and `DELETE` need Plus; `DELETE` also deletes the profile's library.
+  `verify-pin` `{ pin }` answers `204` (right, or no PIN), `403` (wrong,
+  never `401`) or `429` + `Retry-After` once five wrong tries in a row have
+  locked guessing for five minutes. PINs are stored as argon2id hashes and
+  never returned. The apps take care of asking for the PIN; this server
+  only checks it.
+- **`X-ArcTV-Profile: <id>`** (request header) — on `/user/settings`,
+  `/user/watchlist`, `/user/watch-progress`, `/user/history`,
+  `/user/continue-watching`, `/user/addons` and `/user/feedback`, names the
+  profile the request is for; no header means the account's own profile
+  (`main`), so every client that predates profiles is unchanged and all
+  data saved before profiles belongs to `main`. The id must be one of the
+  caller's own profiles (`404` otherwise, same answer for "unknown" and
+  "somebody else's"), and any profile but `main` needs Plus (`403`). On
+  `/user/feedback` the header wins over a `profileId` in the body/query.
+  Account-level calls (`/user/me`, `/user/plus`, `/user/profiles…`) ignore
+  it. The contract is written up in the web repo's `docs/PROFILES.md`.
 - `GET /user/watchlist` (authenticated) — this account's active My List
   items.
 - `POST /user/watchlist` (authenticated) — add (or un-remove/refresh) one
