@@ -14,6 +14,7 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- Settings: Arc TV Plus now sits between Account and Addons. On the Arc TV Plus tab, pressing Down on the plan cards no longer jumps sideways between them (it moves down the tab), and the tab no longer shakes slightly while you are on it.
 - Settings > Arc TV Plus: you can now scroll back up to the top of the tab (where it shows your plan), and picking a plan goes straight to the payment page with no "Getting your checkout ready" message under the plans.
 - Subscribing to Arc TV Plus now has a proper full-screen page: a step indicator, your chosen plan and its price on the left, a large QR code on the right with a countdown while it waits for your payment (no spinner), a "Change plan" button, and a thank-you when it goes through.
 - The update pop-up now shows the notes for every release you missed, newest first, all in the pop-up itself (scroll them with the remote). It never sends you to GitHub, and a release with no notes says "Bug fixes and improvements."

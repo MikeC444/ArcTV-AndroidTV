@@ -4055,3 +4055,7 @@ unoptimised Compose, so they will always feel slower than a release build on a F
 ## Post-Milestone-50 refinement — Plus tab scrolling and instant checkout
 
 The Arc TV Plus tab's top block (plan status) is now a focusable surface and the first stop for the remote, so Up from the perks scrolls back to it (plain text can't take focus, which stranded the list scrolled down). Choosing a plan opens the full-screen checkout page at once, with the plan card and a same-size blank QR placeholder until the link arrives; the inline "Getting your checkout ready…" text is gone. "Change plan" during that moment now cancels the pending request. Errors still show under the plans.
+
+## Post-Milestone-50 refinement — Plus tab focus, jitter and order
+
+Plan cards are now equal height (`IntrinsicSize.Min` row, `fillMaxHeight` cards): uneven heights made the taller card count as "below" its neighbours, so Down moved sideways. The tab's footer note is focusable so Down has a target and the tab scrolls to its end. The plan block no longer scales on focus, and the Settings category list has more vertical padding, to stop the scroll area nudging a scaled focused row back and forth (the slight shake). Arc TV Plus is now second in the Settings list, between Account and Addons.
