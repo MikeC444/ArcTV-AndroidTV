@@ -14,6 +14,7 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- The Home hero appears much sooner when you open the app: each time you use the app it quietly picks and downloads the titles for next time's hero, so on the next launch the first slide shows from storage straight away (and no longer changes a few seconds in when the live rows arrive). The rest of the slides load a moment later so they don't slow down the first one. The titles still change every launch.
 - Settings > Arc TV Plus: the "Payments are handled by Stripe's secure checkout page" note can no longer be selected, and the plan summary at the top no longer shows a white outline when the remote is on it.
 - Settings: Arc TV Plus now sits between Account and Addons. On the Arc TV Plus tab, pressing Down on the plan cards no longer jumps sideways between them (it moves down the tab), and the tab no longer shakes slightly while you are on it.
 - Settings > Arc TV Plus: you can now scroll back up to the top of the tab (where it shows your plan), and picking a plan goes straight to the payment page with no "Getting your checkout ready" message under the plans.

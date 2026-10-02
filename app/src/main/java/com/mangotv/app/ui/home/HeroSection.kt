@@ -93,6 +93,9 @@ private val HeroTextShadow = Shadow(
     blurRadius = 10f
 )
 
+private const val HERO_FIRST_IMAGES = 4
+private const val HERO_REST_DELAY_MS = 2_500L
+
 @Composable
 fun HeroSection(
     items: List<Content>,
@@ -118,7 +121,14 @@ fun HeroSection(
     // loading as it arrives. Only warms Coil's caches; nothing is drawn from here.
     LaunchedEffect(items) {
         val imageLoader = context.imageLoader
-        heroImages(items).forEach { image ->
+        val images = heroImages(items)
+        // The first slides straight away; the rest after a pause, so on a cold boot they don't compete with the
+        // first slide and the poster rows for the same connection.
+        images.take(HERO_FIRST_IMAGES).forEach { image ->
+            imageLoader.enqueue(ImageRequest.Builder(context).data(image.url).build())
+        }
+        delay(HERO_REST_DELAY_MS)
+        images.drop(HERO_FIRST_IMAGES).forEach { image ->
             imageLoader.enqueue(ImageRequest.Builder(context).data(image.url).build())
         }
     }

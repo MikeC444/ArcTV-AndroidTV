@@ -1,6 +1,9 @@
 package com.mangotv.app.ui.home
 
 import android.app.Application
+import android.graphics.Bitmap
+import coil.imageLoader
+import coil.request.ImageRequest
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mangotv.app.MangoTvApplication
@@ -135,6 +138,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     // ViewModel instance, i.e. an actual new boot.
     private var randomHeroPool: List<Content>? = null
 
+    // The hero chosen for the NEXT launch: drawn once per session from the live catalogue, saved in the cache, and its
+    // pictures downloaded in the background. The next boot then shows these titles with their pictures already on disk,
+    // instead of drawing a fresh set only after the network answers and then waiting for their pictures too.
+    private var catalogItems: List<Content> = emptyList()
+
     // True once cold-boot cache has painted Home but before the first real
     // (network) fetch has settled. Used two ways below: (1) an empty
     // provider list during this window means "addon restore hasn't
@@ -177,7 +185,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             // silently defeating caching on exactly the cold-boot case it
             // exists for. Awaiting first removes the race instead of hoping
             // timing favors the cache.
-            homeCacheRepository.read()?.let { (_, sections) ->
+            homeCacheRepository.read()?.let { (cachedHero, sections) ->
+                // The hero drawn (and pre-downloaded) last session is the one shown now and kept when live data
+                // arrives, so the first slide doesn't change under the viewer a few seconds in.
+                if (cachedHero.isNotEmpty()) randomHeroPool = cachedHero
                 rawSections = sections
                 hasFetchedOnce = true
                 showingCacheOnly = true
@@ -310,8 +321,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             // Reuses the hero applyPreferences just derived and published
             // above rather than recomputing it, so what's cached always
             // matches what was actually shown.
-            val hero = (_uiState.value as? HomeUiState.Success)?.heroItems ?: emptyList()
-            homeCacheRepository.write(hero, sections)
+            val nextHero = catalogItems.shuffled().take(HERO_POOL_SIZE)
+                .ifEmpty { (_uiState.value as? HomeUiState.Success)?.heroItems ?: emptyList() }
+            homeCacheRepository.write(nextHero, sections)
+            // Download their pictures now, quietly, so next launch's hero is already on disk.
+            prefetchHeroImages(nextHero)
+        }
+    }
+
+    private fun prefetchHeroImages(items: List<Content>) {
+        val context = getApplication<Application>()
+        val loader = context.imageLoader
+        heroImages(items).forEach { image ->
+            loader.enqueue(ImageRequest.Builder(context).data(image.url).bitmapConfig(Bitmap.Config.RGB_565).build())
         }
     }
 
@@ -348,13 +370,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // selection from that stale, about-to-be-replaced data would freeze
         // the "random 10" a step too early, before the live fetch this
         // session actually settles.
+        catalogItems = visibleSections.flatMap { it.items }.distinctBy { it.id }
         val hero = if (showingCacheOnly) {
-            visibleSections.flatMap { it.items }.distinctBy { it.id }.shuffled().take(HERO_POOL_SIZE)
+            // A remembered hero (from last session) wins; otherwise a stand-in draw that isn't locked in.
+            randomHeroPool?.withoutBlocked(blockedGenres) ?: catalogItems.shuffled().take(HERO_POOL_SIZE)
         } else {
             if (randomHeroPool == null) {
-                randomHeroPool = visibleSections.flatMap { it.items }.distinctBy { it.id }.shuffled().take(HERO_POOL_SIZE)
+                randomHeroPool = catalogItems.shuffled().take(HERO_POOL_SIZE)
             }
-            randomHeroPool.orEmpty()
+            randomHeroPool.orEmpty().withoutBlocked(blockedGenres)
         }
 
         _uiState.value = when {

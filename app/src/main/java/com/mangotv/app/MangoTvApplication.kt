@@ -1,11 +1,17 @@
 package com.mangotv.app
 
 import android.app.Application
+import android.graphics.Bitmap
 import coil.ImageLoader
+import coil.imageLoader
+import coil.request.ImageRequest
+import com.mangotv.app.ui.home.heroImages
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import kotlinx.coroutines.runBlocking
+
+private const val HERO_WARM_IMAGES = 3
 
 class MangoTvApplication : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
@@ -23,7 +29,17 @@ class MangoTvApplication : Application(), ImageLoaderFactory {
     private fun warmUp() {
         Thread {
             runCatching { container.uiSoundPlayer }
-            runCatching { runBlocking { container.homeCacheRepository.read() } }
+            // The cached hero's first pictures go into Coil's memory cache now, so the first slide is drawn from
+            // memory the moment Home appears instead of being decoded from disk then.
+            runCatching {
+                runBlocking { container.homeCacheRepository.read() }?.first?.let { hero ->
+                    heroImages(hero).take(HERO_WARM_IMAGES).forEach { image ->
+                        imageLoader.enqueue(
+                            ImageRequest.Builder(this).data(image.url).bitmapConfig(Bitmap.Config.RGB_565).build()
+                        )
+                    }
+                }
+            }
         }.apply {
             name = "mango-warmup"
             priority = Thread.MIN_PRIORITY
