@@ -14,12 +14,14 @@ run the release workflow for that version.
 
 ## Unreleased
 
-- Fixed: after you sign in, your My List, Continue Watching and addons now load right away.
+## 0.1.6
+
 - Your "Picked for you" row just got smarter: it matches your whole mix of tastes, and most of it changes every time you open the app.
 - Movies you've liked never show up in "Picked for you" again.
 - Not feeling a pick? Press and hold it and choose "Remove from Picked for you".
 - Switch profile in one press: your picture and name now sit at the top right of the top bar.
 - Profiles not showing? Settings > Account now tells you why.
+- Fixed: after you sign in, your My List, Continue Watching and addons now load right away.
 
 ## 0.1.5
 
