@@ -5,7 +5,6 @@ import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -453,8 +452,12 @@ fun HeroSection(
 /** The next title slides in from the right while the old one slides out to the left, [screenWidthPx] each, in step. */
 private fun heroSlideTransition(screenWidthPx: Int): ContentTransform {
     val spec = tween<IntOffset>(durationMillis = MangoMotion.HeroSlideMillis, easing = MangoMotion.StandardEasing)
-    return (slideInHorizontally(animationSpec = spec) { screenWidthPx } togetherWith
-        slideOutHorizontally(animationSpec = spec) { -screenWidthPx }) using SizeTransform(clip = false)
+    // `using` only exists inside the transition scope, so the size behaviour is passed to the constructor instead.
+    return ContentTransform(
+        targetContentEnter = slideInHorizontally(animationSpec = spec) { screenWidthPx },
+        initialContentExit = slideOutHorizontally(animationSpec = spec) { -screenWidthPx },
+        sizeTransform = SizeTransform(clip = false)
+    )
 }
 
 @Composable
