@@ -53,12 +53,12 @@ import com.mangotv.app.ui.theme.TextSecondary
  */
 private enum class SettingsCategory(val icon: ImageVector, val title: String, val subtitle: String) {
     ACCOUNT(Icons.Filled.AccountCircle, "Account", "Manage your Arc TV account"),
+    PLUS(Icons.Filled.WorkspacePremium, "Arc TV Plus", "Extra features for supporters"),
     ADDONS(Icons.Filled.Extension, "Addons", "Manage installed content providers"),
     HOME_ROWS(Icons.Filled.GridView, "Home Rows", "Choose which rows show up on Home"),
     BLOCKED_GENRES(Icons.Filled.Block, "Blocked Genres", "Hide genres you don't want to see"),
     SOUNDS(Icons.Filled.MusicNote, "Sounds", "Choose your app boot sound"),
-    SUBTITLES(Icons.Filled.Subtitles, "Subtitles", "Default on/off and preferred language"),
-    PLUS(Icons.Filled.WorkspacePremium, "Arc TV Plus", "Extra features for supporters")
+    SUBTITLES(Icons.Filled.Subtitles, "Subtitles", "Default on/off and preferred language")
 }
 
 @Composable
@@ -116,7 +116,7 @@ fun SettingsScreen(
                     .fillMaxHeight()
                     .padding(end = 12.dp)
                     .verticalScroll(rememberScrollState())
-                    .padding(vertical = 4.dp)
+                    .padding(vertical = 10.dp)
             ) {
                 val categories = remember { SettingsCategory.values().toList() }
                 categories.forEachIndexed { index, category ->

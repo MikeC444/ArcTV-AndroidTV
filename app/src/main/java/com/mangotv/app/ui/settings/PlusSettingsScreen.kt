@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -86,7 +88,7 @@ fun ColumnScope.PlusSettingsContent(
                 clickSound = ClickSound.NONE,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
-                focusedScale = 1.01f,
+                focusedScale = 1f,
                 backgroundColor = MangoBackground,
                 borderColor = TextPrimary,
                 focusRequester = contentFocusRequester,
@@ -158,13 +160,15 @@ fun ColumnScope.PlusSettingsContent(
             }
 
             item(key = "plans") {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                // Equal-height cards: with uneven heights the taller card's bottom edge counted as "below" the others, so Down
+                // moved sideways between cards instead of on down the tab.
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
                     PLUS_PLANS.forEachIndexed { index, plan ->
                         PlanCard(
                             plan = plan,
                             starting = (checkout as? PlusCheckoutState.Starting)?.plan == plan.id,
                             onChoose = { viewModel.choose(plan.id) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                             focusLeft = if (index == 0) sidebarFocusRequester else null
                         )
                     }
@@ -179,11 +183,24 @@ fun ColumnScope.PlusSettingsContent(
         }
 
         item(key = "footer") {
-            Text(
-                text = if (sellPlans) "Payments are handled by Stripe's secure checkout page; Arc TV never sees your card." else "Plus features appear on your account by themselves.",
-                color = TextTertiary,
-                style = MaterialTheme.typography.bodySmall
-            )
+            // Focusable so Down from the plans has somewhere to go, which also scrolls the tab to its end.
+            TvFocusSurface(
+                onClick = {},
+                clickSound = ClickSound.NONE,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
+                focusedScale = 1f,
+                backgroundColor = MangoBackground,
+                borderColor = TextPrimary,
+                focusLeft = sidebarFocusRequester
+            ) {
+                Text(
+                    text = if (sellPlans) "Payments are handled by Stripe's secure checkout page; Arc TV never sees your card." else "Plus features appear on your account by themselves.",
+                    color = TextTertiary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+            }
         }
     }
 }
