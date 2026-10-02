@@ -481,6 +481,7 @@ fun MangoNavHost() {
             guestGate = container.guestGate,
             feedbackRepository = container.feedbackRepository,
             plusRepository = container.plusRepository,
+            pickedStateRepository = container.pickedStateRepository,
             onNavigate = ::navigateTo,
             resolvePlayRoute = ::resolvePlayRoute
         )

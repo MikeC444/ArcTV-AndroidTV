@@ -22,6 +22,20 @@ object RecommendConfig {
 
     const val MAX_RESULTS = 20
 
+    /**
+     * Composition step (Rotation.kt): the row follows the profile's own taste split across genres and a refresh swaps most of it. The
+     * best ROTATION_ANCHORS picks always stay; the other places go to genres in proportion to the profile's taste, each drawn from that
+     * genre's other genuinely scored candidates that score at least ROTATION_FLOOR of that genre's best. A candidate shown in the
+     * previous row counts ROTATION_REPEAT_WEIGHT times as much in the draw, so most of the row is different next time.
+     */
+    const val ROTATION_ANCHORS = 5
+    const val ROTATION_FLOOR = 0.6
+    const val ROTATION_REPEAT_WEIGHT = 0.15
+
+    /** Shortlist: so every genre the profile likes has candidates to score, each gets this many (at least) out of a budget shared by taste share. */
+    const val SHORTLIST_GENRE_BUDGET = 36
+    const val SHORTLIST_GENRE_MIN = 4
+
     /** Diversity step (applied after scoring, separate from it): one movie of the profile's can be the stated reason for at most this many picks. */
     const val MAX_PICKS_PER_SOURCE = 3
     /** Shortlist: this many by overall genre match, the rest taken round-robin from the best matches of each of the profile's own movies. */
@@ -36,7 +50,7 @@ object RecommendConfig {
     const val CAST_FEATURE_LIMIT = 12
 
     /** Network budget: how many candidates get a detail lookup per refresh, how many of the profile's own movies are looked up, and how many run at once. */
-    const val CANDIDATE_DETAIL_FETCH_LIMIT = 40
+    const val CANDIDATE_DETAIL_FETCH_LIMIT = 60
     const val INTERACTION_DETAIL_FETCH_LIMIT = 60
     const val DETAIL_FETCH_CONCURRENCY = 4
 

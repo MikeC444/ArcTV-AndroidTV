@@ -10,6 +10,7 @@ import com.mangotv.app.data.feedback.FeedbackRepository
 import com.mangotv.app.data.history.ContinueWatchingRepository
 import com.mangotv.app.data.plus.PlusRepository
 import com.mangotv.app.data.profile.ProfileRepository
+import com.mangotv.app.data.recommend.PickedStateRepository
 import com.mangotv.app.data.sync.ProfileSwitcher
 import com.mangotv.app.data.recommend.FeatureCacheRepository
 import com.mangotv.app.data.player.LastSourceRepository
@@ -177,6 +178,8 @@ class AppContainer(context: Context) {
     val plusRepository: PlusRepository = PlusRepository(context, authRepository)
     // Eager like authRepository: the active profile must be known before any request or cache read (see AuthGateViewModel).
     val profileRepository: ProfileRepository = ProfileRepository(context, authRepository)
+    // "Picked for you": titles removed by hand and what the last launch showed, per account and profile (follows both by itself).
+    val pickedStateRepository: PickedStateRepository = PickedStateRepository(context, authRepository, profileRepository)
     val syncManager: SyncManager = SyncManager(
         context, settingsSyncRepository, watchlistSyncRepository, continueWatchingSyncRepository, addonSyncRepository, feedbackRepository, plusRepository, profileRepository
     )
@@ -237,6 +240,7 @@ class AppContainer(context: Context) {
             feedbackRepository = feedbackRepository,
             plusRepository = plusRepository,
             profileRepository = profileRepository,
+            pickedStateRepository = pickedStateRepository,
             settingsSyncRepository = settingsSyncRepository,
             watchlistSyncRepository = watchlistSyncRepository,
             continueWatchingSyncRepository = continueWatchingSyncRepository,
