@@ -3845,3 +3845,44 @@ where the guest was heading (the return target is held in memory only), so sign-
 fresh at Home.
 
 **Issues fixed:** none beyond the new behaviour.
+
+## Post-Milestone-42 — Arc TV Plus Tab (Hidden Until Launch)
+
+**Status:** Complete, not compiled (see Tests performed). No release-notes line: the tab is
+hidden in release builds, so nothing user-visible ships.
+
+**Context:** User request, ported from the web app (MangotvWebb fbcd56b, 4cdd012, fa77604
+"ArcTV Plus tab"). The web shows the tab only to a private preview (the "Picked for you"
+commit later hid it for everyone) because Plus is not on sale yet.
+
+**Changes:**
+- `PlusPlans.kt` (new) -- everything the tab shows, in one place, as on the web: the three
+  plans (Monthly, Yearly, Lifetime) with `price` and `checkoutUrl` to fill in at launch
+  (a blank checkout page reads "Opens soon", a null price "Price announced soon"), four
+  "coming soon" perks, and the two notes (what stays free; proceeds go back into the app).
+  The perks are the web's with Blocked Genres and relay-allowance wording swapped for what
+  exists on the Firestick. `PLUS_TAB_VISIBLE` is `BuildConfig.DEBUG`: the tab appears in debug
+  builds (such as the CI APK used for testing) and not in release builds. Showing it to
+  everyone at launch is changing that one line.
+- `PlusSettingsScreen.kt` (new) -- the pane: a "Free plan" badge, the notes, "What Plus adds"
+  (focusable perk rows with a "Coming soon" tag), "How to subscribe", and three plan cards.
+  Plain text can't be focused, so the perk rows and plan cards are focusable, which is what
+  lets the remote move down the whole tab. A plan with a checkout page opens it in whichever
+  app the person picks (nothing is paid for on the TV); without one it shows "Plus isn't on
+  sale yet".
+- `SettingsScreen.kt` -- an "Arc TV Plus" category, listed only while `PLUS_TAB_VISIBLE`.
+- `PlusPlansTest.kt` -- the plan list, the on-sale rule and that every perk and plan is filled in.
+
+**Not ported:** the web's per-account "Plus status" (there is none yet), and a checkout flow:
+there is no backend for subscriptions.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android SDK): unit
+tests run on GitHub Actions; brace/paren balance on touched files; a manual re-read.
+**Not performed:** an on-device look. In a debug build: Settings lists "Arc TV Plus" last; RIGHT
+from it reaches the first perk, DOWN steps through the perks and the plan cards and scrolls the
+tab, LEFT returns to the sidebar, and pressing a plan says it isn't on sale. A release build must
+not show the tab.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

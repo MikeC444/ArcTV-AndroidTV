@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -52,7 +53,9 @@ private enum class SettingsCategory(val icon: ImageVector, val title: String, va
     ADDONS(Icons.Filled.Extension, "Addons", "Manage installed content providers"),
     HOME_ROWS(Icons.Filled.GridView, "Home Rows", "Choose which rows show up on Home"),
     SOUNDS(Icons.Filled.MusicNote, "Sounds", "Choose your app boot sound"),
-    SUBTITLES(Icons.Filled.Subtitles, "Subtitles", "Default on/off and preferred language")
+    SUBTITLES(Icons.Filled.Subtitles, "Subtitles", "Default on/off and preferred language"),
+    // Not public yet: shown only while PLUS_TAB_VISIBLE is true (see PlusPlans.kt).
+    PLUS(Icons.Filled.WorkspacePremium, "Arc TV Plus", "Extra features for supporters")
 }
 
 @Composable
@@ -67,6 +70,7 @@ fun SettingsScreen(
     val homeRowsRowFocusRequester = remember { FocusRequester() }
     val soundsRowFocusRequester = remember { FocusRequester() }
     val subtitlesRowFocusRequester = remember { FocusRequester() }
+    val plusRowFocusRequester = remember { FocusRequester() }
 
     // Shared by every sidebar row's focusRight: only the selected category's
     // content is ever actually composed on the right (see the `when` in
@@ -83,6 +87,7 @@ fun SettingsScreen(
         SettingsCategory.HOME_ROWS -> homeRowsRowFocusRequester
         SettingsCategory.SOUNDS -> soundsRowFocusRequester
         SettingsCategory.SUBTITLES -> subtitlesRowFocusRequester
+        SettingsCategory.PLUS -> plusRowFocusRequester
     }
 
     SettingsScaffold(
@@ -102,7 +107,7 @@ fun SettingsScreen(
                     .fillMaxHeight()
                     .padding(end = 12.dp)
             ) {
-                val categories = remember { SettingsCategory.values() }
+                val categories = remember { SettingsCategory.values().filter { it != SettingsCategory.PLUS || PLUS_TAB_VISIBLE } }
                 categories.forEachIndexed { index, category ->
                     SettingsSidebarRow(
                         category = category,
@@ -232,6 +237,11 @@ private fun SettingsDetailPane(
                 contentFocusRequester = contentFocusRequester
             )
             SettingsCategory.SUBTITLES -> SubtitleSettingsContent(
+                navFocusRequester = navFocusRequester,
+                contentFocusRequester = contentFocusRequester,
+                sidebarFocusRequester = sidebarFocusRequester
+            )
+            SettingsCategory.PLUS -> PlusSettingsContent(
                 navFocusRequester = navFocusRequester,
                 contentFocusRequester = contentFocusRequester,
                 sidebarFocusRequester = sidebarFocusRequester
