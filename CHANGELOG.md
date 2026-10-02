@@ -4024,3 +4024,22 @@ unoptimised Compose, so they will always feel slower than a release build on a F
 - The notes box already scrolls with the remote and has no length limit, so nothing is cut off.
 
 **Tests performed:** `UpdateNotesTest` (Markdown clean-up, pointer lines, one / several / ignored releases, fallback) -- not run here; relies on the CI build.
+
+## Post-Milestone-49 — ArcTV Plus Paywall (Stripe)
+
+**Status:** Complete, off by default. Backend tested (`server/tests/plus.test.ts`, 16 cases, plus the whole suite); the Kotlin has not been compiled here or tried on a device, so it relies on the CI build.
+
+**Context:** User request: set up the paywall. Decisions: Stripe; Picked for you and Like / Not for me are the gated features; non-subscribers see no Plus features (the Plus tab stays, since that is where they subscribe); on the TV, pay by scanning a QR code with a phone.
+
+**Backend (`server/`):**
+- Migration `0017_user_plus`: one row per paying account (`plan`, `status`, `valid_until`, Stripe customer / subscription ids, `last_event_at`), written only by the webhook.
+- `GET /user/plus` -> `{ active, plan, validUntil, paywall }`. `PLUS_PAYWALL` off (the default): everyone is active with plan `early_access`. On: only paying accounts. `computeEntitlement` is pure and tested.
+- `POST /user/plus/checkout { plan }` creates a Stripe Checkout Session (subscription mode for monthly / yearly, payment mode for lifetime) with the account id as `client_reference_id`, and returns its URL. 503 when the paywall is off or Stripe isn't configured; 409 for someone who already has Lifetime.
+- `POST /stripe/webhook`: mounted before the JSON parser, signature checked against the raw body (HMAC-SHA256, 5 minute tolerance, constant-time compare). `checkout.session.completed` switches Plus on (Lifetime only once `payment_status` is `paid`); `customer.subscription.updated` moves the paid period; `.deleted` ends it. Writes are keyed on the event's own time, so repeats and late deliveries can't undo a newer event; a Lifetime owner is never changed by a subscription event.
+- `docs/PAYWALL.md` has the Stripe setup and the environment variables; `.env.example` lists them.
+
+**App:**
+- `PlusRepository` keeps the last status from `GET /user/plus` (pulled by `SyncManager` on launch / sign-in, cleared on account switch). Picked for you (`HomeViewModel`), the long-press menu and the Detail page's Like / Not for me read it instead of a build flag; `PLUS_TAB_VISIBLE` / `PLUS_EARLY_ACCESS` are gone.
+- Settings > Arc TV Plus: "Early access" while the paywall is off; "Arc TV Plus" with plan and period when owned; "Free plan" plus plan cards otherwise. Choosing a plan shows the checkout URL as a QR code and asks every 4 seconds (up to 10 minutes) whether the payment went through, closing itself when it did.
+
+**Switching it on:** see `docs/PAYWALL.md`. Until `PLUS_PAYWALL=on` is set on the host nothing changes for anyone.

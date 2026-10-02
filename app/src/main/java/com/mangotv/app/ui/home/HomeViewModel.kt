@@ -24,7 +24,6 @@ import com.mangotv.app.data.recommend.recommend
 import com.mangotv.app.data.recommend.signatureOf
 import com.mangotv.app.data.recommend.toCandidate
 import com.mangotv.app.data.model.ContentType
-import com.mangotv.app.ui.settings.PLUS_TAB_VISIBLE
 import com.mangotv.app.data.provider.blockedGenreSet
 import com.mangotv.app.data.provider.withoutBlocked
 import com.mangotv.app.data.provider.HomeRowPreferences
@@ -84,6 +83,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val blockedGenresRepository = (application as MangoTvApplication).container.blockedGenresRepository
     private val feedbackRepository = (application as MangoTvApplication).container.feedbackRepository
     private val featureCache = (application as MangoTvApplication).container.featureCacheRepository
+    private val plusRepository = (application as MangoTvApplication).container.plusRepository
 
     // "Picked for you" (Plus preview, signed-in only): the latest engine result and the movies it was computed from.
     private var feedbackEntries: Map<String, FeedbackEntry> = feedbackRepository.entries.value
@@ -215,6 +215,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         viewModelScope.launch { runPickedPipeline() }
+        // Plus switching on (or off) shows or hides the row.
+        viewModelScope.launch {
+            plusRepository.status.collect { applyPreferences(homeRowPreferences.preferences.value) }
+        }
         // Signing in turns "Picked for you" on (a guest has nothing to learn from), signing out turns it off.
         viewModelScope.launch {
             guestGate.isGuest.collect { applyPreferences(homeRowPreferences.preferences.value) }
@@ -360,8 +364,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** "Picked for you" is a Plus preview (debug builds until Plus launches) and needs an account: a guest has no feedback or history to learn from. */
-    private fun pickedAvailable(): Boolean = PLUS_TAB_VISIBLE && !guestGate.isGuest.value
+    /** "Picked for you" is an ArcTV Plus feature (whether this account has Plus comes from the backend) and needs an account: a guest has no feedback or history to learn from. */
+    private fun pickedAvailable(): Boolean = plusRepository.status.value.active && !guestGate.isGuest.value
 
     /** Publishes what a "Picked for you" run would be computed from; unchanged inputs (same key) do nothing. */
     private fun updatePickedInputs() {

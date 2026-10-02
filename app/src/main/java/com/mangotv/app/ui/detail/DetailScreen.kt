@@ -41,7 +41,6 @@ import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.model.HomeSection
 import com.mangotv.app.data.recommend.Feedback
-import com.mangotv.app.ui.settings.PLUS_TAB_VISIBLE
 import com.mangotv.app.data.trailer.TrailerLauncher
 import com.mangotv.app.navigation.MangoRoutes
 import com.mangotv.app.navigation.routeForNavLabel
@@ -77,6 +76,7 @@ fun DetailScreen(
             is DetailUiState.Success -> {
                 val isInMyList by viewModel.isInMyList.collectAsStateWithLifecycle()
                 val feedback by viewModel.feedback.collectAsStateWithLifecycle()
+                val hasPlus by viewModel.hasPlus.collectAsStateWithLifecycle()
                 val resumeEntry by viewModel.resumeEntry.collectAsStateWithLifecycle()
                 val trailerState by viewModel.trailerState.collectAsStateWithLifecycle()
                 val foundTrailer = trailerState as? TrailerState.Found
@@ -89,6 +89,7 @@ fun DetailScreen(
                     onToggleMyList = viewModel::toggleMyList,
                     onToggleWatched = viewModel::toggleWatched,
                     feedback = feedback,
+                    hasPlus = hasPlus,
                     onFeedback = viewModel::toggleFeedback,
                     resumeEntry = resumeEntry,
                     lastStreamIdFor = viewModel::lastStreamIdFor,
@@ -120,6 +121,7 @@ private fun DetailContent(
     onToggleMyList: () -> Unit,
     onToggleWatched: () -> Unit,
     feedback: Feedback?,
+    hasPlus: Boolean,
     onFeedback: (Feedback) -> Unit,
     resumeEntry: ContinueWatchingEntry?,
     lastStreamIdFor: (season: Int?, episode: Int?) -> String?,
@@ -272,7 +274,7 @@ private fun DetailContent(
                     isInMyList = isInMyList,
                     // Like / Not for me are a movie-only, Plus-preview feature (they feed "Picked for you").
                     feedback = feedback,
-                    onFeedback = if (PLUS_TAB_VISIBLE && content.type == ContentType.MOVIE) onFeedback else null,
+                    onFeedback = if (hasPlus && content.type == ContentType.MOVIE) onFeedback else null,
                     onTrailer = onTrailer,
                     trailerReady = trailerReady,
                     releaseDateState = releaseDateState,

@@ -8,6 +8,7 @@ import com.mangotv.app.data.auth.AuthRepository
 import com.mangotv.app.data.auth.GuestGate
 import com.mangotv.app.data.feedback.FeedbackRepository
 import com.mangotv.app.data.history.ContinueWatchingRepository
+import com.mangotv.app.data.plus.PlusRepository
 import com.mangotv.app.data.recommend.FeatureCacheRepository
 import com.mangotv.app.data.player.LastSourceRepository
 import com.mangotv.app.data.player.PlayerPreferencesRepository
@@ -171,8 +172,9 @@ class AppContainer(context: Context) {
         context, continueWatchingRepository, authRepository
     )
     val feedbackRepository: FeedbackRepository = FeedbackRepository(context, authRepository)
+    val plusRepository: PlusRepository = PlusRepository(context, authRepository)
     val syncManager: SyncManager = SyncManager(
-        context, settingsSyncRepository, watchlistSyncRepository, continueWatchingSyncRepository, addonSyncRepository, feedbackRepository
+        context, settingsSyncRepository, watchlistSyncRepository, continueWatchingSyncRepository, addonSyncRepository, feedbackRepository, plusRepository
     )
     val firstSyncState: FirstSyncState = FirstSyncState(context)
     val firstLoginMigrationCoordinator: FirstLoginMigrationCoordinator by lazy {
@@ -204,6 +206,7 @@ class AppContainer(context: Context) {
             playerPreferencesRepository = playerPreferencesRepository,
             blockedGenresRepository = blockedGenresRepository,
             feedbackRepository = feedbackRepository,
+            plusRepository = plusRepository,
             settingsSyncRepository = settingsSyncRepository,
             watchlistSyncRepository = watchlistSyncRepository,
             continueWatchingSyncRepository = continueWatchingSyncRepository,

@@ -6,6 +6,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import com.mangotv.app.data.feedback.FeedbackRepository
+import com.mangotv.app.data.plus.PlusRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -74,7 +75,8 @@ class SyncManager(
     private val watchlistSyncRepository: WatchlistSyncRepository,
     private val continueWatchingSyncRepository: ContinueWatchingSyncRepository,
     private val addonSyncRepository: AddonSyncRepository,
-    private val feedbackRepository: FeedbackRepository
+    private val feedbackRepository: FeedbackRepository,
+    private val plusRepository: PlusRepository
 ) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -127,6 +129,7 @@ class SyncManager(
                 launch { continueWatchingSyncRepository.pullFromServer() }
                 launch { addonSyncRepository.pullFromServer() }
                 launch { feedbackRepository.pullFromServer() }
+                launch { plusRepository.pullFromServer() }
             }
             retryPendingAll()
         }.join()
