@@ -10,6 +10,7 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -41,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -235,6 +238,19 @@ fun HeroSection(
                     )
                 )
         )
+
+        // Which title this is, out of how many: one small dot per title, the current one a longer pill, at the bottom right
+        // (as on the web). Only shown, not focusable: the hero rotates by itself, and a focus stop here would sit in the
+        // way of the remote moving between the buttons and the rows below.
+        if (items.size > 1) {
+            HeroPageDots(
+                count = items.size,
+                selected = index % items.size,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = MangoDimens.ScreenPaddingHorizontal, bottom = 28.dp)
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -445,6 +461,31 @@ fun HeroSection(
                     focusUp = navUpFocusRequester
                 )
             }
+        }
+    }
+}
+
+/** One dot per hero title; the [selected] one is a longer, brighter pill. The change between them animates. */
+@Composable
+private fun HeroPageDots(count: Int, selected: Int, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        repeat(count) { dotIndex ->
+            val isSelected = dotIndex == selected
+            val width by animateDpAsState(
+                targetValue = if (isSelected) 24.dp else 8.dp,
+                animationSpec = tween(durationMillis = MangoMotion.MediumMillis),
+                label = "heroDotWidth"
+            )
+            Box(
+                modifier = Modifier
+                    .size(width = width, height = 8.dp)
+                    .clip(CircleShape)
+                    .background(if (isSelected) Color.White else Color.White.copy(alpha = 0.4f))
+            )
         }
     }
 }

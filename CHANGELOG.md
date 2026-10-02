@@ -3911,6 +3911,11 @@ Detail spacing).
   refresh that hands the hero an equal copy of the same title doesn't replay the slide. The
   Play / Trailer / My List / Info buttons are deliberately not part of the slide: they stay put,
   so the remote's focus is undisturbed by the rotation every nine seconds.
+- `HeroSection.kt` -- page dots: one small dot per hero title at the bottom right, the current
+  one a longer, brighter pill (24 x 8 dp against 8 dp circles at 40% white) whose width animates
+  as the hero moves on, as on the web. They only show where you are: unlike the web's clickable
+  dots they are not focusable, so the remote's movement between the buttons and the rows below
+  is unchanged.
 - `DetailHeroSection.kt` -- TV show pages (the non-compact layout): the hero's minimum height is
   60% of the screen (was 82%) and its bottom padding 24 dp (was 56 dp), so the seasons start
   right below the Play row, and the rating badge is centred on the Play row's buttons (padded up
@@ -3918,7 +3923,7 @@ Detail spacing).
   pages are unchanged.
 - `RELEASE_NOTES.md` -- two user-facing lines under Unreleased.
 
-**Not ported:** the hero's clickable page dots (a mouse control; the TV has no pointer).
+**Not ported:** making the dots clickable (a mouse control; on a TV they only show position).
 
 **Tests performed:** Same sandbox limitation as every recent milestone (no Android SDK): brace/paren
 balance on touched files and a manual re-read. Animation and layout can't be unit tested.

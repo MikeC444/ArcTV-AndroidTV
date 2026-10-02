@@ -14,7 +14,7 @@ run the release workflow for that version.
 
 ## Unreleased
 
-- The featured titles on Home now slide in from the right (picture and text together) instead of fading, and the picture's left and right edges have the same soft shade as the top bar
+- The featured titles on Home now slide in from the right (picture and text together) instead of fading, small dots at the bottom right show which of them you're on, and the picture's left and right edges have the same soft shade as the top bar
 - TV show pages are tighter: the title, details and Play button sit lower on a shorter picture so the seasons and episodes start right below instead of a screenful down, and the rating sits level with the Play button
 - You can now look around without an account: the app opens straight to Home, and you can browse Movies, TV Shows, Genres, Search and any title's page. The first time you press Play, open My List or Settings, or try to save a title or mark it watched, it asks you to sign in, and takes you back to what you were doing afterwards. The Settings tab reads "Sign In" until you're signed in, and signing out now offers "Browse without an account"
 - On a movie or show's page the Trailer button is always there from the start, dimmed until a trailer is found, instead of appearing late and shifting the other buttons
