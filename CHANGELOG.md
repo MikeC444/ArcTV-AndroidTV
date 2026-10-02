@@ -3101,3 +3101,48 @@ one appears first in the grid.
 **Issues discovered:** none beyond the one described in Context.
 
 **Issues fixed:** see Changes above.
+
+## Post-Milestone-26 — Removed Titles Stay Removed (Watched-History Catch-Up Guard)
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** Ported from the web app's fix of the same name (MangotvWebb
+commits 826c753 and b641b28). The one-time watched-history catch-up
+(`WatchlistSyncRepository.backfillWatchedFromHistoryIfNeeded()`) replays
+every finished movie through `markWatched()`. Its done-flag is reset on
+sign-out (`AccountSwitchCoordinator`) and is device-scoped, and a title the
+person removed from My List is gone from the server's active list, so
+nothing distinguished "removed on purpose" from "never added". Signing out
+and in, or signing in on a second device, therefore put removed movies
+back with a watched tick. Un-watching a title that stayed in the list was
+undone the same way.
+
+**Changes:**
+- `WatchlistSyncRepository.kt` -- the catch-up now exits early (and marks
+  itself done) when My List already has any titles; it only runs for an
+  account whose list is empty. The decision is the small
+  `shouldRunWatchedBackfill(myListSize)` function so it can be unit tested.
+  `pullFromServer()` now returns whether the list was actually read.
+- `SyncManager.kt` -- `syncAll()` runs the catch-up only when that pull
+  succeeded, because a list that failed to load looks empty and would make
+  a long-used account look brand new.
+- `WatchedBackfillTest.kt` -- unit tests for the empty / non-empty rule.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no
+route to `dl.google.com`): unit tests written for the guard but not run
+here, a re-read of the touched files, and a trace of every caller of
+`pullFromServer()` (only `SyncManager.syncAll()` uses it, so the new
+Boolean return breaks nothing). **Not performed:** a Gradle build, the unit
+tests, or an on-device check -- on-device, remove a watched movie, sign out
+and back in, and confirm it stays gone.
+
+**Issues discovered:** An account whose My List is completely empty (every
+title removed) still gets the catch-up on a fresh device, since there is
+nothing left to tell removed titles apart from never-added ones; the web
+app has the same limit. Making it fully airtight needs a synced record of
+removed titles, which is a backend change and out of scope here.
+Separately, an account that already had titles but never ran the catch-up
+(upgraded from before it existed) now has it skipped for good.
+
+**Issues fixed:** Removed or un-watched titles reappearing after sign-in.

@@ -14,6 +14,8 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- Movies you removed from My List or took off Watched no longer come back after you sign out and in again, or sign in on another device
+
 ## 0.1.3
 
 - My List is now a scrollable multi-column catalogue like Movies/TV Shows/Genres, instead of a single horizontal row -- the All/Watched filter still works the same way, and the newest titles you've added show up first

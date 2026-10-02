@@ -62,13 +62,19 @@ class WatchlistSyncRepository(
         myListRepository.onLocalChange = { change -> pushToServer(change) }
     }
 
-    /** Pulls this account's active watchlist and replaces the local cache with it. Called by SyncManager on login/launch. Fire-and-forget: must never delay getting the user into the app. */
-    suspend fun pullFromServer() {
+    /**
+     * Pulls this account's active watchlist and replaces the local cache with it. Called by SyncManager on login/launch. Fire-and-forget: must never delay getting the user into the app.
+     *
+     * Returns true only when the server's list was actually read and applied -- SyncManager uses that to hold the
+     * watched-history backfill back until My List reflects the account's real state (an unread list looks empty).
+     */
+    suspend fun pullFromServer(): Boolean {
         try {
-            val token = freshAccessTokenOrNull() ?: return
+            val token = freshAccessTokenOrNull() ?: return false
             val response = apiClient.getWatchlist(token)
             val items = response.items.mapNotNull { dto -> runCatching { dto.toSavedListItem() }.getOrNull() }
             myListRepository.applyRemote(items)
+            return true
         } catch (e: ApiException) {
             if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
         } catch (e: IOException) {
@@ -80,6 +86,7 @@ class WatchlistSyncRepository(
             // degraded backend/database) -- degrade the same way a network
             // failure does rather than crashing the caller.
         }
+        return false
     }
 
     /**
@@ -166,6 +173,13 @@ class WatchlistSyncRepository(
     fun backfillWatchedFromHistoryIfNeeded() {
         scope.launch {
             if (watchedBackfillState.isDone()) return@launch
+            // The catch-up is for an account whose My List is still empty. One that already has titles has been used
+            // before -- here or on another device -- and a title the person removed is no longer anywhere to be told
+            // apart from one that was never added, so replaying history would put every removed movie back with a tick.
+            if (!shouldRunWatchedBackfill(myListRepository.items.value.size)) {
+                watchedBackfillState.markDone()
+                return@launch
+            }
             try {
                 var before: String? = null
                 while (true) {
@@ -372,3 +386,6 @@ class WatchlistSyncRepository(
         const val HISTORY_PAGE_SIZE = 200
     }
 }
+
+/** The one-time watched-history catch-up only makes sense for an account that has nothing in My List yet. */
+internal fun shouldRunWatchedBackfill(myListSize: Int): Boolean = myListSize == 0
