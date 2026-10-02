@@ -87,7 +87,9 @@ data class Content(
     val watched: Boolean = false,
     // Why "Picked for you" chose this title ("Because you liked X"), shown on its poster card. Only ever set on
     // that row's items; null everywhere else.
-    val recommendReason: String? = null
+    val recommendReason: String? = null,
+    // True on a card in the "Picked for you" row: its long-press menu then offers "Remove from Picked for you".
+    val pickedForYou: Boolean = false
 )
 
 enum class RowStyle {

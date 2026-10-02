@@ -23,12 +23,22 @@ fun interactionInputs(list: List<SavedListItem>, feedback: Map<String, FeedbackE
     return inputs.values.toList()
 }
 
-/** Never recommended: finished movies, "Not for me", and anything already in Continue Watching. */
-fun excludedFromPicks(list: List<SavedListItem>, feedback: Map<String, FeedbackEntry>, continueWatching: List<ContinueWatchingEntry>): Set<String> {
+/**
+ * Never recommended: finished movies, anything rated Like or Not for me (a liked title is one the person already knows, so it informs
+ * the picks but is never picked itself), anything already in Continue Watching, and titles taken out of the row by hand
+ * ([dismissed]: kept out, but not a taste signal).
+ */
+fun excludedFromPicks(
+    list: List<SavedListItem>,
+    feedback: Map<String, FeedbackEntry>,
+    continueWatching: List<ContinueWatchingEntry>,
+    dismissed: Set<String> = emptySet()
+): Set<String> {
     val ids = HashSet<String>()
     for (item in list) if (item.watched) ids += item.id
-    for ((id, entry) in feedback) if (entry.feedback == Feedback.DISLIKE) ids += id
+    ids += feedback.keys
     for (entry in continueWatching) ids += entry.contentId
+    ids += dismissed
     return ids
 }
 
@@ -41,17 +51,18 @@ suspend fun fetchMovieFeatures(providers: List<CatalogProvider>, ref: MovieRef):
 }
 
 /**
- * The "Picked for you" row, ready to place on Home: null when there is nothing to show. "Not for me" titles are
- * dropped at once (before any recompute) so they disappear the moment they are marked.
+ * The "Picked for you" row, ready to place on Home: null when there is nothing to show. Titles rated Like or Not for me, and
+ * titles removed by hand, are dropped at once (before any recompute) so they disappear the moment they are marked.
  */
-fun pickedSection(result: EngineResult?, movies: List<Content>, feedback: Map<String, FeedbackEntry>): HomeSection? {
+fun pickedSection(result: EngineResult?, movies: List<Content>, feedback: Map<String, FeedbackEntry>, dismissed: Set<String> = emptySet()): HomeSection? {
     if (result == null || result.items.isEmpty()) return null
     val byId = movies.associateBy { it.id }
     val personal = result is EngineResult.Personal
     val items = result.items.mapNotNull { pick ->
         val movie = byId[pick.id] ?: return@mapNotNull null
-        if (feedback[movie.id]?.feedback == Feedback.DISLIKE) return@mapNotNull null
-        movie.copy(recommendReason = if (personal) pick.reason else null)
+        // A title you rate or remove disappears at once, before any recompute.
+        if (movie.id in feedback || movie.id in dismissed) return@mapNotNull null
+        movie.copy(recommendReason = if (personal) pick.reason else null, pickedForYou = true)
     }
     if (items.isEmpty()) return null
     return HomeSection(

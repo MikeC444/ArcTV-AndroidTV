@@ -87,10 +87,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val feedbackRepository = (application as MangoTvApplication).container.feedbackRepository
     private val featureCache = (application as MangoTvApplication).container.featureCacheRepository
     private val plusRepository = (application as MangoTvApplication).container.plusRepository
+    private val pickedStateRepository = (application as MangoTvApplication).container.pickedStateRepository
 
     // "Picked for you" (Plus preview, signed-in only): the latest engine result and the movies it was computed from.
     private var feedbackEntries: Map<String, FeedbackEntry> = feedbackRepository.entries.value
     private var pickedResult: EngineResult? = null
+    // Titles taken out of the row by hand (long-press > Remove from Picked for you): kept out of it, but not a taste signal.
+    private var dismissedIds: Set<String> = pickedStateRepository.dismissed.value
+    // Fixed for one launch and different on the next: a refresh rotates most of the row (Rotation.kt) while browsing stays stable.
+    private val pickedSeed: Int = kotlin.random.Random.nextInt()
     private var pickedMovies: List<Content> = emptyList()
     private val pickedInputs = MutableStateFlow<PickedInputs?>(null)
     private var lastPickedKey: String? = null
@@ -225,6 +230,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 applyPreferences(homeRowPreferences.preferences.value)
             }
         }
+        // Removing a title from the row by hand takes it out at once and, via the key, recomputes.
+        viewModelScope.launch {
+            pickedStateRepository.dismissed.collect { ids ->
+                dismissedIds = ids
+                applyPreferences(homeRowPreferences.preferences.value)
+            }
+        }
         viewModelScope.launch { runPickedPipeline() }
         // Plus switching on (or off) shows or hides the row.
         viewModelScope.launch {
@@ -348,7 +360,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // A title that already sits in a catalogue row is not repeated under Continue Watching.
         val continueWatching = continueWatchingSection?.let { withoutShownTitles(it, visibleSections) }
         updatePickedInputs()
-        val picked = if (pickedAvailable()) pickedSection(pickedResult, pickedMovies.withoutBlocked(blockedGenres), feedbackEntries) else null
+        val picked = if (pickedAvailable()) pickedSection(pickedResult, pickedMovies.withoutBlocked(blockedGenres), feedbackEntries, dismissedIds) else null
         val sections = listOfNotNull(continueWatching?.withWatchedFlags()) + listOfNotNull(picked?.withWatchedFlags()) + visibleSections
 
         // HERO_POOL_SIZE random titles drawn from every visible row (not
@@ -399,7 +411,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         if (movies.isEmpty()) return
         val list = myListRepository.items.value
         val interactions = collectInteractions(interactionInputs(list, feedbackEntries))
-        val excludeIds = excludedFromPicks(list, feedbackEntries, continueWatchingRepository.items.value)
+        val excludeIds = excludedFromPicks(list, feedbackEntries, continueWatchingRepository.items.value, dismissedIds)
         val key = movies.map { it.id }.sorted().joinToString(",") + "#" + signatureOf(interactions) + "#" + excludeIds.sorted().joinToString(",")
         if (key == lastPickedKey) return
         lastPickedKey = key
@@ -413,6 +425,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun runPickedPipeline() {
         pickedInputs.filterNotNull().debounce(PICKED_DEBOUNCE_MS).collectLatest { inputs ->
             val providers = ProviderRegistry.activeProviders()
+            val previousShown = pickedStateRepository.previousShown()
             val result = runCatching {
                 recommend(
                     EngineInput(
@@ -420,12 +433,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         excludeIds = inputs.excludeIds,
                         pool = inputs.movies.map { it.toCandidate() },
                         interactionRefs = inputs.refs,
-                        loadFeatures = { refs, limit -> featureCache.load(refs, limit, fetchOne = { ref -> fetchMovieFeatures(providers, ref) }) }
+                        loadFeatures = { refs, limit -> featureCache.load(refs, limit, fetchOne = { ref -> fetchMovieFeatures(providers, ref) }) },
+                        seed = pickedSeed,
+                        previousShown = previousShown
                     )
                 )
             }.getOrNull() ?: return@collectLatest
             pickedResult = result
             pickedMovies = inputs.movies
+            // Remembered for the next launch to move away from (only a personal row: the popular fallback isn't a recommendation).
+            if (result is EngineResult.Personal) pickedStateRepository.rememberShown(result.items.map { it.id })
             applyPreferences(homeRowPreferences.preferences.value)
         }
     }

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
@@ -56,6 +57,7 @@ import com.mangotv.app.data.feedback.FeedbackRepository
 import com.mangotv.app.data.feedback.FeedbackTarget
 import com.mangotv.app.data.plus.PlusRepository
 import com.mangotv.app.data.recommend.Feedback
+import com.mangotv.app.data.recommend.PickedStateRepository
 import com.mangotv.app.data.provider.MyListRepository
 import com.mangotv.app.data.sync.ContinueWatchingSyncRepository
 import com.mangotv.app.navigation.MangoRoutes
@@ -145,6 +147,8 @@ fun CardActionsMenuOverlay(
     feedbackRepository: FeedbackRepository,
     // Whether this account has ArcTV Plus (the backend decides): Like / Not for me are Plus features.
     plusRepository: PlusRepository,
+    // "Remove from Picked for you": keeps a title out of that row without being a Like / Not for me.
+    pickedStateRepository: PickedStateRepository,
     onNavigate: (String) -> Unit,
     resolvePlayRoute: (Content) -> String,
     modifier: Modifier = Modifier
@@ -267,6 +271,16 @@ fun CardActionsMenuOverlay(
                         label = if (feedback == Feedback.DISLIKE) "Remove \"Not for me\"" else "Not for me",
                         onClick = {
                             guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.DISLIKE) } }
+                            state.dismiss()
+                        }
+                    )
+                }
+                if (plusStatus.active && content.pickedForYou) {
+                    CardActionRow(
+                        icon = Icons.Filled.Close,
+                        label = "Remove from Picked for you",
+                        onClick = {
+                            coroutineScope.launch { pickedStateRepository.dismiss(content.id) }
                             state.dismiss()
                         }
                     )

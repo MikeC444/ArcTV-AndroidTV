@@ -5,7 +5,10 @@ import com.mangotv.app.data.recommend.RecommendConfig.INTERACTION_DETAIL_FETCH_L
 import com.mangotv.app.data.recommend.RecommendConfig.MAX_RESULTS
 import com.mangotv.app.data.recommend.RecommendConfig.MIN_INTERACTIONS_FOR_PERSONALISATION
 import com.mangotv.app.data.recommend.RecommendConfig.SHORTLIST_BY_SCORE
+import com.mangotv.app.data.recommend.RecommendConfig.SHORTLIST_GENRE_BUDGET
+import com.mangotv.app.data.recommend.RecommendConfig.SHORTLIST_GENRE_MIN
 import com.mangotv.app.data.recommend.RecommendConfig.SHORTLIST_SOURCE_MOVIES
+import kotlin.math.ceil
 
 /** A catalogue entry that could be recommended. [genres] come from the catalogue listing itself (no extra request). */
 data class Candidate(
@@ -28,7 +31,11 @@ class EngineInput(
     val pool: List<Candidate>,
     /** providerId for each of the profile's own movies, so their metadata can be looked up. */
     val interactionRefs: Map<String, MovieRef>,
-    val loadFeatures: FeatureLoader
+    val loadFeatures: FeatureLoader,
+    /** When set, a refresh swaps most of the row (see Rotation.kt): the strongest picks stay, the rest are drawn with this seed. Null = fully deterministic. */
+    val seed: Int? = null,
+    /** Ids shown by the previous launch; they are less likely to be drawn again. */
+    val previousShown: Set<String> = emptySet()
 )
 
 data class Picked(
@@ -72,8 +79,9 @@ private class ScoredCandidate(
     override val id: String,
     val candidate: Candidate,
     override val score: Double,
-    override val sources: List<Source>
-) : ScoredPick
+    override val sources: List<Source>,
+    override val genre: String?
+) : ScoredPick, ComposePick
 
 /**
  * Ranking in four plain steps:
@@ -81,7 +89,8 @@ private class ScoredCandidate(
  *  2. shortlist the eligible candidates from their catalogue genres alone: some by overall genre match, the rest round-robin
  *     over each of the profile's own movies (so every taste in the list is represented), within a bounded size;
  *  3. fetch the shortlist's directors and cast (cached, bounded concurrency) and score each with the full weighted cosine;
- *  4. sort by score (ties: rating, then id), then the separate diversity step keeps the top 20 while stopping any one of the
+ *  4. sort by score (ties: rating, then id), then the composition step (Rotation.kt: the strongest picks stay, the other places follow
+ *     the profile's genre split and, with a seed, are drawn so a refresh changes most of them), then the separate diversity step keeps the top 20 while stopping any one of the
  *     profile's movies from explaining more than MAX_PICKS_PER_SOURCE of them.
  *
  * Ported from the web app's `domain/recommend/engine.ts`.
@@ -114,6 +123,16 @@ suspend fun recommend(input: EngineInput): EngineResult {
         shortlist += candidate
     }
     preScored.take(SHORTLIST_BY_SCORE).forEach { take(it.candidate) }
+    // Every genre the profile likes gets candidates to score, in proportion to its share of the profile's taste, so a minority taste
+    // (say 25% of the profile) isn't left with nothing to be picked from just because the biggest taste scores higher on genre alone.
+    val shares = tasteShares(signalled, ownFeatures, prefs)
+    for ((genre, share) in shares.entries.sortedByDescending { it.value }) {
+        val quota = maxOf(SHORTLIST_GENRE_MIN, ceil(share * SHORTLIST_GENRE_BUDGET).toInt())
+        preScored
+            .filter { primaryGenre(normaliseGenres(it.candidate.genres), prefs) == genre }
+            .take(quota)
+            .forEach { take(it.candidate) }
+    }
     val owners = signalled.filter { it.weight > 0 }.take(SHORTLIST_SOURCE_MOVIES)
     val perOwner: List<List<Candidate>> = owners.map { owner ->
         val ownGenres = (ownFeatures[owner.id]?.genres ?: emptyList()).toSet()
@@ -165,12 +184,21 @@ suspend fun recommend(input: EngineInput): EngineResult {
         )
         val candidatePrefs = prefsFor(candidate.id)
         val result = scoreCandidate(features, candidatePrefs) ?: continue
-        scored += ScoredCandidate(candidate.id, candidate, result.score, if (result.score > 0) rankSources(features, candidatePrefs) else emptyList())
+        scored += ScoredCandidate(
+            candidate.id, candidate, result.score,
+            if (result.score > 0) rankSources(features, candidatePrefs) else emptyList(),
+            primaryGenre(features.genres, prefs)
+        )
     }
     if (scored.isEmpty()) return popularFallback(pool, input.excludeIds)
 
-    // Step 4.
+    // Step 4. The row is composed from the scored candidates: the strongest stay, the other places follow the profile's genre split,
+    // and (with a seed) are drawn so a refresh changes most of them. What is not in the row follows in score order, so the source cap
+    // can still pull in a next-best pick when it has to skip one. Without a seed the order is fully deterministic.
     val sorted = scored.sortedWith(compareByDescending<ScoredCandidate> { it.score }.thenComparator { a, b -> byRatingThenId.compare(a.candidate, b.candidate) })
-    val items = diversify(sorted, MAX_RESULTS).map { (pick, source) -> Picked(pick.id, pick.score, source?.let(::reasonFor)) }
+    val composed = compose(sorted, MAX_RESULTS, shares = shares, seed = input.seed, previous = input.previousShown)
+    val composedIds = composed.map { it.id }.toHashSet()
+    val ordered = composed + sorted.filter { it.id !in composedIds }
+    val items = diversify(ordered, MAX_RESULTS).map { (pick, source) -> Picked(pick.id, pick.score, source?.let(::reasonFor)) }
     return EngineResult.Personal(items)
 }

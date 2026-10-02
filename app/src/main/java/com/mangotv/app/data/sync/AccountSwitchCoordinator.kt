@@ -8,6 +8,7 @@ import com.mangotv.app.data.player.PlayerPreferencesRepository
 import com.mangotv.app.data.feedback.FeedbackRepository
 import com.mangotv.app.data.plus.PlusRepository
 import com.mangotv.app.data.profile.ProfileRepository
+import com.mangotv.app.data.recommend.PickedStateRepository
 import com.mangotv.app.data.provider.BlockedGenresRepository
 import com.mangotv.app.data.provider.HomeRowPreferencesRepository
 import com.mangotv.app.data.provider.MyListRepository
@@ -67,6 +68,7 @@ class AccountSwitchCoordinator(
     private val feedbackRepository: FeedbackRepository,
     private val plusRepository: PlusRepository,
     private val profileRepository: ProfileRepository,
+    private val pickedStateRepository: PickedStateRepository,
     private val settingsSyncRepository: SettingsSyncRepository,
     private val watchlistSyncRepository: WatchlistSyncRepository,
     private val continueWatchingSyncRepository: ContinueWatchingSyncRepository,
@@ -120,6 +122,7 @@ class AccountSwitchCoordinator(
             launch { plusRepository.clear() }
             // Back to the account's own profile (the next account starts there too), and the saved list of profiles goes.
             launch { profileRepository.clear() }
+            launch { pickedStateRepository.clear() }
             launch { feedbackRepository.clearPending() }
             launch { settingsSyncRepository.clearPending() }
             launch { watchlistSyncRepository.clearPending() }

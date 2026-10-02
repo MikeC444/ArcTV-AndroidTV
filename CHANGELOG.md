@@ -4127,3 +4127,16 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Tests performed:** none new (layout only); **not compiled or run locally** (no Android SDK here), CI (`build-apk.yml`) builds this branch. Not tried on a device.
 
+## Post-Milestone-56 — "Picked for you": the web app's three recent changes (liked titles, genre split + rotation, Remove from Picked for you)
+
+**Status:** Written; CI builds and tests it. Not run on a device here.
+
+**Context:** User request: port the three "Picked for you" changes that were only on the web app (MangotvWebb PRs #4, #7-#10; recorded in its `docs/FIRESTICK_PARITY.md`) to the Firestick, value for value (`docs/RECOMMENDATIONS.md` in the web repo has the design).
+
+**Changes (`app/`):**
+- Liked titles are not offered: `excludedFromPicks` now excludes every title with feedback (Like or Not for me), as well as finished, Continue Watching and hand-removed ones; `pickedSection` drops a title the moment it is rated or removed.
+- Genre split + rotation: new `Taste.kt` (`primaryGenre`, `tasteShares`) and `Rotation.kt` (`seededRandom`, a mulberry32 that gives the web app's numbers for the same seed, and `compose`: the 5 best picks stay, the other places are given out by Sainte-Lague in proportion to the profile's genre shares, each drawn with a seeded weighted draw from that genre's scored picks within 60% of its best, a pick shown last launch counting 0.15x). `recommend` shortlists a quota per taste genre (`SHORTLIST_GENRE_BUDGET` 36, at least 4), carries each pick's genre, composes before the diversity step, and takes `seed` / `previousShown` inputs; `CANDIDATE_DETAIL_FETCH_LIMIT` is 60 like the web. `HomeViewModel` uses one random seed per launch and passes the ids the last launch showed.
+- Remove from Picked for you: new `PickedStateRepository` (per account and profile, follows both by itself; holds the hand-removed titles and the ids the last launch showed; cleared on sign-out), `Content.pickedForYou`, and a long-press menu item on Picked for you cards. Removing is not feedback: no taste signal, no sync, no score change.
+
+**Tests performed:** `RotationTest` (new, ported from the web's `rotation.test.ts`: the genre split of a horror-heavy row, anchors kept, repeatability, most of the row swapped on the next launch, nothing at or below zero or far below its genre's best, running short, the PRNG against the web's own values for three seeds, taste shares, the engine on a mostly-horror profile, liked/removed titles excluded and dropped from the row). **Not run locally**: no Android SDK here. CI (`build-apk.yml`, `testDebugUnitTest` then `assembleDebug`) runs it on this branch. Not tried on a device.
+
