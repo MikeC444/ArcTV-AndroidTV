@@ -4063,3 +4063,9 @@ Plan cards are now equal height (`IntrinsicSize.Min` row, `fillMaxHeight` cards)
 ## Post-Milestone-50 refinement — Plus tab: no selectable footer, invisible top focus
 
 The footer note is plain text again (equal-height plan cards already stop Down jumping sideways, so it no longer needs to be a focus target). The plan summary at the top stays the first focus stop, which is what lets the remote scroll back up, but its focus border, scale and shadow are all off, so nothing is drawn when it is selected.
+
+## Post-Milestone-50 refinement — Faster Home hero on first boot
+
+**Cause:** on a cold start the hero was drawn at random from the cached rows, then drawn again from the live rows once the network answered, so its pictures (large backdrops and logos) were only requested after the live fetch and the slide changed under the viewer; all ~20 hero pictures were also requested at once, competing with the first slide and the poster rows.
+
+**Change:** the hero for the *next* launch is drawn once per session from the live catalogue, saved in `HomeCacheRepository` (as the cached `hero`), and its pictures are downloaded in the background (`prefetchHeroImages`, same RGB_565 request config as the hero). The next cold boot paints that hero from the cache, keeps it when live data arrives (filtered through Blocked Genres), and `MangoTvApplication.warmUp` loads its first three pictures into Coil's memory cache before Home is composed. `HeroSection` requests its first four pictures at once and the rest after 2.5 s. With no cache (first install) behaviour is as before. Titles still differ each launch.
