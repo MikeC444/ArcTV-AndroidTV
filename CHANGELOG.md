@@ -3553,3 +3553,39 @@ status too; none of those call sites read it, so nothing changes for them.
 
 **Issues fixed:** Uncached debrid sources looking identical to ready ones; every
 Select a Source failure reading as "No sources found".
+
+## Post-Milestone-36 — Boot Video Removed
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** User request, matching the web app, which dropped its boot video
+(MangotvWebb 71c7ce6). The cold-boot screen played `assets/newboot1.mp4` over the
+real nav graph and held the whole app, with every key swallowed, until both the
+video and Home's first batch of live rows had finished (bounded by a 10 second
+timeout), preloading six card images meanwhile.
+
+**Changes:**
+- Deleted `BootVideoScreen.kt` and `assets/newboot1.mp4`.
+- `MangoNavHost.kt` -- removed the overlay, the `isAppReady`/`dataReady` flag, the
+  key-swallowing modifier on the root `Box` and the comments that explained them.
+  `HomeViewModel` stays scoped to the Activity, as before, so Home still keeps its
+  rows across tab switches.
+- `HomeViewModel.kt` -- removed `liveDataReady`, which only the boot screen read.
+- Comments in `PlayerSurface.kt` and `SoundPreferencesRepository.kt` that mentioned
+  the boot video were updated.
+
+**Behaviour change to know about:** nothing now covers the very start. The app
+opens on the dark window background, the auth gate redirects to sign-in or Home as
+soon as its local check resolves, and Home shows its own loading skeleton while rows
+arrive, instead of staying hidden until the first batch was ready. The first six
+poster images are no longer preloaded, so they may pop in as they download. If the
+redirect shows a visible flash on a real device, a plain static cover (no video) is
+the fix to reach for.
+
+**Tests performed:** A search confirming nothing still references the deleted screen,
+the asset or `liveDataReady`, brace/paren balance on the two edited Kotlin files, and
+a manual re-read. **Not performed:** a Gradle build or a cold start on a device.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none beyond the removal.

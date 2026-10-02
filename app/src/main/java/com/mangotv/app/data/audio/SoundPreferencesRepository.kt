@@ -23,9 +23,7 @@ private val Context.soundPreferencesDataStore: DataStore<Preferences> by prefere
 
 @Serializable
 data class SoundPreferences(
-    // Applies to the nav/click/back sounds only (see UiSoundPlayer) -- boot
-    // audio was a separate, since-removed chime system with its own on/off
-    // control (a boot video, if any, now carries its own embedded audio).
+    // Applies to the nav/click/back sounds only (see UiSoundPlayer).
     val navigationVolume: Float = 0.5f
 )
 

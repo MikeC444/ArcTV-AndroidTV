@@ -47,19 +47,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    // Flips true the first time fetch() has REAL (network-fetched) content
-    // to show -- the first batch of rows from any provider, or a genuine
-    // empty/error settlement if there's nothing to show -- as opposed to a
-    // cache-only paint or one of fetch()'s early-return "still transient,
-    // keep waiting" paths. Deliberately fires on the FIRST batch rather
-    // than waiting for the entire fetch (every base+genre row across every
-    // provider) to finish: BootVideoScreen (see its own doc) waits for this
-    // so Home can reveal as soon as there's something real to show, with
-    // whatever's still in flight filling in live afterward, rather than
-    // hiding the whole multi-row fetch behind the loading screen.
-    private val _liveDataReady = MutableStateFlow(false)
-    val liveDataReady: StateFlow<Boolean> = _liveDataReady.asStateFlow()
-
     val savedIds: StateFlow<Set<String>> = myListRepository.items
         .map { items -> items.map { it.id }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
@@ -191,7 +178,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             lastFetchFailed = false
             hasFetchedOnce = true
             _uiState.value = HomeUiState.Empty
-            _liveDataReady.value = true
             return
         }
 
@@ -225,8 +211,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                             // whichever section ends up first there, not
                             // tracked separately here -- see its own doc.
                             applyPreferences(homeRowPreferences.preferences.value)
-                            _liveDataReady.value = true
-                        }
+                                        }
                     }.onFailure { anyProviderFailed = true }
                 }
             }
@@ -244,7 +229,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             hasFetchedOnce = true
             showingCacheOnly = false
             applyPreferences(homeRowPreferences.preferences.value)
-            _liveDataReady.value = true
         }
 
         if (sections.isNotEmpty()) {
