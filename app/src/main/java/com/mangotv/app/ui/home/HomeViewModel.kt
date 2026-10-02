@@ -44,6 +44,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val continueWatchingRepository = (application as MangoTvApplication).container.continueWatchingRepository
     private val homeCacheRepository = (application as MangoTvApplication).container.homeCacheRepository
     private val trailerRepository = (application as MangoTvApplication).container.trailerRepository
+    private val guestGate = (application as MangoTvApplication).container.guestGate
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -107,7 +108,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var showingCacheOnly = false
 
     fun toggleMyList(content: Content) {
-        viewModelScope.launch { myListRepository.toggle(content) }
+        // Saving a title needs an account: a guest is asked to sign in instead.
+        guestGate.requireAccount { viewModelScope.launch { myListRepository.toggle(content) } }
     }
 
     init {

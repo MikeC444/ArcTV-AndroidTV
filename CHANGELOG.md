@@ -3782,3 +3782,66 @@ can sit just under "Recommended" ahead of smaller ready ones; the Quality sort r
 sources first. The web behaves the same.
 
 **Issues fixed:** none beyond the above.
+
+## Post-Milestone-41 — Browse Without An Account
+
+**Status:** Complete, not compiled (see Tests performed). The largest port in this run;
+on-device testing of the sign-in round trip matters most here.
+
+**Context:** User request, ported from the web app (MangotvWebb 637d1a0 "Let visitors
+browse without an account; ask for one only on Play"). The Firestick opened on a Log In /
+Sign Up screen on every launch without a session, so nothing could be seen before signing
+in.
+
+**Changes:**
+- `AuthGateViewModel.kt` / `AuthGateScreen.kt` -- every launch goes to Home
+  (`GateDestination.AuthStart` is gone). With a usable session nothing else changes (the
+  token refresh and full sync still run). Without one, the person is a guest, and the
+  bundled Cinemeta is put back first if no addon is installed.
+- `GuestGate.kt` (new) -- `isGuest` (a stored session that has been read and is missing or
+  can no longer be renewed; `SessionManager.loaded` was added so a null session can be told
+  from "not read yet", and until it is read nobody counts as a guest, so a signed-in person
+  is never bounced to sign-in during start-up) and `requireAccount { }`, which runs an action
+  for a signed-in person and otherwise raises a sign-in request. Wired in `AppContainer`.
+- `MangoNavHost.kt` -- `navigateTo()` sends a guest to the sign-in screens for Play (the
+  source picker and the player), My List, Settings and the Sign In tab itself
+  (`routeNeedsAccount()` in `MangoRoutes.kt`); the sign-in screens are pushed on top, and
+  `finishSignIn()` pops back to where the guest was and carries on to what they asked for
+  (going straight to it rather than through the guest check, which could still see the old
+  state for a moment). Reached any other way (after signing out) the sign-in screens still
+  start fresh at Home. Sign-in requests from saving a title are handled the same way.
+- Saving needs an account: `requireAccount` wraps My List and Watched in `HomeViewModel`
+  (hero +), `DetailViewModel` (title page buttons) and `CardActionsMenu` (long-press menu).
+- `TopNavBar.kt` -- a guest sees "Sign In" where Settings would be (`navItemsForGuest`, same
+  position), and it routes to the sign-in screens.
+- `AuthStartScreen.kt` -- a "Browse without an account" button, shown only when the screen is
+  the first thing on the stack (right after signing out); inside the app BACK does the job.
+- `AddonRepository.ensureDefaultAddon()` -- restores the bundled Cinemeta when nothing is
+  installed (signing out wipes the device's addons and the first-launch default only installs
+  once). Signing in later replaces the list with the account's own, as it always has.
+- Tests: `GuestGateTest`, `GuestRoutesTest`.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**What a guest gets:** everything that doesn't need the server: Home, Movies, TV Shows,
+Genres, Search and title pages with the default addon. The trailer, release-date and cast
+lookups need an account, so they quietly come back empty (dimmed Trailer button, plain
+names) until signing in.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android SDK):
+unit tests for the guest rule and the route and nav-label rules run on GitHub Actions;
+brace/paren balance on touched files; a manual re-read, including the ordering of the local
+functions in `MangoNavHost` (Kotlin needs them declared before use). **Not performed:** an
+on-device run of any of this. Check on a Fire TV: (1) a launch with no account opens Home with
+Movies / TV Shows / Search working and the last tab reading "Sign In"; (2) pressing Play on a
+title, opening My List, pressing the + on a title, or Sign In shows the sign-in screens; BACK
+returns; (3) signing in by QR code or password lands back on that title and carries on to the
+sources list; (4) signing out offers "Browse without an account" and that works; (5) a signed-in
+launch is unchanged and never shows "Sign In".
+
+**Issues discovered:** After signing in, the guest's browsing screens are rebuilt from the
+account's own addon list, which may differ from the default Cinemeta; that is the existing
+sync behaviour, not something this adds. Process death while on the sign-in screens forgets
+where the guest was heading (the return target is held in memory only), so sign-in then starts
+fresh at Home.
+
+**Issues fixed:** none beyond the new behaviour.

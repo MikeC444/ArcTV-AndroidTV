@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -71,7 +72,10 @@ import com.mangotv.app.ui.theme.TextTertiary
 @Composable
 fun AuthStartScreen(
     onSignIn: () -> Unit,
-    onCreateAccount: () -> Unit
+    onCreateAccount: () -> Unit,
+    // Shown only when there is nowhere to go back to (e.g. right after signing out): carries on to Home as a guest.
+    // Null hides the button, since someone sent here from inside the app can just press BACK.
+    onBrowseAsGuest: (() -> Unit)? = null
 ) {
     val logInFocusRequester = remember { FocusRequester() }
     val signUpFocusRequester = remember { FocusRequester() }
@@ -155,6 +159,18 @@ fun AuthStartScreen(
                 focusRequester = signUpFocusRequester,
                 focusUp = logInFocusRequester
             )
+            if (onBrowseAsGuest != null) {
+                Spacer(Modifier.height(16.dp))
+                MangoButton(
+                    text = "Browse without an account",
+                    icon = Icons.Filled.Search,
+                    trailingIcon = Icons.Filled.ChevronRight,
+                    onClick = onBrowseAsGuest,
+                    style = MangoButtonStyle.GLASS,
+                    modifier = Modifier.fillMaxWidth(),
+                    focusUp = signUpFocusRequester
+                )
+            }
             Spacer(Modifier.height(28.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(

@@ -6,8 +6,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -50,6 +54,7 @@ import com.mangotv.app.ui.components.LocalCardActionsMenu
 import com.mangotv.app.ui.update.UpdatePromptHost
 import com.mangotv.app.ui.update.UpdateViewModel
 import java.net.URLDecoder
+import kotlinx.coroutines.launch
 
 // Static, argument-less top-level destinations reached from the top nav bar.
 // Navigating to one of these reuses/restores its existing back-stack entry
@@ -61,6 +66,9 @@ private val TAB_ROOT_ROUTES = setOf(
     MangoRoutes.HOME, MangoRoutes.MOVIES, MangoRoutes.TV_SHOWS,
     MangoRoutes.GENRES, MangoRoutes.SEARCH, MangoRoutes.MY_LIST, MangoRoutes.SETTINGS
 )
+
+/** A guest sent to sign in: the route they were heading for once signed in, or null to just return to where they were. */
+private data class SignInReturn(val target: String?)
 
 @Composable
 fun MangoNavHost() {
@@ -83,6 +91,10 @@ fun MangoNavHost() {
     // long-press quick-actions menu with zero prop-threading -- see
     // CardActionsMenu.kt's own doc.
     val cardActionsMenuState = remember { CardActionsMenuState() }
+
+    // Where a guest was heading when they were sent to sign in (null target: just back to where they were). Null
+    // when the sign-in screens were reached any other way, e.g. after signing out.
+    var signInReturn by remember { mutableStateOf<SignInReturn?>(null) }
 
     // Provided here, above the nav graph, so every TvFocusSurface anywhere in the app (cards, buttons, nav
     // items) can play the nav/click sounds without each screen having to
@@ -118,7 +130,16 @@ fun MangoNavHost() {
         val currentBackStackEntry by navController.currentBackStackEntryAsState()
         val isPlayerActive = currentBackStackEntry?.destination?.route == MangoRoutes.PLAYER_PATTERN
 
-        fun navigateTo(route: String) {
+        // A guest (someone browsing without an account) is asked to sign in for Play, My List, Settings and saving a
+        // title. The sign-in screens are pushed on top of where they were, so once signed in they pop straight back to
+        // it, and carry on to what they were heading for (see finishSignIn).
+        fun askToSignIn(target: String?) {
+            if (navController.currentDestination?.route?.startsWith("auth/") == true) return
+            signInReturn = SignInReturn(target)
+            navController.navigate(MangoRoutes.AUTH_START)
+        }
+
+        fun openRoute(route: String) {
             if (route in TAB_ROOT_ROUTES) {
                 // Re-tapping the tab you're already on: with the popUpTo +
                 // saveState + restoreState combo below (the standard bottom-
@@ -145,6 +166,14 @@ fun MangoNavHost() {
             }
         }
 
+        fun navigateTo(route: String) {
+            if (container.guestGate.isGuest.value && (routeNeedsAccount(route) || route == MangoRoutes.AUTH_START)) {
+                askToSignIn(target = route.takeIf { it != MangoRoutes.AUTH_START })
+                return
+            }
+            openRoute(route)
+        }
+
         // A signed-out user is never left with anything to navigate back
         // into: both transitions below (auth gate -> a destination, and
         // sign-out -> AuthStart) clear the *entire* back stack via
@@ -154,6 +183,24 @@ fun MangoNavHost() {
             navController.navigate(route) {
                 popUpTo(navController.graph.id) { inclusive = true }
             }
+        }
+
+        // Signed in: if the sign-in screens were opened from inside the app (a guest pressing Play, say), pop back to
+        // where they were and carry on to what they asked for; otherwise start fresh at Home. Goes straight to the
+        // target rather than through navigateTo's guest check, which could still see the old state for a moment.
+        fun finishSignIn() {
+            val pending = signInReturn
+            signInReturn = null
+            if (pending != null && navController.popBackStack(MangoRoutes.AUTH_START, inclusive = true)) {
+                pending.target?.let { openRoute(it) }
+            } else {
+                navigateClearingBackStack(MangoRoutes.HOME)
+            }
+        }
+
+        // Saving a title (My List, Watched) from a card menu, the hero or a title page asks a guest to sign in.
+        LaunchedEffect(Unit) {
+            container.guestGate.signInRequests.collect { askToSignIn(target = null) }
         }
 
         // Same "skip the picker if a source is already remembered for this
@@ -219,16 +266,30 @@ fun MangoNavHost() {
                         onNavigate = { destination ->
                             val target = when (destination) {
                                 GateDestination.Home -> MangoRoutes.HOME
-                                GateDestination.AuthStart -> MangoRoutes.AUTH_START
                             }
                             navigateClearingBackStack(target)
                         }
                     )
                 }
                 composable(MangoRoutes.AUTH_START) {
+                    val scope = rememberCoroutineScope()
+                    // Only when this is the first screen (after signing out): a guest sent here from inside the app
+                    // can press BACK instead.
+                    val browseAsGuest: (() -> Unit)? = if (signInReturn == null) {
+                        {
+                            scope.launch {
+                                container.addonRepository.ensureDefaultAddon()
+                                navigateClearingBackStack(MangoRoutes.HOME)
+                            }
+                            Unit
+                        }
+                    } else {
+                        null
+                    }
                     AuthStartScreen(
                         onSignIn = { navController.navigate(MangoRoutes.authMethod("login")) },
-                        onCreateAccount = { navController.navigate(MangoRoutes.authMethod("register")) }
+                        onCreateAccount = { navController.navigate(MangoRoutes.authMethod("register")) },
+                        onBrowseAsGuest = browseAsGuest
                     )
                 }
                 composable(MangoRoutes.AUTH_METHOD_PATTERN) { backStackEntry ->
@@ -241,12 +302,12 @@ fun MangoNavHost() {
                 }
                 composable(MangoRoutes.AUTH_QR_PATTERN) {
                     QrSignInScreen(
-                        onAuthenticated = { navigateClearingBackStack(MangoRoutes.HOME) }
+                        onAuthenticated = { finishSignIn() }
                     )
                 }
                 composable(MangoRoutes.AUTH_PASSWORD_PATTERN) {
                     PasswordSignInScreen(
-                        onAuthenticated = { navigateClearingBackStack(MangoRoutes.HOME) }
+                        onAuthenticated = { finishSignIn() }
                     )
                 }
                 composable(MangoRoutes.HOME) {
@@ -376,6 +437,7 @@ fun MangoNavHost() {
             state = cardActionsMenuState,
             myListRepository = container.myListRepository,
             continueWatchingSyncRepository = container.continueWatchingSyncRepository,
+            guestGate = container.guestGate,
             onNavigate = ::navigateTo,
             resolvePlayRoute = ::resolvePlayRoute
         )

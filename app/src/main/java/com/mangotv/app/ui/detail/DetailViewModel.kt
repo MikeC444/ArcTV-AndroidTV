@@ -59,6 +59,7 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
     private val trailerRepository = (application as MangoTvApplication).container.trailerRepository
     private val releaseDateRepository = (application as MangoTvApplication).container.releaseDateRepository
     private val castRepository = (application as MangoTvApplication).container.castRepository
+    private val guestGate = (application as MangoTvApplication).container.guestGate
 
     private val providerId: String =
         URLDecoder.decode(savedStateHandle.get<String>("providerId").orEmpty(), "UTF-8")
@@ -141,7 +142,8 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
 
     fun toggleMyList() {
         val content = (uiState.value as? DetailUiState.Success)?.content ?: return
-        viewModelScope.launch { myListRepository.toggle(content) }
+        // Saving a title needs an account: a guest is asked to sign in instead.
+        guestGate.requireAccount { viewModelScope.launch { myListRepository.toggle(content) } }
     }
 
     /**
@@ -164,7 +166,7 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
      */
     fun toggleWatched() {
         val content = (uiState.value as? DetailUiState.Success)?.content ?: return
-        myListRepository.toggleWatched(content)
+        guestGate.requireAccount { myListRepository.toggleWatched(content) }
     }
 
     init {

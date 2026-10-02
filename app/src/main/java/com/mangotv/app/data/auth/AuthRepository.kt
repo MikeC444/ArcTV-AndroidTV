@@ -50,6 +50,9 @@ class AuthRepository(context: Context) {
 
     val session: StateFlow<Session?> = sessionManager.session
 
+    /** True once the stored session has been read, so a null [session] really means signed out. */
+    val sessionLoaded: StateFlow<Boolean> = sessionManager.loaded
+
     suspend fun getCurrentSession(): Session? = sessionManager.current()
 
     suspend fun createQrSession(): Result<QrSessionInfo> = runCatching {

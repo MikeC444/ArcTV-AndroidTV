@@ -14,6 +14,7 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- You can now look around without an account: the app opens straight to Home, and you can browse Movies, TV Shows, Genres, Search and any title's page. The first time you press Play, open My List or Settings, or try to save a title or mark it watched, it asks you to sign in, and takes you back to what you were doing afterwards. The Settings tab reads "Sign In" until you're signed in, and signing out now offers "Browse without an account"
 - On a movie or show's page the Trailer button is always there from the start, dimmed until a trailer is found, instead of appearing late and shifting the other buttons
 - Select a Source: the poster is bigger, and the list now starts sorted by file size (biggest first), with the Recommended source still always at the top
 - The big featured title at the top of Home has a Trailer button next to Play (dimmed until a trailer is found). Its pictures are also sharper on a big TV, and the next ones are fetched ahead of time so each slide appears straight away instead of loading in

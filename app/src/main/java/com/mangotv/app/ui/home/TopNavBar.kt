@@ -23,6 +23,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import com.mangotv.app.MangoTvApplication
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +49,9 @@ import com.mangotv.app.ui.theme.TextSecondary
 
 val MangoNavItems = listOf("Home", "Movies", "TV Shows", "Genres", "Search", "My List", "Settings")
 
+/** The nav items for someone without an account: the same tabs in the same places, with Settings replaced by Sign In. */
+fun navItemsForGuest(items: List<String>): List<String> = items.map { if (it == "Settings") "Sign In" else it }
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TopNavBar(
@@ -66,6 +72,12 @@ fun TopNavBar(
     // screens, where the declarative path is already safe).
     onNavigateDown: (() -> Unit)? = null
 ) {
+    // Someone browsing without an account sees "Sign In" where Settings would be (Settings needs an account).
+    val context = LocalContext.current
+    val guestGate = remember { (context.applicationContext as MangoTvApplication).container.guestGate }
+    val isGuest by guestGate.isGuest.collectAsStateWithLifecycle()
+    val navItems = if (isGuest) navItemsForGuest(MangoNavItems) else MangoNavItems
+
     val scrimAlpha by animateFloatAsState(
         // Was 0.45f, then 0.6f -- against a bright/busy hero image behind
         // it (the common case: transparentBackground is true right when
@@ -169,7 +181,7 @@ fun TopNavBar(
                 // need to anymore.
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                itemsIndexed(MangoNavItems) { index, label ->
+                itemsIndexed(navItems) { index, label ->
                     NavItem(
                         label = label,
                         selected = index == selectedIndex,

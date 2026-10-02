@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.mangotv.app.data.model.Content
+import com.mangotv.app.data.auth.GuestGate
 import com.mangotv.app.data.provider.MyListRepository
 import com.mangotv.app.data.sync.ContinueWatchingSyncRepository
 import com.mangotv.app.navigation.MangoRoutes
@@ -129,6 +130,8 @@ fun CardActionsMenuOverlay(
     state: CardActionsMenuState,
     myListRepository: MyListRepository,
     continueWatchingSyncRepository: ContinueWatchingSyncRepository,
+    // Saving a title (My List, Watched) needs an account: for someone browsing without one these ask them to sign in.
+    guestGate: GuestGate,
     onNavigate: (String) -> Unit,
     resolvePlayRoute: (Content) -> String,
     modifier: Modifier = Modifier
@@ -216,7 +219,7 @@ fun CardActionsMenuOverlay(
                     icon = if (isInMyList) Icons.Filled.Check else Icons.Filled.Add,
                     label = if (isInMyList) "Remove from My List" else "Add to My List",
                     onClick = {
-                        coroutineScope.launch { myListRepository.toggle(content) }
+                        guestGate.requireAccount { coroutineScope.launch { myListRepository.toggle(content) } }
                         state.dismiss()
                     }
                 )
@@ -229,7 +232,7 @@ fun CardActionsMenuOverlay(
                         // long-lived scope, unlike toggle() above. Unlike
                         // the player's own one-way markWatched(), this
                         // flips watched in either direction on each tap.
-                        myListRepository.toggleWatched(content)
+                        guestGate.requireAccount { myListRepository.toggleWatched(content) }
                         state.dismiss()
                     }
                 )

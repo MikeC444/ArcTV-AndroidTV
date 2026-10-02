@@ -5,6 +5,7 @@ import com.mangotv.app.data.addon.AddonRepository
 import com.mangotv.app.data.audio.SoundPreferencesRepository
 import com.mangotv.app.data.audio.UiSoundPlayer
 import com.mangotv.app.data.auth.AuthRepository
+import com.mangotv.app.data.auth.GuestGate
 import com.mangotv.app.data.history.ContinueWatchingRepository
 import com.mangotv.app.data.player.LastSourceRepository
 import com.mangotv.app.data.player.PlayerPreferencesRepository
@@ -147,6 +148,7 @@ import com.mangotv.app.data.update.UpdateRepository
 class AppContainer(context: Context) {
     val addonRepository: AddonRepository = AddonRepository(context)
     val authRepository: AuthRepository = AuthRepository(context)
+    val guestGate: GuestGate = GuestGate(authRepository)
     val addonSyncRepository: AddonSyncRepository = AddonSyncRepository(context, addonRepository, authRepository)
     val playerPreferencesRepository: PlayerPreferencesRepository = PlayerPreferencesRepository(context)
     val homeRowPreferencesRepository: HomeRowPreferencesRepository = HomeRowPreferencesRepository(context)
