@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Which profile this device is using right now (ArcTV Plus profiles, see docs in the web repo: MangotvWebb/docs/PROFILES.md).
+ * Which profile this device is using right now (ArcTV Plus profiles, see docs in the web repo: ArcTV-Web/docs/PROFILES.md).
  *
  * A process-wide holder rather than a constructor argument, because the one shared account HTTP client has to read it on every
  * request (see [AccountApiHttpClient]) and every library repository's cache belongs to whichever profile is active here: a profile
