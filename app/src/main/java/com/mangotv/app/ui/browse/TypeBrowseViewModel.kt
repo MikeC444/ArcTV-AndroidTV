@@ -7,6 +7,9 @@ import com.mangotv.app.MangoTvApplication
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.provider.CatalogProvider
+import com.mangotv.app.data.provider.blockedGenreSet
+import com.mangotv.app.data.provider.withoutBlocked
+import com.mangotv.app.data.provider.withoutBlockedNames
 import com.mangotv.app.data.provider.ProviderRegistry
 import com.mangotv.app.data.model.HomeSection
 import kotlinx.coroutines.async
@@ -14,7 +17,10 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
@@ -35,12 +41,19 @@ import kotlinx.coroutines.launch
 open class TypeBrowseViewModel(application: Application, private val type: ContentType) : AndroidViewModel(application) {
 
     private val myListRepository = (application as MangoTvApplication).container.myListRepository
+    private val blockedGenresRepository = (application as MangoTvApplication).container.blockedGenresRepository
+
+    // Lower-cased blocked genres; titles in them are left out of the grid.
+    private var blocked: Set<String> = blockedGenreSet(blockedGenresRepository.genres.value)
 
     private val _uiState = MutableStateFlow<RowsBrowseUiState>(RowsBrowseUiState.Loading)
     val uiState: StateFlow<RowsBrowseUiState> = _uiState.asStateFlow()
 
     /** The genres the drop-down offers (empty hides it), and the one chosen (null is "All genres"). */
-    val genreOptions: List<String> = bundledGenreOptions(application.assets, type)
+    private val bundledGenres: List<String> = bundledGenreOptions(application.assets, type)
+    val genreOptions: StateFlow<List<String>> = blockedGenresRepository.genres
+        .map { genres -> bundledGenres.withoutBlockedNames(blockedGenreSet(genres)) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, bundledGenres.withoutBlockedNames(blocked))
 
     private val _selectedGenre = MutableStateFlow<String?>(null)
     val selectedGenre: StateFlow<String?> = _selectedGenre.asStateFlow()
@@ -61,6 +74,15 @@ open class TypeBrowseViewModel(application: Application, private val type: Conte
         viewModelScope.launch {
             ProviderRegistry.providers.collect { providers -> load(providers) }
         }
+        // Blocking or unblocking a genre re-filters the already-loaded grid, no re-fetch.
+        viewModelScope.launch {
+            blockedGenresRepository.genres.collect { genres ->
+                blocked = blockedGenreSet(genres)
+                if (_uiState.value is RowsBrowseUiState.Loaded && allItems.isNotEmpty()) {
+                    _uiState.value = RowsBrowseUiState.Loaded(listOf(currentSection()))
+                }
+            }
+        }
         // Re-publishes the already-loaded list whenever watched status
         // changes, so a title crossing the completion threshold (or being
         // removed from My List) ticks/unticks immediately even while this
@@ -78,7 +100,7 @@ open class TypeBrowseViewModel(application: Application, private val type: Conte
     private fun Content.withWatchedFlag(): Content = if (id in watchedIds) copy(watched = true) else this
 
     private fun currentSection(): HomeSection =
-        HomeSection(id = "flat_$type", title = "", items = allItems.map { it.withWatchedFlag() })
+        HomeSection(id = "flat_$type", title = "", items = allItems.withoutBlocked(blocked).map { it.withWatchedFlag() })
 
     fun load() {
         viewModelScope.launch { load(ProviderRegistry.activeProviders()) }

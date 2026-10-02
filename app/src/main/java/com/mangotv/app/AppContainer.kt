@@ -9,6 +9,7 @@ import com.mangotv.app.data.auth.GuestGate
 import com.mangotv.app.data.history.ContinueWatchingRepository
 import com.mangotv.app.data.player.LastSourceRepository
 import com.mangotv.app.data.player.PlayerPreferencesRepository
+import com.mangotv.app.data.provider.BlockedGenresRepository
 import com.mangotv.app.data.provider.HomeCacheRepository
 import com.mangotv.app.data.provider.HomeRowPreferencesRepository
 import com.mangotv.app.data.provider.MyListRepository
@@ -152,8 +153,9 @@ class AppContainer(context: Context) {
     val addonSyncRepository: AddonSyncRepository = AddonSyncRepository(context, addonRepository, authRepository)
     val playerPreferencesRepository: PlayerPreferencesRepository = PlayerPreferencesRepository(context)
     val homeRowPreferencesRepository: HomeRowPreferencesRepository = HomeRowPreferencesRepository(context)
+    val blockedGenresRepository: BlockedGenresRepository = BlockedGenresRepository(context)
     val settingsSyncRepository: SettingsSyncRepository = SettingsSyncRepository(
-        context, homeRowPreferencesRepository, playerPreferencesRepository, authRepository
+        context, homeRowPreferencesRepository, playerPreferencesRepository, blockedGenresRepository, authRepository
     )
     val myListRepository: MyListRepository = MyListRepository(context)
     val homeCacheRepository: HomeCacheRepository by lazy { HomeCacheRepository(context) }
@@ -178,6 +180,7 @@ class AppContainer(context: Context) {
             continueWatchingRepository = continueWatchingRepository,
             homeRowPreferencesRepository = homeRowPreferencesRepository,
             playerPreferencesRepository = playerPreferencesRepository,
+            blockedGenresRepository = blockedGenresRepository,
             settingsSyncRepository = settingsSyncRepository,
             watchlistSyncRepository = watchlistSyncRepository,
             continueWatchingSyncRepository = continueWatchingSyncRepository,
@@ -196,6 +199,7 @@ class AppContainer(context: Context) {
             addonRepository = addonRepository,
             homeRowPreferencesRepository = homeRowPreferencesRepository,
             playerPreferencesRepository = playerPreferencesRepository,
+            blockedGenresRepository = blockedGenresRepository,
             settingsSyncRepository = settingsSyncRepository,
             watchlistSyncRepository = watchlistSyncRepository,
             continueWatchingSyncRepository = continueWatchingSyncRepository,

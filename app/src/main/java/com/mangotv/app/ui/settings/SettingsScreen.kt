@@ -15,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.MusicNote
@@ -42,7 +43,7 @@ import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
 
 /**
- * The 5 existing Settings destinations, now presented as a two-pane
+ * The Settings destinations, now presented as a two-pane
  * master/detail layout (sidebar left, selected category's content filling
  * the remaining 75% on the right) instead of each being its own full-screen
  * navigation destination. icon/title/subtitle are exactly what each
@@ -54,6 +55,7 @@ private enum class SettingsCategory(val icon: ImageVector, val title: String, va
     ACCOUNT(Icons.Filled.AccountCircle, "Account", "Manage your Arc TV account"),
     ADDONS(Icons.Filled.Extension, "Addons", "Manage installed content providers"),
     HOME_ROWS(Icons.Filled.GridView, "Home Rows", "Choose which rows show up on Home"),
+    BLOCKED_GENRES(Icons.Filled.Block, "Blocked Genres", "Hide genres you don't want to see"),
     SOUNDS(Icons.Filled.MusicNote, "Sounds", "Choose your app boot sound"),
     SUBTITLES(Icons.Filled.Subtitles, "Subtitles", "Default on/off and preferred language"),
     // Not public yet: shown only while PLUS_TAB_VISIBLE is true (see PlusPlans.kt).
@@ -70,6 +72,7 @@ fun SettingsScreen(
     val accountRowFocusRequester = remember { FocusRequester() }
     val addonsRowFocusRequester = remember { FocusRequester() }
     val homeRowsRowFocusRequester = remember { FocusRequester() }
+    val blockedGenresRowFocusRequester = remember { FocusRequester() }
     val soundsRowFocusRequester = remember { FocusRequester() }
     val subtitlesRowFocusRequester = remember { FocusRequester() }
     val plusRowFocusRequester = remember { FocusRequester() }
@@ -87,6 +90,7 @@ fun SettingsScreen(
         SettingsCategory.ACCOUNT -> accountRowFocusRequester
         SettingsCategory.ADDONS -> addonsRowFocusRequester
         SettingsCategory.HOME_ROWS -> homeRowsRowFocusRequester
+        SettingsCategory.BLOCKED_GENRES -> blockedGenresRowFocusRequester
         SettingsCategory.SOUNDS -> soundsRowFocusRequester
         SettingsCategory.SUBTITLES -> subtitlesRowFocusRequester
         SettingsCategory.PLUS -> plusRowFocusRequester
@@ -236,6 +240,11 @@ private fun SettingsDetailPane(
                 sidebarFocusRequester = sidebarFocusRequester
             )
             SettingsCategory.HOME_ROWS -> HomeRowsSettingsContent(
+                navFocusRequester = navFocusRequester,
+                contentFocusRequester = contentFocusRequester,
+                sidebarFocusRequester = sidebarFocusRequester
+            )
+            SettingsCategory.BLOCKED_GENRES -> BlockedGenresSettingsContent(
                 navFocusRequester = navFocusRequester,
                 contentFocusRequester = contentFocusRequester,
                 sidebarFocusRequester = sidebarFocusRequester

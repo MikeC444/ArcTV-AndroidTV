@@ -9,6 +9,8 @@ import com.mangotv.app.data.history.ContinueWatchingEntry
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.provider.CatalogProvider
+import com.mangotv.app.data.provider.blockedGenreSet
+import com.mangotv.app.data.provider.withoutBlocked
 import com.mangotv.app.data.provider.ProviderRegistry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -60,6 +62,7 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
     private val releaseDateRepository = (application as MangoTvApplication).container.releaseDateRepository
     private val castRepository = (application as MangoTvApplication).container.castRepository
     private val guestGate = (application as MangoTvApplication).container.guestGate
+    private val blockedGenresRepository = (application as MangoTvApplication).container.blockedGenresRepository
 
     private val providerId: String =
         URLDecoder.decode(savedStateHandle.get<String>("providerId").orEmpty(), "UTF-8")
@@ -289,6 +292,7 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
             .flatMap { it.items }
             .distinctBy { it.id }
             .filterNot { it.id == detail.id }
+            .withoutBlocked(blockedGenreSet(blockedGenresRepository.genres.value))
 
         val detailGenreIds = detail.genres.map { it.id }.toSet()
         val genreMatches = if (detailGenreIds.isEmpty()) {

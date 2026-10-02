@@ -10,6 +10,8 @@ import com.mangotv.app.data.model.HomeSection
 import com.mangotv.app.data.model.RowStyle
 import com.mangotv.app.data.model.WatchProgress
 import com.mangotv.app.data.provider.CatalogProvider
+import com.mangotv.app.data.provider.blockedGenreSet
+import com.mangotv.app.data.provider.withoutBlocked
 import com.mangotv.app.data.provider.HomeRowPreferences
 import com.mangotv.app.data.provider.ProviderRegistry
 import kotlinx.coroutines.coroutineScope
@@ -45,6 +47,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val homeCacheRepository = (application as MangoTvApplication).container.homeCacheRepository
     private val trailerRepository = (application as MangoTvApplication).container.trailerRepository
     private val guestGate = (application as MangoTvApplication).container.guestGate
+    private val blockedGenresRepository = (application as MangoTvApplication).container.blockedGenresRepository
+
+    // Genres the person has blocked, lower-cased -- read synchronously from applyPreferences, kept current by the collector in init.
+    private var blockedGenres: Set<String> = blockedGenreSet(blockedGenresRepository.genres.value)
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -158,6 +164,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 applyPreferences(homeRowPreferences.preferences.value)
             }
         }
+        // Blocking or unblocking a genre re-applies the already-fetched rows, no network re-fetch.
+        viewModelScope.launch {
+            blockedGenresRepository.genres.collect { genres ->
+                blockedGenres = blockedGenreSet(genres)
+                applyPreferences(homeRowPreferences.preferences.value)
+            }
+        }
         // Drives the watched tick on every row's ContentCard (not just My
         // List's own screen) -- re-applies whenever a title crosses the
         // completion threshold (or a watched title is removed from My List)
@@ -249,7 +262,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         // Each title shows in only one row (the first one displayed that holds it). Done after hidden rows are
         // removed so a hidden row never uses up a title, and before the hero pool is drawn so the hero follows suit.
         val visibleSections = dedupeSections(
-            rowPreferences.applyOrder(rawSections).filterNot { it.id in rowPreferences.hiddenRowIds }
+            rowPreferences.applyOrder(rawSections.withoutBlocked(blockedGenres)).filterNot { it.id in rowPreferences.hiddenRowIds }
         ).map { it.withWatchedFlags() }
         // A title that already sits in a catalogue row is not repeated under Continue Watching.
         val continueWatching = continueWatchingSection?.let { withoutShownTitles(it, visibleSections) }

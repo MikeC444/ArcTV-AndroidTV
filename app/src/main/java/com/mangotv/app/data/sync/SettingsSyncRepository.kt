@@ -8,6 +8,7 @@ import com.mangotv.app.data.network.ApiException
 import com.mangotv.app.data.network.SettingsApiClient
 import com.mangotv.app.data.network.SettingsRequest
 import com.mangotv.app.data.player.PlayerPreferencesRepository
+import com.mangotv.app.data.provider.BlockedGenresRepository
 import com.mangotv.app.data.provider.HomeRowPreferences
 import com.mangotv.app.data.provider.HomeRowPreferencesRepository
 import com.mangotv.app.util.Iso8601
@@ -42,6 +43,7 @@ class SettingsSyncRepository(
     context: Context,
     private val homeRowPreferencesRepository: HomeRowPreferencesRepository,
     private val playerPreferencesRepository: PlayerPreferencesRepository,
+    private val blockedGenresRepository: BlockedGenresRepository,
     private val authRepository: AuthRepository
 ) {
     private val apiClient = SettingsApiClient(BuildConfig.API_BASE_URL)
@@ -51,6 +53,7 @@ class SettingsSyncRepository(
     init {
         homeRowPreferencesRepository.onLocalChange = { pushToServer() }
         playerPreferencesRepository.onLocalChange = { pushToServer() }
+        blockedGenresRepository.onLocalChange = { pushToServer() }
     }
 
     /**
@@ -66,7 +69,7 @@ class SettingsSyncRepository(
             val response = apiClient.getSettings(token)
             applyRemote(
                 response.homeRowOrder, response.hiddenRowIds, response.autoplayNextEpisode, response.skipIntroEnabled,
-                response.subtitlesEnabled, response.defaultSubtitleLanguage
+                response.subtitlesEnabled, response.defaultSubtitleLanguage, response.blockedGenres
             )
         } catch (e: ApiException) {
             if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
@@ -89,7 +92,7 @@ class SettingsSyncRepository(
             val response = apiClient.putSettings(token, body)
             applyRemote(
                 response.homeRowOrder, response.hiddenRowIds, response.autoplayNextEpisode, response.skipIntroEnabled,
-                response.subtitlesEnabled, response.defaultSubtitleLanguage
+                response.subtitlesEnabled, response.defaultSubtitleLanguage, response.blockedGenres
             )
             pendingStore.remove(PENDING_KEY)
         } catch (e: ApiException) {
@@ -149,6 +152,7 @@ class SettingsSyncRepository(
             skipIntroEnabled = player.skipIntroEnabled,
             subtitlesEnabled = player.subtitlesEnabled,
             defaultSubtitleLanguage = player.defaultSubtitleLanguage,
+            blockedGenres = blockedGenresRepository.genres.value,
             updatedAt = Iso8601.nowString()
         )
         try {
@@ -165,7 +169,7 @@ class SettingsSyncRepository(
             // echoed back when it won.
             applyRemote(
                 response.homeRowOrder, response.hiddenRowIds, response.autoplayNextEpisode, response.skipIntroEnabled,
-                response.subtitlesEnabled, response.defaultSubtitleLanguage
+                response.subtitlesEnabled, response.defaultSubtitleLanguage, response.blockedGenres
             )
             pendingStore.remove(PENDING_KEY)
         } catch (e: ApiException) {
@@ -192,8 +196,10 @@ class SettingsSyncRepository(
         autoplay: Boolean,
         skipIntro: Boolean,
         subtitlesEnabled: Boolean,
-        defaultSubtitleLanguage: String?
+        defaultSubtitleLanguage: String?,
+        blockedGenres: List<String>?
     ) {
+        if (blockedGenres != null) blockedGenresRepository.applyRemote(blockedGenres)
         homeRowPreferencesRepository.applyRemote(HomeRowPreferences(order = homeRowOrder, hiddenRowIds = hiddenRowIds.toSet()))
         playerPreferencesRepository.applyRemote(
             PlayerPreferences(

@@ -4,6 +4,7 @@ import com.mangotv.app.data.addon.AddonRepository
 import com.mangotv.app.data.history.ContinueWatchingRepository
 import com.mangotv.app.data.model.PlayerPreferences
 import com.mangotv.app.data.player.PlayerPreferencesRepository
+import com.mangotv.app.data.provider.BlockedGenresRepository
 import com.mangotv.app.data.provider.HomeRowPreferencesRepository
 import com.mangotv.app.data.provider.MyListRepository
 import kotlinx.coroutines.async
@@ -60,6 +61,7 @@ class FirstLoginMigrationCoordinator(
     private val continueWatchingRepository: ContinueWatchingRepository,
     private val homeRowPreferencesRepository: HomeRowPreferencesRepository,
     private val playerPreferencesRepository: PlayerPreferencesRepository,
+    private val blockedGenresRepository: BlockedGenresRepository,
     private val settingsSyncRepository: SettingsSyncRepository,
     private val watchlistSyncRepository: WatchlistSyncRepository,
     private val continueWatchingSyncRepository: ContinueWatchingSyncRepository,
@@ -124,6 +126,7 @@ class FirstLoginMigrationCoordinator(
             hasCustomAddons ||
             homeRows.order.isNotEmpty() ||
             homeRows.hiddenRowIds.isNotEmpty() ||
+            blockedGenresRepository.genres.value.isNotEmpty() ||
             playerPreferencesRepository.preferences.value != PlayerPreferences()
     }
 }

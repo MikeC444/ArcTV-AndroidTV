@@ -1015,7 +1015,7 @@ fun TvShowsScreen(onNavigate: (String) -> Unit, viewModel: TvShowsViewModel = vi
 private fun TypeBrowseScreen(title: String, onNavigate: (String) -> Unit, viewModel: TypeBrowseViewModel) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val genre by viewModel.selectedGenre.collectAsStateWithLifecycle()
-    val genres = viewModel.genreOptions
+    val genres by viewModel.genreOptions.collectAsStateWithLifecycle()
     // Built as a value first: a lambda written straight after `else` would be read as a block, not a function.
     val genreHeader: (@Composable (BrowseHeaderFocus) -> Unit)? = if (genres.isEmpty()) {
         null

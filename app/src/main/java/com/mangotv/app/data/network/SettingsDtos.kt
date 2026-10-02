@@ -15,6 +15,8 @@ data class SettingsRequest(
     val skipIntroEnabled: Boolean,
     val subtitlesEnabled: Boolean,
     val defaultSubtitleLanguage: String?,
+    /** Genres hidden everywhere; always sent, so the account's list follows the latest push. */
+    val blockedGenres: List<String> = emptyList(),
     val updatedAt: String
 )
 
@@ -26,6 +28,8 @@ data class SettingsResponse(
     val skipIntroEnabled: Boolean,
     val subtitlesEnabled: Boolean,
     val defaultSubtitleLanguage: String?,
+    /** null when the backend predates blocked genres, so an older server never wipes the local list. */
+    val blockedGenres: List<String>? = null,
     /** null only for an account that has never pushed settings from any device. */
     val updatedAt: String? = null
 )

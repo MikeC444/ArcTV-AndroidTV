@@ -7,6 +7,8 @@ import com.mangotv.app.MangoTvApplication
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.provider.ProviderRegistry
+import com.mangotv.app.data.provider.blockedGenreSet
+import com.mangotv.app.data.provider.withoutBlocked
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +32,8 @@ sealed interface SearchUiState {
 class SearchViewModel(application: Application) : AndroidViewModel(application) {
 
     private val myListRepository = (application as MangoTvApplication).container.myListRepository
+    private val blockedGenresRepository = (application as MangoTvApplication).container.blockedGenresRepository
+    private var blocked: Set<String> = blockedGenreSet(blockedGenresRepository.genres.value)
 
     private val _uiState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
@@ -48,6 +52,12 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     private var watchedIds: Set<String> = emptySet()
 
     init {
+        viewModelScope.launch {
+            blockedGenresRepository.genres.collect { genres ->
+                blocked = blockedGenreSet(genres)
+                if (_uiState.value is SearchUiState.Results) _uiState.value = currentResults()
+            }
+        }
         // Re-publishes the last results whenever watched status changes, so
         // a title crossing the completion threshold (or being removed from
         // My List) ticks/unticks immediately even if the user is still
@@ -65,7 +75,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     private fun Content.withWatchedFlag(): Content = if (id in watchedIds) copy(watched = true) else this
 
     private fun currentResults(): SearchUiState.Results =
-        SearchUiState.Results(rawMovies.map { it.withWatchedFlag() }, rawTvShows.map { it.withWatchedFlag() })
+        SearchUiState.Results(rawMovies.withoutBlocked(blocked).map { it.withWatchedFlag() }, rawTvShows.withoutBlocked(blocked).map { it.withWatchedFlag() })
 
     fun search(query: String) {
         if (query.isBlank()) return

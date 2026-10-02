@@ -3976,3 +3976,21 @@ unoptimised Compose, so they will always feel slower than a release build on a F
 **Limits:** a file with only one audio track, all of it undecodable, still fails. The real fix for AAC "Main" or similar would be an FFmpeg audio decoder, but the Jellyfin build of it has no release matching Media3 1.4.1, so that needs a Media3 upgrade first.
 
 **Tests performed:** None runnable here; relies on the CI build and the same source on a Fire TV.
+
+## Post-Milestone-46 — Blocked Genres (synced to the account)
+
+**Status:** Complete, not compiled or tried on a device (see Tests performed). The backend half is tested.
+
+**Context:** User request: port the web app's Blocked Genres, stored on the account so it syncs across devices.
+
+**Backend (`server/`):** migration `0015` adds `user_settings.blocked_genres` (jsonb, default `[]`); `PUT/GET /user/settings` carry `blockedGenres`, optional on `PUT` so an older client leaves the stored list alone; same last-write-wins as the rest of the row. `settings.test.ts` extended (round trip, omitted list preserved, stale push ignored, validation, per-account isolation).
+
+**App:**
+- `BlockedGenresRepository` (DataStore + a StateFlow) with `onLocalChange`, hooked by `SettingsSyncRepository`, which now sends the list on every settings push and applies it on pull (a backend without the field never wipes the local list). Cleared on account switch; counts as local data for the first-login migration choice.
+- `BlockedGenres.kt` -- the pure matching rules (trim / lower-case, a title with no genres is never hidden), unit-tested in `BlockedGenresTest`.
+- Applied in `HomeViewModel` (rows and so the hero), `TypeBrowseViewModel` (grid and genre drop-down), `SearchViewModel`, `GenresViewModel`, `GenreResultsViewModel` and `DetailViewModel.loadSimilar`; blocking or unblocking re-filters what is already loaded without a re-fetch.
+- Settings > Blocked Genres (`BlockedGenresScreen`, `BlockedGenresViewModel`): a toggle row per genre the addons offer (a blocked one an addon no longer lists stays visible so it can be unblocked) and a Clear all button.
+
+**Not changed:** the web app keeps its list in the browser; it would need a small change there to read and write `blockedGenres` on the account.
+
+**Tests performed:** server `vitest` (all passing, locally against Postgres) and schema verification. The Kotlin has not been compiled here; it relies on the CI build.
