@@ -42,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -109,11 +110,12 @@ fun DetailHeroSection(
     // tapping it again when already watched flips it back, the same
     // add/remove symmetry the neighboring watchlist button already has.
     isWatched: Boolean = false,
-    // Null hides the button entirely -- shown only once a lookup has
-    // actually found a YouTube trailer for this title (see
-    // DetailViewModel.TrailerState), never as a dead/no-op button for a
-    // title with no trailer available.
+    // The Trailer button is shown from the first frame (null hides it, for any caller that has no trailer
+    // lookup at all) so the row of buttons never shifts when a lookup finishes. [trailerReady] is false until
+    // a lookup has actually found a YouTube trailer (see DetailViewModel.TrailerState): the button is then
+    // dimmed, and onTrailer says why nothing opened.
     onTrailer: (() -> Unit)? = null,
+    trailerReady: Boolean = true,
     // Idle/Loading hide the meta row's date slot entirely rather than
     // showing content.year and then visibly swapping it for the real TMDB
     // date a moment later -- see ReleaseDateState's own doc. NotFound falls
@@ -383,15 +385,17 @@ fun DetailHeroSection(
                 )
                 if (onTrailer != null) {
                     Spacer(Modifier.width(if (compact) 10.dp else 16.dp))
-                    MangoButton(
-                        text = "Trailer",
-                        icon = Icons.Filled.Theaters,
-                        onClick = onTrailer,
-                        style = MangoButtonStyle.GLASS,
-                        focusUp = navUpFocusRequester,
-                        bringIntoViewOnFocus = false,
-                        compact = compact
-                    )
+                    Box(modifier = Modifier.alpha(if (trailerReady) 1f else 0.45f)) {
+                        MangoButton(
+                            text = "Trailer",
+                            icon = Icons.Filled.Theaters,
+                            onClick = onTrailer,
+                            style = MangoButtonStyle.GLASS,
+                            focusUp = navUpFocusRequester,
+                            bringIntoViewOnFocus = false,
+                            compact = compact
+                        )
+                    }
                 }
                 Spacer(Modifier.width(if (compact) 10.dp else 16.dp))
                 AnimatedVisibility(

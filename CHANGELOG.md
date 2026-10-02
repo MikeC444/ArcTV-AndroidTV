@@ -3748,3 +3748,37 @@ found, opens the trailer, and that D-pad LEFT/RIGHT still moves across all four 
 **Issues discovered:** none.
 
 **Issues fixed:** none beyond the new behaviour.
+
+## Post-Milestone-40 — Trailer Button Always Shown On Detail, Sources Poster And Default Sort
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** Ported from the web app (MangotvWebb e6db839 "Trailer button always shown",
+bfa7a0f "Sources: bigger poster ... default sort by size"). Detail's Trailer button only
+appeared once the lookup had found a trailer, so the row of buttons shifted when it did.
+
+**Changes:**
+- `DetailHeroSection.kt` / `DetailScreen.kt` -- the Trailer button is drawn from the first
+  frame and dimmed (still focusable) until a trailer is found (`trailerReady`); pressed
+  early it shows "Looking for a trailer..." and after a lookup that found nothing it shows
+  "No trailer found for this title". `DetailViewModel`'s `TrailerState` doc updated.
+- `SourcesInfoPanel.kt` -- the poster is 120x180 (was 84x126).
+- `SourcesScreen.kt` -- the list starts sorted by size, biggest first, as on the web.
+  "Recommended" is unaffected (it still follows the Quality order, including ready debrid
+  sources ahead of uncached ones) and always sits on top.
+- `RELEASE_NOTES.md` -- two user-facing lines under Unreleased.
+
+**Not ported:** "no play button on 'What are sources?'": the Firestick's equivalent
+("How it works" in the footer) never had one.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android SDK):
+brace/paren balance on touched files and a manual re-read. There is no new logic to unit
+test; this is layout and wiring. **Not performed:** an on-device check: Detail's Trailer
+button is present and dim at first, brightens when found and opens the trailer; the Sources
+info panel still fits its title, genres and description at the bigger poster size.
+
+**Issues discovered:** With "Size" as the default, an uncached debrid file that is large
+can sit just under "Recommended" ahead of smaller ready ones; the Quality sort ranks ready
+sources first. The web behaves the same.
+
+**Issues fixed:** none beyond the above.

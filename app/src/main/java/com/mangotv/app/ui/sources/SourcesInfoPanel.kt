@@ -41,6 +41,10 @@ import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
 import com.mangotv.app.ui.theme.TextTertiary
 
+// Bigger than the original 84x126: the poster is the one picture on this screen and a TV is viewed from across a room.
+private val POSTER_WIDTH = 120.dp
+private val POSTER_HEIGHT = 180.dp
+
 @Composable
 fun SourcesInfoPanel(
     content: Content,
@@ -67,7 +71,7 @@ fun SourcesInfoPanel(
             contentDescription = content.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(width = 84.dp, height = 126.dp)
+                .size(width = POSTER_WIDTH, height = POSTER_HEIGHT)
                 // shadow (unclipped) -> clip -> background -> border:
                 // the same ordering TvFocusSurface already established,
                 // since clipping before applying elevation would cut

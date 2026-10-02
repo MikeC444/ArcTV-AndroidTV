@@ -26,7 +26,7 @@ sealed interface DetailUiState {
     data class Error(val message: String) : DetailUiState
 }
 
-/** Backs DetailHeroSection's Trailer button -- Idle/Loading before/while a lookup is running, so the button can stay hidden rather than flashing in only to disappear a moment later on NotFound. */
+/** Backs DetailHeroSection's Trailer button -- Idle/Loading before/while a lookup is running and NotFound after one that found nothing: the button is shown throughout but dimmed until Found. */
 sealed interface TrailerState {
     data object Idle : TrailerState
     data object Loading : TrailerState

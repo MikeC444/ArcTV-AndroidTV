@@ -14,6 +14,8 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- On a movie or show's page the Trailer button is always there from the start, dimmed until a trailer is found, instead of appearing late and shifting the other buttons
+- Select a Source: the poster is bigger, and the list now starts sorted by file size (biggest first), with the Recommended source still always at the top
 - The big featured title at the top of Home has a Trailer button next to Play (dimmed until a trailer is found). Its pictures are also sharper on a big TV, and the next ones are fetched ahead of time so each slide appears straight away instead of loading in
 - The "update available" message is now a pop-up in the same style as "What's new", instead of a bar across the top of the screen. It shows the new version and its release notes right in it, with Update and Not now buttons, and shows download progress there too. The release notes can now be scrolled with the remote: press up to select them, then up and down to read all of it
 - The startup video is gone: the app now opens straight to the sign-in or Home screen instead of playing an intro first

@@ -213,7 +213,8 @@ private fun SourcesContent(
     onSelectSource: (Stream) -> Unit
 ) {
     var selectedFilter by remember { mutableStateOf(SourceFilter.ALL) }
-    var selectedSort by remember { mutableStateOf(SourceSort.QUALITY) }
+    // Biggest file first, as on the web; "Recommended" still marks the best source and always sits on top.
+    var selectedSort by remember { mutableStateOf(SourceSort.SIZE) }
 
     val filtered = remember(state.streams, selectedFilter) {
         val tier = selectedFilter.tier

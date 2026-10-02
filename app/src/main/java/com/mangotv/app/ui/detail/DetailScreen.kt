@@ -1,5 +1,6 @@
 package com.mangotv.app.ui.detail
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -87,16 +88,18 @@ fun DetailScreen(
                     resumeEntry = resumeEntry,
                     lastStreamIdFor = viewModel::lastStreamIdFor,
                     releaseDateState = releaseDateState,
-                    // Null (no button shown at all) unless a lookup has
-                    // actually found one -- see DetailHeroSection's own
-                    // kdoc on why this is a nullable lambda, not a
-                    // separate boolean. Hands the trailer off to whichever
-                    // app the user picks rather than playing it in-app --
-                    // see TrailerLauncher's own kdoc for why MangoTV stopped
-                    // trying to play YouTube video itself.
-                    onTrailer = foundTrailer?.let { found ->
-                        { TrailerLauncher.launch(context, found.youtubeVideoId) }
-                    }
+                    // The button is always there, dimmed until a lookup has found a trailer (trailerReady).
+                    // Hands the trailer off to whichever app the user picks rather than playing it in-app --
+                    // see TrailerLauncher's own kdoc for why MangoTV stopped trying to play YouTube video itself.
+                    // Pressed before one is found, it says why nothing opened.
+                    onTrailer = {
+                        when {
+                            foundTrailer != null -> TrailerLauncher.launch(context, foundTrailer.youtubeVideoId)
+                            trailerState == TrailerState.NotFound -> Toast.makeText(context, "No trailer found for this title", Toast.LENGTH_SHORT).show()
+                            else -> Toast.makeText(context, "Looking for a trailer\u2026", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    trailerReady = foundTrailer != null
                 )
             }
         }
@@ -114,6 +117,7 @@ private fun DetailContent(
     resumeEntry: ContinueWatchingEntry?,
     lastStreamIdFor: (season: Int?, episode: Int?) -> String?,
     onTrailer: (() -> Unit)?,
+    trailerReady: Boolean,
     releaseDateState: ReleaseDateState,
     modifier: Modifier = Modifier
 ) {
@@ -260,6 +264,7 @@ private fun DetailContent(
                     onWatchlist = onToggleMyList,
                     isInMyList = isInMyList,
                     onTrailer = onTrailer,
+                    trailerReady = trailerReady,
                     releaseDateState = releaseDateState,
                     onMore = {},
                     navUpFocusRequester = navFocusRequester,
