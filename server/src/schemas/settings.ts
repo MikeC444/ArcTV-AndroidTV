@@ -16,6 +16,10 @@ export const settingsBodySchema = z.object({
   // (never validated against a fixed set): the client's own language list
   // is free to grow without this schema needing to track it.
   defaultSubtitleLanguage: z.string().min(2).max(35).nullable(),
+  // Genre names the person never wants to see (migrations/0015). Optional so
+  // a client that predates it still pushes cleanly -- it then leaves the
+  // stored list alone instead of wiping it.
+  blockedGenres: z.array(z.string().trim().min(1).max(100)).max(200).optional(),
   updatedAt: z.iso.datetime("updatedAt must be an ISO-8601 UTC timestamp"),
 });
 export type SettingsInput = z.infer<typeof settingsBodySchema>;
