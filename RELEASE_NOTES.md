@@ -1,6 +1,6 @@
 # Release notes
 
-User-facing changes to MangoTV, newest first. This file *is* the release
+User-facing changes to Arc TV, newest first. This file *is* the release
 notes shown in the app's own update banner (tap the "i" info button) --
 whatever sits under a version heading here becomes that release's
 description, so there's no need to visit GitHub to see what changed.
@@ -14,6 +14,7 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- Mango TV is now Arc TV: the app's name, and every place that used to say Mango TV (sign-in, Settings, the update prompt, the add-addon page on your phone), now say Arc TV
 - New look: the app's colours now follow the Arc TV logo (cyan, blue and violet) instead of amber and orange, across buttons, selected items, switches, the focus highlight and the progress bars. Warnings stay amber and errors stay red
 - Cast on a movie or show's page now shows each actor's photo and the character they play, instead of a blank circle with just a name, and TV shows now list their cast under the episodes
 - Pressing BACK from a movie or show's page now returns you to the exact poster you left on Home, in the same row and at the same scroll position, instead of jumping back to the top

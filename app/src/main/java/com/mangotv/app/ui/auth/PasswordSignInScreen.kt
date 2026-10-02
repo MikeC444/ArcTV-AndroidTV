@@ -110,7 +110,7 @@ fun PasswordSignInScreen(
                 modifier = Modifier.widthIn(max = 520.dp)
             ) {
                 Text(
-                    text = "Sync existing MangoTV data to your account?",
+                    text = "Sync existing Arc TV data to your account?",
                     color = TextPrimary,
                     style = MaterialTheme.typography.headlineSmall,
                     textAlign = TextAlign.Center

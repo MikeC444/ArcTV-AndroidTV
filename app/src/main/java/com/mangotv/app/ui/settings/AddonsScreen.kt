@@ -117,7 +117,7 @@ private fun EmptyAddonsHint() {
         )
         Spacer(Modifier.height(6.dp))
         Text(
-            text = "Add a Stremio-compatible addon to bring its catalog into Mango TV.",
+            text = "Add a Stremio-compatible addon to bring its catalog into Arc TV.",
             color = TextSecondary,
             style = MaterialTheme.typography.bodySmall
         )

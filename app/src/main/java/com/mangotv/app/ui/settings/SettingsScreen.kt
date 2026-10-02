@@ -48,7 +48,7 @@ import com.mangotv.app.ui.theme.TextSecondary
  * sidebar row and the detail pane's header stay in sync automatically.
  */
 private enum class SettingsCategory(val icon: ImageVector, val title: String, val subtitle: String) {
-    ACCOUNT(Icons.Filled.AccountCircle, "Account", "Manage your MangoTV account"),
+    ACCOUNT(Icons.Filled.AccountCircle, "Account", "Manage your Arc TV account"),
     ADDONS(Icons.Filled.Extension, "Addons", "Manage installed content providers"),
     HOME_ROWS(Icons.Filled.GridView, "Home Rows", "Choose which rows show up on Home"),
     SOUNDS(Icons.Filled.MusicNote, "Sounds", "Choose your app boot sound"),

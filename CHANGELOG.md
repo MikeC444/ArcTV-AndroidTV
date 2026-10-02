@@ -3402,3 +3402,43 @@ legible, the focus highlight is visible against posters, and no orange is left.
 if it has orange or the old logo baked in it still shows the old look.
 
 **Issues fixed:** none beyond the colour change itself.
+
+## Post-Milestone-33 — Mango TV Becomes Arc TV (Name)
+
+**Status:** Complete, not compiled (see Tests performed). Second of three
+commits for the Arc TV rebrand.
+
+**Context:** Ported from the web app (MangotvWebb bc1a55c, 53757a8: "Rebrand
+visible text from Mango TV to Arc TV"). The web changed visible text only and
+left identifiers, storage keys and environment variables alone; this does the
+same.
+
+**Changes:**
+- `strings.xml` -- `app_name` is "Arc TV", so the launcher label, the Fire TV
+  home tile caption and the system's app list show it.
+- User-visible strings: the empty-state and Add Addon hints, the Account row's
+  description in Settings, the "Sync existing ... data to your account?" prompt
+  on both sign-in screens, the update banner's install-permission text, and the
+  phone page the QR add-addon flow serves (title, heading and button).
+- `README.md` and `RELEASE_NOTES.md` -- titled Arc TV, with a note that code
+  names are unchanged.
+
+**Deliberately not changed:** the package name `com.mangotv.app` (changing it
+would make Android treat the next build as a different app, so installed copies
+could not update in place and their saved data and sign-in would be lost);
+class, theme and resource names such as `MangoTvApplication` and
+`Theme.MangoTV`; the GitHub repository name in `UpdateRepository.kt` (the app
+finds updates by it); the APK/release asset names; the Gradle project name.
+Internal comments still say Mango. Fully renaming any of these is a separate,
+larger change.
+
+**Tests performed:** A search of every quoted string and XML resource for
+"Mango"; what remains is identifiers and the repository name listed above. A
+manual re-read of each edited string. **Not performed:** an on-device check of
+the launcher label and each screen.
+
+**Issues discovered:** The in-app wordmark is still the old "MANGO TV" text and
+the launcher icon and banner are still the mango artwork; both change in the
+next commit.
+
+**Issues fixed:** none beyond the rename itself.

@@ -187,7 +187,7 @@ private fun UpdateUnknownSourcesOverlay(onOpenSettings: () -> Unit, onDismiss: (
             )
             Spacer(modifier = Modifier.padding(top = 12.dp))
             Text(
-                text = "MangoTV needs permission to install app updates it downloads. " +
+                text = "Arc TV needs permission to install app updates it downloads. " +
                     "You'll be taken to a settings screen -- allow it there, then come back and try again.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary
