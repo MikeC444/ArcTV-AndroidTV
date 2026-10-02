@@ -33,7 +33,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
     private val myListRepository = (application as MangoTvApplication).container.myListRepository
     private val blockedGenresRepository = (application as MangoTvApplication).container.blockedGenresRepository
-    private var blocked: Set<String> = blockedGenreSet(blockedGenresRepository.genres.value)
+    private var blocked: Set<String> = blockedGenreSet(blockedGenresRepository.effectiveGenres.value)
 
     private val _uiState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
@@ -53,7 +53,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
     init {
         viewModelScope.launch {
-            blockedGenresRepository.genres.collect { genres ->
+            blockedGenresRepository.effectiveGenres.collect { genres ->
                 blocked = blockedGenreSet(genres)
                 if (_uiState.value is SearchUiState.Results) _uiState.value = currentResults()
             }

@@ -7,6 +7,7 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import com.mangotv.app.data.feedback.FeedbackRepository
 import com.mangotv.app.data.plus.PlusRepository
+import com.mangotv.app.data.profile.ProfileRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -76,8 +77,15 @@ class SyncManager(
     private val continueWatchingSyncRepository: ContinueWatchingSyncRepository,
     private val addonSyncRepository: AddonSyncRepository,
     private val feedbackRepository: FeedbackRepository,
-    private val plusRepository: PlusRepository
+    private val plusRepository: PlusRepository,
+    private val profileRepository: ProfileRepository
 ) {
+    /**
+     * Called (once, before anything is pulled) when the profile this device was on is gone: removed on another device, or ArcTV Plus
+     * lapsed. The local caches then belong to a profile this device can no longer use, so AppContainer wires this to forget them.
+     */
+    var onActiveProfileLost: (suspend () -> Unit)? = null
+
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -121,6 +129,11 @@ class SyncManager(
      * whatever was cached locally before this call.
      */
     suspend fun syncAll() {
+        // Which profile this device is on comes first: every library below is that profile's. Needs a fresh answer about Plus (the
+        // profiles are Plus-only); if that can't be read (offline) the saved profile is kept as it is.
+        if (plusRepository.pullFromServer() && profileRepository.pullFromServer(plusRepository.status.value.active)) {
+            onActiveProfileLost?.invoke()
+        }
         var watchlistRead = false
         scope.launch {
             supervisorScope {

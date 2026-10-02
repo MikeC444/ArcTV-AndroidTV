@@ -14,6 +14,8 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- Profiles are here for Arc TV Plus: each person on your account can have their own profile (up to 5, any mix of adult and kids) with their own My List, Continue Watching, settings, addons and Likes. If your account has more than one profile, the app opens on "Who's watching?" each time you start it; pick one with the remote. Add, rename, change the picture of, or remove profiles under "Manage profiles", and lock any profile with a 4-digit PIN (asked when you open, change or remove it; five wrong tries in a row pause guessing for five minutes). Your name sits at the end of the top bar to switch profiles, and Settings > Account says who is watching. A kids profile has no Settings and never shows horror, thriller, crime, war, mystery or other mature-genre titles (titles an addon gives no genres for can't be filtered, as with Blocked Genres). Everything you already had stays on your main profile.
+
 ## 0.1.4
 
 - The Home hero appears much sooner when you open the app: each time you use the app it quietly picks and downloads the titles for next time's hero, so on the next launch the first slide shows from storage straight away (and no longer changes a few seconds in when the live rows arrive). The rest of the slides load a moment later so they don't slow down the first one. The titles still change every launch.

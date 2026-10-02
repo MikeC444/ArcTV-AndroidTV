@@ -52,12 +52,12 @@ class GenreResultsViewModel(application: Application, savedStateHandle: SavedSta
     private var watchedIds: Set<String> = emptySet()
 
     private val blockedGenresRepository = (application as MangoTvApplication).container.blockedGenresRepository
-    private var blocked: Set<String> = blockedGenreSet(blockedGenresRepository.genres.value)
+    private var blocked: Set<String> = blockedGenreSet(blockedGenresRepository.effectiveGenres.value)
 
     init {
         load()
         viewModelScope.launch {
-            blockedGenresRepository.genres.collect { genres ->
+            blockedGenresRepository.effectiveGenres.collect { genres ->
                 blocked = blockedGenreSet(genres)
                 if (_uiState.value is RowsBrowseUiState.Loaded && allItems.isNotEmpty()) {
                     _uiState.value = RowsBrowseUiState.Loaded(listOf(currentSection()))

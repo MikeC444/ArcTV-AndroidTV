@@ -9,7 +9,12 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import com.mangotv.app.data.profile.ActiveProfile
+import com.mangotv.app.data.profile.KIDS_BLOCKED_GENRES
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -38,6 +43,14 @@ class BlockedGenresRepository(context: Context) {
 
     /** The blocked genre names, as the person chose them (original casing), in the order they were blocked. */
     val genres: StateFlow<List<String>> = _genres.asStateFlow()
+
+    /**
+     * What the screens actually hide: the profile's own list, plus the fixed kids genres while a kids profile is active.
+     * [genres] stays the profile's own list, since that is what Settings shows and what is saved to the account.
+     */
+    val effectiveGenres: StateFlow<List<String>> = combine(_genres, ActiveProfile.kids) { own, kids ->
+        if (kids) own + KIDS_BLOCKED_GENRES.filter { kid -> own.none { it.trim().equals(kid, ignoreCase = true) } } else own
+    }.stateIn(CoroutineScope(SupervisorJob() + Dispatchers.Unconfined), SharingStarted.Eagerly, emptyList())
 
     /**
      * Fired after a genuine local change finishes persisting -- SettingsSyncRepository hooks this to push the account's

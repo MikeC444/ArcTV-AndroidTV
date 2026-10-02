@@ -230,7 +230,8 @@ private fun SettingsDetailPane(
                 onSignedOut = onSignedOut,
                 navFocusRequester = navFocusRequester,
                 contentFocusRequester = contentFocusRequester,
-                sidebarFocusRequester = sidebarFocusRequester
+                sidebarFocusRequester = sidebarFocusRequester,
+                onOpenProfiles = { onNavigate(com.mangotv.app.navigation.MangoRoutes.PROFILES) }
             )
             SettingsCategory.ADDONS -> AddonsSettingsContent(
                 onAddAddon = onAddAddon,

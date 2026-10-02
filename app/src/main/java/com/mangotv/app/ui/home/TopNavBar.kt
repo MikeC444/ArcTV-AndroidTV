@@ -39,6 +39,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.mangotv.app.navigation.PROFILES_NAV_LABEL
 import com.mangotv.app.ui.components.ArcLogo
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.theme.MangoBackground
@@ -76,7 +77,14 @@ fun TopNavBar(
     val context = LocalContext.current
     val guestGate = remember { (context.applicationContext as MangoTvApplication).container.guestGate }
     val isGuest by guestGate.isGuest.collectAsStateWithLifecycle()
-    val navItems = if (isGuest) navItemsForGuest(MangoNavItems) else MangoNavItems
+    // ArcTV Plus profiles: the active profile's name is the last item (it opens "Who's watching?"), and a kids profile has no Settings.
+    val container = remember { (context.applicationContext as MangoTvApplication).container }
+    val profiles by container.profileRepository.state.collectAsStateWithLifecycle()
+    val plus by container.plusRepository.status.collectAsStateWithLifecycle()
+    val activeProfile = if (!isGuest && plus.active && profiles.supported) profiles.active else null
+    val baseItems = if (isGuest) navItemsForGuest(MangoNavItems) else MangoNavItems.filterNot { activeProfile?.isKids == true && it == "Settings" }
+    val navItems = if (activeProfile != null) baseItems + activeProfile.name else baseItems
+    val profileItemIndex = if (activeProfile != null) navItems.lastIndex else -1
 
     val scrimAlpha by animateFloatAsState(
         // Was 0.45f, then 0.6f -- against a bright/busy hero image behind
@@ -185,7 +193,7 @@ fun TopNavBar(
                     NavItem(
                         label = label,
                         selected = index == selectedIndex,
-                        onClick = { onItemClick(label) },
+                        onClick = { onItemClick(if (index == profileItemIndex) PROFILES_NAV_LABEL else label) },
                         focusRequester = if (index == selectedIndex) selectedItemFocusRequester else null,
                         focusDown = contentFocusRequester
                     )

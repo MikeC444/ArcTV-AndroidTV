@@ -92,6 +92,12 @@ class HomeCacheRepository(context: Context) {
         appContext.homeCacheDataStore.edit { it[CACHE_KEY] = raw }
     }
 
+    /** Forgets the cached rows (a profile switch): another profile has other addons and blocked genres, so its rows must not flash first. */
+    suspend fun clear() = withContext(Dispatchers.IO) {
+        appContext.homeCacheDataStore.edit { it.remove(CACHE_KEY) }
+        Unit
+    }
+
     companion object {
         private val CACHE_KEY = stringPreferencesKey("home_cache_json")
         private val MAX_AGE_MILLIS = TimeUnit.DAYS.toMillis(7)

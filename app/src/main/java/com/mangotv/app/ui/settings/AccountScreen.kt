@@ -10,6 +10,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.material.icons.filled.SwitchAccount
+import androidx.compose.ui.platform.LocalContext
+import com.mangotv.app.MangoTvApplication
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.unit.dp
@@ -42,8 +46,14 @@ fun ColumnScope.AccountSettingsContent(
     navFocusRequester: FocusRequester,
     contentFocusRequester: FocusRequester,
     sidebarFocusRequester: FocusRequester,
+    onOpenProfiles: () -> Unit,
     viewModel: AccountViewModel = viewModel()
 ) {
+    // ArcTV Plus profiles: which profile this is, and the way to switch or manage them.
+    val container = remember { (LocalContext.current.applicationContext as MangoTvApplication).container }
+    val profiles by container.profileRepository.state.collectAsStateWithLifecycle()
+    val plus by container.plusRepository.status.collectAsStateWithLifecycle()
+    val activeProfile = if (plus.active && profiles.supported) profiles.active else null
     val session by viewModel.session.collectAsStateWithLifecycle()
     val signingOut by viewModel.signingOut.collectAsStateWithLifecycle()
     val signedOut by viewModel.signedOut.collectAsStateWithLifecycle()
@@ -71,4 +81,18 @@ fun ColumnScope.AccountSettingsContent(
         compact = true,
         borderColor = TextPrimary
     )
+    if (activeProfile != null) {
+        Spacer(Modifier.height(16.dp))
+        Text(text = "Watching as ${activeProfile.name}", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+        Spacer(Modifier.height(8.dp))
+        MangoButton(
+            text = "Switch or manage profiles",
+            icon = Icons.Filled.SwitchAccount,
+            onClick = onOpenProfiles,
+            style = MangoButtonStyle.GLASS,
+            focusLeft = sidebarFocusRequester,
+            compact = true,
+            borderColor = TextPrimary
+        )
+    }
 }

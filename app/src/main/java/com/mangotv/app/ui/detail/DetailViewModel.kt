@@ -313,7 +313,7 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
             .flatMap { it.items }
             .distinctBy { it.id }
             .filterNot { it.id == detail.id }
-            .withoutBlocked(blockedGenreSet(blockedGenresRepository.genres.value))
+            .withoutBlocked(blockedGenreSet(blockedGenresRepository.effectiveGenres.value))
 
         val detailGenreIds = detail.genres.map { it.id }.toSet()
         val genreMatches = if (detailGenreIds.isEmpty()) {

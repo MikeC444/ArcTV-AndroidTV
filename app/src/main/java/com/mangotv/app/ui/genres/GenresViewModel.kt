@@ -41,13 +41,13 @@ class GenresViewModel(application: Application) : AndroidViewModel(application) 
             ProviderRegistry.providers.collect { providers -> load(providers) }
         }
         viewModelScope.launch {
-            blockedGenresRepository.genres.collect { publish() }
+            blockedGenresRepository.effectiveGenres.collect { publish() }
         }
     }
 
     private fun publish() {
         val all = allGenres ?: return
-        _uiState.value = GenresUiState.Loaded(all.withoutBlockedNames(blockedGenreSet(blockedGenresRepository.genres.value)))
+        _uiState.value = GenresUiState.Loaded(all.withoutBlockedNames(blockedGenreSet(blockedGenresRepository.effectiveGenres.value)))
     }
 
     private suspend fun load(providers: List<CatalogProvider>) {

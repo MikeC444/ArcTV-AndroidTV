@@ -24,11 +24,16 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mangotv.app.MangoTvApplication
 import com.mangotv.app.data.audio.LocalUiSoundPlayer
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
+import com.mangotv.app.data.profile.ActiveProfile
+import com.mangotv.app.data.profile.needsProfilePicker
+import com.mangotv.app.data.profile.visibleProfiles
+import com.mangotv.app.ui.profiles.ProfilesScreen
 import com.mangotv.app.ui.auth.AuthGateScreen
 import com.mangotv.app.ui.auth.AuthMethodScreen
 import com.mangotv.app.ui.auth.AuthStartScreen
@@ -129,6 +134,28 @@ fun MangoNavHost() {
         // PlayerScreen's.
         val currentBackStackEntry by navController.currentBackStackEntryAsState()
         val isPlayerActive = currentBackStackEntry?.destination?.route == MangoRoutes.PLAYER_PATTERN
+        val onProfilesRoute = currentBackStackEntry?.destination?.route == MangoRoutes.PROFILES
+
+        // ArcTV Plus profiles: an account with Plus and more than one profile starts every launch at "Who's watching?" (the profile list
+        // is read by SyncManager.syncAll just after launch, so this fires a moment after Home first appears). Not while a title is
+        // playing, and not on the sign-in screens.
+        val profilesState by container.profileRepository.state.collectAsStateWithLifecycle()
+        val plusStatus by container.plusRepository.status.collectAsStateWithLifecycle()
+        val isGuestNow by container.guestGate.isGuest.collectAsStateWithLifecycle()
+        val pickerWanted = !isGuestNow && profilesState.ready &&
+            needsProfilePicker(
+                supported = profilesState.supported,
+                plus = plusStatus.active,
+                profileCount = visibleProfiles(profilesState.profiles, plusStatus.active).size,
+                chosen = profilesState.chosen
+            )
+        val currentRoute = currentBackStackEntry?.destination?.route
+        LaunchedEffect(pickerWanted, currentRoute) {
+            val route = currentRoute ?: return@LaunchedEffect
+            if (pickerWanted && route != MangoRoutes.PROFILES && route != MangoRoutes.AUTH_GATE && !route.startsWith("auth/") && !route.startsWith("player/")) {
+                navController.navigate(MangoRoutes.PROFILES) { launchSingleTop = true }
+            }
+        }
 
         // A guest (someone browsing without an account) is asked to sign in for Play, My List, Settings and saving a
         // title. The sign-in screens are pushed on top of where they were, so once signed in they pop straight back to
@@ -167,6 +194,8 @@ fun MangoNavHost() {
         }
 
         fun navigateTo(route: String) {
+            // A kids profile has no Settings: addons, signing out and the Plus page are for the adults.
+            if (ActiveProfile.kids.value && (route == MangoRoutes.SETTINGS || route == MangoRoutes.SETTINGS_ADD_ADDON)) return
             if (container.guestGate.isGuest.value && (routeNeedsAccount(route) || route == MangoRoutes.AUTH_START)) {
                 askToSignIn(target = route.takeIf { it != MangoRoutes.AUTH_START })
                 return
@@ -316,6 +345,17 @@ fun MangoNavHost() {
                         viewModel = homeViewModel
                     )
                 }
+                composable(MangoRoutes.PROFILES) {
+                    ProfilesScreen(
+                        onFinished = { switched ->
+                            // A different profile has other addons, rows and blocked genres: Home refetches for it.
+                            if (switched) homeViewModel.load()
+                            navigateClearingBackStack(MangoRoutes.HOME)
+                        },
+                        onBack = { navController.popBackStack() },
+                        onSignOut = { navigateClearingBackStack(MangoRoutes.AUTH_START) }
+                    )
+                }
                 composable(MangoRoutes.SETTINGS) {
                     SettingsScreen(
                         onNavigate = ::navigateTo,
@@ -421,7 +461,8 @@ fun MangoNavHost() {
         // (i.e. at Home), matching what BACK would already do with no
         // handler at all -- this replaces that default, so it has to
         // reproduce it itself.
-        BackHandler(enabled = !isPlayerActive) {
+        // The profile screen answers BACK itself (it must not be skipped at launch).
+        BackHandler(enabled = !isPlayerActive && !onProfilesRoute) {
             container.uiSoundPlayer.playBack()
             if (!navController.popBackStack()) {
                 (context as? Activity)?.finish()
