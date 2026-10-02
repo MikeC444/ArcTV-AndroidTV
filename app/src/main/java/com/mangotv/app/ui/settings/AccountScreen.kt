@@ -50,7 +50,8 @@ fun ColumnScope.AccountSettingsContent(
     viewModel: AccountViewModel = viewModel()
 ) {
     // ArcTV Plus profiles: which profile this is, and the way to switch or manage them.
-    val container = remember { (LocalContext.current.applicationContext as MangoTvApplication).container }
+    val context = LocalContext.current
+    val container = remember { (context.applicationContext as MangoTvApplication).container }
     val profiles by container.profileRepository.state.collectAsStateWithLifecycle()
     val plus by container.plusRepository.status.collectAsStateWithLifecycle()
     val activeProfile = if (plus.active && profiles.supported) profiles.active else null

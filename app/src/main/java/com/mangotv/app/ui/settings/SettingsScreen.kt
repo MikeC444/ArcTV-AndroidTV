@@ -149,7 +149,8 @@ fun SettingsScreen(
                     contentFocusRequester = paneContentFocusRequester,
                     sidebarFocusRequester = rowFocusRequesterFor(selected),
                     onSignedOut = onSignedOut,
-                    onAddAddon = onAddAddon
+                    onAddAddon = onAddAddon,
+                    onOpenProfiles = { onNavigate(com.mangotv.app.navigation.MangoRoutes.PROFILES) }
                 )
             }
         }
@@ -217,7 +218,8 @@ private fun SettingsDetailPane(
     contentFocusRequester: FocusRequester,
     sidebarFocusRequester: FocusRequester,
     onSignedOut: () -> Unit,
-    onAddAddon: () -> Unit
+    onAddAddon: () -> Unit,
+    onOpenProfiles: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Text(text = category.title, color = TextPrimary, style = MaterialTheme.typography.titleLarge)
@@ -231,7 +233,7 @@ private fun SettingsDetailPane(
                 navFocusRequester = navFocusRequester,
                 contentFocusRequester = contentFocusRequester,
                 sidebarFocusRequester = sidebarFocusRequester,
-                onOpenProfiles = { onNavigate(com.mangotv.app.navigation.MangoRoutes.PROFILES) }
+                onOpenProfiles = onOpenProfiles
             )
             SettingsCategory.ADDONS -> AddonsSettingsContent(
                 onAddAddon = onAddAddon,
