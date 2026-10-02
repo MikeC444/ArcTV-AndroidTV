@@ -14,13 +14,11 @@ run the release workflow for that version.
 
 ## Unreleased
 
-- "Picked for you" no longer offers a movie you have liked (a Like now keeps the title out of the row, the same as Not for me, finished and Continue Watching), so two liked movies can't recommend each other.
-- "Picked for you" now follows the mix of what you like: if you like mostly horror and some comedy, the row is mostly horror with a fair share of comedy instead of all horror. Each time you open the app most of the row changes (your strongest picks stay), so it isn't the same row every launch.
-- Press and hold a "Picked for you" poster and choose "Remove from Picked for you" to keep that title out of the row. It isn't a Like or Not for me, so it doesn't change what the row learns about your taste.
-
-- The profile control at the top right of the top bar is smaller, and now shows your profile's name next to its picture.
-
-- Profiles: your profile's picture now sits at the top right of the top bar, like on the website. Press it to open "Who's watching?" and switch profile, without going into Settings. If profiles can't load, Settings > Account now says why instead of showing nothing.
+- Your "Picked for you" row just got smarter: it matches your whole mix of tastes, and most of it changes every time you open the app.
+- Movies you've liked never show up in "Picked for you" again.
+- Not feeling a pick? Press and hold it and choose "Remove from Picked for you".
+- Switch profile in one press: your picture and name now sit at the top right of the top bar.
+- Profiles not showing? Settings > Account now tells you why.
 
 ## 0.1.5
 
