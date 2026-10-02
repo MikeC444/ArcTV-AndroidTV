@@ -3650,3 +3650,58 @@ genres" when the app restarts. Picking a genre in the list leaves the old grid u
 for a moment on a slow connection before the new one replaces it.
 
 **Issues fixed:** none beyond the new feature.
+
+## Post-Milestone-38 — Update Pop-Up, And Release Notes The Remote Can Scroll
+
+**Status:** Complete, not compiled (see Tests performed).
+
+**Context:** User request. Two problems with the update flow. (1) The "What's new"
+overlay showed the release notes in a `Text` with `verticalScroll`, but that is not
+focusable and the only focusable thing on the overlay was the Close button, so a
+remote could never move it: with 13 bullets in Unreleased, only the first screenful
+(about 9 lines) was readable on a TV. (2) The update offer was a banner that pushed
+the whole screen down, reached through an info button to a second overlay.
+
+**Changes:**
+- `UpdatePopup.kt` (new) -- one pop-up, styled like the old "What's new" overlay
+  (dimmed screen, rounded card), that shows "Update available", the version and APK
+  size, download progress (a progress bar and percentage), "Ready to install" or the
+  error message, the release notes, and the Update / Install / Retry button plus
+  "Not now". It replaces `UpdateBanner.kt` and the separate release-notes overlay.
+- It is a real dialog window, so the remote stays inside it and BACK means "Not now".
+  While a download is running BACK is ignored and "Not now" is hidden, as the old
+  banner hid its close button then.
+- `ScrollableNotes` (in `UpdatePopup.kt`) -- the notes sit in a focusable box. UP from
+  the buttons selects it (it gets the focus border); DOWN and UP then scroll it, and
+  once it is at its end DOWN (or at its start UP) is left alone so focus moves on to
+  the buttons as normal. A thin scroll bar shows how far through you are, and a hint
+  line says the notes can be scrolled when they don't fit.
+- `UpdatePromptHost.kt` (was `UpdateBannerHost.kt`) -- shows the pop-up over the app
+  instead of a bar above it. It is still hidden while the video player is active and
+  steps aside while the "allow installing updates" prompt is up. `MangoNavHost.kt`
+  updated for the rename.
+- `UpdateViewModel` is unchanged: the same once-per-launch check, the same
+  "ignore this version" memory when dismissed, and the same download, install and
+  permission flow.
+- `RELEASE_NOTES.md` -- user-facing line under Unreleased.
+
+**Behaviour to know about:** the pop-up appears over whatever screen you are on as soon
+as the check finishes (a few seconds after launch), which is more noticeable than the
+bar was. Dismissing it, with Not now or BACK, remembers that version so it does not
+return until a newer one is released.
+
+**Tests performed:** Same sandbox limitation as every recent milestone (no Android
+SDK): brace/paren balance on the touched Kotlin files, a search for leftover references
+to the removed banner and overlay (none), and a manual re-read. There is no unit test
+for the scrolling: it is key handling and layout. **Not performed:** a Gradle compile
+or an on-device check. The update check only runs in release builds
+(`BuildConfig.DEBUG` skips it), so the CI debug APK will never show this pop-up; seeing
+it needs a release build and a newer published release, or a temporary debug override.
+On a Fire TV, check: it opens with Update focused; UP selects the notes (border
+appears) and DOWN/UP scroll all 13 bullets; at the end DOWN moves to the buttons; Not
+now and BACK close it; during a download the progress bar moves and BACK does nothing;
+Install and the permission prompt still work.
+
+**Issues discovered:** none beyond the above.
+
+**Issues fixed:** Release notes beyond the first screenful being unreadable with a remote.

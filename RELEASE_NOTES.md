@@ -14,6 +14,7 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- The "update available" message is now a pop-up in the same style as "What's new", instead of a bar across the top of the screen. It shows the new version and its release notes right in it, with Update and Not now buttons, and shows download progress there too. The release notes can now be scrolled with the remote: press up to select them, then up and down to read all of it
 - The startup video is gone: the app now opens straight to the sign-in or Home screen instead of playing an intro first
 - Select a Source now tells you whether a Real-Debrid (or other debrid) source is ready: "Cached on Real-Debrid" starts straight away, while "Not cached on Real-Debrid — may take minutes" means the service still has to fetch the file first. Sources that start at once are now listed and recommended ahead of ones you'd have to wait for
 - When Select a Source has nothing to show, it now says why: no addons installed, none of your addons provide streams, an addon didn't answer (with a Try Again button), or they all answered but have nothing for this title. Each addon's answer is listed, and if some addons failed while others found sources, a note says the list may be incomplete

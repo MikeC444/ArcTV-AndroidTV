@@ -47,7 +47,7 @@ import com.mangotv.app.ui.sources.SourcesScreen
 import com.mangotv.app.ui.components.CardActionsMenuOverlay
 import com.mangotv.app.ui.components.CardActionsMenuState
 import com.mangotv.app.ui.components.LocalCardActionsMenu
-import com.mangotv.app.ui.update.UpdateBannerHost
+import com.mangotv.app.ui.update.UpdatePromptHost
 import com.mangotv.app.ui.update.UpdateViewModel
 import java.net.URLDecoder
 
@@ -212,7 +212,7 @@ fun MangoNavHost() {
             // nav-sound listener just above: an "Update available" banner
             // over the video is exactly the kind of interface chrome that
             // shouldn't compete with what the user is actually watching.
-            UpdateBannerHost(viewModel = updateViewModel, suppressed = isPlayerActive) {
+            UpdatePromptHost(viewModel = updateViewModel, suppressed = isPlayerActive) {
             NavHost(navController = navController, startDestination = MangoRoutes.AUTH_GATE) {
                 composable(MangoRoutes.AUTH_GATE) {
                     AuthGateScreen(
@@ -350,7 +350,7 @@ fun MangoNavHost() {
                     }
                 }
             }
-            } // UpdateBannerHost
+            } // UpdatePromptHost
         }
 
         // Global fallback for the hardware/remote BACK button -- see the
