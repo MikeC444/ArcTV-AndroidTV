@@ -9,6 +9,8 @@ import com.mangotv.app.data.auth.GuestGate
 import com.mangotv.app.data.feedback.FeedbackRepository
 import com.mangotv.app.data.history.ContinueWatchingRepository
 import com.mangotv.app.data.plus.PlusRepository
+import com.mangotv.app.data.profile.ProfileRepository
+import com.mangotv.app.data.sync.ProfileSwitcher
 import com.mangotv.app.data.recommend.FeatureCacheRepository
 import com.mangotv.app.data.player.LastSourceRepository
 import com.mangotv.app.data.player.PlayerPreferencesRepository
@@ -173,9 +175,36 @@ class AppContainer(context: Context) {
     )
     val feedbackRepository: FeedbackRepository = FeedbackRepository(context, authRepository)
     val plusRepository: PlusRepository = PlusRepository(context, authRepository)
+    // Eager like authRepository: the active profile must be known before any request or cache read (see AuthGateViewModel).
+    val profileRepository: ProfileRepository = ProfileRepository(context, authRepository)
     val syncManager: SyncManager = SyncManager(
-        context, settingsSyncRepository, watchlistSyncRepository, continueWatchingSyncRepository, addonSyncRepository, feedbackRepository, plusRepository
+        context, settingsSyncRepository, watchlistSyncRepository, continueWatchingSyncRepository, addonSyncRepository, feedbackRepository, plusRepository, profileRepository
     )
+    // Lazy: only the "Who's watching?" screen and a profile that vanished underneath the device ever need it.
+    val profileSwitcher: ProfileSwitcher by lazy {
+        ProfileSwitcher(
+            profileRepository = profileRepository,
+            watchedBackfillState = watchedBackfillState,
+            myListRepository = myListRepository,
+            continueWatchingRepository = continueWatchingRepository,
+            lastSourceRepository = lastSourceRepository,
+            addonRepository = addonRepository,
+            homeRowPreferencesRepository = homeRowPreferencesRepository,
+            playerPreferencesRepository = playerPreferencesRepository,
+            blockedGenresRepository = blockedGenresRepository,
+            feedbackRepository = feedbackRepository,
+            homeCacheRepository = homeCacheRepository,
+            settingsSyncRepository = settingsSyncRepository,
+            watchlistSyncRepository = watchlistSyncRepository,
+            continueWatchingSyncRepository = continueWatchingSyncRepository,
+            addonSyncRepository = addonSyncRepository,
+            syncManager = syncManager
+        )
+    }
+    init {
+        // The profile this device was on is gone: forget its caches (nothing is sent anywhere) before the new profile's library is pulled.
+        syncManager.onActiveProfileLost = { profileSwitcher.forgetLocalLibrary() }
+    }
     val firstSyncState: FirstSyncState = FirstSyncState(context)
     val firstLoginMigrationCoordinator: FirstLoginMigrationCoordinator by lazy {
         FirstLoginMigrationCoordinator(
@@ -207,6 +236,7 @@ class AppContainer(context: Context) {
             blockedGenresRepository = blockedGenresRepository,
             feedbackRepository = feedbackRepository,
             plusRepository = plusRepository,
+            profileRepository = profileRepository,
             settingsSyncRepository = settingsSyncRepository,
             watchlistSyncRepository = watchlistSyncRepository,
             continueWatchingSyncRepository = continueWatchingSyncRepository,

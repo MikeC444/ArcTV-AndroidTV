@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.mangotv.app.BuildConfig
 import com.mangotv.app.data.auth.AuthRepository
+import com.mangotv.app.data.profile.ActiveProfile
 import com.mangotv.app.data.network.ApiException
 import com.mangotv.app.data.network.FeedbackApiClient
 import com.mangotv.app.data.network.FeedbackDto
@@ -59,9 +60,13 @@ private data class PendingFeedback(val clear: Boolean, val dto: FeedbackDto)
  * Explicit taste feedback (Like / Not for me), the input to "Picked for you". Kept on this device at once and synced to
  * the account so every device agrees: changes are pushed immediately, queued when offline, and reconciled
  * last-write-wins on their own timestamp -- the same behaviour as the web app's feedback store, against the same backend
- * endpoint. Only movies carry feedback; there is a single profile ("main") until profiles exist.
+ * endpoint. Only movies carry feedback; feedback is kept per profile (the active one, see [ActiveProfile]).
  */
 class FeedbackRepository(context: Context, private val authRepository: AuthRepository) {
+
+    /** The profile this device is on: Likes are per profile, and a profile switch wipes this cache (see ProfileSwitcher), so they always belong to it. */
+    private val profileId: String get() = ActiveProfile.id
+
 
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -113,9 +118,9 @@ class FeedbackRepository(context: Context, private val authRepository: AuthRepos
         val toPush = mutableListOf<FeedbackDto>()
         try {
             val token = freshAccessTokenOrNull() ?: return false
-            val response = apiClient.list(token, PROFILE_ID)
+            val response = apiClient.list(token, profileId)
             val pending = pendingStore.all()
-            val remote = response.items.filter { it.contentType == MOVIE && it.profileId == PROFILE_ID }.associateBy { it.contentId }
+            val remote = response.items.filter { it.contentType == MOVIE && it.profileId == profileId }.associateBy { it.contentId }
             lock.withLock {
                 val next = LinkedHashMap<String, FeedbackEntry>()
                 for ((id, local) in _entries.value) {
@@ -215,7 +220,7 @@ class FeedbackRepository(context: Context, private val authRepository: AuthRepos
 
     /** Applies the server's authoritative row for one movie (it may have lost a last-write-wins race to another device). */
     private suspend fun reconcile(dto: FeedbackDto) {
-        if (dto.profileId != PROFILE_ID) return
+        if (dto.profileId != profileId) return
         lock.withLock {
             val current = _entries.value
             commit(
@@ -243,7 +248,7 @@ class FeedbackRepository(context: Context, private val authRepository: AuthRepos
     }
 
     private fun FeedbackEntry.toDto(id: String, updatedAt: String, providerId: String) = FeedbackDto(
-        profileId = PROFILE_ID, providerId = providerId, contentId = id, contentType = MOVIE, title = title, feedback = value, updatedAt = updatedAt
+        profileId = profileId, providerId = providerId, contentId = id, contentType = MOVIE, title = title, feedback = value, updatedAt = updatedAt
     )
 
     /** Strictly later than the previous write for the same movie, so two quick changes can't tie on the server. */
@@ -255,10 +260,9 @@ class FeedbackRepository(context: Context, private val authRepository: AuthRepos
 
     private fun millis(iso: String): Long = Iso8601.parseToEpochMillis(iso)
 
-    private fun naturalKey(providerId: String, id: String) = "$PROFILE_ID|$providerId|$id"
+    private fun naturalKey(providerId: String, id: String) = "$profileId|$providerId|$id"
 
     companion object {
-        const val PROFILE_ID = "main"
         private const val MOVIE = "MOVIE"
         /** The addon id Cinemeta reports; used when a movie's provider isn't known. */
         const val DEFAULT_PROVIDER_ID = "com.linvo.cinemeta"

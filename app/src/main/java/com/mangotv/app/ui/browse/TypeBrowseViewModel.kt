@@ -44,14 +44,14 @@ open class TypeBrowseViewModel(application: Application, private val type: Conte
     private val blockedGenresRepository = (application as MangoTvApplication).container.blockedGenresRepository
 
     // Lower-cased blocked genres; titles in them are left out of the grid.
-    private var blocked: Set<String> = blockedGenreSet(blockedGenresRepository.genres.value)
+    private var blocked: Set<String> = blockedGenreSet(blockedGenresRepository.effectiveGenres.value)
 
     private val _uiState = MutableStateFlow<RowsBrowseUiState>(RowsBrowseUiState.Loading)
     val uiState: StateFlow<RowsBrowseUiState> = _uiState.asStateFlow()
 
     /** The genres the drop-down offers (empty hides it), and the one chosen (null is "All genres"). */
     private val bundledGenres: List<String> = bundledGenreOptions(application.assets, type)
-    val genreOptions: StateFlow<List<String>> = blockedGenresRepository.genres
+    val genreOptions: StateFlow<List<String>> = blockedGenresRepository.effectiveGenres
         .map { genres -> bundledGenres.withoutBlockedNames(blockedGenreSet(genres)) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, bundledGenres.withoutBlockedNames(blocked))
 
@@ -76,7 +76,7 @@ open class TypeBrowseViewModel(application: Application, private val type: Conte
         }
         // Blocking or unblocking a genre re-filters the already-loaded grid, no re-fetch.
         viewModelScope.launch {
-            blockedGenresRepository.genres.collect { genres ->
+            blockedGenresRepository.effectiveGenres.collect { genres ->
                 blocked = blockedGenreSet(genres)
                 if (_uiState.value is RowsBrowseUiState.Loaded && allItems.isNotEmpty()) {
                     _uiState.value = RowsBrowseUiState.Loaded(listOf(currentSection()))

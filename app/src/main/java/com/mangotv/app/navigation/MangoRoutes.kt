@@ -11,6 +11,8 @@ object MangoRoutes {
     const val AUTH_PASSWORD_PATTERN = "auth/password/{intent}"
     const val HOME = "home"
     const val SETTINGS = "settings"
+    /** "Who's watching?" (ArcTV Plus profiles): pick, add, change or remove a profile. */
+    const val PROFILES = "profiles"
     // Account/Addons/Home Rows/Sounds/Subtitles no longer have their own
     // routes -- SettingsScreen now hosts all 5 inline as a single
     // master/detail layout. SETTINGS_ADD_ADDON stays: adding an addon is
@@ -87,10 +89,14 @@ object MangoRoutes {
  */
 fun routeNeedsAccount(route: String): Boolean =
     route == MangoRoutes.MY_LIST ||
+        route == MangoRoutes.PROFILES ||
         route == MangoRoutes.SETTINGS ||
         route == MangoRoutes.SETTINGS_ADD_ADDON ||
         route.startsWith("sources/") ||
         route.startsWith("player/")
+
+/** What the nav bar's profile item reports when pressed (its own text is the active profile's name). */
+const val PROFILES_NAV_LABEL = "Profiles"
 
 fun routeForNavLabel(label: String): String? = when (label) {
     "Home" -> MangoRoutes.HOME
@@ -100,6 +106,8 @@ fun routeForNavLabel(label: String): String? = when (label) {
     "Search" -> MangoRoutes.SEARCH
     "My List" -> MangoRoutes.MY_LIST
     "Settings" -> MangoRoutes.SETTINGS
+    // The nav bar's profile item (it shows the profile's name, but reports this label).
+    PROFILES_NAV_LABEL -> MangoRoutes.PROFILES
     // What a guest sees in place of Settings (see TopNavBar).
     "Sign In" -> MangoRoutes.AUTH_START
     else -> null

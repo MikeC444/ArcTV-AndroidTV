@@ -26,8 +26,8 @@ data class PlusPerk(val title: String, val detail: String, val comingSoon: Boole
 
 val PLUS_PERKS: List<PlusPerk> = listOf(
     PlusPerk("Picked for you", "A Home row chosen from the movies you like, finish and save, with the reason under each poster, plus Like and Not for me on movies.", comingSoon = false),
-    PlusPerk("Profiles", "Separate profiles on one account, each with its own My List and Continue Watching."),
-    PlusPerk("Parental controls", "A PIN, plus locks on genres and titles."),
+    PlusPerk("Profiles", "Up to 5 profiles on one account, each with its own My List, Continue Watching, settings and recommendations. Add kids profiles, and lock any profile with a PIN.", comingSoon = false),
+    PlusPerk("Parental controls", "Locks on individual genres and titles, built on kids profiles and Blocked Genres."),
     PlusPerk("Smart source picking", "Automatically choose the best playable source for your device.")
 )
 

@@ -43,6 +43,10 @@ class AuthGateViewModel(application: Application) : AndroidViewModel(application
             // A guest needs something to browse: make sure the default addon is there before Home first asks for it.
             if (!hasUsableSession) container.addonRepository.ensureDefaultAddon()
 
+            // ArcTV Plus profiles: back onto the profile this device was last on (saved copy only, no network), before Home reads any
+            // cache or any request goes out, so everything is for the right profile from the first frame.
+            if (hasUsableSession) container.profileRepository.restoreFromDisk(session!!.user.id)
+
             _destination.value = GateDestination.Home
 
             if (hasUsableSession) {

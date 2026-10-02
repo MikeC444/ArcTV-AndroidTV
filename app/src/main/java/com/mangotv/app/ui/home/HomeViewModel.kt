@@ -96,7 +96,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var lastPickedKey: String? = null
 
     // Genres the person has blocked, lower-cased -- read synchronously from applyPreferences, kept current by the collector in init.
-    private var blockedGenres: Set<String> = blockedGenreSet(blockedGenresRepository.genres.value)
+    private var blockedGenres: Set<String> = blockedGenreSet(blockedGenresRepository.effectiveGenres.value)
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -236,7 +236,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         // Blocking or unblocking a genre re-applies the already-fetched rows, no network re-fetch.
         viewModelScope.launch {
-            blockedGenresRepository.genres.collect { genres ->
+            blockedGenresRepository.effectiveGenres.collect { genres ->
                 blockedGenres = blockedGenreSet(genres)
                 applyPreferences(homeRowPreferences.preferences.value)
             }

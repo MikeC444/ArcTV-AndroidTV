@@ -127,6 +127,18 @@ class AddonRepository(context: Context) {
         Unit
     }
 
+    /**
+     * A profile that has no addons of its own yet (a new one) starts with the same default addon a fresh install gets. Unlike
+     * [ensureDefaultAddon] it is pushed to the account, so the next pull for this profile doesn't wipe it again. Does nothing
+     * when any addon is installed.
+     */
+    suspend fun bootstrapDefaultForNewProfile() = withContext(Dispatchers.IO) {
+        if (_installedAddons.value.isNotEmpty()) return@withContext
+        val bundled = readBundledCinemetaManifest() ?: return@withContext
+        val record = registerAndPersist(CINEMETA_MANIFEST_URL, bundled)
+        onLocalChange?.invoke(AddonChange.Upserted(record, _installedAddons.value.lastIndex))
+    }
+
     suspend fun installAddon(rawUrl: String): Result<InstalledAddon> = withContext(Dispatchers.IO) {
         runCatching {
             require(rawUrl.isNotBlank()) { "Enter an addon URL first." }
