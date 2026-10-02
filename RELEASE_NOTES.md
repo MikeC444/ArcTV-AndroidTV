@@ -14,6 +14,8 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- Fixed: after signing in or opening the app, My List, Continue Watching, addons and settings could stay empty (and the profile line in Settings stayed on "still loading") until a later launch. This came in with 0.1.5.
+
 - Profiles: your profile's picture now sits at the top right of the top bar, like on the website. Press it to open "Who's watching?" and switch profile, without going into Settings. If profiles can't load, Settings > Account now says why instead of showing nothing.
 
 ## 0.1.5
