@@ -71,6 +71,14 @@ The debug APK is also built automatically by GitHub Actions on every push (`.git
 
 ## 📺 Installing on a Fire TV / Firestick
 
+### The easy way: Downloader
+
+1. On your Fire TV, install the free **Downloader** app from the Amazon Appstore.
+2. Enable **Settings → My Fire TV → Developer Options → Install unknown apps → Downloader**.
+3. Open Downloader, enter the code **2368012**, and follow the prompts to install Arc TV.
+
+### The ADB way
+
 1. Enable **Settings → My Fire TV → Developer Options → Apps from Unknown Sources** and **ADB Debugging**.
 2. `adb connect <firestick-ip>:5555`
 3. `adb install app-debug.apk`
