@@ -43,13 +43,11 @@ fun SettingsScaffold(
     titleIcon: ImageVector? = null,
     // Which MangoNavItems label to highlight in the nav bar -- defaults to
     // "Settings" so every existing Settings-family screen is unaffected.
-    // The Genres picker is the one non-Settings screen reusing this shell,
-    // and passes "Genres" here instead.
     selectedNavLabel: String = "Settings",
     // See TopNavBar's own kdoc on its identically-named parameter. Required
     // (not just harmless-to-omit) for any caller whose content is a
     // scrollable list with firstContentFocusRequester pinned to its first
-    // item, e.g. GenresScreen/HomeRowsScreen: the declarative
+    // item, e.g. HomeRowsScreen: the declarative
     // firstContentFocusRequester alone crashes the moment that first item
     // has scrolled out of composition, since nothing here scrolls the
     // caller's own list back into view first. Screens whose
@@ -66,7 +64,7 @@ fun SettingsScaffold(
     // lands on the first focusable element in the tree (the nav bar's
     // first item, "Home") regardless of which item is actually selected.
     // This was missing here, so every SettingsScaffold-hosted screen
-    // (Settings, Addons, Home Rows, Genres) opened with the D-pad cursor
+    // (Settings, Addons, Home Rows) opened with the D-pad cursor
     // on Home instead of its own tab.
     LaunchedEffect(Unit) {
         runCatching { navFocusRequester.requestFocus() }

@@ -1,6 +1,9 @@
 package com.mangotv.app.ui.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,14 +32,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.mangotv.app.ui.components.TvFocusSurface
-import com.mangotv.app.ui.theme.ArcAccent
-import com.mangotv.app.ui.theme.MangoDimens
+import com.mangotv.app.ui.theme.ArcBrandGradient
+import com.mangotv.app.ui.theme.DividerSubtle
+import com.mangotv.app.ui.theme.MangoBackground
+import com.mangotv.app.ui.theme.MangoBackgroundElevated
+import com.mangotv.app.ui.theme.TextTertiary
 import com.mangotv.app.ui.theme.MangoSurface
 import com.mangotv.app.ui.theme.MangoSurfaceHigh
 import com.mangotv.app.ui.theme.TextPrimary
@@ -57,9 +71,16 @@ private enum class SettingsCategory(val icon: ImageVector, val title: String, va
     ADDONS(Icons.Filled.Extension, "Addons", "Manage installed content providers"),
     HOME_ROWS(Icons.Filled.GridView, "Home Rows", "Choose which rows show up on Home"),
     BLOCKED_GENRES(Icons.Filled.Block, "Blocked Genres", "Hide genres you don't want to see"),
-    SOUNDS(Icons.Filled.MusicNote, "Sounds", "Choose your app boot sound"),
-    SUBTITLES(Icons.Filled.Subtitles, "Subtitles", "Default on/off and preferred language")
+    SUBTITLES(Icons.Filled.Subtitles, "Subtitles", "Default on/off and preferred language"),
+    SOUNDS(Icons.Filled.MusicNote, "Sounds", "Choose your app boot sound")
 }
+
+/** The side navigation's groups, in the same order and with the same headings as the web app's Settings. */
+private val SettingsGroups: List<Pair<String, List<SettingsCategory>>> = listOf(
+    "You" to listOf(SettingsCategory.ACCOUNT, SettingsCategory.PLUS),
+    "Content" to listOf(SettingsCategory.ADDONS, SettingsCategory.HOME_ROWS, SettingsCategory.BLOCKED_GENRES),
+    "Playback & sound" to listOf(SettingsCategory.SUBTITLES, SettingsCategory.SOUNDS)
+)
 
 @Composable
 fun SettingsScreen(
@@ -83,7 +104,8 @@ fun SettingsScreen(
     // whichever one is on screen is the one that lands the focus.
     val paneContentFocusRequester = remember { FocusRequester() }
 
-    var selected by remember { mutableStateOf(SettingsCategory.ACCOUNT) }
+    // Opens on Arc TV Plus when the Plus popup sent the person here ("Take me there"), otherwise on Account.
+    var selected by remember { mutableStateOf(if (PendingSettingsTab.takePlus()) SettingsCategory.PLUS else SettingsCategory.ACCOUNT) }
 
     fun rowFocusRequesterFor(category: SettingsCategory): FocusRequester = when (category) {
         SettingsCategory.ACCOUNT -> accountRowFocusRequester
@@ -106,42 +128,55 @@ fun SettingsScreen(
                 .fillMaxWidth()
                 .weight(1f)
         ) {
-            // Six categories no longer fit in the height under the nav bar on a TV (the last row, Arc TV Plus, was
-            // squeezed), so the list scrolls with the remote like every other long list here, and its rows are a
-            // little tighter. The vertical padding inside the scroll leaves room for a focused row's scale-up,
-            // which the scroll area would otherwise clip at its top and bottom edges.
+            // The side navigation: a rounded panel of grouped categories (You / Content / Playback & sound). It scrolls with the remote if the
+            // groups don't fit under the nav bar. The padding inside the scroll leaves room for a focused row's scale-up, which the scroll
+            // area would otherwise clip at its edges.
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .padding(end = 12.dp)
+                    .padding(end = 16.dp, bottom = 12.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(MangoBackgroundElevated)
+                    .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
                     .verticalScroll(rememberScrollState())
-                    .padding(vertical = 10.dp)
+                    .padding(horizontal = 10.dp, vertical = 14.dp)
             ) {
-                val categories = remember { SettingsCategory.values().toList() }
-                categories.forEachIndexed { index, category ->
-                    SettingsSidebarRow(
-                        category = category,
-                        selected = category == selected,
-                        onClick = { selected = category },
-                        focusRequester = rowFocusRequesterFor(category),
-                        focusUp = if (index == 0) navFocusRequester else null,
-                        focusRight = paneContentFocusRequester
+                SettingsGroups.forEachIndexed { groupIndex, (label, categories) ->
+                    Text(
+                        text = label.uppercase(),
+                        color = TextTertiary,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                        modifier = Modifier.padding(start = 10.dp, bottom = 4.dp, top = if (groupIndex == 0) 0.dp else 14.dp)
                     )
-                    if (index != categories.lastIndex) {
-                        Spacer(Modifier.height(6.dp))
+                    categories.forEachIndexed { index, category ->
+                        SettingsSidebarRow(
+                            category = category,
+                            selected = category == selected,
+                            onClick = { selected = category },
+                            focusRequester = rowFocusRequesterFor(category),
+                            focusUp = if (groupIndex == 0 && index == 0) navFocusRequester else null,
+                            focusRight = paneContentFocusRequester
+                        )
+                        if (index != categories.lastIndex) {
+                            Spacer(Modifier.height(4.dp))
+                        }
                     }
                 }
             }
 
-            // 1:3 sidebar-to-detail weight ratio -- the sidebar column above
-            // takes 1 share, this one takes 3, so the detail pane always
-            // ends up at exactly 75% of the row's width regardless of
-            // screen size.
+            // 1:3 sidebar-to-detail weight ratio, as before: the detail pane takes the remaining 75% of the row, now inside a card.
             Box(
                 modifier = Modifier
                     .weight(3f)
                     .fillMaxHeight()
+                    .padding(bottom = 12.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(MangoBackgroundElevated)
+                    .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
+                    .padding(horizontal = 22.dp, vertical = 18.dp)
             ) {
                 SettingsDetailPane(
                     category = selected,
@@ -166,22 +201,16 @@ private fun SettingsSidebarRow(
     focusUp: FocusRequester? = null,
     focusRight: FocusRequester? = null
 ) {
-    val contentColor = if (selected) ArcAccent else TextPrimary
-
     TvFocusSurface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
-        // Same reasoning as HomeRowToggleRow/SubtitlesToggleRow's own
-        // focusedScale override: the default (tuned for small poster
-        // cards) is too big a jump for a row that spans its whole
-        // container's width, and scales past the safe margin.
+        shape = RoundedCornerShape(12.dp),
+        // Same reasoning as HomeRowToggleRow/SubtitlesToggleRow's own focusedScale override: the default (tuned for small poster cards) is
+        // too big a jump for a row that spans its whole container's width.
         focusedScale = 1.02f,
-        backgroundColor = if (selected) MangoSurfaceHigh else MangoSurface,
-        // Keeps showing which category is active even once focus has moved
-        // into the detail pane on the right -- independent of this
-        // surface's own transient isFocused state.
-        alwaysShowBorder = selected,
+        // The open category is a filled row with a gradient bar down its left edge and a gradient icon tile, and stays that way once focus
+        // has moved into the pane on the right (independent of this surface's own transient focus ring).
+        backgroundColor = if (selected) MangoSurfaceHigh else Color.Transparent,
         borderColor = TextPrimary,
         focusRequester = focusRequester,
         focusUp = focusUp,
@@ -190,13 +219,47 @@ private fun SettingsSidebarRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .drawBehind {
+                    if (selected) {
+                        drawRoundRect(
+                            brush = ArcBrandGradient,
+                            topLeft = Offset(0f, size.height * 0.22f),
+                            size = Size(3.dp.toPx(), size.height * 0.56f),
+                            cornerRadius = CornerRadius(1.5.dp.toPx())
+                        )
+                    }
+                }
+                .padding(horizontal = 10.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(imageVector = category.icon, contentDescription = null, tint = contentColor)
-            Spacer(Modifier.width(14.dp))
-            Text(text = category.title, color = contentColor, style = MaterialTheme.typography.titleMedium)
+            CategoryIconTile(category.icon, selected, size = 32)
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = category.title,
+                color = if (selected) TextPrimary else TextSecondary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+            )
         }
+    }
+}
+
+/** The small rounded tile behind a category's icon: dark with a light icon, or (for the open category and the pane header) the brand gradient. */
+@Composable
+private fun CategoryIconTile(icon: ImageVector, highlighted: Boolean, size: Int) {
+    Box(
+        modifier = Modifier
+            .size(size.dp)
+            .clip(RoundedCornerShape((size / 3.2f).dp))
+            .let { if (highlighted) it.background(ArcBrandGradient) else it.background(MangoSurface) },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (highlighted) MangoBackground else TextSecondary,
+            modifier = Modifier.size((size * 0.58f).dp)
+        )
     }
 }
 
@@ -222,9 +285,17 @@ private fun SettingsDetailPane(
     onOpenProfiles: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        Text(text = category.title, color = TextPrimary, style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(4.dp))
-        Text(text = category.subtitle, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CategoryIconTile(category.icon, highlighted = true, size = 40)
+            Spacer(Modifier.width(14.dp))
+            Column {
+                Text(text = category.title, color = TextPrimary, style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(2.dp))
+                Text(text = category.subtitle, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(DividerSubtle))
         Spacer(Modifier.height(14.dp))
 
         when (category) {

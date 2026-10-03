@@ -43,8 +43,6 @@ import com.mangotv.app.ui.auth.QrSignInScreen
 import com.mangotv.app.ui.browse.MoviesScreen
 import com.mangotv.app.ui.browse.TvShowsScreen
 import com.mangotv.app.ui.detail.DetailScreen
-import com.mangotv.app.ui.genres.GenreResultsScreen
-import com.mangotv.app.ui.genres.GenresScreen
 import com.mangotv.app.ui.search.SearchScreen
 import com.mangotv.app.ui.mylist.MyListScreen
 import com.mangotv.app.ui.home.HomeScreen
@@ -56,6 +54,8 @@ import com.mangotv.app.ui.sources.SourcesScreen
 import com.mangotv.app.ui.components.CardActionsMenuOverlay
 import com.mangotv.app.ui.components.CardActionsMenuState
 import com.mangotv.app.ui.components.LocalCardActionsMenu
+import com.mangotv.app.ui.plus.PlusPromoHost
+import com.mangotv.app.ui.settings.PendingSettingsTab
 import com.mangotv.app.ui.update.UpdatePromptHost
 import com.mangotv.app.ui.update.UpdateViewModel
 import java.net.URLDecoder
@@ -69,7 +69,7 @@ import kotlinx.coroutines.launch
 // already-fetched data and re-running every network fetch on every visit.
 private val TAB_ROOT_ROUTES = setOf(
     MangoRoutes.HOME, MangoRoutes.MOVIES, MangoRoutes.TV_SHOWS,
-    MangoRoutes.GENRES, MangoRoutes.SEARCH, MangoRoutes.MY_LIST, MangoRoutes.SETTINGS
+    MangoRoutes.SEARCH, MangoRoutes.MY_LIST, MangoRoutes.SETTINGS
 )
 
 /** A guest sent to sign in: the route they were heading for once signed in, or null to just return to where they were. */
@@ -344,6 +344,11 @@ fun MangoNavHost() {
                         onNavigate = ::navigateTo,
                         viewModel = homeViewModel
                     )
+                    // A gentle Arc TV Plus invitation, only here on Home (it decides by itself whether the person should see it).
+                    PlusPromoHost(onTakeMeThere = {
+                        PendingSettingsTab.openPlus()
+                        navigateTo(MangoRoutes.SETTINGS)
+                    })
                 }
                 composable(MangoRoutes.PROFILES) {
                     ProfilesScreen(
@@ -370,16 +375,6 @@ fun MangoNavHost() {
                 }
                 composable(MangoRoutes.TV_SHOWS) {
                     TvShowsScreen(
-                        onNavigate = ::navigateTo
-                    )
-                }
-                composable(MangoRoutes.GENRES) {
-                    GenresScreen(
-                        onNavigate = ::navigateTo
-                    )
-                }
-                composable(MangoRoutes.GENRE_RESULTS_PATTERN) {
-                    GenreResultsScreen(
                         onNavigate = ::navigateTo
                     )
                 }

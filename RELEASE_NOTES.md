@@ -14,6 +14,12 @@ run the release workflow for that version.
 
 ## Unreleased
 
+- Search just got faster and friendlier: results appear as you type, with recent searches and a roomy poster grid.
+- A fresh top bar: your links float in a sleek pill, and the Home picture now stretches edge to edge.
+- Settings has a tidier side menu, grouped into You, Content, and Playback & sound.
+- The Genres tab is gone: pick a genre from the menu on Movies and TV Shows instead.
+- Curious about Arc TV Plus? A gentle pop-up on Home shows what it adds. Snooze it or turn it off any time.
+
 ## 0.1.6
 
 - Your "Picked for you" row just got smarter: it matches your whole mix of tastes, and most of it changes every time you open the app.

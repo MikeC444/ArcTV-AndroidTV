@@ -4201,3 +4201,23 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+
+## Post-Milestone-64 — Bring the Firestick level with the web app (Genres, top bar, Search, Settings, Plus popup)
+
+**Status:** Written and unit tests added; not built or run here (no Android SDK in this sandbox).
+
+**Context:** Five web changes had not been made on the Firestick (`docs/FIRESTICK_PARITY.md` in `MikeC444/ArcTV-Web`). They are ported with the same look and rules, adapted for a TV remote.
+
+**Changes:**
+- **Genres removed.** The Genres tab, `GenresScreen`, `GenreResultsScreen` and their view models and routes are gone (the Movies / TV Shows genre drop-downs stay). `MangoNavItems` is now Home, Movies, TV Shows, Search, My List, Settings.
+- **Top bar.** The links sit in a frosted pill centred between the logo and the profile chip (logo and chip in two equal-width side boxes); the open page is a filled pill with a small cyan-blue-violet underline; the focus ring stays but nothing scales on focus, so the ring is never clipped by the scrolling row; the profile chip is a pill with a round picture. Over Home / Detail the dark band behind the bar is gone (it is the page colour on the other screens). The Home hero's dark edge shading (left and right) is removed; the soft left-to-right shade behind the text stays. The logo is not focusable, so it never has an outline.
+- **Search.** A rounded bar with an icon and a clear button; results appear as you type (250 ms pause, from 2 letters; Enter on the keyboard searches at once); every addon is asked at once (it was one after another) and each answer, and each catalog of an addon, shows as it arrives, with a 6 s cut-off per addon and a "Still checking other addons…" line (`CatalogProvider.search` takes an optional `onPartial`); results are a poster grid under Movies / TV Shows headings with counts; **Recent searches** (last 8, per account, `SearchHistoryRepository`, wiped on sign-out) with Clear, one press to search again and hold OK to remove one. The web's title-suggestions dropdown is not ported (on a TV the results already show as posters).
+- **Settings.** A rounded side panel of grouped categories (You / Content / Playback & sound, Subtitles before Sounds as on the web) with an icon tile per row, a filled open row with a gradient bar and gradient icon; the open category's settings sit in a rounded card with an icon, title and subtitle header.
+- **Arc TV Plus popup** (`PlusPromoHost`, `PlusPromoRepository`). On Home, a few seconds after landing, once per launch, for a signed-in adult without Plus once the paywall is on (never in early access, on a kids profile, or for Plus owners). Take me there opens Settings on the Arc TV Plus tab (`PendingSettingsTab`) and counts as answered; Close (or BACK) hides it for 7 days; Don't show me again ends it for the account. It is a dialog window so the remote stays inside it.
+
+**Tests performed:** unit tests added for the recent-searches list (`SearchHistoryTest`), the search merge (`SearchMergeTest`) and the popup rules (`PlusPromoRulesTest`); `GuestRoutesTest` updated for the removed routes. None of it was compiled or run here: no Android SDK in this sandbox. A structural check (brace/paren balance, unused imports) was run over every changed file, and each change was re-read against the code it touches. CI builds it.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

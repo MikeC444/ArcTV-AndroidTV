@@ -208,25 +208,6 @@ fun HeroSection(
                 )
         )
 
-        // The same soft shade as the top bar also wraps the left and right edges of the picture (as on the web): dark at
-        // the very edge, gone by 10% of the width.
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(
-                    Brush.horizontalGradient(
-                        colorStops = arrayOf(
-                            0f to MangoBackground.copy(alpha = 0.88f),
-                            0.04f to MangoBackground.copy(alpha = 0.55f),
-                            0.10f to Color.Transparent,
-                            0.90f to Color.Transparent,
-                            0.96f to MangoBackground.copy(alpha = 0.55f),
-                            1f to MangoBackground.copy(alpha = 0.88f)
-                        )
-                    )
-                )
-        )
-
         // Bottom fade so the hero blends into the row content below. This
         // now ramps all the way to a fully opaque MangoBackground at the
         // very bottom edge, matching the solid background the "Popular"

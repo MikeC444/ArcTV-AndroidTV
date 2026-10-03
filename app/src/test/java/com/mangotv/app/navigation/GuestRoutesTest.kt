@@ -22,8 +22,8 @@ class GuestRoutesTest {
     @Test
     fun `everything else can be browsed as a guest`() {
         listOf(
-            MangoRoutes.HOME, MangoRoutes.MOVIES, MangoRoutes.TV_SHOWS, MangoRoutes.GENRES, MangoRoutes.SEARCH,
-            MangoRoutes.genreResults("Action"), MangoRoutes.detail("p", ContentType.MOVIE, "tt1")
+            MangoRoutes.HOME, MangoRoutes.MOVIES, MangoRoutes.TV_SHOWS, MangoRoutes.SEARCH,
+            MangoRoutes.detail("p", ContentType.MOVIE, "tt1")
         ).forEach { assertFalse(it, routeNeedsAccount(it)) }
     }
 

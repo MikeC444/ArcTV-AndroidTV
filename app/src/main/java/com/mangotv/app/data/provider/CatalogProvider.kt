@@ -83,7 +83,7 @@ interface CatalogProvider {
      * Search still returns something for addons that don't declare search
      * support.
      */
-    suspend fun search(query: String): List<Content>
+    suspend fun search(query: String, onPartial: ((List<Content>) -> Unit)? = null): List<Content>
 
     /**
      * The next page of [getSectionsByType]'s base-catalog content, using the
