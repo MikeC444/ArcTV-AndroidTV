@@ -25,6 +25,22 @@ Arc TV is a modern media center that puts everything you love to watch in one pl
 - **Picks for you** — a "Picked for you" row that learns your tastes
 - **Stays up to date** — the app tells you when a new version is out and what changed (see `RELEASE_NOTES.md`)
 
+## 📺 Installing on a Fire TV / Firestick
+
+### The easy way: Downloader
+
+1. On your Fire TV, install the free **Downloader** app from the Amazon Appstore.
+2. Enable **Settings → My Fire TV → Developer Options → Install unknown apps → Downloader**.
+3. Open Downloader, enter the code **2368012**, and follow the prompts to install Arc TV.
+
+### The ADB way
+
+1. Enable **Settings → My Fire TV → Developer Options → Apps from Unknown Sources** and **ADB Debugging**.
+2. `adb connect <firestick-ip>:5555`
+3. `adb install app-debug.apk`
+
+That's it — open Arc TV from your apps list, sign in, and start watching.
+
 ## 🚀 Status
 
 Arc TV is full-featured and actively growing. On top of the screens above, it has a complete **account, authentication, and cloud synchronization system**. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how that system works, [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for running your own backend instance, and [`docs/TESTING.md`](docs/TESTING.md) for how to verify it end-to-end (including reproducing the full multi-device test). `CHANGELOG.md` has the milestone-by-milestone development history.
@@ -68,22 +84,6 @@ Requires Android Studio (or the command line with an Android SDK installed):
 ```
 
 The debug APK is also built automatically by GitHub Actions on every push (`.github/workflows/build-apk.yml`) and uploaded as a workflow artifact, so a build is available for download without needing a local Android SDK.
-
-## 📺 Installing on a Fire TV / Firestick
-
-### The easy way: Downloader
-
-1. On your Fire TV, install the free **Downloader** app from the Amazon Appstore.
-2. Enable **Settings → My Fire TV → Developer Options → Install unknown apps → Downloader**.
-3. Open Downloader, enter the code **2368012**, and follow the prompts to install Arc TV.
-
-### The ADB way
-
-1. Enable **Settings → My Fire TV → Developer Options → Apps from Unknown Sources** and **ADB Debugging**.
-2. `adb connect <firestick-ip>:5555`
-3. `adb install app-debug.apk`
-
-That's it — open Arc TV from your apps list, sign in, and start watching.
 
 ## 🤝 Contributing
 
