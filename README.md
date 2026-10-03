@@ -10,6 +10,10 @@
 
 Arc TV is a modern media center that puts everything you love to watch in one place. Content comes from Stremio-protocol addons (`data/provider`, `data/addon`) rather than a fixed built-in catalog, so you choose the addons you want, the same way Stremio itself works.
 
+<p align="center">
+  <img src="docs/images/screenshot-home.webp" alt="Arc TV home screen with the Picked for you and Popular rows">
+</p>
+
 ## ✨ Features
 
 - **Addon-powered** — discover movies and series from whichever Stremio-protocol addons you install
