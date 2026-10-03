@@ -4186,3 +4186,18 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Change:** the test now expects "ArcTV".
 
 **Tests performed:** read the CI log: 219 of 220 passed, this was the only failure. The fixed test is run by Server CI.
+
+
+## Post-Milestone-63 — README rewritten in a friendlier, more encouraging tone
+
+**Status:** Done (docs only).
+
+**Context:** The README read as a dry status report. Requested: make it more welcoming, in the style of Stremio Web's GitHub README.
+
+**Changes:** `README.md` is centered under the Arc TV banner logo and a home-screen screenshot (`docs/images/screenshot-home.webp`) under the intro (banner copied to `docs/images/arctv-banner.png`; the in-app logo is white-on-transparent and would vanish on GitHub's light theme). It now opens with a one-line pitch, adds a "Features" list, a short "How it works" section and a "Contributing" note, and adds emoji section headings. The install section now leads with the Downloader code (2368012) for Firestick users, with the ADB steps kept below it. Project structure, build instructions and the doc links are unchanged. No release-notes bullet: the change isn't visible in the app.
+
+**Tests performed:** manual re-read. No Gradle/Android build was possible or needed (docs only).
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
