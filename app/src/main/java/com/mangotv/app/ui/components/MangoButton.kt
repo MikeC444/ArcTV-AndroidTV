@@ -58,13 +58,19 @@ fun MangoButton(
     backgroundOverride: Color? = null,
     // Passed straight through to TvFocusSurface -- e.g. PlaybackErrorOverlay's
     // "Back" button passes ClickSound.BACK.
-    clickSound: ClickSound = ClickSound.DEFAULT
+    clickSound: ClickSound = ClickSound.DEFAULT,
+    // Looks switched off (e.g. the Trailer button until a trailer is found) while staying focusable. Done by fading the button's own fill,
+    // icon and text -- NOT with Modifier.alpha around it: that wraps the button in a clipped layer, which cut off the focus ring and its
+    // scale-up (the "blue outline looks cut out" bug). The focus ring itself is never faded. The gradient fill of FILLED is not faded.
+    dimmed: Boolean = false
 ) {
-    val contentColor = backgroundOverride?.let { Color.Black } ?: when (style) {
+    val dim = if (dimmed) DIMMED_ALPHA else 1f
+    val baseContentColor = backgroundOverride?.let { Color.Black } ?: when (style) {
         MangoButtonStyle.FILLED -> MangoBackground
         MangoButtonStyle.LIGHT -> Color.Black
         MangoButtonStyle.GLASS -> TextPrimary
     }
+    val contentColor = baseContentColor.copy(alpha = baseContentColor.alpha * dim)
     val buttonHeight = if (compact) 40.dp else 52.dp
     val horizontalPadding = if (compact) 16.dp else 26.dp
     val iconHeight = if (compact) 16.dp else 22.dp
@@ -85,11 +91,11 @@ fun MangoButton(
         onClick = onClick,
         modifier = modifier.height(buttonHeight),
         shape = shape,
-        backgroundColor = backgroundOverride ?: when (style) {
+        backgroundColor = (backgroundOverride ?: when (style) {
             MangoButtonStyle.GLASS -> Color.White.copy(alpha = 0.12f)
             MangoButtonStyle.LIGHT -> Color.White
             MangoButtonStyle.FILLED -> Color.Transparent
-        },
+        }).let { it.copy(alpha = it.alpha * dim) },
         backgroundBrush = if (backgroundOverride == null && style == MangoButtonStyle.FILLED) ArcBrandGradient else null,
         focusRequester = focusRequester,
         focusUp = focusUp,
@@ -133,3 +139,6 @@ fun MangoButton(
         }
     }
 }
+
+/** How faded a [MangoButton] looks when `dimmed`. */
+private const val DIMMED_ALPHA = 0.45f

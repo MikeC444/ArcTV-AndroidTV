@@ -64,7 +64,6 @@ import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import androidx.compose.material.icons.filled.Theaters
 import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
@@ -419,22 +418,21 @@ fun HeroSection(
                     val lookedUp = trailers.containsKey(current.id)
                     // Dimmed (but still focusable, so the remote can land on it) until a trailer is found; pressing it
                     // then says why nothing opened.
-                    Box(modifier = Modifier.alpha(if (trailerId != null) 1f else 0.45f)) {
-                        MangoButton(
-                            text = "Trailer",
-                            icon = Icons.Filled.Theaters,
-                            onClick = {
-                                when {
-                                    trailerId != null -> TrailerLauncher.launch(context, trailerId)
-                                    !lookedUp -> Toast.makeText(context, "Looking for a trailer\u2026", Toast.LENGTH_SHORT).show()
-                                    else -> Toast.makeText(context, "No trailer found for this title", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            style = MangoButtonStyle.GLASS,
-                            focusUp = navUpFocusRequester,
-                            bringIntoViewOnFocus = false
-                        )
-                    }
+                    MangoButton(
+                        text = "Trailer",
+                        icon = Icons.Filled.Theaters,
+                        onClick = {
+                            when {
+                                trailerId != null -> TrailerLauncher.launch(context, trailerId)
+                                !lookedUp -> Toast.makeText(context, "Looking for a trailer\u2026", Toast.LENGTH_SHORT).show()
+                                else -> Toast.makeText(context, "No trailer found for this title", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        style = MangoButtonStyle.GLASS,
+                        focusUp = navUpFocusRequester,
+                        bringIntoViewOnFocus = false,
+                        dimmed = trailerId == null
+                    )
                 }
                 Spacer(Modifier.width(16.dp))
                 val isSaved = current.id in savedIds

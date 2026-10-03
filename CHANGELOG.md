@@ -4231,3 +4231,13 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Change:** UP from the first grid row now scrolls the list to the top and focuses the bar just above the grid (the selected filter chip, or "Featured"). That bar's existing UP goes on to the drop-down and then the top bar, so the way back is the way down. `navRegionFocused` is left as it was (false), since the bar and drop-down are part of the same list.
 
 **Tests performed:** none new: this is remote-focus behaviour in Compose and the repo has no UI tests for it. Brace/paren balance checked and the change re-read against the focus wiring it relies on (the bar's `focusUp`, the header and chip requesters). Not tried on a device. CI builds it.
+
+## Post-Milestone-66 — Fix: focus outline cut off on the Trailer button (Home hero, movie Detail)
+
+**Status:** Fix written; CI builds and tests it. Not run on a device here.
+
+**Cause:** the Trailer button is dimmed until a trailer is found, and it was dimmed by wrapping it in `Box(Modifier.alpha(0.45f))`. `Modifier.alpha` (for any value other than 1) draws the Box into a graphics layer that is *clipped* to the Box's own bounds, and the focused button scales up and draws its outline outside those bounds, so the outline looked cut out. With a trailer found the alpha was 1 (no layer), so it only showed while the button was dimmed.
+
+**Change:** `MangoButton` gets a `dimmed` parameter that fades the button's own fill, icon and text (never the focus ring); `HeroSection` and `DetailHeroSection` use it and no longer wrap the button in an alpha Box.
+
+**Tests performed:** none new (a draw-time clipping issue, no UI tests in this repo). Brace/paren balance checked and the change re-read. Not tried on a device. CI builds it.
