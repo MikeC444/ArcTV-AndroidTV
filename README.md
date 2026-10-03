@@ -2,7 +2,7 @@
   <img src="docs/images/arctv-banner.png" alt="Arc TV" width="420">
 </p>
 
-<h1 align="center">Arc TV</h1>
+<h1 align="center">Arc TV Android TV</h1>
 
 **Your streaming, your way, on the big screen** — a premium, Netflix-inspired streaming app for Amazon Fire TV / Firestick, built with Kotlin and Jetpack Compose.
 
