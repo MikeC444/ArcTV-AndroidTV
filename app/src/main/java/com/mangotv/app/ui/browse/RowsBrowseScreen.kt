@@ -899,12 +899,26 @@ private fun RowsBrowseGridContent(
                                             // row leaves UP unhandled so it falls through to
                                             // Compose's default focus search and lands in the
                                             // row above, same as Home's multi-row precedent.
+                                            //
+                                            // UP lands on the bar just above the grid (the
+                                            // filter chip, or "Featured"), exactly the way DOWN
+                                            // came: nav bar -> drop-down -> bar -> grid. It used
+                                            // to jump straight to the nav bar, skipping the
+                                            // drop-down and the bar. The bar's own UP goes on
+                                            // to the drop-down and then the nav bar. The list
+                                            // is scrolled back to the top first so those are on
+                                            // screen; navRegionFocused stays as it is (false),
+                                            // since the bar and drop-down are part of this list.
                                             if (event.key == Key.DirectionUp) {
                                                 if (event.type == KeyEventType.KeyDown) {
-                                                    navRegionFocused = true
                                                     coroutineScope.launch {
                                                         listState.scrollToItem(0, 0)
-                                                        runCatching { navFocusRequester.requestFocus() }
+                                                        val barTarget = if (hasFilterBar) {
+                                                            filterChipFocusRequesters.getOrNull(selectedFilterIndex)
+                                                        } else {
+                                                            sortBarFocusRequester
+                                                        }
+                                                        runCatching { (barTarget ?: navFocusRequester).requestFocus() }
                                                     }
                                                 }
                                                 true

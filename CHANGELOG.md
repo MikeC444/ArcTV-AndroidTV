@@ -4221,3 +4221,13 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-65 — Fix: UP from the first row of Movies / TV Shows skipped the sort bar and the genre drop-down
+
+**Status:** Fix written; CI builds and tests it. Not run on a device here.
+
+**Cause:** on the Movies and TV Shows grid, DOWN from the top bar walks drop-down ("All genres") -> bar ("Featured") -> first row, but UP from the first row was intercepted in `RowsBrowseGridContent` and sent straight to the top bar (`navFocusRequester`), skipping the two in between.
+
+**Change:** UP from the first grid row now scrolls the list to the top and focuses the bar just above the grid (the selected filter chip, or "Featured"). That bar's existing UP goes on to the drop-down and then the top bar, so the way back is the way down. `navRegionFocused` is left as it was (false), since the bar and drop-down are part of the same list.
+
+**Tests performed:** none new: this is remote-focus behaviour in Compose and the repo has no UI tests for it. Brace/paren balance checked and the change re-read against the focus wiring it relies on (the bar's `focusUp`, the header and chip requesters). Not tried on a device. CI builds it.

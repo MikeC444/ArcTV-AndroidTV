@@ -18,6 +18,7 @@ run the release workflow for that version.
 - A fresh top bar: your links float in a sleek pill, and the Home picture now stretches edge to edge.
 - Settings has a tidier side menu, grouped into You, Content, and Playback & sound.
 - The Genres tab is gone: pick a genre from the menu on Movies and TV Shows instead.
+- Fixed: pressing Up in Movies and TV Shows now stops at Featured and the genre menu on the way back to the top bar.
 - Curious about Arc TV Plus? A gentle pop-up on Home shows what it adds. Snooze it or turn it off any time.
 
 ## 0.1.6
