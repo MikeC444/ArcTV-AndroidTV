@@ -21,6 +21,7 @@ interface CreateTestSessionOptions {
   revoked?: boolean;
   userDeleted?: boolean;
   deviceRevoked?: boolean;
+  isAdmin?: boolean;
 }
 
 /**
@@ -36,8 +37,8 @@ export async function createTestSession(options: CreateTestSessionOptions = {}):
   const displayName = options.displayName ?? null;
 
   const userResult = await pool.query<{ id: string }>(
-    "INSERT INTO users (email, password_hash, display_name, deleted_at) VALUES ($1, 'unused-in-tests', $2, $3) RETURNING id",
-    [email, displayName, options.userDeleted ? new Date() : null]
+    "INSERT INTO users (email, password_hash, display_name, deleted_at, is_admin) VALUES ($1, 'unused-in-tests', $2, $3, $4) RETURNING id",
+    [email, displayName, options.userDeleted ? new Date() : null, options.isAdmin ?? false]
   );
   const userId = userResult.rows[0]!.id;
 

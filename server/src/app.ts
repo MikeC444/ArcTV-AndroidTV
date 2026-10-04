@@ -8,6 +8,7 @@ import { createApiRateLimiter } from "./middleware/rateLimit.js";
 import { requestLogger } from "./middleware/requestLogger.js";
 import { createAuthRouter } from "./routes/auth.js";
 import { healthRouter } from "./routes/health.js";
+import { adminRouter } from "./routes/admin.js";
 import { meRouter } from "./routes/me.js";
 import { createQrRouter } from "./routes/qr.js";
 import { addonsRouter } from "./routes/addons.js";
@@ -94,6 +95,7 @@ export function createApp(): Express {
   app.use("/user", castRouter);
   app.use("/user", plusRouter);
   app.use("/user", createProfilesRouter());
+  app.use("/admin", adminRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

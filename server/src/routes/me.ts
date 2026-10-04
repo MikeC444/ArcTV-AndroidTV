@@ -11,7 +11,7 @@ export const meRouter = Router();
 meRouter.get("/me", requireAuth, (req, res, next) => {
   try {
     const user = req.user!;
-    res.json({ id: user.id, email: user.email, displayName: user.displayName });
+    res.json({ id: user.id, email: user.email, displayName: user.displayName, isAdmin: user.isAdmin });
   } catch (error) {
     next(error);
   }

@@ -2,6 +2,8 @@ export interface AuthenticatedUser {
   id: string;
   email: string;
   displayName: string | null;
+  /** Set by hand in the database (users.is_admin); gates /admin/*. */
+  isAdmin: boolean;
 }
 
 export interface AuthenticatedSession {
