@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -19,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.mangotv.app.navigation.routeForNavLabel
 import com.mangotv.app.ui.home.MangoNavItems
@@ -54,6 +56,11 @@ fun SettingsScaffold(
     // firstContentFocusRequester targets a static, always-composed element
     // instead (a button, a short fixed-size list) are unaffected either way.
     onNavigateDown: (() -> Unit)? = null,
+    // The margins around the body and the gap under the title. The defaults are what every Settings-family screen has always had; the
+    // main Settings screen passes smaller ones so its panels use more of the screen.
+    horizontalPadding: Dp = MangoDimens.ScreenPaddingHorizontal,
+    verticalPadding: Dp = 28.dp,
+    titleGap: Dp = 28.dp,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val selectedIndex = remember(selectedNavLabel) { MangoNavItems.indexOf(selectedNavLabel) }
@@ -84,10 +91,12 @@ fun SettingsScaffold(
             onNavigateDown = onNavigateDown
         )
         Column(
-            modifier = Modifier.padding(
-                horizontal = MangoDimens.ScreenPaddingHorizontal,
-                vertical = 28.dp
-            )
+            // weight(1f): the body takes ALL the height under the bar (it used to be only as tall as its content), so a Row with weight(1f)
+            // inside it really fills the screen.
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = horizontalPadding, vertical = verticalPadding)
         ) {
             if (titleIcon != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -106,7 +115,7 @@ fun SettingsScaffold(
                     style = MaterialTheme.typography.displayMedium
                 )
             }
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(titleGap))
             content()
         }
     }
