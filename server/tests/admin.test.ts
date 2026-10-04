@@ -55,6 +55,40 @@ describe("the developer panel is for admins only", () => {
     expect((await request(app).get("/admin/users?q=%25").set(auth(admin))).body.total).toBe(0); // a literal %, not a wildcard
   });
 
+  it("filters by plan, app version, addons, Continue Watching and when they were last seen", async () => {
+    const admin = await createTestSession({ isAdmin: true, email: "dev@example.com" });
+    const a = await createTestSession({ email: "a@example.com" });
+    const b = await createTestSession({ email: "b@example.com" });
+    const c = await createTestSession({ email: "c@example.com" });
+    await pool.query("INSERT INTO user_plus (user_id, plan, status, valid_until) VALUES ($1, 'monthly', 'active', now() + interval '5 days')", [a.userId]);
+    await pool.query("INSERT INTO user_plus (user_id, plan, status) VALUES ($1, 'lifetime', 'active')", [b.userId]);
+    await pool.query("INSERT INTO user_plus (user_id, plan, status, valid_until) VALUES ($1, 'yearly', 'active', now() - interval '1 day')", [c.userId]); // lapsed: counts as free
+    await pool.query("UPDATE devices SET app_version = '0.1.7', platform = 'fire_tv', last_seen_at = now() - interval '2 hours' WHERE user_id = $1", [a.userId]);
+    await pool.query("UPDATE devices SET app_version = '0.1.6', platform = 'fire_tv', last_seen_at = now() - interval '40 days' WHERE user_id = $1", [b.userId]);
+    await pool.query("UPDATE devices SET last_seen_at = now() - interval '3 days' WHERE user_id = $1", [c.userId]);
+    await pool.query("INSERT INTO user_addons (user_id, manifest_url, addon_id, name, manifest_json) VALUES ($1, 'https://x.example/manifest.json', 'x', 'X', '{}')", [a.userId]);
+    await pool.query("INSERT INTO continue_watching (user_id, provider_id, content_id, content_type, title, position_ms, duration_ms) VALUES ($1, 'p', 't', 'MOVIE', 'T', 1000, 9000)", [b.userId]);
+    const emails = async (query: string) => ((await request(app).get(`/admin/users?${query}`).set(auth(admin))).body.users as Array<{ email: string }>).map((u) => u.email).sort();
+    expect(await emails("plan=monthly")).toEqual(["a@example.com"]);
+    expect(await emails("plan=lifetime")).toEqual(["b@example.com"]);
+    expect(await emails("plan=free")).toEqual(["c@example.com", "dev@example.com"]);
+    expect(await emails("device=fire_tv%7C0.1.7")).toEqual(["a@example.com"]);
+    expect(await emails("device=fire_tv%7C0.1.6")).toEqual(["b@example.com"]);
+    expect(await emails("device=fire_tv%7Cunknown")).toEqual(["c@example.com", "dev@example.com"]); // devices that never reported a version
+    expect(await emails("addons=with")).toEqual(["a@example.com"]);
+    expect(await emails("addons=none")).toEqual(["b@example.com", "c@example.com", "dev@example.com"]);
+    expect(await emails("watching=with")).toEqual(["b@example.com"]);
+    expect(await emails("seen=24h")).toEqual(["a@example.com", "dev@example.com"]);
+    expect(await emails("seen=7d")).toEqual(["a@example.com", "c@example.com", "dev@example.com"]);
+    expect(await emails("seen=older")).toEqual(["b@example.com"]);
+    expect(await emails("plan=free&seen=7d&addons=none")).toEqual(["c@example.com", "dev@example.com"]);
+    const counted = await request(app).get("/admin/users?plan=free&limit=1").set(auth(admin));
+    expect(counted.body.total).toBe(2); // the total follows the filter, not the page
+    expect(counted.body.users).toHaveLength(1);
+    expect((await request(app).get("/admin/users?plan=gold").set(auth(admin))).status).toBe(400);
+    expect((await request(app).get("/admin/users?device=x").set(auth(admin))).status).toBe(400);
+  });
+
   it("shows one user's addons (without their keys), Continue Watching and history", async () => {
     const admin = await createTestSession({ isAdmin: true });
     const sam = await createTestSession({ email: "sam@example.com" });
