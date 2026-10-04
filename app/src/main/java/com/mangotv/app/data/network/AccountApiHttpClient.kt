@@ -1,5 +1,6 @@
 package com.mangotv.app.data.network
 
+import com.mangotv.app.BuildConfig
 import com.mangotv.app.data.profile.ActiveProfile
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -31,12 +32,16 @@ object AccountApiHttpClient {
         .addInterceptor { chain ->
             val request = chain.request()
             val profile = profileHeaderValue(request.url.encodedPath, ActiveProfile.id)
-            chain.proceed(if (profile == null) request else request.newBuilder().header(PROFILE_HEADER, profile).build())
+            // Which app version this is, on every request, so the developer panel shows the version a TV is on and follows an update.
+            val builder = request.newBuilder().header(APP_VERSION_HEADER, BuildConfig.VERSION_NAME)
+            if (profile != null) builder.header(PROFILE_HEADER, profile)
+            chain.proceed(builder.build())
         }
         .build()
 }
 
 const val PROFILE_HEADER = "X-ArcTV-Profile"
+const val APP_VERSION_HEADER = "X-ArcTV-App-Version"
 
 /**
  * The value of X-ArcTV-Profile for a request to [path], or null for none. None for the account's own profile (no header means

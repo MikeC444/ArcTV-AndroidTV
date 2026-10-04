@@ -65,7 +65,7 @@ describe("auth middleware (requireAuth) via GET /user/me", () => {
     const session = await createTestSession({ email: "alice@example.com", displayName: "Alice" });
     const response = await request(app).get("/user/me").set("Authorization", `Bearer ${session.token}`);
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ id: session.userId, email: "alice@example.com", displayName: "Alice" });
+    expect(response.body).toEqual({ id: session.userId, email: "alice@example.com", displayName: "Alice", isAdmin: false });
   });
 
   it("every response carries an X-Request-Id header", async () => {

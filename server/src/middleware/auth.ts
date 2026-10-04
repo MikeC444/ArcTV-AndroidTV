@@ -11,6 +11,7 @@ interface SessionRow {
   user_id: string;
   email: string;
   display_name: string | null;
+  is_admin: boolean;
 }
 
 /**
@@ -39,7 +40,7 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
 
     const tokenHash = hashToken(token);
     const result = await pool.query<SessionRow>(
-      `SELECT s.id AS session_id, s.device_id, u.id AS user_id, u.email, u.display_name
+      `SELECT s.id AS session_id, s.device_id, u.id AS user_id, u.email, u.display_name, u.is_admin
        FROM sessions s
        JOIN users u ON u.id = s.user_id
        JOIN devices d ON d.id = s.device_id
@@ -57,7 +58,7 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
       return;
     }
 
-    req.user = { id: row.user_id, email: row.email, displayName: row.display_name };
+    req.user = { id: row.user_id, email: row.email, displayName: row.display_name, isAdmin: row.is_admin };
     req.session = { id: row.session_id, deviceId: row.device_id };
 
     // Best-effort activity timestamp — never let it slow down or fail the
@@ -66,8 +67,24 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
       .query("UPDATE sessions SET last_used_at = now() WHERE id = $1", [row.session_id])
       .catch((error: unknown) => console.error("failed to update session last_used_at", error));
 
+    // Which app version this device is on, and when it was last seen: written only when the version changed or the last write is
+    // a few minutes old, so an update shows up on the very next request without a write on every one.
+    const appVersion = cleanAppVersion(req.header("x-arctv-app-version"));
+    void pool
+      .query(
+        `UPDATE devices SET app_version = COALESCE($2, app_version), last_seen_at = now(), updated_at = now()
+         WHERE id = $1 AND (app_version IS DISTINCT FROM COALESCE($2, app_version) OR last_seen_at < now() - interval '5 minutes')`,
+        [row.device_id, appVersion]
+      )
+      .catch((error: unknown) => console.error("failed to update device app version", error));
+
     next();
   } catch (error) {
     next(error);
   }
+}
+
+/** The app's own version string ("0.1.7"), or null when absent or odd-looking. */
+export function cleanAppVersion(value: string | undefined): string | null {
+  return value && /^[0-9A-Za-z][0-9A-Za-z.+_-]{0,31}$/.test(value.trim()) ? value.trim() : null;
 }

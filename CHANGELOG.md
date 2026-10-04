@@ -4312,3 +4312,22 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none. The Firestick app has no cancel screen yet; Stripe's customer emails and dashboard still work for TV-only subscribers.
 
 **Issues fixed:** none.
+
+## Post-Milestone-72 — Developer panel data and app-version tracking
+
+**Status:** Backend done and tested; the Kotlin change is written but not built or run here (no Android SDK in this sandbox).
+
+**Context:** the developer wanted to see every account, its addons and Continue Watching, and which Fire TV app version each device is on, updating when someone updates.
+
+**Changes:**
+- Migration `0020`: `users.is_admin boolean NOT NULL DEFAULT false` (set by hand in the database; nothing in the API can set it) and an index on `devices.last_seen_at`.
+- `requireAuth` now loads `is_admin` (`req.user.isAdmin`; `GET /user/me` returns `isAdmin`) and keeps `devices.app_version` / `last_seen_at` current from the `X-ArcTV-App-Version` header, written only when the version changed or the last write is over five minutes old.
+- New read-only `/admin/*` routes for admins (everyone else gets 404): `/summary` (user counts, activity, plans, devices per app version), `/users` (search and paging, with plan, devices, addon / Continue Watching counts) and `/users/:id` (profiles, devices, addons, Continue Watching, recent history). Addon addresses are reduced to host and debrid-service name; password, token and PIN hashes are never selected.
+- Fire TV app: `AccountApiHttpClient` adds `X-ArcTV-App-Version: BuildConfig.VERSION_NAME` to every account request (one interceptor).
+- `docs/ADMIN.md` describes the panel, how to make yourself an admin, and what it never shows.
+
+**Tests performed:** new `tests/admin.test.ts` (admin-only access, search, secrets never returned, version recorded and updated straight away, junk header ignored, summary of versions); the whole server suite (235) passes against a throwaway Postgres; `tsc --noEmit`. The Kotlin interceptor edit was re-read only (no Gradle build here).
+
+**Issues discovered:** versions only appear once a TV runs a build that sends the header; until then its devices show "unknown".
+
+**Issues fixed:** none.
