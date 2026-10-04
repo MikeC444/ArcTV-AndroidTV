@@ -2,6 +2,7 @@ package com.mangotv.app.ui.sources
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import com.mangotv.app.data.player.matchLastSource
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.mangotv.app.MangoTvApplication
@@ -130,8 +131,8 @@ class SourcesViewModel(
                         _uiState.value = SourcesUiState.Error("Couldn't load details for this title.")
                         return@coroutineScope
                     }
-                    val autoSelectStream = lastSourceRepository.findLastStreamId(providerId, contentId, contentType, season, episode)
-                        ?.let { lastStreamId -> streams.find { it.id == lastStreamId } }
+                    val autoSelectStream = lastSourceRepository.findLastSource(providerId, contentId, contentType, season, episode)
+                        ?.let { last -> matchLastSource(streams, last) }
                         // Next episode: no source is remembered for it yet, so take the recommended one (the picker shows if there is none).
                         ?: if (autoPlay) streams.find { it.id == recommendedStreamId(streams) } else null
                     _uiState.value = SourcesUiState.Loaded(

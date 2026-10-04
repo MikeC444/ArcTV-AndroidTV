@@ -36,6 +36,30 @@ private val Context.lastSourceDataStore: DataStore<Preferences> by preferencesDa
  * when re-opening a title that's already resumable, instead of making the
  * user pick from the list again every time.
  */
+/** What is remembered about the source a title was last watched on, enough to find it again when its id has changed. */
+@kotlinx.serialization.Serializable
+data class LastSource(
+    val streamId: String,
+    val providerLabel: String = "",
+    val releaseTitle: String = "",
+    val infoHash: String? = null
+)
+
+/**
+ * Finds the source a title was last watched on in a fresh list of [streams]: the same id when it is still there, otherwise the same
+ * torrent (info hash), otherwise the same release from the same addon, otherwise the same release name. An addon can hand out new ids
+ * from one fetch to the next, which used to send a part-watched title back to the source list.
+ */
+fun matchLastSource(streams: List<com.mangotv.app.data.model.Stream>, last: LastSource): com.mangotv.app.data.model.Stream? {
+    streams.firstOrNull { it.id == last.streamId }?.let { return it }
+    last.infoHash?.takeIf { it.isNotBlank() }?.let { hash ->
+        streams.firstOrNull { it.infoHash.equals(hash, ignoreCase = true) }?.let { return it }
+    }
+    if (last.releaseTitle.isBlank()) return null
+    streams.firstOrNull { it.releaseTitle == last.releaseTitle && it.providerLabel == last.providerLabel }?.let { return it }
+    return streams.firstOrNull { it.releaseTitle == last.releaseTitle }
+}
+
 class LastSourceRepository(context: Context) {
 
     private val appContext = context.applicationContext
@@ -43,9 +67,32 @@ class LastSourceRepository(context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
 
     private val _entries = MutableStateFlow<Map<String, String>>(emptyMap())
+    private val _details = MutableStateFlow<Map<String, LastSource>>(emptyMap())
 
     init {
-        scope.launch { _entries.value = readPersisted() }
+        scope.launch {
+            _entries.value = readPersisted()
+            _details.value = readPersistedDetails()
+        }
+    }
+
+    /** What is remembered about this title's last source (just the id for one saved before details were kept), or null. */
+    fun findLastSource(providerId: String, contentId: String, contentType: ContentType, season: Int?, episode: Int?): LastSource? {
+        val k = key(providerId, contentId, contentType, season, episode)
+        return _details.value[k] ?: _entries.value[k]?.let { LastSource(streamId = it) }
+    }
+
+    /** Same as [setLastStreamId] but also remembers what the source was, so it can be found again if its id changes. */
+    fun setLastSource(providerId: String, contentId: String, contentType: ContentType, season: Int?, episode: Int?, stream: com.mangotv.app.data.model.Stream) {
+        scope.launch {
+            val k = key(providerId, contentId, contentType, season, episode)
+            val entries = _entries.value + (k to stream.id)
+            val details = _details.value + (k to LastSource(stream.id, stream.providerLabel, stream.releaseTitle, stream.infoHash))
+            _entries.value = entries
+            _details.value = details
+            persist(entries)
+            persistDetails(details)
+        }
     }
 
     /** The stream id last used for this exact title/episode, if any -- a synchronous snapshot read, same shape as ContinueWatchingRepository.findResumePoint. */
@@ -84,7 +131,9 @@ class LastSourceRepository(context: Context) {
     /** Wipes the locally-cached map (Milestone 12's account switching) -- same reasoning as ContinueWatchingRepository.clear(): this device is only forgetting its own local copy. */
     suspend fun clear() = withContext(Dispatchers.IO) {
         _entries.value = emptyMap()
+        _details.value = emptyMap()
         persist(emptyMap())
+        persistDetails(emptyMap())
     }
 
     private fun key(providerId: String, contentId: String, contentType: ContentType, season: Int?, episode: Int?): String =
@@ -97,6 +146,18 @@ class LastSourceRepository(context: Context) {
         }.getOrDefault(emptyMap())
     }
 
+    private suspend fun readPersistedDetails(): Map<String, LastSource> {
+        val raw = appContext.lastSourceDataStore.data.first()[DETAILS_KEY] ?: return emptyMap()
+        return runCatching {
+            json.decodeFromString(MapSerializer(String.serializer(), LastSource.serializer()), raw)
+        }.getOrDefault(emptyMap())
+    }
+
+    private suspend fun persistDetails(details: Map<String, LastSource>) {
+        val raw = json.encodeToString(MapSerializer(String.serializer(), LastSource.serializer()), details)
+        appContext.lastSourceDataStore.edit { it[DETAILS_KEY] = raw }
+    }
+
     private suspend fun persist(entries: Map<String, String>) {
         val raw = json.encodeToString(MapSerializer(String.serializer(), String.serializer()), entries)
         appContext.lastSourceDataStore.edit { it[ENTRIES_KEY] = raw }
@@ -104,5 +165,6 @@ class LastSourceRepository(context: Context) {
 
     companion object {
         private val ENTRIES_KEY = stringPreferencesKey("last_source_json")
+        private val DETAILS_KEY = stringPreferencesKey("last_source_details_json")
     }
 }

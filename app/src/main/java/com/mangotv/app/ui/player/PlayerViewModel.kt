@@ -2,6 +2,7 @@ package com.mangotv.app.ui.player
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import com.mangotv.app.data.player.matchLastSource
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Tracks
@@ -99,7 +100,10 @@ class PlayerViewModel(
                 }.awaitAll()
             }.flatten()
 
+            // The source's id can change between two fetches of the same addon: carry on with the same release when it is still offered.
             val stream = streams.find { it.id == streamId }
+                ?: lastSourceRepository.findLastSource(providerId, contentId, contentType, season, episodeNumber)
+                    ?.let { matchLastSource(streams, it) }
             if (stream == null) {
                 _uiState.value = PlayerScreenUiState.Error("This source is no longer available.")
                 return@launch
@@ -179,7 +183,7 @@ class PlayerViewModel(
         // cancelling. setLastStreamId dispatches onto its own repository-
         // owned scope instead, so the write survives that regardless.
         if (!completed) {
-            lastSourceRepository.setLastStreamId(providerId, contentId, contentType, season, episodeNumber, streamId)
+            lastSourceRepository.setLastSource(providerId, contentId, contentType, season, episodeNumber, state.stream)
         }
 
         // A movie counts as watched once it crosses the same >85%-of-
