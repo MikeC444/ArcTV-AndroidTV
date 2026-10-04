@@ -377,7 +377,8 @@ private fun PlaybackContent(
     var lastControlFocus by remember { mutableStateOf<FocusRequester?>(null) }
     fun focusLastControl() {
         val last = lastControlFocus
-        val restored = last != null && runCatching { last.requestFocus() }.getOrDefault(false)
+        // requestFocus() throws when that control isn't on screen any more (e.g. the Next episode button), so success means it worked.
+        val restored = last != null && runCatching { last.requestFocus() }.isSuccess
         if (!restored) runCatching { playPauseFocusRequester.requestFocus() }
     }
 
