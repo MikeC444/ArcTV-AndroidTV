@@ -159,10 +159,8 @@ class PlayerViewModel(
      */
     fun reportProgress(positionMs: Long, durationMs: Long, completed: Boolean) {
         if (durationMs <= 0) return
-        // Ignore a barely-started report: resuming from a few seconds in
-        // isn't useful, and without this guard a Continue Watching entry
-        // would appear the instant playback merely starts, before the
-        // user has actually watched anything.
+        // Ignore a report from before anything has played (the first second): any real watching is worth remembering, but a source
+        // that never played must not leave a Continue Watching entry behind.
         if (!completed && positionMs < MIN_REPORTABLE_POSITION_MS) return
 
         val state = uiState.value as? PlayerScreenUiState.Ready ?: return
@@ -218,7 +216,7 @@ class PlayerViewModel(
     }
 
     companion object {
-        private const val MIN_REPORTABLE_POSITION_MS = 10_000L
+        private const val MIN_REPORTABLE_POSITION_MS = 1_000L
 
         // Matches playbackProgressService.recordProgress's own
         // MOVIE_COMPLETION_FRACTION -- "anywhere past 85%" means strictly

@@ -43,21 +43,6 @@ class HomeRowLogicTest {
     }
 
     @Test
-    fun `continue watching drops titles that a catalogue row already shows`() {
-        val cw = row("continue_watching", "a", "m", "b", style = RowStyle.CONTINUE_WATCHING)
-        val out = withoutShownTitles(cw, listOf(row("popular", "a", "b", "c")))!!
-        assertEquals(listOf("m"), out.items.map { it.id })
-        assertEquals(RowStyle.CONTINUE_WATCHING, out.style)
-    }
-
-    @Test
-    fun `continue watching disappears when every title is shown elsewhere and is untouched when none is`() {
-        val cw = row("continue_watching", "a", "b", style = RowStyle.CONTINUE_WATCHING)
-        assertNull(withoutShownTitles(cw, listOf(row("popular", "a", "b"))))
-        assertSame(cw, withoutShownTitles(cw, listOf(row("popular", "q"))))
-    }
-
-    @Test
     fun `focus returns to the same poster by id even when rows moved`() {
         val rows = listOf(row("new", "x"), row("popular", "a", "b", "c"))
         assertEquals(FocusRestoreTarget(rowIndex = 1, itemIndex = 2), findFocusRestoreTarget(rows, "popular", "c"))

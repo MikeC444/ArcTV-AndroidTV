@@ -59,7 +59,9 @@ import kotlin.math.abs
 import kotlinx.coroutines.delay
 
 /** How often a progress report fires while actively playing (Milestone 8) -- frequent enough that another device's Continue Watching stays reasonably current, infrequent enough not to flood the network on every position tick. */
-private const val PROGRESS_REPORT_INTERVAL_MS = 30_000L
+/** The first position is saved this long after playback starts, then every [PROGRESS_REPORT_INTERVAL_MS] (also on pause and on leaving). */
+private const val FIRST_PROGRESS_REPORT_MS = 4_000L
+private const val PROGRESS_REPORT_INTERVAL_MS = 15_000L
 
 @Composable
 fun PlayerScreen(
@@ -194,9 +196,10 @@ private fun PlaybackContent(
     LaunchedEffect(phase) {
         when (phase) {
             is PlaybackPhase.Playing -> {
+                delay(FIRST_PROGRESS_REPORT_MS)
                 while (true) {
-                    delay(PROGRESS_REPORT_INTERVAL_MS)
                     onReportProgress(exoPlayer.currentPosition, exoPlayer.duration, false)
+                    delay(PROGRESS_REPORT_INTERVAL_MS)
                 }
             }
             is PlaybackPhase.Paused -> onReportProgress(exoPlayer.currentPosition, exoPlayer.duration, false)
