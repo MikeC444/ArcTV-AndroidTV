@@ -30,6 +30,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -328,6 +341,13 @@ private fun ProfileEditor(target: EditTarget, viewModel: ProfilesViewModel, onCl
     var pinMessage by remember { mutableStateOf<String?>(null) }
     var confirmRemove by remember { mutableStateOf(false) }
     val nameFocus = remember { FocusRequester() }
+    // The on-screen keyboard only opens when the name is being edited on purpose (a new profile starts there; otherwise press OK on the
+    // field), and closes again once focus moves on, so stepping past the name with the remote no longer pops it up.
+    var editingName by remember { mutableStateOf(existing == null) }
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(editingName) { if (editingName) keyboard?.show() else keyboard?.hide() }
+    // The window never grows taller than the screen: what doesn't fit scrolls, with Create / Cancel pinned below it.
+    val maxFormHeight = (LocalConfiguration.current.screenHeightDp - 80).dp
     val locked = existing?.hasPin == true
     val willHavePin = when (pin) {
         PinChange.Remove -> false
@@ -377,38 +397,54 @@ private fun ProfileEditor(target: EditTarget, viewModel: ProfilesViewModel, onCl
     }
 
     when (val current = step) {
-        EditorStep.Form -> Column(modifier = Modifier.width(620.dp), horizontalAlignment = Alignment.Start) {
+        EditorStep.Form -> Column(modifier = Modifier.width(620.dp).heightIn(max = maxFormHeight), horizontalAlignment = Alignment.Start) {
             Text(text = if (existing == null) "Add profile" else "Edit ${existing.name}", color = TextPrimary, style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(10.dp))
+            Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.Start) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                ProfileAvatarTile(avatar = avatar, size = 84.dp)
+                ProfileAvatarTile(avatar = avatar, size = 64.dp)
                 Spacer(Modifier.width(16.dp))
                 TextField(
                     value = name,
                     onValueChange = { if (it.length <= PROFILE_NAME_MAX) name = it },
                     placeholder = { Text("Name") },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                    modifier = Modifier.fillMaxWidth().focusRequester(nameFocus),
+                    readOnly = !editingName,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { editingName = false }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(nameFocus)
+                        .onFocusChanged { if (!it.isFocused) editingName = false }
+                        .onPreviewKeyEvent { event ->
+                            if (!editingName && event.type == KeyEventType.KeyDown &&
+                                (event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter)
+                            ) {
+                                editingName = true
+                                true
+                            } else {
+                                false
+                            }
+                        },
                     colors = profileTextFieldColors()
                 )
             }
             Spacer(Modifier.height(14.dp))
             Text("Picture", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
             Spacer(Modifier.height(6.dp))
-            AVATARS.chunked(6).forEach { rowAvatars ->
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            AVATARS.chunked(8).forEach { rowAvatars ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     rowAvatars.forEach { a ->
                         TvFocusSurface(
                             onClick = { avatar = a.id },
                             shape = RoundedCornerShape(12.dp),
                             alwaysShowBorder = a.id == avatar,
                             borderColor = TextPrimary,
-                            modifier = Modifier.size(64.dp)
-                        ) { ProfileAvatarTile(avatar = a.id, size = 64.dp) }
+                            modifier = Modifier.size(52.dp)
+                        ) { ProfileAvatarTile(avatar = a.id, size = 52.dp, cornerRadius = 10.dp) }
                     }
                 }
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
             }
             Text("Who is it for?", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
             Spacer(Modifier.height(6.dp))
@@ -434,11 +470,13 @@ private fun ProfileEditor(target: EditTarget, viewModel: ProfilesViewModel, onCl
                     MangoButton(text = "Remove PIN", icon = Icons.Filled.Close, onClick = { pin = PinChange.Remove }, compact = true)
                 }
             }
+            }
+            // Outside the scrolling part, so a message such as "Give the profile a name." is always in view next to the buttons.
             Text(
                 text = error.orEmpty(),
                 color = if (error != null) ErrorCoral else Color.Transparent,
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 8.dp).height(22.dp)
+                modifier = Modifier.padding(vertical = 6.dp).height(22.dp)
             )
             if (confirmRemove && existing != null) {
                 Text("Remove ${existing.name}? Its My List, Continue Watching, settings and recommendations are deleted for good.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)

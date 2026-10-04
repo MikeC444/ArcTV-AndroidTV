@@ -4378,3 +4378,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues fixed:** the above.
 
+## Post-Milestone-77 — Profile editor fits the screen
+
+**Status:** Written; the compile check is the CI build of the branch. Not tried on a TV.
+
+**Context:** on a Fire TV the add / edit profile window was taller than the screen (16 pictures made it worse), so Create / Save could not be reached, and the on-screen keyboard opened whenever focus passed over the name field.
+
+**Changes:** the editor's height is capped to the screen (`screenHeightDp - 80`); the fields scroll, with the error line and the Create / Save / Cancel / Remove row pinned below; the picture grid is 8 across at 52 dp (was 6 at 64 dp) and the preview 64 dp; the name field is read-only until OK is pressed on it (a new profile starts in edit mode), shows the keyboard only then and closes it when focus moves on or Done is pressed.
+
+**Tests performed:** none by hand; the build is the compile check.
+
+**Issues discovered:** none.
+
+**Issues fixed:** the above.
+
