@@ -15,7 +15,6 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 ## Unreleased
 
 - Opening a title now shows its artwork and logo with a loading symbol, instead of a blank screen.
-- Part-watched? You're asked "Pick up where you left off?" with Resume, Start over, or a different source.
 - A Next episode button appears in the last minute, and Auto Play Next Episode now really plays the next one.
 - Your playback speed is remembered, and the right-hand time shows time left; press it for the total.
 - Settings in the player always has an Audio row, and it tells you when a source has only one track.
