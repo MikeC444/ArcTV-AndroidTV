@@ -344,6 +344,7 @@ fun MangoNavHost() {
                 composable(MangoRoutes.HOME) {
                     HomeScreen(
                         onNavigate = ::navigateTo,
+                        onResume = { content -> navigateTo(resolvePlayRoute(content)) },
                         viewModel = homeViewModel
                     )
                     // A gentle Arc TV Plus invitation, only here on Home (it decides by itself whether the person should see it).

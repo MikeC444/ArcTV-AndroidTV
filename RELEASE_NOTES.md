@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Press a Continue Watching title and it carries straight on, using the same source you watched before, with no source list.
+
 - Scrubbing is easier: hold Left or Right on the timeline to glide through the video in steady 10-second steps, with no limit.
 - The player remembers which button you were on, so closing a menu or the controls coming back no longer jumps to Play.
 - Editing a profile now fits the screen and scrolls, with Save and Cancel always in view, and the keyboard only opens when you press OK on the name.

@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import com.mangotv.app.data.model.RowStyle
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -51,6 +52,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(
     onNavigate: (String) -> Unit,
+    // Pressing a Continue Watching title: carry straight on (the player on the source it was watched on, or the source list the first time).
+    onResume: (Content) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel()
 ) {
@@ -73,6 +76,7 @@ fun HomeScreen(
                 HomeContent(
                     state = state,
                     onNavigate = onNavigate,
+                    onResume = onResume,
                     savedIds = savedIds,
                     onToggleMyList = viewModel::toggleMyList,
                     findTrailer = viewModel::findTrailer
@@ -116,6 +120,7 @@ private fun HomeEmptyScreen(onNavigate: (String) -> Unit) {
 private fun HomeContent(
     state: HomeUiState.Success,
     onNavigate: (String) -> Unit,
+    onResume: (Content) -> Unit,
     savedIds: Set<String>,
     onToggleMyList: (Content) -> Unit,
     findTrailer: suspend (Content) -> String?,
@@ -321,7 +326,7 @@ private fun HomeContent(
                 itemsIndexed(state.sections, key = { _, section -> section.id }) { index, section ->
                     ContentRow(
                         section = section,
-                        onItemClick = ::navigateToContent,
+                        onItemClick = if (section.style == RowStyle.CONTINUE_WATCHING) onResume else ::navigateToContent,
                         modifier = Modifier.padding(bottom = MangoDimens.RowSpacing),
                         posterScale = 0.75f,
                         onFocusChanged = { hasFocus -> if (hasFocus) focusedRowIndex = index },

@@ -4401,3 +4401,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues fixed:** the above.
 
+## Post-Milestone-78 — Continue Watching carries on with the same source
+
+**Status:** Written; the compile check is the CI build of the branch. Not tried on a TV.
+
+**Context:** a part-watched title could land on the source list instead of carrying on, because the remembered source is matched by its stream id and an addon can hand out new ids between two fetches; pressing a Continue Watching poster also went by way of the title page first.
+
+**Changes:**
+- `LastSourceRepository` now also remembers the source's addon, release name and info hash (`LastSource`, `setLastSource`, `findLastSource`; old id-only entries still work), and `matchLastSource` finds it again: same id, else same info hash, else same release from the same addon, else same release name. Select a Source's auto-continue and the player (when the requested id is no longer offered) both use it; nothing is guessed when the source is gone, and the usual list or the player's "Choose a Different Source" shows then.
+- Pressing a Continue Watching poster on Home goes straight to playback (`resolvePlayRoute`: the player on the remembered source, or Select a Source the first time) instead of the title page; long-press still opens the poster's menu, and the title page is one press away from any other row.
+
+**Tests performed:** `MatchLastSourceTest` added (same id, changed id by hash, same release by addon, nothing guessed); the build is the compile check. Nothing was run on a TV.
+
+**Issues discovered:** none.
+
+**Issues fixed:** the above.
+
