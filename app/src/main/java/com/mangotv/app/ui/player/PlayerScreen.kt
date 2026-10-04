@@ -48,7 +48,6 @@ import com.mangotv.app.data.model.PlayerPreferences
 import com.mangotv.app.data.model.Stream
 import com.mangotv.app.ui.components.FullScreenErrorState
 import com.mangotv.app.ui.player.overlay.AdvancedSettingsPanel
-import com.mangotv.app.ui.player.overlay.ResumeCard
 import com.mangotv.app.ui.player.overlay.AudioInfoPanel
 import com.mangotv.app.ui.player.overlay.AudioTrackMenu
 import com.mangotv.app.ui.player.overlay.PlaybackErrorOverlay
@@ -162,8 +161,6 @@ private fun PlaybackContent(
     // Opening: the loading screen stays until the first picture plays (and behind the resume question).
     var started by remember { mutableStateOf(false) }
     LaunchedEffect(phase) { if (phase is PlaybackPhase.Playing) started = true }
-    // A part-watched title waits at its saved spot and asks "Pick up where you left off?" (null: no question).
-    var resumePrompt by remember { mutableStateOf<Long?>(null) }
     var showRemaining by remember { mutableStateOf(DevicePlayerPrefs.showRemaining(context)) }
     // The episode after this one, offered in the last minute and counted down to after the end (when Auto Play Next Episode is on).
     val next = remember(content, episode) { nextEpisodeAfter(content.seasons, episode?.seasonNumber, episode?.episodeNumber) }
@@ -236,8 +233,7 @@ private fun PlaybackContent(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // askFirst: a saved position pauses the video there until "Resume" / "Start over" is chosen (Try Again just carries on from it).
-    fun startPlayback(askFirst: Boolean) {
+    fun startPlayback() {
         val mediaItem = stream.toMediaItemOrNull()
         if (mediaItem == null) {
             onPhaseChanged(
@@ -250,7 +246,7 @@ private fun PlaybackContent(
             if (resumePositionMs != null && resumePositionMs > 0) {
                 exoPlayer.setMediaItem(mediaItem, resumePositionMs)
                 exoPlayer.prepare()
-                exoPlayer.playWhenReady = !askFirst
+                exoPlayer.playWhenReady = true
             } else {
                 exoPlayer.setMediaItem(mediaItem)
                 exoPlayer.prepare()
@@ -260,30 +256,17 @@ private fun PlaybackContent(
     }
 
     LaunchedEffect(stream.id) {
-        startPlayback(askFirst = true)
+        startPlayback()
+        // A part-watched title carries on from where it was left; a spot at the very end starts over.
         val resume = resumePositionMs
         if (resume != null && resume > 0 && exoPlayer.mediaItemCount > 0) {
-            // The saved spot is only offered once the length is known (a spot at the very end starts over instead).
             var waitedMs = 0L
             while (exoPlayer.duration <= 0 && waitedMs < 20_000L) {
                 delay(100)
                 waitedMs += 100
             }
-            when {
-                exoPlayer.duration <= 0 -> exoPlayer.playWhenReady = true
-                shouldOfferResume(resume, exoPlayer.duration) -> resumePrompt = resume
-                else -> {
-                    exoPlayer.seekTo(0)
-                    exoPlayer.playWhenReady = true
-                }
-            }
+            if (exoPlayer.duration > 0 && !shouldOfferResume(resume, exoPlayer.duration)) exoPlayer.seekTo(0)
         }
-    }
-
-    fun answerResume(resume: Boolean) {
-        resumePrompt = null
-        if (!resume) exoPlayer.seekTo(0)
-        exoPlayer.play()
     }
 
     // Next episode: offered for the last minute, and after the end counted down to (Auto Play Next Episode on).
@@ -521,8 +504,6 @@ private fun PlaybackContent(
                     }
                     return@onPreviewKeyEvent true
                 }
-                // The resume question owns the keys (its buttons take them); Back still leaves.
-                if (resumePrompt != null) return@onPreviewKeyEvent false
                 // Down reaches the "Next episode" button while the controls are hidden.
                 if (offerNext && next != null && upNext == null && !controlsVisible && activeOverlay == null &&
                     event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown
@@ -623,8 +604,8 @@ private fun PlaybackContent(
     ) {
         PlayerSurface(exoPlayer = exoPlayer, modifier = Modifier.fillMaxSize())
 
-        if ((!started || resumePrompt != null) && phase !is PlaybackPhase.Error) {
-            PlayerLoadingScreen(content = content, episode = episode, busy = resumePrompt == null)
+        if (!started && phase !is PlaybackPhase.Error) {
+            PlayerLoadingScreen(content = content, episode = episode, busy = true)
         }
 
         if (phase is PlaybackPhase.Buffering && started) {
@@ -637,7 +618,7 @@ private fun PlaybackContent(
         if (phase is PlaybackPhase.Error) {
             PlaybackErrorOverlay(
                 message = phase.message,
-                onTryAgain = { startPlayback(askFirst = false) },
+                onTryAgain = ::startPlayback,
                 onChangeSource = onChangeSource,
                 onBack = onBack
             )
@@ -708,16 +689,7 @@ private fun PlaybackContent(
             }
         }
 
-        if (resumePrompt != null && phase !is PlaybackPhase.Error) {
-            ResumeCard(
-                positionMs = resumePrompt!!,
-                onResume = { answerResume(true) },
-                onStartOver = { answerResume(false) },
-                onChangeSource = onChangeSource
-            )
-        }
-
-        if (offerNext && next != null && upNext == null && resumePrompt == null && activeOverlay == null && phase !is PlaybackPhase.Error) {
+        if (offerNext && next != null && upNext == null && activeOverlay == null && phase !is PlaybackPhase.Error) {
             NextEpisodeOffer(
                 next = next,
                 onGo = { goToNextEpisode(next) },

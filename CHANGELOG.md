@@ -4339,7 +4339,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Context:** the web app had eight user-visible changes the Fire TV app lacked (docs/FIRESTICK_PARITY.md in ArcTV-Web). All are ported to behave the same way.
 
 **Changes:**
-- Player: a loading screen (backdrop, logo or name, "S1 E2 • title", spinner) until the first picture plays; a part-watched title pauses at its saved spot and asks "Pick up where you left off?" (Resume from m:ss, Start over, Choose a different source; a spot within 10 s of the end starts over); a "Next episode" button for the last 60 s and after the end, plus the 5-second "Up next" countdown when Auto Play Next Episode is on (the setting existed but did nothing, and the bottom-row Next episode button was a no-op); Next episode goes to Sources with `?auto=true`, which takes the remembered or recommended source by itself and replaces the player; playback speed and "time left / total" are remembered on this device (`DevicePlayerPrefs`); the right-hand time is a pressable "−12:34" / total; Settings always has an Audio row (the track's name, or an explanation when there is one track or none). Volume is not remembered: on a TV it is the TV's own.
+- Player: a loading screen (backdrop, logo or name, "S1 E2 • title", spinner) until the first picture plays; a part-watched title carries on from its saved spot (a spot within 10 s of the end starts over; the "Pick up where you left off?" card was tried and removed again); a "Next episode" button for the last 60 s and after the end, plus the 5-second "Up next" countdown when Auto Play Next Episode is on (the setting existed but did nothing, and the bottom-row Next episode button was a no-op); Next episode goes to Sources with `?auto=true`, which takes the remembered or recommended source by itself and replaces the player; playback speed and "time left / total" are remembered on this device (`DevicePlayerPrefs`); the right-hand time is a pressable "−12:34" / total; Settings always has an Audio row (the track's name, or an explanation when there is one track or none). Volume is not remembered: on a TV it is the TV's own.
 - Continue Watching: the first position is saved 4 s into playback, then every 15 s, on pause and when leaving; anything past 1 s counts (was 10 s); Home no longer hides a Continue Watching title because a catalogue row also holds it (`withoutShownTitles` removed).
 - Cancel Plus: `PlusStatus.cancelAtPeriodEnd`, `PlusApiClient.cancelSubscription` (`POST /user/plus/cancel`), a "renews on / won't renew" row and a confirmation dialog (Keep Plus focused first) on Settings > Arc TV Plus, with the web app's wording for each failure.
 - Debrid note under the Addons intro; the Trailer button is a pill (`MangoButton(pill = true)`); recent searches are kept per profile (the account's own profile keeps its old list); the 16 illustrated profile pictures replace the 12 colour tiles (old ids map to the nearest new one).
@@ -4361,6 +4361,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Tests performed:** none by hand. The workflow run shows whether the build still succeeds; the sign-in itself has to be tried on a device.
 
 **Issues discovered:** a branch built from a fork or by Dependabot has no access to the secret and would still get the placeholder (it is only for sign-in, not for compiling).
+
+**Issues fixed:** the above.
+
+## Post-Milestone-75 — No resume question
+
+**Status:** Written; the compile check is the CI build of main. Not tried on a TV.
+
+**Context:** the "Pick up where you left off?" card (Resume / Start over / Choose a different source) added in Post-Milestone-73 was not wanted, on the web or here.
+
+**Changes:** `PlayerScreen` carries on from the saved position again, as before Post-Milestone-73 (a position within 10 s of the end starts over); `ResumeCard` is removed and the release-notes bullet for it is dropped.
+
+**Tests performed:** none by hand; the build is the compile check.
+
+**Issues discovered:** none.
 
 **Issues fixed:** the above.
 
