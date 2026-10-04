@@ -46,7 +46,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -403,17 +402,16 @@ fun DetailHeroSection(
                 )
                 if (onTrailer != null) {
                     Spacer(Modifier.width(if (compact) 10.dp else 16.dp))
-                    Box(modifier = Modifier.alpha(if (trailerReady) 1f else 0.45f)) {
-                        MangoButton(
-                            text = "Trailer",
-                            icon = Icons.Filled.Theaters,
-                            onClick = onTrailer,
-                            style = MangoButtonStyle.GLASS,
-                            focusUp = navUpFocusRequester,
-                            bringIntoViewOnFocus = false,
-                            compact = compact
-                        )
-                    }
+                    MangoButton(
+                        text = "Trailer",
+                        icon = Icons.Filled.Theaters,
+                        onClick = onTrailer,
+                        style = MangoButtonStyle.GLASS,
+                        focusUp = navUpFocusRequester,
+                        bringIntoViewOnFocus = false,
+                        compact = compact,
+                        dimmed = !trailerReady
+                    )
                 }
                 Spacer(Modifier.width(if (compact) 10.dp else 16.dp))
                 AnimatedVisibility(

@@ -134,19 +134,31 @@ class StremioAddonProvider(
     // catalogs when no catalog supports search or the search itself comes
     // back empty -- so Search still returns something for an addon like
     // Cinemeta that may not declare search support at all.
-    override suspend fun search(query: String): List<Content> = coroutineScope {
+    override suspend fun search(query: String, onPartial: ((List<Content>) -> Unit)?): List<Content> = coroutineScope {
         if (query.isBlank()) return@coroutineScope emptyList()
 
         val searchableCatalogs = supportedCatalogs.filter { catalogDef ->
             catalogDef.extra.any { it.name == "search" }
         }
         if (searchableCatalogs.isNotEmpty()) {
-            val perCatalog = searchableCatalogs.map { catalogDef ->
+            // Each catalog's answer is handed to onPartial as soon as it arrives (merged with the ones already in), so a slow
+            // catalog (say TV Shows) does not hold up a fast one (Movies). The final list below is the same merge of all of them.
+            val lock = Any()
+            val answered = arrayOfNulls<List<Content>>(searchableCatalogs.size)
+            val perCatalog = searchableCatalogs.mapIndexed { index, catalogDef ->
                 async {
-                    runCatching { client.fetchCatalog(manifestUrl, catalogDef.type, catalogDef.id, mapOf("search" to query)) }
+                    val items = runCatching { client.fetchCatalog(manifestUrl, catalogDef.type, catalogDef.id, mapOf("search" to query)) }
                         .getOrNull()
                         ?.map { it.toContent(providerId = id) }
                         .orEmpty()
+                    if (onPartial != null && items.isNotEmpty()) {
+                        val soFar = synchronized(lock) {
+                            answered[index] = items
+                            interleave(answered.filterNotNull()).distinctBy { it.id }
+                        }
+                        onPartial(soFar)
+                    }
+                    items
                 }
             }.awaitAll()
             val serverResults = interleave(perCatalog).distinctBy { it.id }

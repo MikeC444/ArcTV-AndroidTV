@@ -5,6 +5,8 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -32,6 +34,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -45,13 +52,22 @@ import com.mangotv.app.navigation.PROFILES_NAV_LABEL
 import com.mangotv.app.ui.components.ArcLogo
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.profiles.ProfileAvatarTile
+import com.mangotv.app.ui.theme.ArcBlue
+import com.mangotv.app.ui.theme.ArcCyan
+import com.mangotv.app.ui.theme.ArcViolet
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoMotion
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
 
-val MangoNavItems = listOf("Home", "Movies", "TV Shows", "Genres", "Search", "My List", "Settings")
+// The frosted pill the links sit in, the profile chip beside it, and the wash behind the page you are on (same colours as the web app's top bar).
+private val NavPillColor = Color(0x94141417)
+private val NavPillBorder = Color(0x17FFFFFF)
+private val NavSelectedWash = Color(0x24FFFFFF)
+private val NavFocusWash = Color(0x17FFFFFF)
+
+val MangoNavItems = listOf("Home", "Movies", "TV Shows", "Search", "My List", "Settings")
 
 /** The nav items for someone without an account: the same tabs in the same places, with Settings replaced by Sign In. */
 fun navItemsForGuest(items: List<String>): List<String> = items.map { if (it == "Settings") "Sign In" else it }
@@ -88,13 +104,10 @@ fun TopNavBar(
     val baseItems = if (isGuest) navItemsForGuest(MangoNavItems) else MangoNavItems.filterNot { activeProfile?.isKids == true && it == "Settings" }
     val navItems = baseItems
 
+    // Over the Home / Detail picture there is no dark band behind the bar any more (only the pill and the profile chip have their own
+    // frosted background); on every other screen it is the page colour, which only matters when content scrolls up under it.
     val scrimAlpha by animateFloatAsState(
-        // Was 0.45f, then 0.6f -- against a bright/busy hero image behind
-        // it (the common case: transparentBackground is true right when
-        // Home loads, before any scrolling), that still left the nav bar
-        // hard to read. A bit darker keeps the see-through hero effect but
-        // gives the labels enough contrast.
-        targetValue = if (transparentBackground) 0.72f else 0.96f,
+        targetValue = if (transparentBackground) 0f else 0.96f,
         animationSpec = tween(300),
         label = "navBarScrimAlpha"
     )
@@ -157,40 +170,25 @@ fun TopNavBar(
             ),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ArcLogo()
-        Spacer(Modifier.width(56.dp))
-        // LazyRow rather than a plain Row: with enough nav items (this list
-        // has grown since this bar was first built), the fully laid-out
-        // width can exceed a real TV screen's — a plain Row still draws
-        // every child at its natural size regardless, which just clips the
-        // last item(s) off the edge instead of scrolling to reach them.
-        // Wrapping only the item list (not the logo) means it's still drawn
-        // exactly as before, at its natural (unscrolled) size, whenever it
-        // already fits — this only engages once it doesn't.
-        // Fast bring-into-view spec (same one every other horizontally-
-        // scrolling row in the app already uses, see ContentRow.kt) so a
-        // held D-pad moving across nav items doesn't outrun Compose's
-        // slower default spring-based scroll and stutter.
+        // Logo at the left, the link pill in the middle of the screen and the profile chip at the right (the two side boxes share the spare
+        // width equally, which is what keeps the pill centred, as on the web app). The logo is not focusable, so it never has an outline.
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            ArcLogo()
+        }
+        // LazyRow rather than a plain Row: with enough nav items the fully laid-out width can exceed a real TV screen's, and a plain Row just
+        // clips the last item(s) instead of scrolling to them. It only scrolls once the items no longer fit; otherwise it is drawn at its
+        // natural size. The fast bring-into-view spec is the one every other horizontally-scrolling row uses, so a held D-pad doesn't stutter.
         CompositionLocalProvider(LocalBringIntoViewSpec provides MangoMotion.FastBringIntoViewSpec) {
             LazyRow(
-                // Fills the space between the logo and the profile picture, so the picture sits at the far right (the items stay at the left).
-                modifier = Modifier.weight(1f),
-                // LazyRow clips its content to its own laid-out bounds --
-                // with no content padding, that boundary sat exactly at
-                // the first/last item's un-scaled edge, so the focused
-                // scale-up (TvFocusSurface animates to 1.08x on focus)
-                // pushed Home's/Settings' border past it and got clipped.
-                // A little breathing room on each end gives the scale
-                // somewhere to grow into.
-                contentPadding = PaddingValues(horizontal = 8.dp),
+                modifier = Modifier
+                    .widthIn(max = 760.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(NavPillColor)
+                    .border(1.dp, NavPillBorder, RoundedCornerShape(50)),
+                // The pill's own padding. Nothing in it scales on focus any more, so the focus ring is drawn inside each item and is never cut off.
+                contentPadding = PaddingValues(horizontal = 3.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                // Tightened from 8dp -- at the old spacing plus the old
-                // (larger) label size, this row started scrolling once
-                // enough nav items were added to no longer fit one screen
-                // width. See NavItem's smaller labelMedium text below;
-                // together these reclaim enough width that it shouldn't
-                // need to anymore.
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 itemsIndexed(navItems) { index, label ->
                     NavItem(
@@ -203,9 +201,10 @@ fun TopNavBar(
                 }
             }
         }
-        if (activeProfile != null) {
-            Spacer(Modifier.width(12.dp))
-            ProfileNavButton(avatar = activeProfile.avatar, name = activeProfile.name, onClick = { onItemClick(PROFILES_NAV_LABEL) }, focusDown = contentFocusRequester)
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+            if (activeProfile != null) {
+                ProfileNavButton(avatar = activeProfile.avatar, name = activeProfile.name, onClick = { onItemClick(PROFILES_NAV_LABEL) }, focusDown = contentFocusRequester)
+            }
         }
     }
 }
@@ -215,19 +214,20 @@ fun TopNavBar(
 private fun ProfileNavButton(avatar: String, name: String, onClick: () -> Unit, focusDown: FocusRequester?) {
     TvFocusSurface(
         onClick = onClick,
-        shape = RoundedCornerShape(8.dp),
-        backgroundColor = Color.Transparent,
+        shape = RoundedCornerShape(50),
+        backgroundColor = NavPillColor,
         borderColor = TextPrimary,
+        focusedScale = 1f,
         focusedElevation = 0f,
         borderAnimationSpec = snap(),
         focusDown = focusDown
     ) {
         Row(
-            modifier = Modifier.padding(start = 3.dp, top = 3.dp, bottom = 3.dp, end = 10.dp),
+            modifier = Modifier.padding(start = 3.dp, top = 3.dp, bottom = 3.dp, end = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Small, like the labels beside it: the bar is not the place for a big picture.
-            ProfileAvatarTile(avatar = avatar, size = 28.dp, cornerRadius = 6.dp)
+            ProfileAvatarTile(avatar = avatar, size = 28.dp, cornerRadius = 14.dp)
             Spacer(Modifier.width(8.dp))
             Text(
                 text = name,
@@ -253,50 +253,45 @@ private fun NavItem(
     var focused by remember { mutableStateOf(false) }
     TvFocusSurface(
         onClick = onClick,
-        shape = RoundedCornerShape(6.dp),
-        backgroundColor = Color.Transparent,
-        // White rather than TvFocusSurface's default accent border -- scoped
-        // to just the nav bar via this explicit override, not a global
-        // FocusBorder change, so every other focusable element in the app
-        // (cards, buttons) keeps its usual focus color.
+        shape = RoundedCornerShape(50),
+        // The page you are on is a filled pill with a small brand-gradient underline; a focused link gets a lighter wash and the white ring.
+        backgroundColor = if (selected) NavSelectedWash else if (focused) NavFocusWash else Color.Transparent,
+        // White rather than TvFocusSurface's default accent border -- scoped to just the nav bar via this explicit override, not a global
+        // FocusBorder change, so every other focusable element in the app keeps its usual focus color. The ring is the remote's focus cue.
         borderColor = TextPrimary,
-        // TvFocusSurface's default focus shadow is a blurred black
-        // ambient/spot shadow -- invisible against the accent border/dark
-        // cards it was designed for, but at nav-item size it sits right at
-        // the white border's inner edge and reads as a faint dark ring
-        // inside the border. Nav items don't need the "lift" effect anyway
-        // (there's no card underneath to lift off of), so this just turns
-        // it off here.
+        // No zoom: the link used to grow 8% on focus and the row clips anything outside it, which cut the ring off. With no zoom the ring
+        // always fits inside the pill. No shadow either (it read as a faint dark ring inside the white border).
+        focusedScale = 1f,
         focusedElevation = 0f,
-        // Adjacent nav items are separate TvFocusSurfaces, each fading its
-        // own border independently -- with the shared 150ms fade, the
-        // outgoing item's fade-out and the incoming item's fade-in overlap
-        // and read as the border lagging behind on the previous item.
-        // Snapping it instant gives a clean, immediate handoff instead.
+        // Adjacent nav items are separate TvFocusSurfaces, each fading its own border independently -- snapping it instant gives a clean,
+        // immediate handoff instead of the outgoing fade-out and incoming fade-in overlapping.
         borderAnimationSpec = snap(),
         onFocusChanged = { focused = it },
         bringIntoViewOnFocus = false,
         focusRequester = focusRequester,
         focusDown = focusDown
     ) {
+        val underline = Brush.horizontalGradient(listOf(ArcCyan, ArcBlue, ArcViolet))
         Text(
             text = label,
             color = if (focused || selected) TextPrimary else TextSecondary,
-            // Keyed on selected only, not focused -- selected stays fixed
-            // while moving focus around the bar, but focused changes on
-            // every D-pad step, and Bold glyphs measure wider than Medium
-            // ones. NavItem isn't a fixed-width box, so that width change
-            // reflowed every item after the focused one (and the whole
-            // LazyRow, which sizes to fit its content) on every step,
-            // reading as the entire bar twitching. Color alone (plus the
-            // border) is enough to show focus without moving anything.
+            // Keyed on selected only, not focused: Bold glyphs measure wider than Medium ones, so keying on focus reflowed every item after
+            // the focused one on every D-pad step, reading as the whole bar twitching. Color and the ring are enough to show focus.
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            // labelMedium (13sp) rather than the original titleMedium
-            // (16sp) -- see the tightened item spacing above, both
-            // together are needed to fit all the nav items without the
-            // row falling back to scrolling.
             style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+            modifier = Modifier
+                .drawBehind {
+                    if (selected) {
+                        val barHeight = 2.dp.toPx()
+                        drawRoundRect(
+                            brush = underline,
+                            topLeft = Offset(size.width * 0.28f, size.height - barHeight - 4.dp.toPx()),
+                            size = Size(size.width * 0.44f, barHeight),
+                            cornerRadius = CornerRadius(barHeight / 2f)
+                        )
+                    }
+                }
+                .padding(horizontal = 14.dp, vertical = 8.dp)
         )
     }
 }

@@ -4201,3 +4201,58 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+
+## Post-Milestone-64 — Bring the Firestick level with the web app (Genres, top bar, Search, Settings, Plus popup)
+
+**Status:** Written and unit tests added; not built or run here (no Android SDK in this sandbox).
+
+**Context:** Five web changes had not been made on the Firestick (`docs/FIRESTICK_PARITY.md` in `MikeC444/ArcTV-Web`). They are ported with the same look and rules, adapted for a TV remote.
+
+**Changes:**
+- **Genres removed.** The Genres tab, `GenresScreen`, `GenreResultsScreen` and their view models and routes are gone (the Movies / TV Shows genre drop-downs stay). `MangoNavItems` is now Home, Movies, TV Shows, Search, My List, Settings.
+- **Top bar.** The links sit in a frosted pill centred between the logo and the profile chip (logo and chip in two equal-width side boxes); the open page is a filled pill with a small cyan-blue-violet underline; the focus ring stays but nothing scales on focus, so the ring is never clipped by the scrolling row; the profile chip is a pill with a round picture. Over Home / Detail the dark band behind the bar is gone (it is the page colour on the other screens). The Home hero's dark edge shading (left and right) is removed; the soft left-to-right shade behind the text stays. The logo is not focusable, so it never has an outline.
+- **Search.** A rounded bar with an icon and a clear button; results appear as you type (250 ms pause, from 2 letters; Enter on the keyboard searches at once); every addon is asked at once (it was one after another) and each answer, and each catalog of an addon, shows as it arrives, with a 6 s cut-off per addon and a "Still checking other addons…" line (`CatalogProvider.search` takes an optional `onPartial`); results are a poster grid under Movies / TV Shows headings with counts; **Recent searches** (last 8, per account, `SearchHistoryRepository`, wiped on sign-out) with Clear, one press to search again and hold OK to remove one. The web's title-suggestions dropdown is not ported (on a TV the results already show as posters).
+- **Settings.** A rounded side panel of grouped categories (You / Content / Playback & sound, Subtitles before Sounds as on the web) with an icon tile per row, a filled open row with a gradient bar and gradient icon; the open category's settings sit in a rounded card with an icon, title and subtitle header.
+- **Arc TV Plus popup** (`PlusPromoHost`, `PlusPromoRepository`). On Home, a few seconds after landing, once per launch, for a signed-in adult without Plus once the paywall is on (never in early access, on a kids profile, or for Plus owners). Take me there opens Settings on the Arc TV Plus tab (`PendingSettingsTab`) and counts as answered; Close (or BACK) hides it for 7 days; Don't show me again ends it for the account. It is a dialog window so the remote stays inside it.
+
+**Tests performed:** unit tests added for the recent-searches list (`SearchHistoryTest`), the search merge (`SearchMergeTest`) and the popup rules (`PlusPromoRulesTest`); `GuestRoutesTest` updated for the removed routes. None of it was compiled or run here: no Android SDK in this sandbox. A structural check (brace/paren balance, unused imports) was run over every changed file, and each change was re-read against the code it touches. CI builds it.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
+
+## Post-Milestone-65 — Fix: UP from the first row of Movies / TV Shows skipped the sort bar and the genre drop-down
+
+**Status:** Fix written; CI builds and tests it. Not run on a device here.
+
+**Cause:** on the Movies and TV Shows grid, DOWN from the top bar walks drop-down ("All genres") -> bar ("Featured") -> first row, but UP from the first row was intercepted in `RowsBrowseGridContent` and sent straight to the top bar (`navFocusRequester`), skipping the two in between.
+
+**Change:** UP from the first grid row now scrolls the list to the top and focuses the bar just above the grid (the selected filter chip, or "Featured"). That bar's existing UP goes on to the drop-down and then the top bar, so the way back is the way down. `navRegionFocused` is left as it was (false), since the bar and drop-down are part of the same list.
+
+**Tests performed:** none new: this is remote-focus behaviour in Compose and the repo has no UI tests for it. Brace/paren balance checked and the change re-read against the focus wiring it relies on (the bar's `focusUp`, the header and chip requesters). Not tried on a device. CI builds it.
+
+## Post-Milestone-66 — Fix: focus outline cut off on the Trailer button (Home hero, movie Detail)
+
+**Status:** Fix written; CI builds and tests it. Not run on a device here.
+
+**Cause:** the Trailer button is dimmed until a trailer is found, and it was dimmed by wrapping it in `Box(Modifier.alpha(0.45f))`. `Modifier.alpha` (for any value other than 1) draws the Box into a graphics layer that is *clipped* to the Box's own bounds, and the focused button scales up and draws its outline outside those bounds, so the outline looked cut out. With a trailer found the alpha was 1 (no layer), so it only showed while the button was dimmed.
+
+**Change:** `MangoButton` gets a `dimmed` parameter that fades the button's own fill, icon and text (never the focus ring); `HeroSection` and `DetailHeroSection` use it and no longer wrap the button in an alpha Box.
+
+**Tests performed:** none new (a draw-time clipping issue, no UI tests in this repo). Brace/paren balance checked and the change re-read. Not tried on a device. CI builds it.
+
+## Post-Milestone-67 — Smoother Home hero slide on a Fire TV
+
+**Status:** Change written; CI builds and tests it. Not run on a device here, so how much smoother it is has not been measured.
+
+**Context:** the Home hero's slide between titles looked jittery on a Fire TV.
+
+**Likely causes found in the code, and what changed (`HeroSection.kt`):**
+- *The next picture was decoded at the moment the slide started.* The warm-up only downloaded the pictures (default request: full-size, 32-bit), but the slide shows them with a different request (screen-sized, 16-bit), so each slide change was a memory-cache miss and a full-screen decode, and the picture popped in late. The next two slides' pictures are now decoded ahead of time into Coil's memory cache with the very same request (`heroBackdropRequest`: same size and bitmap format, so the same cache key) the slide uses. Only two ahead, to keep the cache for the poster rows.
+- *Both full-screen pictures were zooming while they slid.* The slow zoom ran forever (back and forth) on the incoming and outgoing picture. It now starts from 1x each time a slide settles, zooms to 1.06x over the slide's time on screen, and does not run during the slide; the outgoing picture keeps the zoom it had reached.
+- *The slide curve.* A very fast start with a long tail (650 ms) moved the pictures a long way in the first frames, which reads as a jolt when frames drop. It is now a gentle ease-in-out over 750 ms.
+
+**Tests performed:** none new (animation and image-cache behaviour, no UI tests in this repo). Brace/paren balance and unused imports checked; the changes re-read against the Compose APIs they use. Not tried on a device. CI builds it.
+
+**Issues discovered:** none.
