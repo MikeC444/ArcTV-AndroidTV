@@ -1,5 +1,6 @@
 package com.mangotv.app.ui.player
 
+import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -61,6 +62,9 @@ import kotlinx.coroutines.delay
 
 /** How often a progress report fires while actively playing (Milestone 8) -- frequent enough that another device's Continue Watching stays reasonably current, infrequent enough not to flood the network on every position tick. */
 /** The first position is saved this long after playback starts, then every [PROGRESS_REPORT_INTERVAL_MS] (also on pause and on leaving). */
+/** Holding LEFT / RIGHT on the timeline moves this far each step, one step every [HOLD_SEEK_STEP_INTERVAL_MS]. */
+private const val HOLD_SEEK_STEP_MS = 10_000L
+private const val HOLD_SEEK_STEP_INTERVAL_MS = 250L
 private const val FIRST_PROGRESS_REPORT_MS = 4_000L
 private const val PROGRESS_REPORT_INTERVAL_MS = 15_000L
 
@@ -369,6 +373,13 @@ private fun PlaybackContent(
     val settingsFocusRequester = remember { FocusRequester() }
     val nextEpisodeFocusRequester = remember { FocusRequester() }
     val timelineFocusRequester = remember { FocusRequester() }
+    // The control the cursor was last on: after a menu closes, or the controls hide and come back, it returns there instead of to Play / Pause.
+    var lastControlFocus by remember { mutableStateOf<FocusRequester?>(null) }
+    fun focusLastControl() {
+        val last = lastControlFocus
+        val restored = last != null && runCatching { last.requestFocus() }.getOrDefault(false)
+        if (!restored) runCatching { playPauseFocusRequester.requestFocus() }
+    }
 
     // Moves focus in both directions: onto play/pause when controls appear
     // (or they'd stay stuck on the invisible root anchor and be visible but
@@ -379,7 +390,7 @@ private fun PlaybackContent(
     // starts false.
     LaunchedEffect(controlsVisible) {
         if (controlsVisible) {
-            runCatching { playPauseFocusRequester.requestFocus() }
+            focusLastControl()
         } else {
             focusZone = PlayerFocusZone.NONE
             runCatching { rootFocusRequester.requestFocus() }
@@ -425,7 +436,8 @@ private fun PlaybackContent(
 
     fun seekPillText(deltaMs: Long): String {
         val seconds = abs(deltaMs) / 1000
-        return if (deltaMs < 0) "«« $seconds seconds" else "$seconds seconds »»"
+        val amount = if (seconds >= 60) "${seconds / 60} min ${seconds % 60} s" else "$seconds seconds"
+        return if (deltaMs < 0) "«« $amount" else "$amount »»"
     }
 
     fun clampedSeekTarget(targetMs: Long): Long {
@@ -450,19 +462,21 @@ private fun PlaybackContent(
     var seekAnchorMs by remember { mutableStateOf<Long?>(null) }
     var pendingSeekDeltaMs by remember { mutableStateOf(0L) }
 
+    // Holding LEFT / RIGHT on the timeline scrubs at a steady pace, one 10-second step every [HOLD_SEEK_STEP_INTERVAL_MS], for as long as
+    // the key is held (no top speed and no 2-minute limit, just the ends of the video); the jump is made when the key is released.
+    var lastHoldStepAtMs by remember { mutableStateOf(0L) }
+
     fun beginOrContinueHoldSeek(direction: Int, isFreshPress: Boolean) {
-        if (isFreshPress || seekAnchorMs == null) {
+        val now = SystemClock.uptimeMillis()
+        val anchor = seekAnchorMs
+        if (isFreshPress || anchor == null) {
             seekAnchorMs = exoPlayer.currentPosition
             pendingSeekDeltaMs = 10_000L * direction
-        } else {
-            val magnitude = abs(pendingSeekDeltaMs)
-            val step = when {
-                magnitude < 30_000L -> 10_000L
-                magnitude < 90_000L -> 30_000L
-                else -> 60_000L
-            }
-            val maxMagnitude = 120_000L
-            pendingSeekDeltaMs = (pendingSeekDeltaMs + step * direction).coerceIn(-maxMagnitude, maxMagnitude)
+            lastHoldStepAtMs = now
+        } else if (now - lastHoldStepAtMs >= HOLD_SEEK_STEP_INTERVAL_MS) {
+            lastHoldStepAtMs = now
+            val target = clampedSeekTarget(anchor + pendingSeekDeltaMs + HOLD_SEEK_STEP_MS * direction)
+            pendingSeekDeltaMs = target - anchor
         }
         seekIndicatorText = seekPillText(pendingSeekDeltaMs)
         bumpInteraction()
@@ -648,7 +662,12 @@ private fun PlaybackContent(
                         onBack = onBack,
                         backFocusRequester = backFocusRequester,
                         backFocusDown = playPauseFocusRequester,
-                        onBackFocusChanged = { focused -> if (focused) onFocusZoneChanged(PlayerFocusZone.TOP_BAR) }
+                        onBackFocusChanged = { focused ->
+                            if (focused) {
+                                onFocusZoneChanged(PlayerFocusZone.TOP_BAR)
+                                lastControlFocus = backFocusRequester
+                            }
+                        }
                     )
 
                     Spacer(Modifier.weight(1f))
@@ -683,7 +702,8 @@ private fun PlaybackContent(
                         qualityFocusRequester = qualityFocusRequester,
                         settingsFocusRequester = settingsFocusRequester,
                         nextEpisodeFocusRequester = nextEpisodeFocusRequester,
-                        timelineFocusRequester = timelineFocusRequester
+                        timelineFocusRequester = timelineFocusRequester,
+                        onControlFocused = { lastControlFocus = it }
                     )
                 }
             }
@@ -776,7 +796,7 @@ private fun PlaybackContent(
                 // Settings/Playback Speed/Advanced back to each other
                 // re-focus their own first row on remount instead.
                 if (overlayStack.isEmpty()) {
-                    runCatching { playPauseFocusRequester.requestFocus() }
+                    focusLastControl()
                 }
             }
             controlsVisible -> controlsVisible = false

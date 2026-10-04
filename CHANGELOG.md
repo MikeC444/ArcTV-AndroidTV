@@ -4378,3 +4378,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues fixed:** the above.
 
+## Post-Milestone-76 — Easier scrubbing and a player that remembers the cursor
+
+**Status:** Written; the compile check is the CI build of the branch. Not tried on a TV.
+
+**Context:** holding Left / Right on the player timeline sped up and stopped at 2 minutes, and the cursor always went back to Play / Pause after a menu or when the controls reappeared.
+
+**Changes:**
+- `PlayerScreen`: holding Left / Right while the timeline is selected adds one 10-second step every 250 ms for as long as the key is held (no acceleration, no 2-minute cap, only the ends of the video); the jump is still made on release, and the pill reads "m min s s" past a minute.
+- `PlayerBottomControls` reports which control has focus (`onControlFocused`; the right-hand time button now has its own focus requester); `PlayerScreen` keeps it in `lastControlFocus` and uses it when the controls reappear and when the last menu closes (Play / Pause only when nothing was focused yet or that control is gone).
+
+**Tests performed:** none by hand; the build is the compile check.
+
+**Issues discovered:** none.
+
+**Issues fixed:** the above.
+
