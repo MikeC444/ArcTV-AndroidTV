@@ -1,5 +1,7 @@
 package com.mangotv.app.data.profile
 
+import androidx.annotation.DrawableRes
+import com.mangotv.app.R
 import kotlinx.serialization.Serializable
 
 /**
@@ -33,25 +35,35 @@ const val PIN_LENGTH = 4
 
 fun isValidPin(pin: String): Boolean = pin.length == PIN_LENGTH && pin.all { it in '0'..'9' }
 
-/** A preset avatar: a coloured tile with a glyph. The ids are what is stored and what the web app also uses. */
-data class Avatar(val id: String, val label: String, val glyph: String, val from: Long, val to: Long)
+/** A preset avatar: an illustrated picture ([res], app/src/main/res/drawable-nodpi/avatar_<id>.webp). The ids are what is stored and what the web app also uses. */
+data class Avatar(val id: String, val label: String, @DrawableRes val res: Int)
 
 val AVATARS: List<Avatar> = listOf(
-    Avatar("sunrise", "Sunrise", "🌄", 0xFFFF9A3D, 0xFFFF3D68),
-    Avatar("ocean", "Ocean", "🌊", 0xFF19E6FF, 0xFF2F80FF),
-    Avatar("forest", "Forest", "🌲", 0xFF2DD9A8, 0xFF1F8F5F),
-    Avatar("violet", "Violet", "🔮", 0xFF9B5CFF, 0xFF5A3DF0),
-    Avatar("ember", "Ember", "🔥", 0xFFFF7A3D, 0xFFC8231A),
-    Avatar("mint", "Mint", "🍃", 0xFF7AF0C9, 0xFF19B4A8),
-    Avatar("astro", "Astronaut", "🧑‍🚀", 0xFF4F7CFF, 0xFF1B2A6B),
-    Avatar("monster", "Monster", "👾", 0xFFFFC83D, 0xFFFF7A3D),
-    Avatar("fox", "Fox", "🦊", 0xFFFF9F5A, 0xFFD9531E),
-    Avatar("robot", "Robot", "🤖", 0xFF9AA7BD, 0xFF4B566B),
-    Avatar("wave", "Wave", "🏄", 0xFF3DD6FF, 0xFF2A62FF),
-    Avatar("bolt", "Bolt", "⚡", 0xFFFFE14D, 0xFFFF9D1F)
+    Avatar("fox", "Fox", R.drawable.avatar_fox),
+    Avatar("cat", "Cat", R.drawable.avatar_cat),
+    Avatar("dog", "Dog", R.drawable.avatar_dog),
+    Avatar("panda", "Panda", R.drawable.avatar_panda),
+    Avatar("frog", "Frog", R.drawable.avatar_frog),
+    Avatar("owl", "Owl", R.drawable.avatar_owl),
+    Avatar("ghost", "Ghost", R.drawable.avatar_ghost),
+    Avatar("robot", "Robot", R.drawable.avatar_robot),
+    Avatar("alien", "Alien", R.drawable.avatar_alien),
+    Avatar("astronaut", "Astronaut", R.drawable.avatar_astronaut),
+    Avatar("raccoon", "Raccoon", R.drawable.avatar_raccoon),
+    Avatar("penguin", "Penguin", R.drawable.avatar_penguin),
+    Avatar("octopus", "Octopus", R.drawable.avatar_octopus),
+    Avatar("dragon", "Dragon", R.drawable.avatar_dragon),
+    Avatar("retro-tv", "Retro TV", R.drawable.avatar_retro_tv),
+    Avatar("lion", "Lion", R.drawable.avatar_lion)
 )
 
-fun avatarById(id: String): Avatar = AVATARS.firstOrNull { it.id == id } ?: AVATARS.first()
+/** Ids from the old colour-tile set that profiles may still carry, drawn as the nearest new picture. */
+private val LEGACY_AVATARS = mapOf(
+    "astro" to "astronaut", "monster" to "alien", "sunrise" to "fox", "ocean" to "octopus", "forest" to "frog",
+    "violet" to "ghost", "ember" to "dragon", "mint" to "owl", "wave" to "penguin", "bolt" to "robot"
+)
+
+fun avatarById(id: String): Avatar = AVATARS.firstOrNull { it.id == (LEGACY_AVATARS[id] ?: id) } ?: AVATARS.first()
 
 /**
  * Genres a kids profile never shows (Home, Movies, TV Shows, Search, Genres, "You may also like"), on top of whatever the profile

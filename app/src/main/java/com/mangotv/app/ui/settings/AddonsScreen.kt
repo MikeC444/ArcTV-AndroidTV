@@ -23,6 +23,14 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.foundation.border
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -91,6 +99,9 @@ fun ColumnScope.AddonsSettingsContent(
             }
         }
 
+        // Same note as the web app: only debrid-backed addons give playable links.
+        item(key = "debrid_notice") { DebridNotice() }
+
         if (addons.isEmpty()) {
             item(key = "empty") { EmptyAddonsHint() }
         } else {
@@ -102,6 +113,31 @@ fun ColumnScope.AddonsSettingsContent(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun DebridNotice() {
+    val shape = RoundedCornerShape(MangoDimens.CardCornerRadius)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(ArcAccent.copy(alpha = 0.08f))
+            .border(1.dp, ArcAccent.copy(alpha = 0.25f), shape)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(Icons.Filled.Info, contentDescription = null, tint = ArcAccent, modifier = Modifier.size(20.dp).padding(top = 2.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Only addons with a debrid service will play.") }
+                append(" Arc TV plays links, not torrents: sources that are only a torrent can't be played. Use an addon set up with your own debrid service (such as Real-Debrid or TorBox), whose sources arrive as ready-to-play links.")
+            },
+            color = TextPrimary,
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
 

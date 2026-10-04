@@ -45,6 +45,8 @@ fun MangoButton(
     // buttons are completely unaffected.
     compact: Boolean = false,
     borderColor: Color = FocusBorder,
+    // A fully rounded pill whatever the style (the Trailer button matches Play); LIGHT is always a pill.
+    pill: Boolean = false,
     // Only set by full-width, list-item-style buttons (e.g. the auth start
     // screen's "Log In"/"Sign Up") — leaving this null preserves the
     // original wrap-content, left-aligned icon+text layout every other
@@ -81,7 +83,7 @@ fun MangoButton(
     // button); FILLED/GLASS keep the app's standard corner radius, used
     // everywhere else (Home's hero, Settings) — this doesn't change their
     // existing shape.
-    val shape = if (style == MangoButtonStyle.LIGHT) {
+    val shape = if (style == MangoButtonStyle.LIGHT || pill) {
         RoundedCornerShape(percent = 50)
     } else {
         RoundedCornerShape(MangoDimens.ButtonCornerRadius)

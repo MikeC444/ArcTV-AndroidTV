@@ -20,6 +20,11 @@ object ActiveProfile {
     var id: String = DEFAULT_ID
         private set
 
+    private val _idFlow = MutableStateFlow(DEFAULT_ID)
+
+    /** [id] as a flow, for anything that has to re-read its data when the person switches profile. */
+    val idFlow: StateFlow<String> = _idFlow.asStateFlow()
+
     private val _kids = MutableStateFlow(false)
 
     /** True while a kids profile is active: no Settings, and the fixed kids genres are hidden everywhere. */
@@ -27,6 +32,7 @@ object ActiveProfile {
 
     fun set(id: String, kids: Boolean) {
         this.id = id
+        _idFlow.value = id
         _kids.value = kids
     }
 

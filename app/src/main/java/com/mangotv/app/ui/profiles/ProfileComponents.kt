@@ -1,6 +1,9 @@
 package com.mangotv.app.ui.profiles
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,19 +43,18 @@ import com.mangotv.app.ui.theme.MangoSurface
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
 
-/** A profile's picture: a coloured tile with its glyph. */
+/** A profile's picture: its illustration, clipped to a rounded square. */
 @Composable
 fun ProfileAvatarTile(avatar: String, size: Dp, modifier: Modifier = Modifier, cornerRadius: Dp = 14.dp) {
     val a = avatarById(avatar)
-    Box(
+    Image(
+        painter = painterResource(a.res),
+        contentDescription = a.label,
+        contentScale = ContentScale.Crop,
         modifier = modifier
             .size(size)
             .clip(RoundedCornerShape(cornerRadius))
-            .background(Brush.linearGradient(listOf(Color(a.from), Color(a.to)))),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text = a.glyph, fontSize = (size.value * 0.5f).sp)
-    }
+    )
 }
 
 /**
