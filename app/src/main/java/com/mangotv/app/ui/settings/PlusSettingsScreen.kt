@@ -23,6 +23,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.mangotv.app.data.plus.PlusStatus
+import com.mangotv.app.ui.theme.MangoBackgroundElevated
+import com.mangotv.app.ui.components.MangoButtonStyle
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -69,11 +77,16 @@ fun ColumnScope.PlusSettingsContent(
     val status by viewModel.status.collectAsStateWithLifecycle()
     val checkout by viewModel.checkout.collectAsStateWithLifecycle()
     val remaining by viewModel.remainingSeconds.collectAsStateWithLifecycle()
+    val cancelState by viewModel.cancel.collectAsStateWithLifecycle()
     val showCheckout = checkout is PlusCheckoutState.Error
     val sellPlans = status.paywall && !status.active
 
     // The QR code gets a full-screen page of its own; Back or "Change plan" returns here.
     PlusCheckoutPage(state = checkout, remainingSeconds = remaining, onClose = viewModel::cancelCheckout)
+
+    if (cancelState.confirming) {
+        CancelSubscriptionDialog(status = status, state = cancelState, onKeep = viewModel::keepPlus, onConfirm = viewModel::confirmCancel)
+    }
 
     LazyColumn(
         modifier = Modifier.weight(1f),
@@ -81,6 +94,12 @@ fun ColumnScope.PlusSettingsContent(
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        if (status.owned && (status.plan == "monthly" || status.plan == "yearly")) {
+            item(key = "subscription") {
+                SubscriptionRow(status = status, onCancel = viewModel::askToCancel, focusLeft = sidebarFocusRequester)
+            }
+        }
+
         item(key = "status") {
             // Focusable so the remote can step back up to the top of the tab (plain text can't take focus, which left the
             // list stuck scrolled down), and it is where focus lands when the tab opens.
@@ -200,6 +219,76 @@ private fun ownedSentence(plan: String?, validUntil: String?): String {
     val head = if (name != null) "You have Arc TV Plus ($name)" else "You have Arc TV Plus"
     val until = validUntil?.let { runCatching { formatDate(it) }.getOrNull() }
     return if (until != null) "$head. Your current period runs to $until. Thank you for supporting Arc TV." else "$head, for life. Thank you for supporting Arc TV."
+}
+
+/** Under the plan status, for a paying monthly or yearly subscriber (not Lifetime): when it renews, and a way to cancel it. Same wording as the web app. */
+@Composable
+private fun SubscriptionRow(status: PlusStatus, onCancel: () -> Unit, focusLeft: FocusRequester) {
+    val planLabel = PLUS_PLANS.firstOrNull { it.id == status.plan }?.label.orEmpty()
+    val until = status.validUntil?.let { runCatching { formatDate(it) }.getOrNull() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(MangoDimens.CardCornerRadius))
+            .background(MangoSurface)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = "Arc TV Plus · $planLabel", color = TextTertiary, style = MaterialTheme.typography.labelSmall)
+            Text(
+                text = when {
+                    status.cancelAtPeriodEnd -> "Your subscription won't renew." + (until?.let { " You keep Plus until $it." } ?: "")
+                    until != null -> "Renews on $until."
+                    else -> "Active."
+                },
+                color = TextPrimary,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        if (!status.cancelAtPeriodEnd) {
+            Spacer(Modifier.width(16.dp))
+            MangoButton(text = "Cancel subscription", icon = Icons.Filled.Close, onClick = onCancel, compact = true, focusLeft = focusLeft)
+        }
+    }
+}
+
+/** "Cancel your monthly subscription?" -- Keep Plus is focused first so a stray press never cancels. */
+@Composable
+private fun CancelSubscriptionDialog(status: PlusStatus, state: CancelSubscriptionState, onKeep: () -> Unit, onConfirm: () -> Unit) {
+    val planLabel = PLUS_PLANS.firstOrNull { it.id == status.plan }?.label.orEmpty().lowercase()
+    val until = status.validUntil?.let { runCatching { formatDate(it) }.getOrNull() }
+    val keepFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { keepFocus.requestFocus() } }
+    Dialog(onDismissRequest = onKeep) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 520.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(MangoBackgroundElevated)
+                .padding(28.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(text = "Cancel your $planLabel subscription?", color = TextPrimary, style = MaterialTheme.typography.titleLarge)
+            Text(
+                text = if (until != null) "You keep Arc TV Plus until $until. After that it won't renew and you won't be charged again."
+                else "You keep Arc TV Plus until the end of the period you've paid for. After that it won't renew and you won't be charged again.",
+                color = TextSecondary,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            if (state.error != null) Text(text = state.error, color = ErrorCoral, style = MaterialTheme.typography.bodySmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                MangoButton(text = "Keep Plus", icon = Icons.Filled.Check, onClick = onKeep, style = MangoButtonStyle.FILLED, compact = true, focusRequester = keepFocus)
+                MangoButton(
+                    text = if (state.busy) "Cancelling…" else "Cancel subscription",
+                    icon = Icons.Filled.Close,
+                    onClick = onConfirm,
+                    compact = true,
+                    dimmed = state.busy
+                )
+            }
+        }
+    }
 }
 
 private fun formatDate(iso: String): String {

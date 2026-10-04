@@ -103,10 +103,12 @@ class ProfilesTest {
     @Test
     fun theAvatarIdsAreTheOnesTheWebAppAndBackendUse() {
         assertEquals(
-            listOf("sunrise", "ocean", "forest", "violet", "ember", "mint", "astro", "monster", "fox", "robot", "wave", "bolt"),
+            listOf("fox", "cat", "dog", "panda", "frog", "owl", "ghost", "robot", "alien", "astronaut", "raccoon", "penguin", "octopus", "dragon", "retro-tv", "lion"),
             AVATARS.map { it.id }
         )
         assertEquals("fox", avatarById("fox").id)
+        assertEquals("an old colour-tile id shows the nearest new picture", "astronaut", avatarById("astro").id)
+        assertEquals("octopus", avatarById("ocean").id)
         assertEquals("an unknown id still draws something", AVATARS.first().id, avatarById("nope").id)
     }
 

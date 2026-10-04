@@ -11,6 +11,7 @@ import com.mangotv.app.data.auth.AuthRepository
 import com.mangotv.app.data.network.ApiException
 import com.mangotv.app.data.network.PlusApiClient
 import com.mangotv.app.data.network.PlusCheckoutLink
+import com.mangotv.app.data.network.PlusStatusDto
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +36,9 @@ data class PlusStatus(
     val plan: String? = null,
     val validUntil: String? = null,
     /** True once Plus is paid; false while it is free for everyone (early access). */
-    val paywall: Boolean = false
+    val paywall: Boolean = false,
+    /** A monthly or yearly subscription that has been cancelled: Plus runs to [validUntil] and then ends. */
+    val cancelAtPeriodEnd: Boolean = false
 ) {
     /** Paid for (as opposed to free during early access). */
     val owned: Boolean get() = paywall && active
@@ -66,7 +69,7 @@ class PlusRepository(context: Context, private val authRepository: AuthRepositor
         try {
             val token = freshAccessTokenOrNull() ?: return false
             val dto = apiClient.getStatus(token)
-            update(PlusStatus(active = dto.active, plan = dto.plan, validUntil = dto.validUntil, paywall = dto.paywall))
+            update(dto.toStatus())
             return true
         } catch (e: ApiException) {
             if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
@@ -88,6 +91,17 @@ class PlusRepository(context: Context, private val authRepository: AuthRepositor
         val token = freshAccessTokenOrNull() ?: throw IOException("Not signed in")
         return apiClient.startCheckout(token, plan)
     }
+
+    /**
+     * Cancels a monthly or yearly subscription at the end of the period already paid for: Plus stays on until then. Throws [ApiException]
+     * (409: Lifetime has no subscription; 404: no subscription found on the account; 429: too many tries) or an IOException.
+     */
+    suspend fun cancelSubscription() {
+        val token = freshAccessTokenOrNull() ?: throw IOException("Not signed in")
+        update(apiClient.cancelSubscription(token).toStatus())
+    }
+
+    private fun PlusStatusDto.toStatus() = PlusStatus(active = active, plan = plan, validUntil = validUntil, paywall = paywall, cancelAtPeriodEnd = cancelAtPeriodEnd)
 
     /** Forgets this device's copy (account switching): another account must never inherit this one's Plus. */
     suspend fun clear() = update(PlusStatus())

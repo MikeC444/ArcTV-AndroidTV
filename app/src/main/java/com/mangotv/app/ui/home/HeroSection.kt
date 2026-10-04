@@ -449,6 +449,7 @@ fun HeroSection(
                             }
                         },
                         style = MangoButtonStyle.GLASS,
+                        pill = true,
                         focusUp = navUpFocusRequester,
                         bringIntoViewOnFocus = false,
                         dimmed = trailerId == null

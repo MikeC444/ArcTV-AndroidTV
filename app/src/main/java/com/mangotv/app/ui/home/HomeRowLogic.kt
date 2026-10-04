@@ -17,16 +17,6 @@ fun dedupeSections(sections: List<HomeSection>): List<HomeSection> {
     return out
 }
 
-/**
- * Continue Watching keeps only titles that no catalogue row shows (they already have a place on the page). Returns
- * null when nothing is left, so the row disappears instead of showing empty.
- */
-fun withoutShownTitles(continueWatching: HomeSection, catalogueRows: List<HomeSection>): HomeSection? {
-    val shown = catalogueRows.flatMapTo(HashSet()) { row -> row.items.map { it.id } }
-    val kept = continueWatching.items.filter { it.id !in shown }
-    return if (kept.isEmpty()) null else if (kept.size == continueWatching.items.size) continueWatching else continueWatching.copy(items = kept)
-}
-
 /** Where focus returns to on Home: [rowIndex] into the sections and [itemIndex] into that row. */
 data class FocusRestoreTarget(val rowIndex: Int, val itemIndex: Int)
 

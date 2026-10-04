@@ -13,6 +13,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import com.mangotv.app.data.profile.ActiveProfile
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -38,7 +40,8 @@ fun withRecentSearch(list: List<String>, query: String): List<String> {
 
 /**
  * The searches shown under the Search bar as "Recent searches" (ported from the web app's `recentSearches.ts`): the last [RECENT_SEARCH_LIMIT],
- * newest first, kept on this device per account (someone browsing without an account has one shared list). Signing out forgets them ([clear]).
+ * newest first, kept on this device per profile (someone browsing without an account has one shared list). The account's own profile keeps the
+ * list it always had; every other profile starts empty. Signing out forgets them all ([clear]).
  */
 class SearchHistoryRepository(context: Context, private val authRepository: AuthRepository) {
 
@@ -59,7 +62,13 @@ class SearchHistoryRepository(context: Context, private val authRepository: Auth
     init {
         scope.launch {
             mutex.withLock { lists = readPersisted() }
-            authRepository.session.map { it?.user?.id ?: GUEST_KEY }.distinctUntilChanged().collect { key ->
+            combine(authRepository.session.map { it?.user?.id }, ActiveProfile.idFlow) { userId, profileId ->
+                when {
+                    userId == null -> GUEST_KEY
+                    profileId == ActiveProfile.DEFAULT_ID -> userId
+                    else -> "$userId:$profileId"
+                }
+            }.distinctUntilChanged().collect { key ->
                 mutex.withLock {
                     currentKey = key
                     _recents.value = lists[key].orEmpty()

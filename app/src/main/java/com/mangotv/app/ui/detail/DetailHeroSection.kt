@@ -407,6 +407,7 @@ fun DetailHeroSection(
                         icon = Icons.Filled.Theaters,
                         onClick = onTrailer,
                         style = MangoButtonStyle.GLASS,
+                        pill = true,
                         focusUp = navUpFocusRequester,
                         bringIntoViewOnFocus = false,
                         compact = compact,

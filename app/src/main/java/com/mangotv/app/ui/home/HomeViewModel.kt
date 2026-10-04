@@ -357,8 +357,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val visibleSections = dedupeSections(
             rowPreferences.applyOrder(rawSections.withoutBlocked(blockedGenres)).filterNot { it.id in rowPreferences.hiddenRowIds }
         ).map { it.withWatchedFlags() }
-        // A title that already sits in a catalogue row is not repeated under Continue Watching.
-        val continueWatching = continueWatchingSection?.let { withoutShownTitles(it, visibleSections) }
+        // Continue Watching lists every title that was started, even one a catalogue row also shows (hiding those could empty the row).
+        val continueWatching = continueWatchingSection
         updatePickedInputs()
         val picked = if (pickedAvailable()) pickedSection(pickedResult, pickedMovies.withoutBlocked(blockedGenres), feedbackEntries, dismissedIds) else null
         val sections = listOfNotNull(continueWatching?.withWatchedFlags()) + listOfNotNull(picked?.withWatchedFlags()) + visibleSections
