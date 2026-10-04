@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.mangotv.app.data.plus.PlusStatus
 import com.mangotv.app.ui.theme.MangoBackgroundElevated
 import com.mangotv.app.ui.components.MangoButtonStyle
 import androidx.compose.ui.window.Dialog
