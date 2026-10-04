@@ -11,7 +11,9 @@ data class PlusStatusDto(
     val plan: String? = null,
     val validUntil: String? = null,
     /** True once Plus is paid; false while it is free for everyone (early access). */
-    val paywall: Boolean = false
+    val paywall: Boolean = false,
+    /** A monthly or yearly subscription that has been cancelled: Plus runs to [validUntil] and then ends. Absent from an older backend. */
+    val cancelAtPeriodEnd: Boolean = false
 )
 
 @Serializable

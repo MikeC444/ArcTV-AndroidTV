@@ -30,6 +30,16 @@ class PlusApiClient(private val baseUrl: String) {
         PlusCheckoutLink(response.url, response.amountTotal, response.currency)
     }
 
+    /** Cancels a monthly or yearly subscription at the end of the period already paid for (nothing is refunded); returns the new status. */
+    suspend fun cancelSubscription(accessToken: String): PlusStatusDto = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("$baseUrl/user/plus/cancel")
+            .header("Authorization", "Bearer $accessToken")
+            .post("{}".toRequestBody(JSON_MEDIA_TYPE))
+            .build()
+        json.decodeFromString(PlusStatusDto.serializer(), execute(request))
+    }
+
     private fun execute(request: Request): String {
         httpClient.newCall(request).execute().use { response ->
             val bodyString = response.body?.string().orEmpty()

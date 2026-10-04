@@ -26,6 +26,9 @@ sealed interface PlusCheckoutState {
     data class Error(val message: String) : PlusCheckoutState
 }
 
+/** The "Cancel subscription" flow on this tab: asking first, working, or an error to show in the question. */
+data class CancelSubscriptionState(val confirming: Boolean = false, val busy: Boolean = false, val error: String? = null)
+
 /** How often, and for how long, the TV asks whether the payment has gone through once a QR code is up. */
 private const val POLL_EVERY_TICKS = 4
 private const val POLL_FOR_SECONDS = 10 * 60
@@ -40,6 +43,37 @@ class PlusSettingsViewModel(application: Application) : AndroidViewModel(applica
 
     private val _checkout = MutableStateFlow<PlusCheckoutState>(PlusCheckoutState.Idle)
     val checkout: StateFlow<PlusCheckoutState> = _checkout.asStateFlow()
+
+    private val _cancel = MutableStateFlow(CancelSubscriptionState())
+    val cancel: StateFlow<CancelSubscriptionState> = _cancel.asStateFlow()
+
+    fun askToCancel() { _cancel.value = CancelSubscriptionState(confirming = true) }
+
+    fun keepPlus() { if (!_cancel.value.busy) _cancel.value = CancelSubscriptionState() }
+
+    /** Cancels at the end of the paid period (Plus stays on until then). Same wording for the failures as the web app. */
+    fun confirmCancel() {
+        if (_cancel.value.busy) return
+        _cancel.value = CancelSubscriptionState(confirming = true, busy = true)
+        viewModelScope.launch {
+            try {
+                plusRepository.cancelSubscription()
+                _cancel.value = CancelSubscriptionState()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: ApiException) {
+                val message = when {
+                    e.statusCode == 409 -> "Lifetime Plus has no subscription to cancel."
+                    e.statusCode == 404 && e.message.orEmpty().contains("subscription", ignoreCase = true) -> "We couldn't find a subscription to cancel on this account."
+                    e.statusCode == 429 -> e.message.orEmpty()
+                    else -> "Couldn't cancel your subscription. Try again in a moment."
+                }
+                _cancel.value = CancelSubscriptionState(confirming = true, error = message)
+            } catch (e: Exception) {
+                _cancel.value = CancelSubscriptionState(confirming = true, error = "Couldn't cancel your subscription. Try again in a moment.")
+            }
+        }
+    }
 
     private var polling: Job? = null
     private var starting: Job? = null
