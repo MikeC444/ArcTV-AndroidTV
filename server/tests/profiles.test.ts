@@ -69,6 +69,11 @@ describe("/user/profiles", () => {
     expect((await list(s)).body.profiles.filter((p: { kind: string }) => p.kind === "kids")).toHaveLength(4);
   });
 
+  it("accepts the illustrated avatar ids as well as the older colour-tile ones", async () => {
+    const s = await createTestSession();
+    for (const avatar of ["cat", "retro-tv", "astronaut", "sunrise"]) expect((await create(s, { name: avatar, avatar })).status).toBe(201);
+  });
+
   it("validates names, avatars, kinds and PINs, and refuses unknown fields", async () => {
     const s = await createTestSession();
     for (const bad of [{ name: "  " }, { name: "x".repeat(25) }, { avatar: "nope" }, { kind: "teen" }, { pin: "12" }, { pin: "12345" }, { pin: "abcd" }, { id: "main" }, { isDefault: true }]) {

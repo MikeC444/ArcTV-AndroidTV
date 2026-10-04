@@ -1,7 +1,12 @@
 import { z } from "zod";
 
-/** The avatar ids both apps know (web `AVATARS` in domain/profiles.ts); the apps map each to its own artwork. */
-export const AVATAR_IDS = ["sunrise", "ocean", "forest", "violet", "ember", "mint", "astro", "monster", "fox", "robot", "wave", "bolt"] as const;
+/**
+ * The avatar ids the apps know; each app maps an id to its own artwork. The web app now offers the illustrated set (NEW_AVATAR_IDS);
+ * the older colour-tile ids stay valid because existing profiles (and the Firestick app) still carry them.
+ */
+export const NEW_AVATAR_IDS = ["fox", "cat", "dog", "panda", "frog", "owl", "ghost", "robot", "alien", "astronaut", "raccoon", "penguin", "octopus", "dragon", "retro-tv", "lion"] as const;
+export const LEGACY_AVATAR_IDS = ["sunrise", "ocean", "forest", "violet", "ember", "mint", "astro", "monster", "wave", "bolt"] as const;
+export const AVATAR_IDS = [...NEW_AVATAR_IDS, ...LEGACY_AVATAR_IDS] as const;
 
 /** An account can have this many profiles, in any mix of adult and kids. */
 export const PROFILE_LIMIT = 5;
