@@ -35,6 +35,7 @@ fun SettingsPanel(
     qualityLabel: String,
     onOpenSubtitles: () -> Unit,
     onOpenAudio: () -> Unit,
+    onOpenAudioInfo: () -> Unit,
     onOpenQuality: () -> Unit,
     onOpenPlaybackSpeed: () -> Unit,
     onOpenAdvanced: () -> Unit,
@@ -71,15 +72,14 @@ fun SettingsPanel(
                 focusRequester = consumeFirstFocusRequester()
             )
         }
-        if (showAudio) {
-            SettingsRow(
-                icon = Icons.Filled.GraphicEq,
-                title = "Audio",
-                subtitle = audioLabel,
-                onClick = onOpenAudio,
-                focusRequester = consumeFirstFocusRequester()
-            )
-        }
+        // Always there, as on the web: with two or more audio tracks it opens the list, otherwise it says why nothing can be chosen.
+        SettingsRow(
+            icon = Icons.Filled.GraphicEq,
+            title = "Audio",
+            subtitle = audioLabel,
+            onClick = if (showAudio) onOpenAudio else onOpenAudioInfo,
+            focusRequester = consumeFirstFocusRequester()
+        )
         SettingsRow(
             icon = Icons.Filled.Speed,
             title = "Playback Speed",

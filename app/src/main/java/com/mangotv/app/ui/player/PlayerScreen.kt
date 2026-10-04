@@ -48,6 +48,8 @@ import com.mangotv.app.data.model.PlayerPreferences
 import com.mangotv.app.data.model.Stream
 import com.mangotv.app.ui.components.FullScreenErrorState
 import com.mangotv.app.ui.player.overlay.AdvancedSettingsPanel
+import com.mangotv.app.ui.player.overlay.ResumeCard
+import com.mangotv.app.ui.player.overlay.AudioInfoPanel
 import com.mangotv.app.ui.player.overlay.AudioTrackMenu
 import com.mangotv.app.ui.player.overlay.PlaybackErrorOverlay
 import com.mangotv.app.ui.player.overlay.PlaybackSpeedMenu
@@ -67,6 +69,7 @@ private const val PROGRESS_REPORT_INTERVAL_MS = 15_000L
 fun PlayerScreen(
     onBack: () -> Unit,
     onChangeSource: () -> Unit,
+    onNextEpisode: (season: Int, episode: Int) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlayerViewModel = viewModel()
 ) {
@@ -120,7 +123,8 @@ fun PlayerScreen(
                     onSkipIntroChange = viewModel::setSkipIntroEnabled,
                     onReportProgress = viewModel::reportProgress,
                     onBack = onBack,
-                    onChangeSource = onChangeSource
+                    onChangeSource = onChangeSource,
+                    onNextEpisode = onNextEpisode
                 )
             }
         }
@@ -144,7 +148,8 @@ private fun PlaybackContent(
     onSkipIntroChange: (Boolean) -> Unit,
     onReportProgress: (positionMs: Long, durationMs: Long, completed: Boolean) -> Unit,
     onBack: () -> Unit,
-    onChangeSource: () -> Unit
+    onChangeSource: () -> Unit,
+    onNextEpisode: (season: Int, episode: Int) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -153,6 +158,18 @@ private fun PlaybackContent(
     // playback session (leaving/re-entering the player), not live mid-session.
     val exoPlayer = remember { buildExoPlayer(context, preferences) }
     val uiSoundPlayer = LocalUiSoundPlayer.current
+
+    // Opening: the loading screen stays until the first picture plays (and behind the resume question).
+    var started by remember { mutableStateOf(false) }
+    LaunchedEffect(phase) { if (phase is PlaybackPhase.Playing) started = true }
+    // A part-watched title waits at its saved spot and asks "Pick up where you left off?" (null: no question).
+    var resumePrompt by remember { mutableStateOf<Long?>(null) }
+    var showRemaining by remember { mutableStateOf(DevicePlayerPrefs.showRemaining(context)) }
+    // The episode after this one, offered in the last minute and counted down to after the end (when Auto Play Next Episode is on).
+    val next = remember(content, episode) { nextEpisodeAfter(content.seasons, episode?.seasonNumber, episode?.episodeNumber) }
+    var upNext by remember { mutableStateOf<NextEpisode?>(null) }
+    var offerNext by remember { mutableStateOf(false) }
+    val nextOfferFocusRequester = remember { FocusRequester() }
 
     // Without this, Fire TV's system screensaver/idle timeout kicks in
     // during playback the same as it would over any other idle screen --
@@ -219,7 +236,8 @@ private fun PlaybackContent(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    fun startPlayback() {
+    // askFirst: a saved position pauses the video there until "Resume" / "Start over" is chosen (Try Again just carries on from it).
+    fun startPlayback(askFirst: Boolean) {
         val mediaItem = stream.toMediaItemOrNull()
         if (mediaItem == null) {
             onPhaseChanged(
@@ -229,22 +247,56 @@ private fun PlaybackContent(
                 )
             )
         } else {
-            // Resume at the stored position when this exact title/episode
-            // has one (Milestone 8) -- setMediaItem's startPositionMs
-            // overload is the standard ExoPlayer way to do this, applied
-            // once the player becomes ready rather than needing a
-            // separate seekTo() call.
             if (resumePositionMs != null && resumePositionMs > 0) {
                 exoPlayer.setMediaItem(mediaItem, resumePositionMs)
+                exoPlayer.prepare()
+                exoPlayer.playWhenReady = !askFirst
             } else {
                 exoPlayer.setMediaItem(mediaItem)
+                exoPlayer.prepare()
+                exoPlayer.playWhenReady = true
             }
-            exoPlayer.prepare()
-            exoPlayer.playWhenReady = true
         }
     }
 
-    LaunchedEffect(stream.id) { startPlayback() }
+    LaunchedEffect(stream.id) {
+        startPlayback(askFirst = true)
+        val resume = resumePositionMs
+        if (resume != null && resume > 0 && exoPlayer.mediaItemCount > 0) {
+            // The saved spot is only offered once the length is known (a spot at the very end starts over instead).
+            var waitedMs = 0L
+            while (exoPlayer.duration <= 0 && waitedMs < 20_000L) {
+                delay(100)
+                waitedMs += 100
+            }
+            when {
+                exoPlayer.duration <= 0 -> exoPlayer.playWhenReady = true
+                shouldOfferResume(resume, exoPlayer.duration) -> resumePrompt = resume
+                else -> {
+                    exoPlayer.seekTo(0)
+                    exoPlayer.playWhenReady = true
+                }
+            }
+        }
+    }
+
+    fun answerResume(resume: Boolean) {
+        resumePrompt = null
+        if (!resume) exoPlayer.seekTo(0)
+        exoPlayer.play()
+    }
+
+    // Next episode: offered for the last minute, and after the end counted down to (Auto Play Next Episode on).
+    LaunchedEffect(phase, next) {
+        while (true) {
+            offerNext = offerNextEpisode(exoPlayer.currentPosition, exoPlayer.duration, next != null)
+            delay(1_000L)
+        }
+    }
+    LaunchedEffect(phase) {
+        if (phase is PlaybackPhase.Ended && next != null && preferences.autoplayNextEpisode) upNext = next
+    }
+    fun goToNextEpisode(target: NextEpisode) = onNextEpisode(target.season, target.episode)
 
     // -- Controls visibility, focus zone, and the interaction-resets-the-
     // -- auto-hide-timer bookkeeping.
@@ -300,12 +352,15 @@ private fun PlaybackContent(
         bumpInteraction()
     }
 
-    var playbackSpeed by remember { mutableFloatStateOf(1f) }
+    // The last speed chosen is kept for every title on this device.
+    var playbackSpeed by remember { mutableFloatStateOf(DevicePlayerPrefs.speed(context)) }
     fun changePlaybackSpeed(speed: Float) {
         playbackSpeed = speed
         exoPlayer.playbackParameters = PlaybackParameters(speed)
+        DevicePlayerPrefs.setSpeed(context, speed)
         bumpInteraction()
     }
+    LaunchedEffect(stream.id) { exoPlayer.playbackParameters = PlaybackParameters(playbackSpeed) }
 
     // Only worth a menu when there's a real choice — matches the spec's
     // "don't show a fake quality/options menu" instruction. Subtitles
@@ -316,7 +371,8 @@ private fun PlaybackContent(
     val showAudio = audioTracks.size > 1
     val showQuality = qualityOptions.count { it.trackGroup != null } > 1
     val subtitleLabel = subtitleTracks.firstOrNull { it.isSelected }?.label ?: "Off"
-    val audioLabel = audioTracks.firstOrNull { it.isSelected }?.label ?: "Auto"
+    val audioLabel = audioTracks.firstOrNull { it.isSelected }?.label
+        ?: if (audioTracks.isEmpty()) "Can't be changed for this source here" else "Auto"
     val qualityLabel = qualityOptions.firstOrNull { it.isSelected }?.label ?: "Auto"
 
     val rootFocusRequester = remember { FocusRequester() }
@@ -465,6 +521,15 @@ private fun PlaybackContent(
                     }
                     return@onPreviewKeyEvent true
                 }
+                // The resume question owns the keys (its buttons take them); Back still leaves.
+                if (resumePrompt != null) return@onPreviewKeyEvent false
+                // Down reaches the "Next episode" button while the controls are hidden.
+                if (offerNext && next != null && upNext == null && !controlsVisible && activeOverlay == null &&
+                    event.type == KeyEventType.KeyDown && event.key == Key.DirectionDown
+                ) {
+                    runCatching { nextOfferFocusRequester.requestFocus() }
+                    return@onPreviewKeyEvent true
+                }
                 // While a menu is open, it owns all key handling itself
                 // (its own list navigation/selection) — don't fight it with
                 // the player's own global seek/reveal shortcuts.
@@ -558,7 +623,11 @@ private fun PlaybackContent(
     ) {
         PlayerSurface(exoPlayer = exoPlayer, modifier = Modifier.fillMaxSize())
 
-        if (phase is PlaybackPhase.Loading || phase is PlaybackPhase.Buffering) {
+        if ((!started || resumePrompt != null) && phase !is PlaybackPhase.Error) {
+            PlayerLoadingScreen(content = content, episode = episode, busy = resumePrompt == null)
+        }
+
+        if (phase is PlaybackPhase.Buffering && started) {
             CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.Center).size(48.dp),
                 color = Color.White
@@ -568,7 +637,7 @@ private fun PlaybackContent(
         if (phase is PlaybackPhase.Error) {
             PlaybackErrorOverlay(
                 message = phase.message,
-                onTryAgain = ::startPlayback,
+                onTryAgain = { startPlayback(askFirst = false) },
                 onChangeSource = onChangeSource,
                 onBack = onBack
             )
@@ -606,7 +675,13 @@ private fun PlaybackContent(
                     PlayerBottomControls(
                         exoPlayer = exoPlayer,
                         phase = phase,
-                        showNextEpisode = episode != null,
+                        showNextEpisode = next != null,
+                        showRemaining = showRemaining,
+                        onToggleRemaining = {
+                            showRemaining = !showRemaining
+                            DevicePlayerPrefs.setShowRemaining(context, showRemaining)
+                            bumpInteraction()
+                        },
                         showSubtitles = showSubtitles,
                         showAudio = showAudio,
                         showQuality = showQuality,
@@ -616,7 +691,7 @@ private fun PlaybackContent(
                         onAudio = { pushOverlay(PlayerOverlay.AUDIO) },
                         onQuality = { pushOverlay(PlayerOverlay.QUALITY) },
                         onSettings = { pushOverlay(PlayerOverlay.SETTINGS) },
-                        onNextEpisode = {},
+                        onNextEpisode = { next?.let { goToNextEpisode(it) } },
                         onFocusZoneChanged = ::onFocusZoneChanged,
                         isTimelineScrubbing = timelineScrubbing,
                         playPauseFocusRequester = playPauseFocusRequester,
@@ -631,6 +706,28 @@ private fun PlaybackContent(
                     )
                 }
             }
+        }
+
+        if (resumePrompt != null && phase !is PlaybackPhase.Error) {
+            ResumeCard(
+                positionMs = resumePrompt!!,
+                onResume = { answerResume(true) },
+                onStartOver = { answerResume(false) },
+                onChangeSource = onChangeSource
+            )
+        }
+
+        if (offerNext && next != null && upNext == null && resumePrompt == null && activeOverlay == null && phase !is PlaybackPhase.Error) {
+            NextEpisodeOffer(
+                next = next,
+                onGo = { goToNextEpisode(next) },
+                focusRequester = nextOfferFocusRequester,
+                modifier = Modifier.align(Alignment.BottomEnd)
+            )
+        }
+
+        upNext?.let { target ->
+            UpNextCard(next = target, onGo = { goToNextEpisode(target) }, onCancel = { upNext = null })
         }
 
         when (activeOverlay) {
@@ -658,10 +755,12 @@ private fun PlaybackContent(
                 qualityLabel = qualityLabel,
                 onOpenSubtitles = { pushOverlay(PlayerOverlay.SUBTITLES) },
                 onOpenAudio = { pushOverlay(PlayerOverlay.AUDIO) },
+                onOpenAudioInfo = { pushOverlay(PlayerOverlay.AUDIO_INFO) },
                 onOpenQuality = { pushOverlay(PlayerOverlay.QUALITY) },
                 onOpenPlaybackSpeed = { pushOverlay(PlayerOverlay.PLAYBACK_SPEED) },
                 onOpenAdvanced = { pushOverlay(PlayerOverlay.ADVANCED) }
             )
+            PlayerOverlay.AUDIO_INFO -> AudioInfoPanel(trackLabel = audioTracks.firstOrNull { it.isSelected }?.label)
             PlayerOverlay.PLAYBACK_SPEED -> PlaybackSpeedMenu(
                 playbackSpeed = playbackSpeed,
                 onSelect = { speed -> changePlaybackSpeed(speed); popOverlay() }

@@ -24,7 +24,7 @@ object MangoRoutes {
     const val SEARCH = "search"
     const val MY_LIST = "my_list"
     const val DETAIL_PATTERN = "detail/{providerId}/{type}/{id}"
-    const val SOURCES_PATTERN = "sources/{providerId}/{type}/{id}/{season}/{episode}/{skipAutoSelect}"
+    const val SOURCES_PATTERN = "sources/{providerId}/{type}/{id}/{season}/{episode}/{skipAutoSelect}?auto={auto}"
     const val PLAYER_PATTERN = "player/{providerId}/{type}/{id}/{season}/{episode}/{streamId}"
 
     /** [intent] is display-only ("login" or "register" — which button on AuthStartScreen was pressed), carried through AuthMethodScreen unchanged; see [authMethod]'s own kdoc for why it stays display-only here too. */
@@ -56,11 +56,15 @@ object MangoRoutes {
         // source must always see the picker, even if the source they're
         // switching away from is the exact one that would otherwise be
         // auto-selected.
-        skipAutoSelect: Boolean = false
+        skipAutoSelect: Boolean = false,
+        // True only for "Next episode" from the player: Sources takes the best source by itself (the remembered one when there is
+        // one) instead of asking, so the next episode starts without a picker -- the web app's `?auto=1`.
+        autoPlay: Boolean = false
     ): String {
         val encodedProviderId = URLEncoder.encode(providerId, "UTF-8")
         val encodedId = URLEncoder.encode(id, "UTF-8")
-        return "sources/$encodedProviderId/${type.name}/$encodedId/${season ?: -1}/${episode ?: -1}/$skipAutoSelect"
+        val base = "sources/$encodedProviderId/${type.name}/$encodedId/${season ?: -1}/${episode ?: -1}/$skipAutoSelect"
+        return if (autoPlay) "$base?auto=true" else base
     }
 
     fun player(
