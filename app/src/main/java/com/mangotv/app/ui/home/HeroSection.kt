@@ -1,15 +1,14 @@
 package com.mangotv.app.ui.home
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -69,6 +68,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import coil.compose.AsyncImage
 import coil.imageLoader
+import android.graphics.Bitmap
 import coil.request.ImageRequest
 import com.mangotv.app.data.trailer.TrailerLauncher
 import coil.compose.AsyncImagePainter
@@ -76,7 +76,6 @@ import com.mangotv.app.data.model.Content
 import com.mangotv.app.ui.components.HeroIconButton
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
-import com.mangotv.app.ui.components.rememberOpaqueImageRequest
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoMotion
@@ -160,6 +159,19 @@ fun HeroSection(
     val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
     // How far a slide travels: the whole screen width, so the picture and the text cross together.
     val screenWidthPx = with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.roundToPx() }
+    val screenHeightPx = with(LocalDensity.current) { LocalConfiguration.current.screenHeightDp.dp.roundToPx() }
+
+    // Decode the next two slides' pictures NOW, into Coil's memory cache, with exactly the request the slide will use (same size and bitmap
+    // format, so it is a cache hit): until now only the download was warmed, so every slide change decoded a full-screen picture just as the
+    // slide started -- the picture popped in late and the slide stuttered. Two ahead, not all of them, to keep the memory cache for the rows.
+    LaunchedEffect(index, items) {
+        if (items.size <= 1) return@LaunchedEffect
+        val imageLoader = context.imageLoader
+        for (ahead in 1..2) {
+            val url = items[(index + ahead) % items.size].backdropUrl ?: continue
+            imageLoader.enqueue(heroBackdropRequest(context, sharpBackdrop(url) ?: url, screenWidthPx, screenHeightPx))
+        }
+    }
     val heroMinHeight = screenHeightDp * 0.82f
 
     Box(
@@ -185,7 +197,15 @@ fun HeroSection(
             label = "heroBackdrop",
             modifier = Modifier.matchParentSize()
         ) { id ->
-            KenBurnsBackdrop(url = (items.firstOrNull { it.id == id } ?: current).backdropUrl)
+            // The slow zoom only runs while the slide is settled: not while it slides in or out (two full-screen pictures zooming and
+            // sliding together was too much for a Fire TV), and the outgoing one just stays as it was.
+            val settled = transition.currentState == EnterExitState.Visible && transition.targetState == EnterExitState.Visible
+            KenBurnsBackdrop(
+                url = (items.firstOrNull { it.id == id } ?: current).backdropUrl,
+                zoom = settled,
+                widthPx = screenWidthPx,
+                heightPx = screenHeightPx
+            )
         }
 
         // A much lighter left-to-right gradient than before — just enough
@@ -479,9 +499,13 @@ private fun HeroPageDots(count: Int, selected: Int, modifier: Modifier = Modifie
     }
 }
 
-/** The next title slides in from the right while the old one slides out to the left, [screenWidthPx] each, in step. */
+/**
+ * The next title slides in from the right while the old one slides out to the left, [screenWidthPx] each, in step. A gentle ease-in-out over
+ * 750 ms: the old curve (very fast start, very long tail) moved the pictures a long way in the first few frames, which on a Fire TV that drops a
+ * few frames reads as a jolt; this one starts and ends softly and covers the same distance more evenly.
+ */
 private fun heroSlideTransition(screenWidthPx: Int): ContentTransform {
-    val spec = tween<IntOffset>(durationMillis = MangoMotion.HeroSlideMillis, easing = MangoMotion.StandardEasing)
+    val spec = tween<IntOffset>(durationMillis = HERO_SLIDE_MILLIS, easing = HeroSlideEasing)
     // `using` only exists inside the transition scope, so the size behaviour is passed to the constructor instead.
     return ContentTransform(
         targetContentEnter = slideInHorizontally(animationSpec = spec) { screenWidthPx },
@@ -490,35 +514,42 @@ private fun heroSlideTransition(screenWidthPx: Int): ContentTransform {
     )
 }
 
+private const val HERO_SLIDE_MILLIS = 750
+private val HeroSlideEasing = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)
+
+/** The one request both the warm-up and the slide use, so the picture is already decoded (same key) when the slide starts. */
+private fun heroBackdropRequest(context: android.content.Context, url: String?, widthPx: Int, heightPx: Int): ImageRequest =
+    ImageRequest.Builder(context)
+        .data(url)
+        .bitmapConfig(Bitmap.Config.RGB_565)
+        .size(widthPx, heightPx)
+        .build()
+
 @Composable
-private fun KenBurnsBackdrop(url: String?, modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "kenBurns")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.08f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(MangoMotion.HeroKenBurnsMillis, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "kenBurnsScale"
-    )
-    // The backdrop shows nothing until it loads (no placeholder), so
-    // animating its scale before then is both pointless and, now that Home
-    // can paint from cache the instant the app opens, a continuous
-    // per-frame graphicsLayer transform competing with every other
-    // now-simultaneously-loading row image for the same cold-boot window.
-    // Deferring the transform until there's an actual image on screen
-    // fixes both at once.
+private fun KenBurnsBackdrop(url: String?, zoom: Boolean, widthPx: Int, heightPx: Int, modifier: Modifier = Modifier) {
+    // The backdrop shows nothing until it loads (no placeholder), so zooming it before then is pointless and, now that Home can paint from
+    // cache the instant the app opens, a per-frame transform competing with every other loading row image on a cold boot. It starts from 1x
+    // each time a slide settles and zooms slowly over the slide's whole time on screen (it used to bounce back and forth forever, on both
+    // the incoming and outgoing picture); the outgoing slide keeps whatever zoom it had reached. The scale is read inside graphicsLayer, so
+    // a frame only redraws the layer instead of recomposing anything.
     var isLoaded by remember(url) { mutableStateOf(false) }
+    val scale = remember(url) { Animatable(1f) }
+    LaunchedEffect(zoom, isLoaded) {
+        if (zoom && isLoaded) {
+            scale.animateTo(KEN_BURNS_END_SCALE, tween((HERO_ROTATE_MILLIS + HERO_SLIDE_MILLIS).toInt(), easing = LinearEasing))
+        }
+    }
 
     // Ask for the sharper size where the address says which sizes exist (see sharpBackdrop), and fall back to the
     // address as given if that one fails to load.
     val sharpUrl = remember(url) { sharpBackdrop(url) }
     var sharpFailed by remember(url) { mutableStateOf(false) }
     val requestUrl = if (sharpFailed || sharpUrl == null) url else sharpUrl
+    val context = LocalContext.current
+    val request = remember(requestUrl, widthPx, heightPx) { heroBackdropRequest(context, requestUrl, widthPx, heightPx) }
 
     AsyncImage(
-        model = rememberOpaqueImageRequest(requestUrl),
+        model = request,
         contentDescription = null,
         contentScale = ContentScale.Crop,
         onState = { state ->
@@ -528,9 +559,11 @@ private fun KenBurnsBackdrop(url: String?, modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxSize()
             .graphicsLayer {
-                val appliedScale = if (isLoaded) scale else 1f
+                val appliedScale = if (isLoaded) scale.value else 1f
                 scaleX = appliedScale
                 scaleY = appliedScale
             }
     )
 }
+
+private const val KEN_BURNS_END_SCALE = 1.06f

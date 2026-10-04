@@ -4241,3 +4241,18 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Change:** `MangoButton` gets a `dimmed` parameter that fades the button's own fill, icon and text (never the focus ring); `HeroSection` and `DetailHeroSection` use it and no longer wrap the button in an alpha Box.
 
 **Tests performed:** none new (a draw-time clipping issue, no UI tests in this repo). Brace/paren balance checked and the change re-read. Not tried on a device. CI builds it.
+
+## Post-Milestone-67 — Smoother Home hero slide on a Fire TV
+
+**Status:** Change written; CI builds and tests it. Not run on a device here, so how much smoother it is has not been measured.
+
+**Context:** the Home hero's slide between titles looked jittery on a Fire TV.
+
+**Likely causes found in the code, and what changed (`HeroSection.kt`):**
+- *The next picture was decoded at the moment the slide started.* The warm-up only downloaded the pictures (default request: full-size, 32-bit), but the slide shows them with a different request (screen-sized, 16-bit), so each slide change was a memory-cache miss and a full-screen decode, and the picture popped in late. The next two slides' pictures are now decoded ahead of time into Coil's memory cache with the very same request (`heroBackdropRequest`: same size and bitmap format, so the same cache key) the slide uses. Only two ahead, to keep the cache for the poster rows.
+- *Both full-screen pictures were zooming while they slid.* The slow zoom ran forever (back and forth) on the incoming and outgoing picture. It now starts from 1x each time a slide settles, zooms to 1.06x over the slide's time on screen, and does not run during the slide; the outgoing picture keeps the zoom it had reached.
+- *The slide curve.* A very fast start with a long tail (650 ms) moved the pictures a long way in the first frames, which reads as a jolt when frames drop. It is now a gentle ease-in-out over 750 ms.
+
+**Tests performed:** none new (animation and image-cache behaviour, no UI tests in this repo). Brace/paren balance and unused imports checked; the changes re-read against the Compose APIs they use. Not tried on a device. CI builds it.
+
+**Issues discovered:** none.
