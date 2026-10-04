@@ -4294,3 +4294,21 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none beyond the cause above. The Firestick app does not know the new ids yet (it falls back to its first avatar), so a profile given one of the new pictures on the web shows as Sunrise on the TV until the app gets the same pictures.
 
 **Issues fixed:** the web app's picture change error.
+
+## Post-Milestone-71 — Cancel a Plus subscription (backend)
+
+**Status:** Done; type-checked, linted-by-tsc, and the whole server suite passes (226 tests) against a throwaway Postgres. Needs to be deployed, with migration 0019, before the web app's new Cancel button works.
+
+**Context:** the web app's Settings → Account needed a way for a monthly or yearly Plus subscriber to cancel. There was no cancel endpoint, and nothing recorded that a subscription was already set to end.
+
+**Changes:**
+- `POST /user/plus/cancel` (signed-in): tells Stripe `cancel_at_period_end=true` for the account's subscription and records it locally straight away, then answers with the entitlement. 409 for Lifetime, 404 with no active subscription, 503 while the paywall is off, 500 (no Stripe detail leaked) if Stripe fails, and a second cancel does not call Stripe again.
+- `GET /user/plus` has a new `cancelAtPeriodEnd` boolean (true only for an active subscription that will not renew). Always false for Lifetime, early access and no Plus.
+- Migration `0019`: `user_plus.cancel_at_period_end boolean NOT NULL DEFAULT false`. The Stripe webhook now keeps it in step (`cancel_at_period_end` or `cancel_at` on `customer.subscription.updated`), so cancelling or resuming in Stripe's own dashboard shows up too.
+- `docs/PAYWALL.md` describes the endpoint.
+
+**Tests performed:** new `POST /user/plus/cancel` tests (sign-in needed, nothing to cancel, paywall off, cancels at period end and is idempotent, follows Stripe's updates both ways, Lifetime refused, Stripe failure leaves the account unchanged). Whole server suite 226 passed. The Android app was not touched or built.
+
+**Issues discovered:** none. The Firestick app has no cancel screen yet; Stripe's customer emails and dashboard still work for TV-only subscribers.
+
+**Issues fixed:** none.

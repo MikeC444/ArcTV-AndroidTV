@@ -4,8 +4,8 @@ import { getPlusConfig } from "../config/env.js";
 import { HttpError } from "../lib/httpError.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
-import { getEntitlement, getPlusRow } from "../services/plusService.js";
-import { createCheckoutSession, verifyStripeSignature } from "../services/stripe.js";
+import { getEntitlement, getPlusRow, writePlus } from "../services/plusService.js";
+import { cancelSubscriptionAtPeriodEnd, createCheckoutSession, verifyStripeSignature } from "../services/stripe.js";
 import { handleStripeEvent, type StripeEvent } from "../services/stripeWebhook.js";
 
 export const plusRouter = Router();
@@ -32,6 +32,29 @@ plusRouter.post("/plus/checkout", requireAuth, validate({ body: checkoutBody }),
     const session = await createCheckoutSession({ userId: req.user!.id, email: req.user!.email, plan, stripeCustomerId: row?.stripeCustomerId ?? null });
     // The page to open, plus what it will charge so a TV can show the price next to the QR code.
     res.json({ url: session.url, amountTotal: session.amountTotal, currency: session.currency });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Cancels a monthly or yearly subscription at the end of the period already paid for: nothing is refunded and Plus stays on until then.
+ * Answers with the account's new entitlement (cancelAtPeriodEnd true). Lifetime can't be cancelled (409); neither can an account with no
+ * subscription (404). Cancelling twice is fine.
+ */
+plusRouter.post("/plus/cancel", requireAuth, async (req, res, next) => {
+  try {
+    if (!getPlusConfig().paywallOn) throw new HttpError(503, "Plus billing isn't available yet");
+    const row = await getPlusRow(req.user!.id);
+    if (row?.plan === "lifetime" && row.status === "active") throw new HttpError(409, "Lifetime Plus has no subscription to cancel");
+    const entitlement = await getEntitlement(req.user!.id);
+    if (!row || !entitlement.active || !row.stripeSubscriptionId) throw new HttpError(404, "There is no subscription to cancel");
+    if (!row.cancelAtPeriodEnd) {
+      await cancelSubscriptionAtPeriodEnd(row.stripeSubscriptionId);
+      // Reflect it straight away; Stripe's own subscription.updated event then confirms the same thing.
+      await writePlus({ userId: req.user!.id, plan: row.plan, status: "active", validUntil: row.validUntil, stripeCustomerId: row.stripeCustomerId, stripeSubscriptionId: row.stripeSubscriptionId, cancelAtPeriodEnd: true, eventAt: new Date() });
+    }
+    res.json(await getEntitlement(req.user!.id));
   } catch (error) {
     next(error);
   }

@@ -81,6 +81,8 @@ export async function handleStripeEvent(event: StripeEvent): Promise<WebhookOutc
       validUntil: ended ? (end && end.getTime() < eventAt.getTime() ? end : eventAt) : end ?? found.row.validUntil,
       stripeCustomerId: str(object.customer),
       stripeSubscriptionId: str(object.id),
+      // Scheduled to stop at the end of the paid period (the person cancelled, here or in Stripe): still active until then.
+      cancelAtPeriodEnd: !ended && (object.cancel_at_period_end === true || typeof object.cancel_at === "number"),
       eventAt,
     });
     return applied ? "applied" : "ignored";

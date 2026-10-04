@@ -57,9 +57,9 @@ const completed = (userId: string, over: Record<string, unknown> = {}, created =
 const subscriptionEvent = (type: string, over: Record<string, unknown>, created = nowSec()) => ({ id: "evt_s", type, created, data: { object: { id: "sub_1", customer: "cus_1", status: "active", current_period_end: nowSec() + 30 * 86400, metadata: { plan: "monthly" }, ...over } } });
 
 describe("computeEntitlement", () => {
-  const row = (over: Partial<PlusRow> = {}): PlusRow => ({ plan: "monthly", status: "active", validUntil: new Date(Date.now() + 86_400_000), stripeCustomerId: null, stripeSubscriptionId: null, lastEventAt: new Date(), ...over });
+  const row = (over: Partial<PlusRow> = {}): PlusRow => ({ plan: "monthly", status: "active", validUntil: new Date(Date.now() + 86_400_000), stripeCustomerId: null, stripeSubscriptionId: null, cancelAtPeriodEnd: false, lastEventAt: new Date(), ...over });
   it("everyone has Plus while the paywall is off (early access)", () => {
-    expect(computeEntitlement(null, false)).toEqual({ active: true, plan: "early_access", validUntil: null, paywall: false });
+    expect(computeEntitlement(null, false)).toEqual({ active: true, plan: "early_access", validUntil: null, cancelAtPeriodEnd: false, paywall: false });
   });
   it("with the paywall on, only a paid account has it", () => {
     expect(computeEntitlement(null, true)).toMatchObject({ active: false, plan: null, paywall: true });
@@ -91,9 +91,9 @@ describe("GET /user/plus", () => {
   it("is active for everyone while the paywall is off, and inactive without a payment once it is on", async () => {
     const s = await createTestSession();
     paywall(false);
-    expect((await entitlement(s.token)).body).toEqual({ active: true, plan: "early_access", validUntil: null, paywall: false });
+    expect((await entitlement(s.token)).body).toEqual({ active: true, plan: "early_access", validUntil: null, cancelAtPeriodEnd: false, paywall: false });
     paywall(true);
-    expect((await entitlement(s.token)).body).toEqual({ active: false, plan: null, validUntil: null, paywall: true });
+    expect((await entitlement(s.token)).body).toEqual({ active: false, plan: null, validUntil: null, cancelAtPeriodEnd: false, paywall: true });
   });
 });
 
@@ -231,5 +231,69 @@ describe("the page Stripe sends people back to", () => {
     expect(page.text).toContain("Checkout cancelled");
     expect((await request(app).get("/arctv-logo.png")).status).toBe(200);
     expect((await request(app).get("/plus-thanks.js")).status).toBe(200);
+  });
+});
+
+describe("POST /user/plus/cancel", () => {
+  const cancel = (token: string) => request(app).post("/user/plus/cancel").set("Authorization", `Bearer ${token}`).send({});
+  const subscribed = async () => {
+    const s = await createTestSession();
+    await webhook(completed(s.userId));
+    return s;
+  };
+
+  it("needs a sign-in, and a subscription to cancel", async () => {
+    expect((await request(app).post("/user/plus/cancel").send({})).status).toBe(401);
+    const s = await createTestSession();
+    expect((await cancel(s.token)).status).toBe(404);
+  });
+
+  it("is refused while the paywall is off", async () => {
+    const s = await createTestSession();
+    paywall(false);
+    expect((await cancel(s.token)).status).toBe(503);
+  });
+
+  it("stops renewal at the end of the paid period and keeps Plus until then", async () => {
+    const s = await subscribed();
+    let sent: { url: string; headers: Record<string, string>; form: URLSearchParams } | null = null;
+    setStripeFetch(async (url, init) => {
+      sent = { url, headers: init.headers, form: new URLSearchParams(init.body) };
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    const response = await cancel(s.token);
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ active: true, plan: "monthly", cancelAtPeriodEnd: true, paywall: true });
+    expect(response.body.validUntil).toBeTruthy();
+    expect(sent!.url).toBe("https://api.stripe.com/v1/subscriptions/sub_1");
+    expect(sent!.headers.Authorization).toBe("Bearer sk_test_x");
+    expect(sent!.form.get("cancel_at_period_end")).toBe("true");
+    expect((await entitlement(s.token)).body).toMatchObject({ active: true, cancelAtPeriodEnd: true });
+
+    // Cancelling again changes nothing and doesn't call Stripe a second time.
+    sent = null;
+    expect((await cancel(s.token)).body).toMatchObject({ cancelAtPeriodEnd: true });
+    expect(sent).toBeNull();
+  });
+
+  it("follows Stripe: a subscription scheduled to end shows as cancelling, and renewing clears it", async () => {
+    const s = await subscribed();
+    await webhook(subscriptionEvent("customer.subscription.updated", { cancel_at_period_end: true }, nowSec() + 1));
+    expect((await entitlement(s.token)).body).toMatchObject({ active: true, cancelAtPeriodEnd: true });
+    await webhook(subscriptionEvent("customer.subscription.updated", { cancel_at_period_end: false }, nowSec() + 2));
+    expect((await entitlement(s.token)).body).toMatchObject({ active: true, cancelAtPeriodEnd: false });
+  });
+
+  it("can't cancel Lifetime, and a Stripe failure is a server error that leaves the account as it was", async () => {
+    const life = await createTestSession();
+    await webhook(completed(life.userId, { mode: "payment", subscription: null, metadata: { plan: "lifetime" } }));
+    expect((await cancel(life.token)).status).toBe(409);
+
+    const s = await subscribed();
+    setStripeFetch(async () => ({ ok: false, status: 500, json: async () => ({ error: { message: "secret detail" } }) }));
+    const failed = await cancel(s.token);
+    expect(failed.status).toBe(500);
+    expect(JSON.stringify(failed.body)).not.toContain("secret detail");
+    expect((await entitlement(s.token)).body).toMatchObject({ active: true, cancelAtPeriodEnd: false });
   });
 });
