@@ -4256,3 +4256,13 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Tests performed:** none new (animation and image-cache behaviour, no UI tests in this repo). Brace/paren balance and unused imports checked; the changes re-read against the Compose APIs they use. Not tried on a device. CI builds it.
 
 **Issues discovered:** none.
+
+## Post-Milestone-68 — Update pop-up restyled as a small card (like the Plus pop-up)
+
+**Status:** Change written; not built or run here (no Android SDK in this sandbox).
+
+**Context:** the in-app "Update available" pop-up was 680 dp wide and almost the height of the screen; the Plus pop-up had just been made a small card.
+
+**Changes (`UpdatePopup.kt`):** the card is now about 380 dp wide in the same style as the Plus pop-up (elevated background, soft blue / violet glows in the top corners, thin edge, round icon badge), the title and version are smaller, the release-notes box is shorter (120 dp, 11 sp text, scroll step halved to match) and the Update / Install / Retry and Not now buttons are the compact size, centred under the notes. Behaviour is unchanged (download progress, Install, Retry, Back = Not now, notes scroll with the remote).
+
+**Tests performed:** none new (layout only). Brace/paren balance and unused/duplicate imports checked; the change re-read against the Compose APIs it uses. Not tried on a device.

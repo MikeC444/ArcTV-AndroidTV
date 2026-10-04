@@ -21,6 +21,7 @@ run the release workflow for that version.
 - Fixed: pressing Up in Movies and TV Shows now stops at Featured and the genre menu on the way back to the top bar.
 - Fixed: the blue outline around the Trailer button no longer looks cut off.
 - Smoother Home: the next picture is ready before it glides in, and the slide is gentler.
+- The update pop-up is now a small, tidy card instead of filling the screen.
 
 ## 0.1.6
 

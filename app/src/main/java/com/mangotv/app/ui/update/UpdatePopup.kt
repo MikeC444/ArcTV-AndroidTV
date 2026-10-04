@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -37,12 +39,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -53,6 +57,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.mangotv.app.data.update.AppUpdate
@@ -61,10 +66,13 @@ import com.mangotv.app.ui.components.ClickSound
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
 import com.mangotv.app.ui.theme.ArcAccent
+import com.mangotv.app.ui.theme.ArcBlue
+import com.mangotv.app.ui.theme.ArcViolet
 import com.mangotv.app.ui.theme.ArcWarn
 import com.mangotv.app.ui.theme.DividerSubtle
 import com.mangotv.app.ui.theme.FocusBorder
-import com.mangotv.app.ui.theme.MangoSurfaceHigh
+import com.mangotv.app.ui.theme.MangoBackgroundElevated
+import com.mangotv.app.ui.theme.MangoSurface
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
 import com.mangotv.app.ui.theme.TextTertiary
@@ -113,29 +121,48 @@ internal fun UpdatePopup(
                 .background(Color.Black.copy(alpha = 0.85f)),
             contentAlignment = Alignment.Center
         ) {
+            // A small card in the same style as the Arc TV Plus pop-up (it was 680 dp wide and nearly the whole height of the screen): about
+            // 380 dp wide, with the same soft blue / violet glows in the top corners, a thin edge, and compact buttons centred under the notes.
+            val panelShape = RoundedCornerShape(18.dp)
             Column(
                 modifier = Modifier
-                    .widthIn(max = 680.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MangoSurfaceHigh)
-                    .padding(28.dp)
+                    .widthIn(max = 380.dp)
+                    .clip(panelShape)
+                    .background(MangoBackgroundElevated)
+                    .drawBehind {
+                        drawRect(Brush.radialGradient(listOf(ArcBlue.copy(alpha = 0.28f), Color.Transparent), center = Offset(0f, 0f), radius = size.width * 0.8f))
+                        drawRect(Brush.radialGradient(listOf(ArcViolet.copy(alpha = 0.22f), Color.Transparent), center = Offset(size.width, 0f), radius = size.width * 0.6f))
+                    }
+                    .border(1.dp, DividerSubtle, panelShape)
+                    .padding(horizontal = 20.dp, vertical = 14.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Icon(
-                        imageVector = Icons.Filled.CloudDownload,
-                        contentDescription = null,
-                        tint = TextPrimary,
-                        modifier = Modifier.size(32.dp)
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(MangoSurface)
+                            .border(1.dp, DividerSubtle, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.CloudDownload,
+                            contentDescription = null,
+                            tint = ArcAccent,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
                     Column {
                         Text(
                             text = "Update available",
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
                             color = TextPrimary
                         )
                         Text(
                             text = versionLine,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 11.sp,
                             color = TextSecondary
                         )
                     }
@@ -143,18 +170,21 @@ internal fun UpdatePopup(
 
                 UpdateStatus(state)
 
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(10.dp))
                 Text(
                     text = "What's new in ${update.tag}",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.labelLarge,
                     color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Bold
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
                 ScrollableNotes(update.notes.ifBlank { NO_NOTES_FALLBACK })
 
-                Spacer(Modifier.height(20.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
+                ) {
                     MangoButton(
                         text = when {
                             state.isDownloading -> "Downloading…"
@@ -171,8 +201,8 @@ internal fun UpdatePopup(
                             }
                         },
                         style = MangoButtonStyle.FILLED,
-                        backgroundOverride = Color.White,
-                        focusRequester = primaryFocusRequester
+                        focusRequester = primaryFocusRequester,
+                        compact = true
                     )
                     if (!state.isDownloading) {
                         MangoButton(
@@ -180,7 +210,8 @@ internal fun UpdatePopup(
                             icon = Icons.Filled.Close,
                             onClick = onDismiss,
                             style = MangoButtonStyle.GLASS,
-                            clickSound = ClickSound.BACK
+                            clickSound = ClickSound.BACK,
+                            compact = true
                         )
                     }
                 }
@@ -223,9 +254,9 @@ private fun UpdateStatus(state: UpdateUiState) {
 private fun StatusText(text: String, color: Color) {
     Text(
         text = text,
-        style = MaterialTheme.typography.bodyMedium,
+        style = MaterialTheme.typography.labelMedium,
         color = color,
-        modifier = Modifier.padding(top = 12.dp)
+        modifier = Modifier.padding(top = 8.dp)
     )
 }
 
@@ -247,7 +278,7 @@ private fun ScrollableNotes(notes: String) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 280.dp)
+                .heightIn(max = 120.dp)
                 .clip(shape)
                 .border(2.dp, if (focused) FocusBorder else Color.Transparent, shape)
                 .onPreviewKeyEvent { event ->
@@ -283,13 +314,15 @@ private fun ScrollableNotes(notes: String) {
         ) {
             Text(
                 text = notes,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
                 color = TextSecondary,
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(scrollState)
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
-                    .padding(end = 8.dp)
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                    .padding(end = 6.dp)
             )
         }
         if (scrollState.maxValue > 0) {
@@ -303,4 +336,4 @@ private fun ScrollableNotes(notes: String) {
     }
 }
 
-private val SCROLL_STEP = 90.dp
+private val SCROLL_STEP = 45.dp
