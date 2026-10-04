@@ -4280,3 +4280,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 - v0.1.7's GitHub release description was edited by hand to carry its real notes (the workflow can't re-run for an existing tag).
 
 **Tests performed:** the awk / grep logic of the new steps was run locally against a copy of `RELEASE_NOTES.md` (extract from a version, fall back to Unreleased, fall back to the fixed line, and the rename with the identical-notes check). The workflow itself has not run.
+
+## Post-Milestone-70 — Backend accepts the web app's new profile pictures
+
+**Status:** Done; type-checked and the profile tests pass against a throwaway Postgres.
+
+**Context:** the web app replaced its 12 colour-tile profile avatars with 16 illustrated pictures (fox, cat, dog, panda, frog, owl, ghost, robot, alien, astronaut, raccoon, penguin, octopus, dragon, retro-tv, lion). The backend only accepted the old 12 ids, so changing a profile picture on the web failed with "Invalid body: Invalid option: expected one of sunrise|ocean|…" (only fox and robot, which exist in both lists, worked).
+
+**Changes (`schemas/profiles.ts`):** `AVATAR_IDS` is now the 16 new ids plus the 10 old ids that are not in the new set (sunrise, ocean, forest, violet, ember, mint, astro, monster, wave, bolt). The old ones stay valid so existing profiles and the Firestick app, which still draws the old set, keep working. No migration: the column is free text. The default profile is still created with `sunrise` (the web app draws it as the fox). New test: the illustrated ids and a legacy id are all accepted on create.
+
+**Tests performed:** `tsc --noEmit` on the server; `tests/profiles.test.ts` against a throwaway local Postgres with all 18 migrations applied (28 passed, including the new one). The Android app was not touched or built.
+
+**Issues discovered:** none beyond the cause above. The Firestick app does not know the new ids yet (it falls back to its first avatar), so a profile given one of the new pictures on the web shows as Sunrise on the TV until the app gets the same pictures.
+
+**Issues fixed:** the web app's picture change error.
