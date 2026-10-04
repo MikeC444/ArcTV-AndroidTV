@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+## 0.1.8
+
 - Press a Continue Watching title and it carries straight on, using the same source you watched before, with no source list.
 
 - Scrubbing is easier: hold Left or Right on the timeline to glide through the video in steady 10-second steps, with no limit.
