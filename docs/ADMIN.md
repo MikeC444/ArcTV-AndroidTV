@@ -2,7 +2,7 @@
 
 A read-only view of every account for the developer: who is signed up, their plan, devices and **which app version each device is on**,
 their addons, Continue Watching and recent history. It lives in the web app at **web.arctv.org/admin** (Settings → Account → Developer panel),
-and reads `GET /admin/summary`, `GET /admin/users?q=&limit=&offset=` and `GET /admin/users/:id` on this backend.
+and reads `GET /admin/summary`, `GET /admin/users?q=&plan=&device=&addons=&watching=&seen=&limit=&offset=` (filters: plan `free|monthly|yearly|lifetime`; device `<platform>|<app version>`; addons / watching `with|none`; seen `1h|24h|7d|30d|older|never`; the total follows the filter) and `GET /admin/users/:id` on this backend.
 
 ## Who can open it
 

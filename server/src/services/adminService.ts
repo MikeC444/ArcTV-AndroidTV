@@ -43,15 +43,41 @@ export async function summary() {
 
 export interface UserListQuery {
   q?: string;
+  /** "free", or an active plan. */
+  plan?: "free" | "monthly" | "yearly" | "lifetime";
+  /** "<platform>|<app version>" of one of the person's devices; the version "unknown" means one that never reported. */
+  device?: string;
+  addons?: "with" | "none";
+  watching?: "with" | "none";
+  seen?: "1h" | "24h" | "7d" | "30d" | "older" | "never";
   limit: number;
   offset: number;
 }
 
-export async function listUsers({ q, limit, offset }: UserListQuery) {
+const LAST_SEEN = `(SELECT max(d.last_seen_at) FROM devices d WHERE d.user_id = u.id)`;
+const SEEN_WITHIN: Record<string, string> = { "1h": "1 hour", "24h": "24 hours", "7d": "7 days", "30d": "30 days" };
+
+export async function listUsers({ q, plan, device, addons, watching, seen, limit, offset }: UserListQuery) {
   const like = q && q.trim() ? `%${q.trim().replace(/[\\%_]/g, "\\$&")}%` : null;
-  const where = `u.deleted_at IS NULL AND ($1::text IS NULL OR u.email ILIKE $1 OR u.display_name ILIKE $1)`;
+  const params: unknown[] = [like];
+  const clauses = [`u.deleted_at IS NULL`, `($1::text IS NULL OR u.email ILIKE $1 OR u.display_name ILIKE $1)`];
+  const param = (value: unknown) => `$${params.push(value)}`;
+  if (plan === "free") clauses.push(`NOT EXISTS (SELECT 1 FROM user_plus p WHERE p.user_id = u.id AND p.status = 'active' AND (p.plan = 'lifetime' OR p.valid_until > now()))`);
+  else if (plan) clauses.push(`EXISTS (SELECT 1 FROM user_plus p WHERE p.user_id = u.id AND p.plan = ${param(plan)} AND p.status = 'active' AND (p.plan = 'lifetime' OR p.valid_until > now()))`);
+  if (device) {
+    const [platform, version] = device.split("|", 2);
+    clauses.push(`EXISTS (SELECT 1 FROM devices d WHERE d.user_id = u.id AND d.revoked_at IS NULL AND d.platform = ${param(platform ?? "")} AND ${version === "unknown" ? "d.app_version IS NULL" : `d.app_version = ${param(version ?? "")}`})`);
+  }
+  if (addons) clauses.push(`${addons === "none" ? "NOT " : ""}EXISTS (SELECT 1 FROM user_addons a WHERE a.user_id = u.id AND a.deleted_at IS NULL)`);
+  if (watching) clauses.push(`${watching === "none" ? "NOT " : ""}EXISTS (SELECT 1 FROM continue_watching c WHERE c.user_id = u.id AND c.deleted_at IS NULL)`);
+  if (seen === "never") clauses.push(`${LAST_SEEN} IS NULL`);
+  else if (seen === "older") clauses.push(`${LAST_SEEN} < now() - interval '30 days'`);
+  else if (seen && SEEN_WITHIN[seen]) clauses.push(`${LAST_SEEN} > now() - interval '${SEEN_WITHIN[seen]}'`);
+  const where = clauses.join(" AND ");
+  const limitParam = param(limit);
+  const offsetParam = param(offset);
   const [total, rows] = await Promise.all([
-    pool.query<{ n: number }>(`SELECT count(*)::int AS n FROM users u WHERE ${where}`, [like]),
+    pool.query<{ n: number }>(`SELECT count(*)::int AS n FROM users u WHERE ${where}`, params.slice(0, params.length - 2)),
     pool.query(
       `SELECT u.id, u.email, u.display_name AS "displayName", u.created_at AS "createdAt", u.is_admin AS "isAdmin",
               ${ACTIVE_PLAN} AS plan, p.valid_until AS "plusUntil", COALESCE(p.cancel_at_period_end, false) AS "cancelling",
@@ -64,8 +90,8 @@ export async function listUsers({ q, limit, offset }: UserListQuery) {
        FROM users u LEFT JOIN user_plus p ON p.user_id = u.id
        WHERE ${where}
        ORDER BY COALESCE((SELECT max(d.last_seen_at) FROM devices d WHERE d.user_id = u.id), u.created_at) DESC
-       LIMIT $2 OFFSET $3`,
-      [like, limit, offset]
+       LIMIT ${limitParam} OFFSET ${offsetParam}`,
+      params
     ),
   ]);
   return { total: total.rows[0]!.n, users: rows.rows };

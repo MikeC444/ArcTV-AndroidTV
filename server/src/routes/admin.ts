@@ -26,6 +26,11 @@ adminRouter.get("/summary", async (_req, res, next) => {
 
 const listQuery = z.object({
   q: z.string().trim().max(100).optional(),
+  plan: z.enum(["free", "monthly", "yearly", "lifetime"]).optional(),
+  device: z.string().trim().max(80).regex(/^[a-z_]+\|[0-9A-Za-z.+_-]+$/, "Not a device filter.").optional(),
+  addons: z.enum(["with", "none"]).optional(),
+  watching: z.enum(["with", "none"]).optional(),
+  seen: z.enum(["1h", "24h", "7d", "30d", "older", "never"]).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
 });

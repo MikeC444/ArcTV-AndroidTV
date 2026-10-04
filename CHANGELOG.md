@@ -4322,11 +4322,11 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Changes:**
 - Migration `0020`: `users.is_admin boolean NOT NULL DEFAULT false` (set by hand in the database; nothing in the API can set it) and an index on `devices.last_seen_at`.
 - `requireAuth` now loads `is_admin` (`req.user.isAdmin`; `GET /user/me` returns `isAdmin`) and keeps `devices.app_version` / `last_seen_at` current from the `X-ArcTV-App-Version` header, written only when the version changed or the last write is over five minutes old.
-- New read-only `/admin/*` routes for admins (everyone else gets 404): `/summary` (user counts, activity, plans, devices per app version), `/users` (search and paging, with plan, devices, addon / Continue Watching counts) and `/users/:id` (profiles, devices, addons, Continue Watching, recent history). Addon addresses are reduced to host and debrid-service name; password, token and PIN hashes are never selected.
+- New read-only `/admin/*` routes for admins (everyone else gets 404): `/summary` (user counts, activity, plans, devices per app version), `/users` (search, paging and filters by plan, app version, has addons, has Continue Watching and last seen, with the total following the filter; each row has plan, devices, addon / Continue Watching counts) and `/users/:id` (profiles, devices, addons, Continue Watching, recent history). Addon addresses are reduced to host and debrid-service name; password, token and PIN hashes are never selected.
 - Fire TV app: `AccountApiHttpClient` adds `X-ArcTV-App-Version: BuildConfig.VERSION_NAME` to every account request (one interceptor).
 - `docs/ADMIN.md` describes the panel, how to make yourself an admin, and what it never shows.
 
-**Tests performed:** new `tests/admin.test.ts` (admin-only access, search, secrets never returned, version recorded and updated straight away, junk header ignored, summary of versions); the whole server suite (235) passes against a throwaway Postgres; `tsc --noEmit`. The Kotlin interceptor edit was re-read only (no Gradle build here).
+**Tests performed:** new `tests/admin.test.ts` (admin-only access, search, every filter and the filtered total, secrets never returned, version recorded and updated straight away, junk header ignored, summary of versions); the whole server suite (235) passes against a throwaway Postgres; `tsc --noEmit`. The Kotlin interceptor edit was re-read only (no Gradle build here).
 
 **Issues discovered:** versions only appear once a TV runs a build that sends the header; until then its devices show "unknown".
 
