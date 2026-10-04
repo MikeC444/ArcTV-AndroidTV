@@ -28,13 +28,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,7 +44,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.theme.ArcBrandGradient
@@ -120,94 +117,86 @@ fun SettingsScreen(
         SettingsCategory.PLUS -> plusRowFocusRequester
     }
 
-    // Everything below the title is drawn SETTINGS_SCALE times bigger (every dp and sp inside, so all the panes grow together). The screen was
-    // set up for a phone-sized 960 x 540 dp layout, which left the panels small and tightly packed on a TV; the margins are trimmed to match, so
-    // the panels fill the screen instead of a fraction of it.
-    val baseDensity = LocalDensity.current
-    val roomyDensity = remember(baseDensity) { Density(baseDensity.density * SETTINGS_SCALE, baseDensity.fontScale) }
-
     SettingsScaffold(
         title = "Settings",
         onNavigate = onNavigate,
         navFocusRequester = navFocusRequester,
         firstContentFocusRequester = accountRowFocusRequester,
+        // The screen is only 540 dp tall: no big title (the nav bar already shows Settings as the open tab) and slim margins, so the side
+        // panel shows every category and the card has the height left for its settings.
+        showTitle = false,
         horizontalPadding = 32.dp,
         verticalPadding = 8.dp,
-        titleGap = 8.dp
+        titleGap = 0.dp
     ) {
-        CompositionLocalProvider(LocalDensity provides roomyDensity) {
-            Row(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            // The side navigation: a rounded panel of grouped categories (You / Content / Playback & sound), wide enough that no name
+            // is squeezed. It scrolls with the remote if the groups don't fit. The padding inside the scroll leaves room for a
+            // focused row's scale-up, which the scroll area would otherwise clip at its edges.
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
+                    .width(230.dp)
+                    .fillMaxHeight()
+                    .padding(end = 16.dp, bottom = 8.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(MangoBackgroundElevated)
+                    .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 10.dp, vertical = 12.dp)
             ) {
-                // The side navigation: a rounded panel of grouped categories (You / Content / Playback & sound), wide enough that no name
-                // is squeezed. It scrolls with the remote if the groups don't fit. The padding inside the scroll leaves room for a
-                // focused row's scale-up, which the scroll area would otherwise clip at its edges.
-                Column(
-                    modifier = Modifier
-                        .width(230.dp)
-                        .fillMaxHeight()
-                        .padding(end = 16.dp, bottom = 8.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(MangoBackgroundElevated)
-                        .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 12.dp, vertical = 16.dp)
-                ) {
-                    SettingsGroups.forEachIndexed { groupIndex, (label, categories) ->
-                        Text(
-                            text = label.uppercase(),
-                            color = TextTertiary,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.2.sp,
-                            modifier = Modifier.padding(start = 10.dp, bottom = 6.dp, top = if (groupIndex == 0) 0.dp else 18.dp)
+                SettingsGroups.forEachIndexed { groupIndex, (label, categories) ->
+                    Text(
+                        text = label.uppercase(),
+                        color = TextTertiary,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp,
+                        modifier = Modifier.padding(start = 10.dp, bottom = 4.dp, top = if (groupIndex == 0) 0.dp else 14.dp)
+                    )
+                    categories.forEachIndexed { index, category ->
+                        SettingsSidebarRow(
+                            category = category,
+                            selected = category == selected,
+                            onClick = { selected = category },
+                            focusRequester = rowFocusRequesterFor(category),
+                            focusUp = if (groupIndex == 0 && index == 0) navFocusRequester else null,
+                            focusRight = paneContentFocusRequester
                         )
-                        categories.forEachIndexed { index, category ->
-                            SettingsSidebarRow(
-                                category = category,
-                                selected = category == selected,
-                                onClick = { selected = category },
-                                focusRequester = rowFocusRequesterFor(category),
-                                focusUp = if (groupIndex == 0 && index == 0) navFocusRequester else null,
-                                focusRight = paneContentFocusRequester
-                            )
-                            if (index != categories.lastIndex) {
-                                Spacer(Modifier.height(6.dp))
-                            }
+                        if (index != categories.lastIndex) {
+                            Spacer(Modifier.height(4.dp))
                         }
                     }
                 }
+            }
 
-                // The open category's settings, in a card that takes all the width left.
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .padding(bottom = 8.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(MangoBackgroundElevated)
-                        .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
-                        .padding(horizontal = 26.dp, vertical = 22.dp)
-                ) {
-                    SettingsDetailPane(
-                        category = selected,
-                        navFocusRequester = navFocusRequester,
-                        contentFocusRequester = paneContentFocusRequester,
-                        sidebarFocusRequester = rowFocusRequesterFor(selected),
-                        onSignedOut = onSignedOut,
-                        onAddAddon = onAddAddon,
-                        onOpenProfiles = { onNavigate(com.mangotv.app.navigation.MangoRoutes.PROFILES) }
-                    )
-                }
+            // The open category's settings, in a card that takes all the width left.
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(bottom = 8.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(MangoBackgroundElevated)
+                    .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
+                    .padding(horizontal = 22.dp, vertical = 16.dp)
+            ) {
+                SettingsDetailPane(
+                    category = selected,
+                    navFocusRequester = navFocusRequester,
+                    contentFocusRequester = paneContentFocusRequester,
+                    sidebarFocusRequester = rowFocusRequesterFor(selected),
+                    onSignedOut = onSignedOut,
+                    onAddAddon = onAddAddon,
+                    onOpenProfiles = { onNavigate(com.mangotv.app.navigation.MangoRoutes.PROFILES) }
+                )
             }
         }
     }
 }
-
-/** How much bigger the Settings panels are drawn than the rest of the app (see [SettingsScreen]). */
-private const val SETTINGS_SCALE = 1.2f
 
 @Composable
 private fun SettingsSidebarRow(
@@ -246,11 +235,11 @@ private fun SettingsSidebarRow(
                         )
                     }
                 }
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CategoryIconTile(category.icon, selected, size = 36)
-            Spacer(Modifier.width(14.dp))
+            CategoryIconTile(category.icon, selected, size = 32)
+            Spacer(Modifier.width(12.dp))
             Text(
                 text = category.title,
                 color = if (selected) TextPrimary else TextSecondary,
@@ -303,7 +292,7 @@ private fun SettingsDetailPane(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            CategoryIconTile(category.icon, highlighted = true, size = 46)
+            CategoryIconTile(category.icon, highlighted = true, size = 40)
             Spacer(Modifier.width(14.dp))
             Column {
                 Text(text = category.title, color = TextPrimary, style = MaterialTheme.typography.titleLarge)
@@ -311,9 +300,9 @@ private fun SettingsDetailPane(
                 Text(text = category.subtitle, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
             }
         }
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(12.dp))
         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(DividerSubtle))
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(12.dp))
 
         when (category) {
             SettingsCategory.ACCOUNT -> AccountSettingsContent(

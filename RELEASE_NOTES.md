@@ -16,7 +16,7 @@ run the release workflow for that version.
 
 - Search just got faster and friendlier: results appear as you type, with recent searches and a roomy poster grid.
 - A fresh top bar: your links float in a sleek pill, and the Home picture now stretches edge to edge.
-- Settings is bigger and roomier, with a tidy side menu grouped into You, Content, and Playback & sound.
+- Settings has a tidy side menu, grouped into You, Content, and Playback & sound, and uses the whole screen.
 - The Genres tab is gone: pick a genre from the menu on Movies and TV Shows instead.
 - Fixed: pressing Up in Movies and TV Shows now stops at Featured and the genre menu on the way back to the top bar.
 - Fixed: the blue outline around the Trailer button no longer looks cut off.

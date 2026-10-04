@@ -61,6 +61,9 @@ fun SettingsScaffold(
     horizontalPadding: Dp = MangoDimens.ScreenPaddingHorizontal,
     verticalPadding: Dp = 28.dp,
     titleGap: Dp = 28.dp,
+    // False leaves the big title out (the nav bar already shows Settings as the open tab): on a 540 dp tall screen its height is better
+    // spent on the panels.
+    showTitle: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val selectedIndex = remember(selectedNavLabel) { MangoNavItems.indexOf(selectedNavLabel) }
@@ -98,24 +101,26 @@ fun SettingsScaffold(
                 .fillMaxWidth()
                 .padding(horizontal = horizontalPadding, vertical = verticalPadding)
         ) {
-            if (titleIcon != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = titleIcon, contentDescription = null, tint = TextPrimary)
-                    Spacer(Modifier.width(14.dp))
+            if (showTitle) {
+                if (titleIcon != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(imageVector = titleIcon, contentDescription = null, tint = TextPrimary)
+                        Spacer(Modifier.width(14.dp))
+                        Text(
+                            text = title,
+                            color = TextPrimary,
+                            style = MaterialTheme.typography.displayMedium
+                        )
+                    }
+                } else {
                     Text(
                         text = title,
                         color = TextPrimary,
                         style = MaterialTheme.typography.displayMedium
                     )
                 }
-            } else {
-                Text(
-                    text = title,
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.displayMedium
-                )
+                Spacer(Modifier.height(titleGap))
             }
-            Spacer(Modifier.height(titleGap))
             content()
         }
     }
