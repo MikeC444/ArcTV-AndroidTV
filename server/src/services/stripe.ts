@@ -96,3 +96,15 @@ export async function createCheckoutSession(input: CheckoutInput): Promise<Check
     currency: typeof body.currency === "string" ? body.currency.toLowerCase() : null,
   };
 }
+
+/** Tells Stripe to stop renewing a subscription at the end of the period already paid for (the person keeps Plus until then). */
+export async function cancelSubscriptionAtPeriodEnd(subscriptionId: string): Promise<void> {
+  const { stripeSecretKey } = getPlusConfig();
+  if (!stripeSecretKey) throw new HttpError(503, "Plus billing isn't available yet");
+  const response = await stripeFetch(`https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${stripeSecretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ cancel_at_period_end: "true" }).toString(),
+  });
+  if (!response.ok) throw new Error(`Stripe subscription cancel failed (HTTP ${response.status})`);
+}

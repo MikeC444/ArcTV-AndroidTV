@@ -36,7 +36,11 @@ not build that screen; link to it from Stripe).
   `customer.subscription.updated` moves the paid period; `customer.subscription.deleted` ends it.
 - Events are applied by their own timestamp, so a late or repeated delivery can't undo a newer one. A Lifetime owner is
   never changed by a subscription event.
-- The table is `user_plus` (migration `0017`). It is written only by the webhook.
+- `POST /user/plus/cancel` lets a monthly or yearly subscriber stop renewal: it sets Stripe's `cancel_at_period_end` on their
+  subscription (no refund; Plus stays on until the paid period ends) and answers with the new entitlement, whose
+  `cancelAtPeriodEnd` is then `true`. Lifetime is refused (409), an account with no subscription gets 404, and cancelling
+  twice is harmless. Stripe's `customer.subscription.updated` event keeps the flag right if it is changed in Stripe instead.
+- The table is `user_plus` (migrations `0017`, `0019`). It is written by the webhook, and by the cancel call above.
 
 ## Refunds
 
