@@ -4387,6 +4387,13 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Changes:**
 - `PlayerScreen`: holding Left / Right while the timeline is selected adds one 10-second step every 250 ms for as long as the key is held (no acceleration, no 2-minute cap, only the ends of the video); the jump is still made on release, and the pill reads "m min s s" past a minute.
 - `PlayerBottomControls` reports which control has focus (`onControlFocused`; the right-hand time button now has its own focus requester); `PlayerScreen` keeps it in `lastControlFocus` and uses it when the controls reappear and when the last menu closes (Play / Pause only when nothing was focused yet or that control is gone).
+## Post-Milestone-77 — Profile editor fits the screen
+
+**Status:** Written; the compile check is the CI build of the branch. Not tried on a TV.
+
+**Context:** on a Fire TV the add / edit profile window was taller than the screen (16 pictures made it worse), so Create / Save could not be reached, and the on-screen keyboard opened whenever focus passed over the name field.
+
+**Changes:** the editor's height is capped to the screen (`screenHeightDp - 80`); the fields scroll, with the error line and the Create / Save / Cancel / Remove row pinned below; the picture grid is 8 across at 52 dp (was 6 at 64 dp) and the preview 64 dp; the name field is read-only until OK is pressed on it (a new profile starts in edit mode), shows the keyboard only then and closes it when focus moves on or Done is pressed.
 
 **Tests performed:** none by hand; the build is the compile check.
 
