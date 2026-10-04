@@ -4350,3 +4350,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues fixed:** the above.
 
+## Post-Milestone-74 — Debug builds know the server address
+
+**Status:** Written; the proof is the next run of this workflow on the branch. Not tried on a TV.
+
+**Context:** a Fire TV app installed from the "Build debug APK" artifact said "unable to resolve host not-configured.invalid" on sign-in. `API_BASE_URL` is a repository secret that only the release workflow passed to Gradle, so every debug build used the placeholder address.
+
+**Changes:** `build-apk.yml` passes `API_BASE_URL: ${{ secrets.API_BASE_URL }}` to the debug build step.
+
+**Tests performed:** none by hand. The workflow run shows whether the build still succeeds; the sign-in itself has to be tried on a device.
+
+**Issues discovered:** a branch built from a fork or by Dependabot has no access to the secret and would still get the placeholder (it is only for sign-in, not for compiling).
+
+**Issues fixed:** the above.
+

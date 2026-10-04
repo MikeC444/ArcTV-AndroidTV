@@ -35,6 +35,10 @@ jobs:
         run: ./gradlew testDebugUnitTest --stacktrace
 
       - name: Build debug APK
+        # Without this the app is built against "not-configured.invalid" and sign-in fails with "unable to resolve host"; the release
+        # workflow already passes the same secret.
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK artifact
