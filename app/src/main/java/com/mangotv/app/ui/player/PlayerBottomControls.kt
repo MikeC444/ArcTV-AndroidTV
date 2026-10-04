@@ -81,11 +81,19 @@ fun PlayerBottomControls(
     qualityFocusRequester: FocusRequester? = null,
     settingsFocusRequester: FocusRequester? = null,
     nextEpisodeFocusRequester: FocusRequester? = null,
-    timelineFocusRequester: FocusRequester? = null
+    timelineFocusRequester: FocusRequester? = null,
+    // Told which control has focus, so the player can put the cursor back there (not on Play / Pause) after a menu or the controls hiding.
+    onControlFocused: (FocusRequester) -> Unit = {}
 ) {
     val isPlaying = phase is PlaybackPhase.Playing
     val onTransportFocused: (Boolean) -> Unit = { if (it) onFocusZoneChanged(PlayerFocusZone.TRANSPORT) }
     val onIconRowFocused: (Boolean) -> Unit = { if (it) onFocusZoneChanged(PlayerFocusZone.ICON_ROW) }
+    // A zone callback that also reports which control it was, so the player remembers where the cursor was last.
+    fun tracked(zone: (Boolean) -> Unit, requester: FocusRequester?): (Boolean) -> Unit = { focused ->
+        zone(focused)
+        if (focused && requester != null) onControlFocused(requester)
+    }
+    val rightTimeFocusRequester = remember { FocusRequester() }
 
     Row(
         modifier = modifier.fillMaxWidth().padding(horizontal = 40.dp, vertical = 28.dp),
@@ -97,7 +105,7 @@ fun PlayerBottomControls(
             onClick = onPlayPause,
             focusRequester = playPauseFocusRequester,
             focusDown = timelineFocusRequester,
-            onFocusChanged = onTransportFocused,
+            onFocusChanged = tracked(onTransportFocused, playPauseFocusRequester),
             showBackground = false,
             borderColor = Color.White
         )
@@ -108,7 +116,7 @@ fun PlayerBottomControls(
             onClick = { onSeek(-10_000) },
             focusRequester = rewindFocusRequester,
             focusDown = timelineFocusRequester,
-            onFocusChanged = onTransportFocused,
+            onFocusChanged = tracked(onTransportFocused, rewindFocusRequester),
             compact = true,
             showBackground = false,
             borderColor = Color.White
@@ -120,7 +128,7 @@ fun PlayerBottomControls(
             onClick = { onSeek(10_000) },
             focusRequester = forwardFocusRequester,
             focusDown = timelineFocusRequester,
-            onFocusChanged = onTransportFocused,
+            onFocusChanged = tracked(onTransportFocused, forwardFocusRequester),
             compact = true,
             showBackground = false,
             borderColor = Color.White
@@ -134,7 +142,7 @@ fun PlayerBottomControls(
             exoPlayer = exoPlayer,
             phase = phase,
             isScrubbing = isTimelineScrubbing,
-            onFocusChanged = { focused -> if (focused) onFocusZoneChanged(PlayerFocusZone.TIMELINE) },
+            onFocusChanged = tracked({ focused -> if (focused) onFocusZoneChanged(PlayerFocusZone.TIMELINE) }, timelineFocusRequester),
             modifier = Modifier.weight(1f),
             focusRequester = timelineFocusRequester,
             focusUp = playPauseFocusRequester
@@ -147,7 +155,8 @@ fun PlayerBottomControls(
             showRemaining = showRemaining,
             onToggle = onToggleRemaining,
             focusDown = timelineFocusRequester,
-            onFocusChanged = onIconRowFocused
+            focusRequester = rightTimeFocusRequester,
+            onFocusChanged = tracked(onIconRowFocused, rightTimeFocusRequester)
         )
         Spacer(Modifier.width(18.dp))
 
@@ -158,7 +167,7 @@ fun PlayerBottomControls(
                 onClick = onSubtitles,
                 focusRequester = subtitleFocusRequester,
                 focusDown = timelineFocusRequester,
-                onFocusChanged = onIconRowFocused,
+                onFocusChanged = tracked(onIconRowFocused, subtitleFocusRequester),
                 compact = true,
                 showBackground = false,
                 borderColor = Color.White
@@ -172,7 +181,7 @@ fun PlayerBottomControls(
                 onClick = onAudio,
                 focusRequester = audioFocusRequester,
                 focusDown = timelineFocusRequester,
-                onFocusChanged = onIconRowFocused,
+                onFocusChanged = tracked(onIconRowFocused, audioFocusRequester),
                 compact = true,
                 showBackground = false,
                 borderColor = Color.White
@@ -186,7 +195,7 @@ fun PlayerBottomControls(
                 onClick = onQuality,
                 focusRequester = qualityFocusRequester,
                 focusDown = timelineFocusRequester,
-                onFocusChanged = onIconRowFocused,
+                onFocusChanged = tracked(onIconRowFocused, qualityFocusRequester),
                 compact = true,
                 showBackground = false,
                 borderColor = Color.White
@@ -199,7 +208,7 @@ fun PlayerBottomControls(
             onClick = onSettings,
             focusRequester = settingsFocusRequester,
             focusDown = timelineFocusRequester,
-            onFocusChanged = onIconRowFocused,
+            onFocusChanged = tracked(onIconRowFocused, settingsFocusRequester),
             compact = true,
             showBackground = false,
             borderColor = Color.White
@@ -212,7 +221,7 @@ fun PlayerBottomControls(
                 onClick = onNextEpisode,
                 focusRequester = nextEpisodeFocusRequester,
                 focusDown = timelineFocusRequester,
-                onFocusChanged = onIconRowFocused,
+                onFocusChanged = tracked(onIconRowFocused, nextEpisodeFocusRequester),
                 compact = true,
                 showBackground = false,
                 borderColor = Color.White
@@ -247,6 +256,7 @@ private fun RightTime(
     showRemaining: Boolean,
     onToggle: () -> Unit,
     focusDown: FocusRequester?,
+    focusRequester: FocusRequester,
     onFocusChanged: (Boolean) -> Unit
 ) {
     var positionMs by remember { mutableLongStateOf(0L) }
@@ -266,6 +276,7 @@ private fun RightTime(
         focusedScale = 1f,
         focusedElevation = 0f,
         focusDown = focusDown,
+        focusRequester = focusRequester,
         onFocusChanged = onFocusChanged,
         bringIntoViewOnFocus = false
     ) {

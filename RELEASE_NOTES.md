@@ -14,6 +14,9 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Scrubbing is easier: hold Left or Right on the timeline to glide through the video in steady 10-second steps, with no limit.
+- The player remembers which button you were on, so closing a menu or the controls coming back no longer jumps to Play.
+
 - Opening a title now shows its artwork and logo with a loading symbol, instead of a blank screen.
 - A Next episode button appears in the last minute, and Auto Play Next Episode now really plays the next one.
 - Your playback speed is remembered, and the right-hand time shows time left; press it for the total.
