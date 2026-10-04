@@ -75,9 +75,10 @@ private const val SHOW_AFTER_MS = 4_000L
 private data class PromoBenefit(val icon: ImageVector, val title: String, val detail: String)
 
 private val Benefits = listOf(
-    PromoBenefit(Icons.Filled.Favorite, "Picked for you", "A Home row chosen from the movies you like, with the reason under each poster."),
-    PromoBenefit(Icons.Filled.Groups, "Up to 5 profiles", "Their own My List, Continue Watching and recommendations. Add kids profiles and PIN locks."),
-    PromoBenefit(Icons.Filled.WorkspacePremium, "More on the way", "Parental controls, a bigger relay allowance and smart source picking.")
+    // One short line each: on a TV a long paragraph in a pop-up is too much to read from the sofa (the web popup has the longer wording).
+    PromoBenefit(Icons.Filled.Favorite, "Picked for you", "A Home row chosen from movies you like"),
+    PromoBenefit(Icons.Filled.Groups, "Up to 5 profiles", "Own My List and picks, kids profiles, PINs"),
+    PromoBenefit(Icons.Filled.WorkspacePremium, "More on the way", "Parental controls and smart source picking")
 )
 
 /**
@@ -136,7 +137,7 @@ private fun PlusPromoDialog(onClose: () -> Unit, onNever: () -> Unit, onGo: () -
     LaunchedEffect(Unit) {
         runCatching { primaryFocusRequester.requestFocus() }
     }
-    val panelShape = RoundedCornerShape(22.dp)
+    val panelShape = RoundedCornerShape(18.dp)
 
     Dialog(
         onDismissRequest = onClose,
@@ -148,9 +149,10 @@ private fun PlusPromoDialog(onClose: () -> Unit, onNever: () -> Unit, onGo: () -
                 .background(Color.Black.copy(alpha = 0.85f)),
             contentAlignment = Alignment.Center
         ) {
+            // A small card (it was 600 dp wide and nearly the whole height of a 540 dp screen): 340 dp wide and a little over half the height.
             Column(
                 modifier = Modifier
-                    .widthIn(max = 600.dp)
+                    .widthIn(max = 340.dp)
                     .clip(panelShape)
                     .background(MangoBackgroundElevated)
                     // Two soft glows in the corners (blue top-left, violet top-right), like the web popup.
@@ -159,65 +161,70 @@ private fun PlusPromoDialog(onClose: () -> Unit, onNever: () -> Unit, onGo: () -
                         drawRect(Brush.radialGradient(listOf(ArcViolet.copy(alpha = 0.22f), Color.Transparent), center = Offset(size.width, 0f), radius = size.width * 0.6f))
                     }
                     .border(1.dp, DividerSubtle, panelShape)
-                    .padding(horizontal = 32.dp, vertical = 28.dp)
+                    .padding(horizontal = 20.dp, vertical = 14.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    ArcLogo(fontSize = 20.sp)
-                    Spacer(Modifier.width(10.dp))
+                    ArcLogo(fontSize = 14.sp)
+                    Spacer(Modifier.width(8.dp))
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(5.dp))
                             .background(Brush.horizontalGradient(listOf(ArcCyan, ArcBlue, ArcViolet)))
-                            .padding(horizontal = 9.dp, vertical = 3.dp)
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
-                        Text(text = "PLUS", color = MangoBackground, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, letterSpacing = 1.sp)
+                        Text(text = "PLUS", color = MangoBackground, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp, letterSpacing = 1.sp)
                     }
                 }
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
                     text = "Get more from every movie night.",
                     color = TextPrimary,
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.ExtraBold
                 )
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(3.dp))
                 Text(
-                    text = "Everything you use today stays free. Arc TV Plus adds extras on top.",
+                    text = "Everything you use today stays free.",
                     color = TextSecondary,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 11.sp
                 )
-                Spacer(Modifier.height(18.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Spacer(Modifier.height(10.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Benefits.forEach { benefit -> BenefitRow(benefit) }
                 }
-                Spacer(Modifier.height(18.dp))
-                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(DividerSubtle))
-                Spacer(Modifier.height(18.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Spacer(Modifier.height(12.dp))
+                // Both buttons sit together in the middle of the card.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
+                ) {
                     MangoButton(
                         text = "Take me there",
                         icon = Icons.Filled.ArrowForward,
                         onClick = onGo,
                         style = MangoButtonStyle.FILLED,
-                        focusRequester = primaryFocusRequester
+                        focusRequester = primaryFocusRequester,
+                        compact = true
                     )
                     MangoButton(
                         text = "Close",
                         icon = Icons.Filled.Close,
                         onClick = onClose,
                         style = MangoButtonStyle.GLASS,
-                        clickSound = ClickSound.BACK
+                        clickSound = ClickSound.BACK,
+                        compact = true
                     )
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     text = "Explore plans in Settings → Arc TV Plus",
                     color = TextTertiary,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 11.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(Modifier.height(4.dp))
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     TvFocusSurface(
                         onClick = onNever,
@@ -228,9 +235,9 @@ private fun PlusPromoDialog(onClose: () -> Unit, onNever: () -> Unit, onGo: () -
                         Text(
                             text = "Don't show me again",
                             color = TextSecondary,
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.labelMedium,
                             textDecoration = TextDecoration.Underline,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                         )
                     }
                 }
@@ -244,18 +251,18 @@ private fun BenefitRow(benefit: PromoBenefit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(28.dp)
                 .clip(CircleShape)
                 .background(MangoSurface)
                 .border(1.dp, DividerSubtle, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(imageVector = benefit.icon, contentDescription = null, tint = ArcAccent, modifier = Modifier.size(22.dp))
+            Icon(imageVector = benefit.icon, contentDescription = null, tint = ArcAccent, modifier = Modifier.size(16.dp))
         }
-        Spacer(Modifier.width(16.dp))
+        Spacer(Modifier.width(10.dp))
         Column {
-            Text(text = benefit.title, color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(text = benefit.detail, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+            Text(text = benefit.title, color = TextPrimary, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            Text(text = benefit.detail, color = TextSecondary, style = MaterialTheme.typography.labelSmall, fontSize = 11.sp)
         }
     }
 }
