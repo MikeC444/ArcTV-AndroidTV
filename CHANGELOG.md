@@ -4266,3 +4266,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Changes (`UpdatePopup.kt`):** the card is now about 380 dp wide in the same style as the Plus pop-up (elevated background, soft blue / violet glows in the top corners, thin edge, round icon badge), the title and version are smaller, the release-notes box is shorter (120 dp, 11 sp text, scroll step halved to match) and the Update / Install / Retry and Not now buttons are the compact size, centred under the notes. Behaviour is unchanged (download progress, Install, Retry, Back = Not now, notes scroll with the remote).
 
 **Tests performed:** none new (layout only). Brace/paren balance and unused/duplicate imports checked; the change re-read against the Compose APIs it uses. Not tried on a device.
+
+## Post-Milestone-69 — Release notes now attach themselves to each release
+
+**Status:** Workflow change written; not run here (it only runs when a release is cut).
+
+**Cause:** v0.1.7 was released while its bullets were still under `## Unreleased`. The release workflow looked for a `## 0.1.7` section, found none and wrote "Bug fixes and improvements." as the release description, which is what the in-app update pop-up shows.
+
+**Changes:**
+- `release.yml` now takes the notes from `## <version>` if there is one, otherwise from `## Unreleased` (the normal case), and only falls back to "Bug fixes and improvements." if both are empty. A section holding only blank lines counts as empty.
+- After publishing, the workflow files the shipped notes under `## <version>` on `main` and leaves a fresh empty `## Unreleased` above it, with a small bot commit. It only does this if `main`'s Unreleased still holds exactly what was published (otherwise it leaves the file alone), and a failure in that step (for example a protected `main`) does not fail the already-published release.
+- `RELEASE_NOTES.md`: the 0.1.7 bullets are filed under `## 0.1.7` (the fix for that release's file), and the header now says releasing needs nothing done to the file.
+- v0.1.7's GitHub release description was edited by hand to carry its real notes (the workflow can't re-run for an existing tag).
+
+**Tests performed:** the awk / grep logic of the new steps was run locally against a copy of `RELEASE_NOTES.md` (extract from a version, fall back to Unreleased, fall back to the fixed line, and the rename with the identical-notes check). The workflow itself has not run.

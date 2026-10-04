@@ -66,22 +66,36 @@ jobs:
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
           echo "tag=v$NAME" >> "$GITHUB_OUTPUT"
 
-      - name: Extract changelog for this version
+      - name: Extract release notes for this version
+        id: notes
         run: |
-          # RELEASE_NOTES.md is what actually becomes this release's notes
-          # (kept separate from CHANGELOG.md, which is an unrelated backend
-          # engineering log predating this workflow) -- pulls everything
-          # under "## <version>" up to the next "## " heading (or end of
-          # file). Kept as its own step rather than folded into version
-          # resolution above, for readability.
-          awk -v ver="## ${{ steps.version.outputs.name }}" '
-            $0 == ver { found=1; next }
-            /^## / { if (found) exit }
-            found { print }
-          ' RELEASE_NOTES.md > "$RUNNER_TEMP/release_notes.md"
-          if [ ! -s "$RUNNER_TEMP/release_notes.md" ]; then
-            echo "Bug fixes and improvements." > "$RUNNER_TEMP/release_notes.md"
+          # RELEASE_NOTES.md is what actually becomes this release's notes (kept separate from CHANGELOG.md, which is an unrelated backend
+          # engineering log predating this workflow). The notes come from, in order:
+          #   1. a "## <version>" section, if someone already wrote one;
+          #   2. the "## Unreleased" section -- the normal case, because every change adds its bullet there as it is made, so nobody has to
+          #      rename anything before releasing (the step after publishing moves them under this version);
+          #   3. a plain fallback line, only if both are empty.
+          VER="${{ steps.version.outputs.name }}"
+          section() {
+            awk -v head="## $1" '
+              $0 == head { found=1; next }
+              /^## / { if (found) exit }
+              found { print }
+            ' RELEASE_NOTES.md
+          }
+          has_text() { grep -q '[^[:space:]]' "$1"; }
+          section "$VER" > "$RUNNER_TEMP/release_notes.md"
+          FROM=version
+          if ! has_text "$RUNNER_TEMP/release_notes.md"; then
+            section "Unreleased" > "$RUNNER_TEMP/release_notes.md"
+            FROM=unreleased
           fi
+          if ! has_text "$RUNNER_TEMP/release_notes.md"; then
+            echo "Bug fixes and improvements." > "$RUNNER_TEMP/release_notes.md"
+            FROM=none
+          fi
+          echo "from=$FROM" >> "$GITHUB_OUTPUT"
+          echo "Release notes taken from: $FROM"
 
       - name: Decode release keystore
         run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.keystore"
@@ -105,3 +119,39 @@ jobs:
           name: ${{ steps.version.outputs.tag }}
           body_path: ${{ runner.temp }}/release_notes.md
           files: app/build/outputs/apk/release/app-release.apk
+
+      # After the release is out, the notes that were under "## Unreleased" are filed under this version in RELEASE_NOTES.md (and a fresh,
+      # empty "## Unreleased" is left above it), so the next release starts clean. Only done when what is on main under Unreleased is exactly
+      # what was just published; if more bullets were added since, the file is left alone rather than mislabel them. A failure here (say a
+      # protected main) never fails the release, which is already published.
+      - name: File the shipped notes under this version
+        if: steps.notes.outputs.from == 'unreleased'
+        continue-on-error: true
+        run: |
+          VER="${{ steps.version.outputs.name }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -B main origin/main
+          if grep -q "^## $VER\$" RELEASE_NOTES.md; then
+            echo "RELEASE_NOTES.md already has a section for $VER; nothing to do"
+            exit 0
+          fi
+          awk '
+            $0 == "## Unreleased" { found=1; next }
+            /^## / { if (found) exit }
+            found { print }
+          ' RELEASE_NOTES.md | grep -v '^[[:space:]]*$' > "$RUNNER_TEMP/main_unreleased.txt" || true
+          grep -v '^[[:space:]]*$' "$RUNNER_TEMP/release_notes.md" > "$RUNNER_TEMP/shipped.txt" || true
+          if ! diff -q "$RUNNER_TEMP/main_unreleased.txt" "$RUNNER_TEMP/shipped.txt" > /dev/null; then
+            echo "Unreleased on main changed since this release was built; leaving RELEASE_NOTES.md alone"
+            exit 0
+          fi
+          awk -v head="## $VER" '
+            $0 == "## Unreleased" && !done { print; print ""; print head; done=1; next }
+            { print }
+          ' RELEASE_NOTES.md > "$RUNNER_TEMP/release_notes_new.md"
+          cp "$RUNNER_TEMP/release_notes_new.md" RELEASE_NOTES.md
+          git add RELEASE_NOTES.md
+          git commit -m "Release notes: the notes under Unreleased shipped as $VER"
+          git push origin main

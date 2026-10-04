@@ -8,11 +8,13 @@ description, so there's no need to visit GitHub to see what changed.
 (For the backend/engineering build log, see CHANGELOG.md instead -- this
 file is only ever end-user-facing release notes.)
 
-When cutting a new release: rename `## Unreleased` below to the new
-version (e.g. `## 0.1.2`), add a fresh empty `## Unreleased` above it, then
-run the release workflow for that version.
+Releasing needs nothing done to this file: add each change as a bullet under `## Unreleased` as you make it. When a release is
+published, the workflow uses what is under `## Unreleased` as that release's notes (what the app's update pop-up shows), then moves it
+under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
+
+## 0.1.7
 
 - Search just got faster and friendlier: results appear as you type, with recent searches and a roomy poster grid.
 - A fresh top bar: your links float in a sleek pill, and the Home picture now stretches edge to edge.
