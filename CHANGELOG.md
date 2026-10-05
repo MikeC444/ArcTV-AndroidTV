@@ -4443,7 +4443,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Changes:**
 - Player > Settings > Advanced has an "Audio Passthrough" toggle (on by default), kept per device in `DevicePlayerPrefs`. Off makes the player's audio output (`SwitchableAudioSink` in `PlayerEngine.kt`, a `ForwardingAudioSink` built by `SwitchableRenderersFactory`) refuse every non-PCM format, so the TV is never sent a stream it can't really play. The switch (`AudioPassthroughSwitch`) is read live: flipping it in the player re-prepares playback from the same position (a brief rebuffer), so it takes effect at once, on the video that is playing.
-- Settings > Audio (new category under "Playback & sound", `AudioSettingsScreen.kt`, `SettingsCategory.AUDIO`) has the same switch with a short explanation; it reads and writes the same `DevicePlayerPrefs` value as the player's, so the two agree, and a change there applies to the next video (the player's own switch applies instantly).
+- Settings > Audio (new category under "Playback & sound", `AudioSettingsScreen.kt`, `SettingsCategory.AUDIO`) has the same switch with a one-line hint ("Turn it off if a source plays with no sound."); it reads and writes the same `DevicePlayerPrefs` value as the player's, so the two agree, and a change there applies to the next video (the player's own switch applies instantly).
 
 **Tests performed:** none; this sandbox cannot reach `dl.google.com`, so no Gradle build was run, and nothing was tried on a TV. The code was re-read by hand against the Media3 API (`DefaultRenderersFactory.buildAudioSink`, `ForwardingAudioSink.supportsFormat` / `getFormatSupport`).
 

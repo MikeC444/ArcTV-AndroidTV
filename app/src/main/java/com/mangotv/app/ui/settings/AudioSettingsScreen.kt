@@ -91,9 +91,7 @@ fun ColumnScope.AudioSettingsContent(
         }
         item(key = "description") {
             Text(
-                text = "On sends surround sound (Dolby, DTS) untouched to your TV or receiver, which gives the best quality. " +
-                    "Turn it off if a source plays with no sound: Arc TV then decodes the audio itself and sends plain sound, " +
-                    "which can lose some surround detail. It's kept on this device only.",
+                text = "Turn it off if a source plays with no sound.",
                 color = TextSecondary,
                 style = MaterialTheme.typography.bodySmall
             )
