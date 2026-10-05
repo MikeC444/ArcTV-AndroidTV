@@ -7,7 +7,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
-/** Talks to /user/player-events/*: usage reports the developer panel reads. Authenticated; the answer carries nothing. */
+/** Talks to the /user/player-events endpoints: usage reports the developer panel reads. Authenticated; the answer carries nothing. */
 class PlayerEventsApiClient(private val baseUrl: String) {
 
     private val httpClient = AccountApiHttpClient.client
