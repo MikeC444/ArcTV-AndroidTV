@@ -73,8 +73,8 @@ fun buildExoPlayer(context: Context, preferences: PlayerPreferences, audioOutput
 }
 
 /**
- * Whether Dolby Vision files may use a Dolby Vision decoder; off plays them as the HDR10 picture underneath (plain HEVC decoders), for devices
- * whose Dolby Vision decoder is missing, broken or tints the picture. Read live, so flipping it takes effect on the next (re)prepare.
+ * Whether Dolby Vision files may use a Dolby Vision decoder; off plays them as the HDR10 picture underneath (plain HEVC decoders). On to
+ * begin with; the retry in [PlayerListenerBridge] turns it off for one playback when a Dolby Vision file fails to decode. Read live.
  */
 class DolbyVisionSwitch(@Volatile var enabled: Boolean)
 
@@ -140,8 +140,7 @@ class PlayerListenerBridge(
     private val onTracksChangedCallback: (Tracks) -> Unit = {},
     private val player: Player? = null,
     // Shared with the player's Dolby Vision switch: turned off by the retry below when a Dolby Vision file fails to decode.
-    private val dolbyVision: DolbyVisionSwitch? = null,
-    private val onDolbyVisionFallback: () -> Unit = {}
+    private val dolbyVision: DolbyVisionSwitch? = null
 ) : Player.Listener {
 
     // Audio tracks that already failed to decode in this session, so the automatic switch below can't loop.
@@ -188,7 +187,6 @@ class PlayerListenerBridge(
         if (!isDolbyVision) return false
         triedWithoutDolbyVision = true
         switch.enabled = false
-        onDolbyVisionFallback()
         val item = player.currentMediaItem ?: return false
         val position = player.currentPosition
         player.setMediaItem(item, position)

@@ -45,7 +45,6 @@ object DevicePlayerPrefs {
     private const val AUDIO_PASSTHROUGH = "audio_passthrough"
     private const val AUDIO_CHANNELS = "audio_channels"
     private const val VLC_HARDWARE = "vlc_hardware"
-    private const val DOLBY_VISION = "dolby_vision"
 
     fun speed(context: Context): Float {
         val value = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getFloat(SPEED, 1f)
@@ -81,14 +80,6 @@ object DevicePlayerPrefs {
 
     fun setVlcHardwareDecoding(context: Context, value: Boolean) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(VLC_HARDWARE, value).apply()
-    }
-
-    /** Whether Dolby Vision files may use a Dolby Vision decoder (on by default); off plays them as HDR10. */
-    fun dolbyVision(context: Context): Boolean =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(DOLBY_VISION, true)
-
-    fun setDolbyVision(context: Context, value: Boolean) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(DOLBY_VISION, value).apply()
     }
 
     fun setShowRemaining(context: Context, value: Boolean) {

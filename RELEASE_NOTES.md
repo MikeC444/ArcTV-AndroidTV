@@ -18,7 +18,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - Can't play a source? Pick the built-in player, a VLC engine or another app from the new button beside the timeline.
 
-- Dolby Vision file won't play? It now retries as HDR10, and you can switch Dolby Vision off in the player.
+- Dolby Vision file won't play? It now retries by itself as HDR10.
 
 - Cleaner source filters: the Audio pill is no longer cut off at the edge, and the dark halo around pills is gone.
 

@@ -471,23 +471,30 @@ private fun VlcTrackMenu(title: String, tracks: List<VlcTrack>, selectedId: Int,
 }
 
 /**
- * The timeline: a thin bar that thickens and gets a knob when focused, where LEFT / RIGHT seek 10 seconds a press (hold to keep going);
- * UP goes back to the buttons.
+ * The timeline. Merely landing on it does not capture LEFT / RIGHT, so the cursor can move past it to the next button; press OK to
+ * start scrubbing (the bar turns accent-coloured and shows a knob), then LEFT / RIGHT seek 10 seconds a press (hold to keep going).
+ * OK again, UP, DOWN or moving off it ends scrubbing.
  */
 @Composable
 private fun VlcTimeline(fraction: Float, focusRequester: FocusRequester, onSeek: (Long) -> Unit, modifier: Modifier = Modifier) {
     var focused by remember { mutableStateOf(false) }
-    val barHeight = if (focused) 8.dp else 5.dp
+    var scrubbing by remember { mutableStateOf(false) }
+    val barHeight = if (scrubbing) 8.dp else if (focused) 7.dp else 5.dp
     Box(
         modifier = modifier
             .height(24.dp)
             .focusRequester(focusRequester)
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged {
+                focused = it.isFocused
+                if (!it.isFocused) scrubbing = false
+            }
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (event.key) {
-                    Key.DirectionLeft -> { onSeek(-SEEK_STEP_MS); true }
-                    Key.DirectionRight -> { onSeek(SEEK_STEP_MS); true }
+                    Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> { scrubbing = !scrubbing; true }
+                    Key.DirectionLeft -> if (scrubbing) { onSeek(-SEEK_STEP_MS); true } else false
+                    Key.DirectionRight -> if (scrubbing) { onSeek(SEEK_STEP_MS); true } else false
+                    Key.DirectionUp, Key.DirectionDown -> { scrubbing = false; false }
                     else -> false
                 }
             }
@@ -495,8 +502,8 @@ private fun VlcTimeline(fraction: Float, focusRequester: FocusRequester, onSeek:
         contentAlignment = Alignment.CenterStart
     ) {
         Box(modifier = Modifier.fillMaxWidth().height(barHeight).background(Color.White.copy(alpha = 0.25f), RoundedCornerShape(4.dp)))
-        Box(modifier = Modifier.fillMaxWidth(fraction).height(barHeight).background(if (focused) ArcAccent else Color.White, RoundedCornerShape(4.dp)))
-        if (focused) {
+        Box(modifier = Modifier.fillMaxWidth(fraction).height(barHeight).background(if (scrubbing || focused) ArcAccent else Color.White, RoundedCornerShape(4.dp)))
+        if (scrubbing) {
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                 Box(
                     modifier = Modifier
