@@ -44,7 +44,6 @@ object DevicePlayerPrefs {
     private const val SHOW_REMAINING = "show_remaining"
     private const val AUDIO_PASSTHROUGH = "audio_passthrough"
     private const val AUDIO_CHANNELS = "audio_channels"
-    private const val VLC_HARDWARE = "vlc_hardware"
 
     fun speed(context: Context): Float {
         val value = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getFloat(SPEED, 1f)
@@ -72,14 +71,6 @@ object DevicePlayerPrefs {
 
     fun setAudioChannelMode(context: Context, mode: AudioChannelMode) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(AUDIO_CHANNELS, mode.wire).apply()
-    }
-
-    /** Whether VLC's engine may use the device's hardware video decoder; off (software) by default. */
-    fun vlcHardwareDecoding(context: Context): Boolean =
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(VLC_HARDWARE, false)
-
-    fun setVlcHardwareDecoding(context: Context, value: Boolean) {
-        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(VLC_HARDWARE, value).apply()
     }
 
     fun setShowRemaining(context: Context, value: Boolean) {

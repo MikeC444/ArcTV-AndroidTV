@@ -27,7 +27,6 @@ import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Subtitles
@@ -127,11 +126,6 @@ fun VlcPlaybackContent(
     var subtitleTracks by remember { mutableStateOf<List<VlcTrack>>(emptyList()) }
     var selectedAudio by remember { mutableIntStateOf(-1) }
     var selectedSubtitle by remember { mutableIntStateOf(-1) }
-    // Where to carry on from once the picture starts: the position handed over, or (after switching decoders) where the person was.
-    var seekOnPlay by remember { mutableLongStateOf(startPositionMs) }
-    // Software decoding is the default (this engine is chosen when the device's own decoders already failed, and a decoder that
-    // half-works shows as blocky, grey picture); the Decoding button switches to the device's hardware decoder, which is faster on big video.
-    var hardware by remember { mutableStateOf(DevicePlayerPrefs.vlcHardwareDecoding(context)) }
     var preferencesApplied by remember { mutableStateOf(false) }
 
     var speedIndex by remember { mutableIntStateOf(1) }
@@ -204,24 +198,13 @@ fun VlcPlaybackContent(
 
     fun loadMedia() {
         val media = Media(libVlc, Uri.parse(url))
-        media.setHWDecoderEnabled(hardware, false)
+        // The device's hardware decoder (VLC still falls back to its own software decoder if the hardware one can't take the video).
+        media.setHWDecoderEnabled(true, false)
         // Open the file at the spot rather than jumping once it plays: a jump mid-stream can land between key frames and show a broken picture.
-        if (seekOnPlay > 5_000) media.addOption(":start-time=${seekOnPlay / 1000.0}")
+        if (startPositionMs > 5_000) media.addOption(":start-time=${startPositionMs / 1000.0}")
         mediaPlayer.setMedia(media)
         media.release()
         mediaPlayer.play()
-    }
-    fun toggleDecoding() {
-        hardware = !hardware
-        DevicePlayerPrefs.setVlcHardwareDecoding(context, hardware)
-        // The decoder is chosen when the media is opened, so reopen it from where the person is.
-        seekOnPlay = mediaPlayer.time.coerceAtLeast(0)
-        buffering = true
-        mediaPlayer.stop()
-        loadMedia()
-        speedIndex = 1
-        mediaPlayer.setRate(1f)
-        bump()
     }
 
     LaunchedEffect(viewReady) {
@@ -364,7 +347,7 @@ fun VlcPlaybackContent(
             Column(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 40.dp, vertical = 28.dp)) {
                 Text(title, color = TextPrimary, style = MaterialTheme.typography.titleLarge)
                 Text(
-                    text = (if (hardware) "Hardware decoding" else "Software decoding") + "  ·  " + SPEEDS[speedIndex].toString().removeSuffix(".0") + "x",
+                    text = SPEEDS[speedIndex].toString().removeSuffix(".0") + "x speed",
                     color = TextSecondary,
                     style = MaterialTheme.typography.labelMedium
                 )
@@ -420,8 +403,6 @@ fun VlcPlaybackContent(
                         Spacer(Modifier.width(8.dp))
                     }
                     HeroIconButton(icon = Icons.Filled.Speed, contentDescription = "Playback speed", onClick = ::cycleSpeed, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
-                    Spacer(Modifier.width(8.dp))
-                    HeroIconButton(icon = Icons.Filled.Settings, contentDescription = "Switch decoding", onClick = ::toggleDecoding, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
                     Spacer(Modifier.width(8.dp))
                     HeroIconButton(icon = Icons.Filled.SwapHoriz, contentDescription = "Change source", onClick = onChangeSource, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
                 }
