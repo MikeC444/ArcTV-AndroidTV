@@ -6,17 +6,20 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -25,6 +28,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.VolumeUp
@@ -44,7 +48,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.focusable
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -56,10 +62,12 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.mangotv.app.data.model.PlayerPreferences
+import com.mangotv.app.ui.components.HeroIconButton
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
 import com.mangotv.app.ui.player.overlay.MenuOptionRow
 import com.mangotv.app.ui.player.overlay.MenuOverlayScaffold
+import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
 import kotlinx.coroutines.delay
@@ -73,6 +81,7 @@ private const val SEEK_STEP_MS = 10_000L
 private const val FIRST_REPORT_MS = 4_000L
 private const val REPORT_INTERVAL_MS = 15_000L
 private const val CONTROLS_HIDE_MS = 5_000L
+private val SPEEDS = floatArrayOf(0.75f, 1f, 1.25f, 1.5f, 2f)
 
 private enum class VlcMenu { AUDIO, SUBTITLES }
 
@@ -102,7 +111,7 @@ fun VlcPlaybackContent(
     val context = LocalContext.current
     val view = LocalView.current
 
-    val libVlc = remember { LibVLC(context, arrayListOf("--http-reconnect", "--network-caching=2000")) }
+    val libVlc = remember { LibVLC(context, arrayListOf("--http-reconnect", "--network-caching=2000", "--no-drop-late-frames", "--no-skip-frames")) }
     val mediaPlayer = remember { MediaPlayer(libVlc) }
 
     var viewReady by remember { mutableStateOf(false) }
@@ -118,7 +127,6 @@ fun VlcPlaybackContent(
     var subtitleTracks by remember { mutableStateOf<List<VlcTrack>>(emptyList()) }
     var selectedAudio by remember { mutableIntStateOf(-1) }
     var selectedSubtitle by remember { mutableIntStateOf(-1) }
-    var startApplied by remember { mutableStateOf(false) }
     // Where to carry on from once the picture starts: the position handed over, or (after switching decoders) where the person was.
     var seekOnPlay by remember { mutableLongStateOf(startPositionMs) }
     // Software decoding is the default (this engine is chosen when the device's own decoders already failed, and a decoder that
@@ -126,7 +134,10 @@ fun VlcPlaybackContent(
     var hardware by remember { mutableStateOf(DevicePlayerPrefs.vlcHardwareDecoding(context)) }
     var preferencesApplied by remember { mutableStateOf(false) }
 
+    var speedIndex by remember { mutableIntStateOf(1) }
+    var seekText by remember { mutableStateOf<String?>(null) }
     val rootFocus = remember { FocusRequester() }
+    val timelineFocus = remember { FocusRequester() }
     val playFocus = remember { FocusRequester() }
 
     fun bump() { interactionTick++ }
@@ -145,6 +156,12 @@ fun VlcPlaybackContent(
         val target = (mediaPlayer.time + deltaMs).coerceAtLeast(0)
         mediaPlayer.setTime(if (length > 0) target.coerceAtMost(length - 1_000) else target)
         positionMs = mediaPlayer.time
+        seekText = (if (deltaMs < 0) "−" else "+") + (kotlin.math.abs(deltaMs) / 1000) + "s"
+        bump()
+    }
+    fun cycleSpeed() {
+        speedIndex = (speedIndex + 1) % SPEEDS.size
+        mediaPlayer.setRate(SPEEDS[speedIndex])
         bump()
     }
 
@@ -156,10 +173,6 @@ fun VlcPlaybackContent(
                 MediaPlayer.Event.Playing -> {
                     playing = true
                     buffering = false
-                    if (!startApplied) {
-                        startApplied = true
-                        if (seekOnPlay > 5_000) mediaPlayer.setTime(seekOnPlay)
-                    }
                 }
                 MediaPlayer.Event.Paused -> {
                     playing = false
@@ -192,6 +205,8 @@ fun VlcPlaybackContent(
     fun loadMedia() {
         val media = Media(libVlc, Uri.parse(url))
         media.setHWDecoderEnabled(hardware, false)
+        // Open the file at the spot rather than jumping once it plays: a jump mid-stream can land between key frames and show a broken picture.
+        if (seekOnPlay > 5_000) media.addOption(":start-time=${seekOnPlay / 1000.0}")
         mediaPlayer.setMedia(media)
         media.release()
         mediaPlayer.play()
@@ -201,10 +216,11 @@ fun VlcPlaybackContent(
         DevicePlayerPrefs.setVlcHardwareDecoding(context, hardware)
         // The decoder is chosen when the media is opened, so reopen it from where the person is.
         seekOnPlay = mediaPlayer.time.coerceAtLeast(0)
-        startApplied = false
         buffering = true
         mediaPlayer.stop()
         loadMedia()
+        speedIndex = 1
+        mediaPlayer.setRate(1f)
         bump()
     }
 
@@ -228,6 +244,13 @@ fun VlcPlaybackContent(
             matching(subtitleTracks, preferences.defaultSubtitleLanguage)?.let { mediaPlayer.setSpuTrack(it.id) }
         }
         refreshTracks()
+    }
+
+    LaunchedEffect(seekText) {
+        if (seekText != null) {
+            delay(900)
+            seekText = null
+        }
     }
 
     // The timeline, and Continue Watching while playing (first after a few seconds, then every 15 s).
@@ -317,55 +340,90 @@ fun VlcPlaybackContent(
             }
         }
 
+        seekText?.let { text ->
+            Text(
+                text = text,
+                color = Color.White,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(24.dp))
+                    .padding(horizontal = 20.dp, vertical = 10.dp)
+            )
+        }
+
         if (controlsVisible && failure == null) {
-            Column(
+            // A soft fade up from the bottom so the controls read over any picture, then the same one-row layout as the built-in player.
+            Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .padding(horizontal = 40.dp, vertical = 24.dp)
-            ) {
-                Text(title, color = TextPrimary, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(formatTimestamp(positionMs), color = TextSecondary, style = MaterialTheme.typography.labelMedium)
-                    Spacer(Modifier.width(12.dp))
-                    Box(modifier = Modifier.weight(1f).height(5.dp).background(Color.White.copy(alpha = 0.25f), RoundedCornerShape(3.dp))) {
-                        val fraction = if (lengthMs > 0) (positionMs.toFloat() / lengthMs).coerceIn(0f, 1f) else 0f
-                        Box(modifier = Modifier.fillMaxWidth(fraction).height(5.dp).background(Color.White, RoundedCornerShape(3.dp)))
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Text(formatTimestamp(lengthMs), color = TextSecondary, style = MaterialTheme.typography.labelMedium)
-                }
+                    .height(220.dp)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))))
+            )
+            Column(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 40.dp, vertical = 28.dp)) {
+                Text(title, color = TextPrimary, style = MaterialTheme.typography.titleLarge)
+                Text(
+                    text = (if (hardware) "Hardware decoding" else "Software decoding") + "  ·  " + SPEEDS[speedIndex].toString().removeSuffix(".0") + "x",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.labelMedium
+                )
                 Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    MangoButton(
-                        text = if (playing) "Pause" else "Play",
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    HeroIconButton(
                         icon = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (playing) "Pause" else "Play",
                         onClick = ::togglePlay,
-                        style = MangoButtonStyle.GLASS,
                         focusRequester = playFocus,
-                        borderColor = Color.White,
-                        compact = true
+                        focusDown = timelineFocus,
+                        showBackground = false,
+                        borderColor = Color.White
                     )
-                    MangoButton(text = "10s", icon = Icons.Filled.Replay10, onClick = { seekBy(-SEEK_STEP_MS) }, style = MangoButtonStyle.GLASS, borderColor = Color.White, compact = true)
-                    MangoButton(text = "10s", icon = Icons.Filled.Forward10, onClick = { seekBy(SEEK_STEP_MS) }, style = MangoButtonStyle.GLASS, borderColor = Color.White, compact = true)
-                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.width(10.dp))
+                    HeroIconButton(
+                        icon = Icons.Filled.Replay10,
+                        contentDescription = "Rewind 10 seconds",
+                        onClick = { seekBy(-SEEK_STEP_MS) },
+                        focusDown = timelineFocus,
+                        compact = true,
+                        showBackground = false,
+                        borderColor = Color.White
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    HeroIconButton(
+                        icon = Icons.Filled.Forward10,
+                        contentDescription = "Forward 10 seconds",
+                        onClick = { seekBy(SEEK_STEP_MS) },
+                        focusDown = timelineFocus,
+                        compact = true,
+                        showBackground = false,
+                        borderColor = Color.White
+                    )
+                    Spacer(Modifier.width(18.dp))
+                    Text(formatTimestamp(positionMs), color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                    Spacer(Modifier.width(14.dp))
+                    VlcTimeline(
+                        fraction = if (lengthMs > 0) (positionMs.toFloat() / lengthMs).coerceIn(0f, 1f) else 0f,
+                        focusRequester = timelineFocus,
+                        onSeek = ::seekBy,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(Modifier.width(14.dp))
+                    Text(formatRightTime(positionMs, lengthMs, showRemaining = true), color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                    Spacer(Modifier.width(18.dp))
                     if (audioTracks.size > 1) {
-                        MangoButton(text = "Audio", icon = Icons.Filled.VolumeUp, onClick = { menu = VlcMenu.AUDIO }, style = MangoButtonStyle.GLASS, borderColor = Color.White, compact = true)
+                        HeroIconButton(icon = Icons.Filled.VolumeUp, contentDescription = "Audio", onClick = { menu = VlcMenu.AUDIO }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
+                        Spacer(Modifier.width(8.dp))
                     }
                     if (subtitleTracks.size > 1) {
-                        MangoButton(text = "Subtitles", icon = Icons.Filled.Subtitles, onClick = { menu = VlcMenu.SUBTITLES }, style = MangoButtonStyle.GLASS, borderColor = Color.White, compact = true)
+                        HeroIconButton(icon = Icons.Filled.Subtitles, contentDescription = "Subtitles", onClick = { menu = VlcMenu.SUBTITLES }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
+                        Spacer(Modifier.width(8.dp))
                     }
-                    MangoButton(
-                        text = if (hardware) "Decoding: Hardware" else "Decoding: Software",
-                        icon = Icons.Filled.Settings,
-                        onClick = ::toggleDecoding,
-                        style = MangoButtonStyle.GLASS,
-                        borderColor = Color.White,
-                        compact = true
-                    )
-                    MangoButton(text = "Change Source", icon = Icons.Filled.SwapHoriz, onClick = onChangeSource, style = MangoButtonStyle.GLASS, borderColor = Color.White, compact = true)
+                    HeroIconButton(icon = Icons.Filled.Speed, contentDescription = "Playback speed", onClick = ::cycleSpeed, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
+                    Spacer(Modifier.width(8.dp))
+                    HeroIconButton(icon = Icons.Filled.Settings, contentDescription = "Switch decoding", onClick = ::toggleDecoding, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
+                    Spacer(Modifier.width(8.dp))
+                    HeroIconButton(icon = Icons.Filled.SwapHoriz, contentDescription = "Change source", onClick = onChangeSource, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
                 }
             }
         }
@@ -406,6 +464,45 @@ private fun VlcTrackMenu(title: String, tracks: List<VlcTrack>, selectedId: Int,
                     isSelected = track.id == selectedId,
                     onClick = { onSelect(track) },
                     focusRequester = if (index == 0) firstFocus else null
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The timeline: a thin bar that thickens and gets a knob when focused, where LEFT / RIGHT seek 10 seconds a press (hold to keep going);
+ * UP goes back to the buttons.
+ */
+@Composable
+private fun VlcTimeline(fraction: Float, focusRequester: FocusRequester, onSeek: (Long) -> Unit, modifier: Modifier = Modifier) {
+    var focused by remember { mutableStateOf(false) }
+    val barHeight = if (focused) 8.dp else 5.dp
+    Box(
+        modifier = modifier
+            .height(24.dp)
+            .focusRequester(focusRequester)
+            .onFocusChanged { focused = it.isFocused }
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (event.key) {
+                    Key.DirectionLeft -> { onSeek(-SEEK_STEP_MS); true }
+                    Key.DirectionRight -> { onSeek(SEEK_STEP_MS); true }
+                    else -> false
+                }
+            }
+            .focusable(),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Box(modifier = Modifier.fillMaxWidth().height(barHeight).background(Color.White.copy(alpha = 0.25f), RoundedCornerShape(4.dp)))
+        Box(modifier = Modifier.fillMaxWidth(fraction).height(barHeight).background(if (focused) ArcAccent else Color.White, RoundedCornerShape(4.dp)))
+        if (focused) {
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = maxWidth * fraction - 8.dp)
+                        .size(16.dp)
+                        .background(Color.White, CircleShape)
                 )
             }
         }
