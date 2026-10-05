@@ -17,23 +17,15 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Forward10
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Subtitles
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -52,7 +44,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.focusable
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.key.Key
@@ -68,7 +59,6 @@ import coil.compose.AsyncImage
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.Episode
 import com.mangotv.app.data.model.PlayerPreferences
-import com.mangotv.app.ui.components.HeroIconButton
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
 import com.mangotv.app.ui.player.overlay.MenuOptionRow
@@ -85,7 +75,7 @@ import org.videolan.libvlc.MediaPlayer
 import org.videolan.libvlc.util.VLCVideoLayout
 import java.util.Locale
 
-private const val SEEK_STEP_MS = 10_000L
+internal const val SEEK_STEP_MS = 10_000L
 private const val FIRST_REPORT_MS = 4_000L
 private const val REPORT_INTERVAL_MS = 15_000L
 private const val CONTROLS_HIDE_MS = 5_000L
@@ -164,16 +154,7 @@ fun VlcPlaybackContent(
     var speedIndex by remember { mutableIntStateOf(1) }
     var seekText by remember { mutableStateOf<String?>(null) }
     val rootFocus = remember { FocusRequester() }
-    val timelineFocus = remember { FocusRequester() }
-    val playFocus = remember { FocusRequester() }
-    val rewindFocus = remember { FocusRequester() }
-    val forwardFocus = remember { FocusRequester() }
-    val audioFocus = remember { FocusRequester() }
-    val subtitlesFocus = remember { FocusRequester() }
-    val speedFocus = remember { FocusRequester() }
-    val nextFocus = remember { FocusRequester() }
-    val chooseFocus = remember { FocusRequester() }
-    val changeFocus = remember { FocusRequester() }
+    val focus = remember { VlcControlFocus() }
 
     fun bump() { interactionTick++ }
     fun refreshTracks() {
@@ -328,7 +309,7 @@ fun VlcPlaybackContent(
             // Back from a menu: onto the control that opened it, not Play / Pause.
             val last = lastFocus
             val restored = last != null && runCatching { last.requestFocus() }.isSuccess
-            if (!restored) runCatching { playFocus.requestFocus() }
+            if (!restored) runCatching { focus.play.requestFocus() }
         }
     }
 
@@ -416,89 +397,28 @@ fun VlcPlaybackContent(
         }
 
         if (controlsVisible && failure == null) {
-            // A soft fade up from the bottom so the controls read over any picture, then the same one-row layout as the built-in player.
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(220.dp)
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))))
+            val controls = VlcControlsModel(
+                content = content,
+                episode = episode,
+                playing = playing,
+                positionMs = positionMs,
+                lengthMs = lengthMs,
+                speedLabel = SPEEDS[speedIndex].toString().removeSuffix(".0") + "x",
+                showAudio = audioTracks.size > 1,
+                showSubtitles = subtitleTracks.size > 1,
+                hasNextEpisode = next != null,
+                onPlayPause = ::togglePlay,
+                onSeek = ::seekBy,
+                onAudio = { menu = VlcMenu.AUDIO },
+                onSubtitles = { menu = VlcMenu.SUBTITLES },
+                onSpeed = ::cycleSpeed,
+                onNextEpisode = { next?.let { onNextEpisode(it.season, it.episode) } },
+                onChoosePlayer = { showChoice = true },
+                onChangeSource = onChangeSource,
+                onBack = onBack,
+                onFocused = { lastFocus = it }
             )
-            Column(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 40.dp, vertical = 28.dp)) {
-                VlcTitle(content = content, episode = episode)
-                Text(
-                    text = SPEEDS[speedIndex].toString().removeSuffix(".0") + "x speed",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.labelMedium
-                )
-                Spacer(Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    HeroIconButton(
-                        icon = if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (playing) "Pause" else "Play",
-                        onClick = ::togglePlay,
-                        focusRequester = playFocus,
-                        focusDown = timelineFocus,
-                        onFocusChanged = { if (it) lastFocus = playFocus },
-                        showBackground = false,
-                        borderColor = Color.White
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    HeroIconButton(
-                        icon = Icons.Filled.Replay10,
-                        contentDescription = "Rewind 10 seconds",
-                        onClick = { seekBy(-SEEK_STEP_MS) },
-                        focusRequester = rewindFocus,
-                        onFocusChanged = { if (it) lastFocus = rewindFocus },
-                        focusDown = timelineFocus,
-                        compact = true,
-                        showBackground = false,
-                        borderColor = Color.White
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    HeroIconButton(
-                        icon = Icons.Filled.Forward10,
-                        contentDescription = "Forward 10 seconds",
-                        onClick = { seekBy(SEEK_STEP_MS) },
-                        focusRequester = forwardFocus,
-                        onFocusChanged = { if (it) lastFocus = forwardFocus },
-                        focusDown = timelineFocus,
-                        compact = true,
-                        showBackground = false,
-                        borderColor = Color.White
-                    )
-                    Spacer(Modifier.width(18.dp))
-                    Text(formatTimestamp(positionMs), color = TextSecondary, style = MaterialTheme.typography.labelMedium)
-                    Spacer(Modifier.width(14.dp))
-                    VlcTimeline(
-                        fraction = if (lengthMs > 0) (positionMs.toFloat() / lengthMs).coerceIn(0f, 1f) else 0f,
-                        focusRequester = timelineFocus,
-                        onSeek = ::seekBy,
-                        onFocused = { lastFocus = timelineFocus },
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(Modifier.width(14.dp))
-                    Text(formatRightTime(positionMs, lengthMs, showRemaining = true), color = TextSecondary, style = MaterialTheme.typography.labelMedium)
-                    Spacer(Modifier.width(18.dp))
-                    if (audioTracks.size > 1) {
-                        HeroIconButton(icon = Icons.Filled.VolumeUp, contentDescription = "Audio", onClick = { menu = VlcMenu.AUDIO }, focusRequester = audioFocus, onFocusChanged = { if (it) lastFocus = audioFocus }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
-                        Spacer(Modifier.width(8.dp))
-                    }
-                    if (subtitleTracks.size > 1) {
-                        HeroIconButton(icon = Icons.Filled.Subtitles, contentDescription = "Subtitles", onClick = { menu = VlcMenu.SUBTITLES }, focusRequester = subtitlesFocus, onFocusChanged = { if (it) lastFocus = subtitlesFocus }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
-                        Spacer(Modifier.width(8.dp))
-                    }
-                    HeroIconButton(icon = Icons.Filled.Speed, contentDescription = "Playback speed", onClick = ::cycleSpeed, focusRequester = speedFocus, onFocusChanged = { if (it) lastFocus = speedFocus }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
-                    Spacer(Modifier.width(8.dp))
-                    if (next != null) {
-                        HeroIconButton(icon = Icons.Filled.SkipNext, contentDescription = "Next episode", onClick = { onNextEpisode(next.season, next.episode) }, focusRequester = nextFocus, onFocusChanged = { if (it) lastFocus = nextFocus }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
-                        Spacer(Modifier.width(8.dp))
-                    }
-                    HeroIconButton(icon = Icons.Filled.OpenInNew, contentDescription = "Choose player", onClick = { showChoice = true }, focusRequester = chooseFocus, onFocusChanged = { if (it) lastFocus = chooseFocus }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
-                    Spacer(Modifier.width(8.dp))
-                    HeroIconButton(icon = Icons.Filled.SwapHoriz, contentDescription = "Change source", onClick = onChangeSource, focusRequester = changeFocus, onFocusChanged = { if (it) lastFocus = changeFocus }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
-                }
-            }
+            if (USE_CLASSIC_VLC_CONTROLS) VlcControlsClassic(controls, focus) else VlcControlsNetflix(controls, focus)
         }
 
         if (offerNext && next != null && upNext == null && !controlsVisible && menu == null && !showChoice && failure == null) {
@@ -589,7 +509,7 @@ private fun VlcTrackMenu(title: String, tracks: List<VlcTrack>, selectedId: Int,
  * OK again, UP, DOWN or moving off it ends scrubbing.
  */
 @Composable
-private fun VlcTimeline(fraction: Float, focusRequester: FocusRequester, onSeek: (Long) -> Unit, onFocused: () -> Unit, modifier: Modifier = Modifier) {
+internal fun VlcTimeline(fraction: Float, focusRequester: FocusRequester, onSeek: (Long) -> Unit, onFocused: () -> Unit, modifier: Modifier = Modifier) {
     var focused by remember { mutableStateOf(false) }
     var scrubbing by remember { mutableStateOf(false) }
     val barHeight = if (scrubbing) 8.dp else if (focused) 7.dp else 5.dp
@@ -633,7 +553,7 @@ private fun VlcTimeline(fraction: Float, focusRequester: FocusRequester, onSeek:
  * Bottom left of the controls: the title's logo when it has one (its name otherwise), and "S1 E2 • title" for an episode.
  */
 @Composable
-private fun VlcTitle(content: Content, episode: Episode?) {
+internal fun VlcTitle(content: Content, episode: Episode?) {
     if (content.logoUrl != null) {
         AsyncImage(
             model = content.logoUrl,
