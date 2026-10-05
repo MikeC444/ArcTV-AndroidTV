@@ -4519,3 +4519,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** VLC's software decoding of 4K HEVC can be too slow on a typical TV box. Decoding is software by default (a half-working hardware decoder shows as a blocky grey picture, which is what the first version showed on a test device by letting VLC choose the hardware decoder), with a "Decoding" button in the VLC controls that reopens the source from the same spot on the device's hardware decoder (remembered per device, `DevicePlayerPrefs.vlcHardwareDecoding`). The VLC screen is simpler than the built-in player: no passthrough or speaker settings, no external-player button, no next-episode offer, and subtitle choices are not remembered. Dolby Vision plays as its HDR10 base layer.
 
 **Issues fixed:** sources the device's own decoders reject can now play, in software if need be.
+
+## Post-Milestone-85 — Dolby Vision fallback and switch
+
+**Status:** Written; not built or tried on a TV.
+
+**Context:** a 4K Dolby Vision (profile 8, HDR10-compatible) file failed in the built-in player. Media3 already lists plain HEVC decoders after the Dolby Vision ones for such a file (the failing decoder in that report was the HEVC one, `c2.goldfish.hevc.decoder`, which rejected the 4K level, so this change would not have fixed that exact case), but there was no way to skip a Dolby Vision decoder that is missing, broken or tints the picture, and no retry.
+
+**Changes:**
+- `PlayerEngine`: a `MediaCodecSelector` (`dolbyVisionAwareSelector`) for Dolby Vision files: the device's Dolby Vision decoders first, then its plain HEVC decoders (so the HDR10 base layer plays), or only the HEVC decoders while `DolbyVisionSwitch` is off. All other formats are untouched.
+- Player > Settings > Advanced has a "Dolby Vision" toggle (on by default, `DevicePlayerPrefs.dolbyVision`); flipping it re-prepares playback from the same position (a brief rebuffer), so it takes effect at once.
+- `PlayerListenerBridge.retryWithoutDolbyVision`: when a Dolby Vision video track fails with a format error (`isFormatFailure`), it turns Dolby Vision off for that playback (not saved) and prepares again from the same spot, once, before any error screen or other player is offered.
+
+**Tests performed:** none; no Gradle build here (no route to `dl.google.com`) and nothing tried on a device. Written against the Media3 1.5.0 API (`MediaCodecSelector`, `Tracks.Group`).
+
+**Issues discovered:** with Dolby Vision off, profile 5 files (which have no HDR10 base layer) will show wrong colours; there is no setting for it in the main Settings screen yet, only in the player.
+
+**Issues fixed:** the above.

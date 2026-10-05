@@ -2,6 +2,7 @@ package com.mangotv.app.ui.player.overlay
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.HdrOn
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -21,6 +22,8 @@ fun AdvancedSettingsPanel(
     onSkipIntroChange: (Boolean) -> Unit,
     audioPassthrough: Boolean,
     onAudioPassthroughChange: (Boolean) -> Unit,
+    dolbyVision: Boolean,
+    onDolbyVisionChange: (Boolean) -> Unit,
     onOpenSourceInfo: () -> Unit,
     onChangeSource: () -> Unit,
     modifier: Modifier = Modifier
@@ -48,6 +51,13 @@ fun AdvancedSettingsPanel(
             subtitle = if (audioPassthrough) "On" else "Off",
             onClick = { onAudioPassthroughChange(!audioPassthrough) },
             trailing = { ToggleSwitch(checked = audioPassthrough) }
+        )
+        SettingsRow(
+            icon = Icons.Filled.HdrOn,
+            title = "Dolby Vision",
+            subtitle = if (dolbyVision) "On" else "Off: plays as HDR10",
+            onClick = { onDolbyVisionChange(!dolbyVision) },
+            trailing = { ToggleSwitch(checked = dolbyVision) }
         )
         SettingsRow(
             icon = Icons.Filled.Info,

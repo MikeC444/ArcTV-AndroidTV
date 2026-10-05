@@ -183,7 +183,8 @@ private fun PlaybackContent(
     // a later change to Subtitles settings only takes effect on the next
     // playback session (leaving/re-entering the player), not live mid-session.
     val audioOutput = remember { AudioOutputSettings(DevicePlayerPrefs.audioPassthrough(context), DevicePlayerPrefs.audioChannelMode(context)) }
-    val exoPlayer = remember { buildExoPlayer(context, preferences, audioOutput) }
+    val dolbyVisionSwitch = remember { DolbyVisionSwitch(DevicePlayerPrefs.dolbyVision(context)) }
+    val exoPlayer = remember { buildExoPlayer(context, preferences, audioOutput, dolbyVisionSwitch) }
     val uiSoundPlayer = LocalUiSoundPlayer.current
 
     // Opening: the loading screen stays until the first picture plays (and behind the resume question).
@@ -191,6 +192,7 @@ private fun PlaybackContent(
     LaunchedEffect(phase) { if (phase is PlaybackPhase.Playing) started = true }
     var showRemaining by remember { mutableStateOf(DevicePlayerPrefs.showRemaining(context)) }
     var audioPassthrough by remember { mutableStateOf(DevicePlayerPrefs.audioPassthrough(context)) }
+    var dolbyVision by remember { mutableStateOf(dolbyVisionSwitch.enabled) }
     // The episode after this one, offered in the last minute and counted down to after the end (when Auto Play Next Episode is on).
     val next = remember(content, episode) { nextEpisodeAfter(content.seasons, episode?.seasonNumber, episode?.episodeNumber) }
     var upNext by remember { mutableStateOf<NextEpisode?>(null) }
@@ -214,7 +216,7 @@ private fun PlaybackContent(
     }
 
     DisposableEffect(exoPlayer) {
-        val listener = PlayerListenerBridge(onPhaseChanged, onTracksChanged, exoPlayer)
+        val listener = PlayerListenerBridge(onPhaseChanged, onTracksChanged, exoPlayer, dolbyVisionSwitch) { dolbyVision = false }
         exoPlayer.addListener(listener)
         onDispose {
             exoPlayer.removeListener(listener)
@@ -838,6 +840,20 @@ private fun PlaybackContent(
                     DevicePlayerPrefs.setAudioPassthrough(context, enabled)
                     audioOutput.passthrough = enabled
                     // The audio output is chosen when playback is prepared, so prepare again from the same spot (a brief rebuffer).
+                    exoPlayer.currentMediaItem?.let { item ->
+                        val position = exoPlayer.currentPosition
+                        val play = exoPlayer.playWhenReady
+                        exoPlayer.setMediaItem(item, position)
+                        exoPlayer.prepare()
+                        exoPlayer.playWhenReady = play
+                    }
+                },
+                dolbyVision = dolbyVision,
+                onDolbyVisionChange = { enabled ->
+                    dolbyVision = enabled
+                    DevicePlayerPrefs.setDolbyVision(context, enabled)
+                    dolbyVisionSwitch.enabled = enabled
+                    // The decoder is chosen when playback is prepared, so prepare again from the same spot (a brief rebuffer).
                     exoPlayer.currentMediaItem?.let { item ->
                         val position = exoPlayer.currentPosition
                         val play = exoPlayer.playWhenReady

@@ -18,6 +18,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - Can't play a source? Pick the built-in player, a VLC engine or another app from the new button beside the timeline.
 
+- Dolby Vision file won't play? It now retries as HDR10, and you can switch Dolby Vision off in the player.
+
 - Cleaner source filters: the Audio pill is no longer cut off at the edge, and the dark halo around pills is gone.
 
 - Pick your preferred audio language in Settings > Audio, and it follows you to all your devices.

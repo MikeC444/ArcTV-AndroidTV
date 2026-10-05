@@ -15,6 +15,7 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.ForwardingAudioSink
@@ -38,7 +39,7 @@ import okhttp3.OkHttpClient
  * still override it once tracks are known, exactly like it always could.
  */
 @OptIn(UnstableApi::class)
-fun buildExoPlayer(context: Context, preferences: PlayerPreferences, audioOutput: AudioOutputSettings): ExoPlayer {
+fun buildExoPlayer(context: Context, preferences: PlayerPreferences, audioOutput: AudioOutputSettings, dolbyVision: DolbyVisionSwitch): ExoPlayer {
     val httpDataSourceFactory = OkHttpDataSource.Factory(OkHttpClient.Builder().build())
     val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
     // Decoder fallback: when the first-choice hardware decoder for a track can't start (some Fire TV audio decoders
@@ -48,6 +49,7 @@ fun buildExoPlayer(context: Context, preferences: PlayerPreferences, audioOutput
     // claims support it doesn't really have gives sound anyway. The switch is read live; PlayerScreen re-prepares playback when it flips.
     val renderersFactory = SwitchableRenderersFactory(context, audioOutput)
         .setEnableDecoderFallback(true)
+        .setMediaCodecSelector(dolbyVisionAwareSelector(dolbyVision))
         // ON = the FFmpeg audio renderer (media3-ffmpeg-decoder) is tried only after the device's own decoders, so a track the device
         // can't decode (DTS, DTS-HD, TrueHD on most TV boxes) is decoded in software instead of staying silent.
         .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
@@ -68,6 +70,27 @@ fun buildExoPlayer(context: Context, preferences: PlayerPreferences, audioOutput
     player.trackSelectionParameters = parametersBuilder.build()
 
     return player
+}
+
+/**
+ * Whether Dolby Vision files may use a Dolby Vision decoder; off plays them as the HDR10 picture underneath (plain HEVC decoders), for devices
+ * whose Dolby Vision decoder is missing, broken or tints the picture. Read live, so flipping it takes effect on the next (re)prepare.
+ */
+class DolbyVisionSwitch(@Volatile var enabled: Boolean)
+
+/**
+ * Dolby Vision files list the device's Dolby Vision decoders first and its plain HEVC decoders after them, so a device with no (working) Dolby
+ * Vision decoder plays the HDR10 base layer; with the switch off only the HEVC decoders are offered. Every other format is untouched.
+ */
+@OptIn(UnstableApi::class)
+private fun dolbyVisionAwareSelector(dolbyVision: DolbyVisionSwitch) = MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
+    val infos = MediaCodecSelector.DEFAULT.getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder)
+    if (mimeType != MimeTypes.VIDEO_DOLBY_VISION) {
+        infos
+    } else {
+        val hevc = MediaCodecSelector.DEFAULT.getDecoderInfos(MimeTypes.VIDEO_H265, requiresSecureDecoder, requiresTunnelingDecoder)
+        (if (dolbyVision.enabled) infos + hevc else hevc).distinctBy { it.name }
+    }
 }
 
 /**
@@ -115,7 +138,10 @@ private class SwitchableAudioSink(delegate: AudioSink, private val settings: Aud
 class PlayerListenerBridge(
     private val onPhaseChanged: (PlaybackPhase) -> Unit,
     private val onTracksChangedCallback: (Tracks) -> Unit = {},
-    private val player: Player? = null
+    private val player: Player? = null,
+    // Shared with the player's Dolby Vision switch: turned off by the retry below when a Dolby Vision file fails to decode.
+    private val dolbyVision: DolbyVisionSwitch? = null,
+    private val onDolbyVisionFallback: () -> Unit = {}
 ) : Player.Listener {
 
     // Audio tracks that already failed to decode in this session, so the automatic switch below can't loop.
@@ -139,9 +165,36 @@ class PlayerListenerBridge(
 
     override fun onPlayerError(error: PlaybackException) {
         if (switchToOtherAudioTrack(error)) return
+        if (retryWithoutDolbyVision(error)) return
         onPhaseChanged(
             PlaybackPhase.Error(if (isFormatFailure(error)) PlaybackErrorType.UNSUPPORTED_SOURCE else PlaybackErrorType.UNKNOWN, describePlaybackError(error))
         )
+    }
+
+    private var triedWithoutDolbyVision = false
+
+    /**
+     * A Dolby Vision file the device fails to decode often plays as its HDR10 base layer: once per session, turn Dolby Vision off and prepare
+     * again from the same spot instead of showing an error. False when it isn't that case (not a format failure, not Dolby Vision, already tried).
+     */
+    private fun retryWithoutDolbyVision(error: PlaybackException): Boolean {
+        val player = player ?: return false
+        val switch = dolbyVision ?: return false
+        if (triedWithoutDolbyVision || !switch.enabled || !isFormatFailure(error)) return false
+        val isDolbyVision = player.currentTracks.groups.any { group ->
+            group.type == C.TRACK_TYPE_VIDEO && group.isSelected &&
+                (0 until group.length).any { group.getTrackFormat(it).sampleMimeType == MimeTypes.VIDEO_DOLBY_VISION }
+        }
+        if (!isDolbyVision) return false
+        triedWithoutDolbyVision = true
+        switch.enabled = false
+        onDolbyVisionFallback()
+        val item = player.currentMediaItem ?: return false
+        val position = player.currentPosition
+        player.setMediaItem(item, position)
+        player.prepare()
+        player.playWhenReady = true
+        return true
     }
 
     /**
