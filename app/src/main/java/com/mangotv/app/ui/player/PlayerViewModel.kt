@@ -44,6 +44,9 @@ class PlayerViewModel(
     private val externalPlayerRepository = (application as MangoTvApplication).container.externalPlayerRepository
     private val myListRepository = (application as MangoTvApplication).container.myListRepository
 
+    /** Identifies this title (not the episode) for the player remembered for it (DevicePlayerPrefs.titlePlayer). */
+    val titleKey: String get() = "$providerId|$contentId|${contentType.name}"
+
     private val providerId: String =
         URLDecoder.decode(savedStateHandle.get<String>("providerId").orEmpty(), "UTF-8")
     private val contentType: ContentType =

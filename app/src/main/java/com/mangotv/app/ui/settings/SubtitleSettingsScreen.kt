@@ -195,7 +195,11 @@ private fun SubtitlesToggleRow(
 internal fun LanguageOptionRow(
     label: String,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    // Only the first row of a tab needs these (the pane's focus wiring, see SubtitleSettingsContent's kdoc).
+    focusRequester: FocusRequester? = null,
+    focusUp: FocusRequester? = null,
+    focusLeft: FocusRequester? = null
 ) {
     TvFocusSurface(
         onClick = onClick,
@@ -203,7 +207,10 @@ internal fun LanguageOptionRow(
         shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
         focusedScale = 1.02f,
         backgroundColor = MangoSurface,
-        borderColor = TextPrimary
+        borderColor = TextPrimary,
+        focusRequester = focusRequester,
+        focusUp = focusUp,
+        focusLeft = focusLeft
     ) {
         Row(
             modifier = Modifier

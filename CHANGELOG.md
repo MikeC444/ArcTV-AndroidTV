@@ -4535,3 +4535,22 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** after the retry, profile 5 files (which have no HDR10 base layer) will show wrong colours; there is no setting to opt out.
 
 **Issues fixed:** the above.
+
+## Post-Milestone-86 — Default player and a remembered choice per title
+
+**Status:** Written; not built or tried on a TV.
+
+**Context:** the Choose player card (Post-Milestone-79 / 84) was asked again for every title, and the VLC engine was only reachable from the built-in player's error screen or icon.
+
+**Changes:**
+- Settings > Player (new, first in "Playback & sound", `PlayerSettingsScreen.kt`): the default player, VLC engine (the default, recommended) or the built-in player, kept on this device (`DevicePlayerPrefs.defaultPlayer`).
+- Each title remembers the player picked for it: playing the card's built-in or VLC row saves it for that title (`DevicePlayerPrefs.titlePlayer`, keyed by `PlayerViewModel.titleKey` = provider, id and type, so all episodes of a show share it). A title starts in its own pick, else the default (`playerFor`), so Continue Watching reopens the same player. Another app is a one-off and is never remembered or started automatically.
+- `PlayerScreen` picks the player before composing either (no built-in player is started and thrown away); VLC is only used on a chip LibVLC runs on (`VLCUtil.hasCompatibleCPU`), and for a source with a direct link. Switching carries the position over in both directions; the VLC screen's progress reports keep Continue Watching current, and the built-in player resumes from it.
+- The VLC screen gets a "Choose player" icon opening the same card (`PlayerChoiceCard` now takes `vlcAvailable`): built-in (back from the current position), VLC, or another app. Without it, making VLC the default would have left no way to the built-in player or another app.
+- `LanguageOptionRow` takes the pane's optional focus requesters so the new tab's first row is wired like the others.
+
+**Tests performed:** none; no Gradle build here (no route to `dl.google.com`) and nothing tried on a device. `hasCompatibleCPU` was checked against the real LibVLC class with `javap`.
+
+**Issues discovered:** with VLC the default, everything plays in the simpler VLC screen: no next-episode offer or Auto Play Next Episode, no passthrough or Speakers settings, no skip intro, no quality menu, no remembered subtitle choice. Switching to the built-in player is one press of the Choose player icon, and a title remembers it.
+
+**Issues fixed:** the above.

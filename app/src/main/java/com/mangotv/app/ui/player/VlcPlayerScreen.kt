@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
@@ -66,6 +67,8 @@ import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
 import com.mangotv.app.ui.player.overlay.MenuOptionRow
 import com.mangotv.app.ui.player.overlay.MenuOverlayScaffold
+import com.mangotv.app.ui.player.overlay.PlayerChoiceCard
+import com.mangotv.app.ui.player.overlay.PlayerChoiceOption
 import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
@@ -103,6 +106,11 @@ fun VlcPlaybackContent(
     startPositionMs: Long,
     preferences: PlayerPreferences,
     onReportProgress: (positionMs: Long, durationMs: Long, completed: Boolean) -> Unit,
+    // The Choose player card's other rows: back to the built-in player from the given position, or another app (true when one opened).
+    onPlayWithBuiltIn: (positionMs: Long) -> Unit,
+    onOpenExternal: () -> Boolean,
+    // Called when the card's built-in or VLC row is played, so the title remembers it.
+    onRememberPlayer: (PreferredPlayer) -> Unit,
     onChangeSource: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -122,6 +130,7 @@ fun VlcPlaybackContent(
     var controlsVisible by remember { mutableStateOf(false) }
     var interactionTick by remember { mutableIntStateOf(0) }
     var menu by remember { mutableStateOf<VlcMenu?>(null) }
+    var showChoice by remember { mutableStateOf(false) }
     var audioTracks by remember { mutableStateOf<List<VlcTrack>>(emptyList()) }
     var subtitleTracks by remember { mutableStateOf<List<VlcTrack>>(emptyList()) }
     var selectedAudio by remember { mutableIntStateOf(-1) }
@@ -259,14 +268,14 @@ fun VlcPlaybackContent(
     }
 
     // Controls hide a few seconds after the last key, unless a menu is open.
-    LaunchedEffect(controlsVisible, interactionTick, menu) {
-        if (controlsVisible && menu == null) {
+    LaunchedEffect(controlsVisible, interactionTick, menu, showChoice) {
+        if (controlsVisible && menu == null && !showChoice) {
             delay(CONTROLS_HIDE_MS)
             controlsVisible = false
         }
     }
-    LaunchedEffect(controlsVisible, menu) {
-        if (menu == null) runCatching { if (controlsVisible) playFocus.requestFocus() else rootFocus.requestFocus() }
+    LaunchedEffect(controlsVisible, menu, showChoice) {
+        if (menu == null && !showChoice) runCatching { if (controlsVisible) playFocus.requestFocus() else rootFocus.requestFocus() }
     }
 
     Box(
@@ -276,7 +285,7 @@ fun VlcPlaybackContent(
             .focusRequester(rootFocus)
             .focusable()
             .onPreviewKeyEvent { event ->
-                if (event.type != KeyEventType.KeyDown || menu != null || failure != null) return@onPreviewKeyEvent false
+                if (event.type != KeyEventType.KeyDown || menu != null || showChoice || failure != null) return@onPreviewKeyEvent false
                 when (event.key) {
                     Key.MediaPlayPause, Key.MediaPlay, Key.MediaPause -> { togglePlay(); true }
                     else -> if (!controlsVisible) {
@@ -404,9 +413,36 @@ fun VlcPlaybackContent(
                     }
                     HeroIconButton(icon = Icons.Filled.Speed, contentDescription = "Playback speed", onClick = ::cycleSpeed, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
                     Spacer(Modifier.width(8.dp))
+                    HeroIconButton(icon = Icons.Filled.OpenInNew, contentDescription = "Choose player", onClick = { showChoice = true }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
+                    Spacer(Modifier.width(8.dp))
                     HeroIconButton(icon = Icons.Filled.SwapHoriz, contentDescription = "Change source", onClick = onChangeSource, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
                 }
             }
+        }
+
+        if (showChoice) {
+            PlayerChoiceCard(
+                externalAvailable = hasExternalPlayer(context, url),
+                initial = PlayerChoiceOption.VLC,
+                onPlay = { option ->
+                    when (option) {
+                        PlayerChoiceOption.BUILT_IN -> {
+                            onRememberPlayer(PreferredPlayer.BUILT_IN)
+                            showChoice = false
+                            onPlayWithBuiltIn(mediaPlayer.time.coerceAtLeast(0))
+                        }
+                        PlayerChoiceOption.VLC -> {
+                            onRememberPlayer(PreferredPlayer.VLC)
+                            showChoice = false
+                        }
+                        PlayerChoiceOption.EXTERNAL -> {
+                            mediaPlayer.pause()
+                            if (onOpenExternal()) showChoice = false
+                        }
+                    }
+                },
+                onCancel = { showChoice = false }
+            )
         }
 
         when (menu) {
@@ -426,6 +462,7 @@ fun VlcPlaybackContent(
 
     BackHandler {
         when {
+            showChoice -> showChoice = false
             menu != null -> menu = null
             controlsVisible -> controlsVisible = false
             else -> onBack()

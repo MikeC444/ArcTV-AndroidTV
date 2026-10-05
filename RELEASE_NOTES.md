@@ -20,6 +20,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - Dolby Vision file won't play? It now retries by itself as HDR10.
 
+- Choose your default player in Settings > Player, and each title remembers the player you picked for it.
+
 - Cleaner source filters: the Audio pill is no longer cut off at the edge, and the dark halo around pills is gone.
 
 - Pick your preferred audio language in Settings > Audio, and it follows you to all your devices.

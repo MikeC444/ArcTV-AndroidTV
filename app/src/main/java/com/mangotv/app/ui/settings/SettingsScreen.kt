@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.WorkspacePremium
@@ -72,6 +73,7 @@ private enum class SettingsCategory(val icon: ImageVector, val title: String, va
     ADDONS(Icons.Filled.Extension, "Addons", "Manage installed content providers"),
     HOME_ROWS(Icons.Filled.GridView, "Home Rows", "Choose which rows show up on Home"),
     BLOCKED_GENRES(Icons.Filled.Block, "Blocked Genres", "Hide genres you don't want to see"),
+    PLAYER(Icons.Filled.PlayCircle, "Player", "Choose your default video player"),
     SUBTITLES(Icons.Filled.Subtitles, "Subtitles", "Default on/off and preferred language"),
     AUDIO(Icons.Filled.SurroundSound, "Audio", "Surround sound and passthrough"),
     SOUNDS(Icons.Filled.MusicNote, "Sounds", "Choose your app boot sound")
@@ -81,7 +83,7 @@ private enum class SettingsCategory(val icon: ImageVector, val title: String, va
 private val SettingsGroups: List<Pair<String, List<SettingsCategory>>> = listOf(
     "You" to listOf(SettingsCategory.ACCOUNT, SettingsCategory.PLUS),
     "Content" to listOf(SettingsCategory.ADDONS, SettingsCategory.HOME_ROWS, SettingsCategory.BLOCKED_GENRES),
-    "Playback & sound" to listOf(SettingsCategory.SUBTITLES, SettingsCategory.AUDIO, SettingsCategory.SOUNDS)
+    "Playback & sound" to listOf(SettingsCategory.PLAYER, SettingsCategory.SUBTITLES, SettingsCategory.AUDIO, SettingsCategory.SOUNDS)
 )
 
 @Composable
@@ -98,6 +100,7 @@ fun SettingsScreen(
     val soundsRowFocusRequester = remember { FocusRequester() }
     val subtitlesRowFocusRequester = remember { FocusRequester() }
     val audioRowFocusRequester = remember { FocusRequester() }
+    val playerRowFocusRequester = remember { FocusRequester() }
     val plusRowFocusRequester = remember { FocusRequester() }
 
     // Shared by every sidebar row's focusRight: only the selected category's
@@ -118,6 +121,7 @@ fun SettingsScreen(
         SettingsCategory.SOUNDS -> soundsRowFocusRequester
         SettingsCategory.SUBTITLES -> subtitlesRowFocusRequester
         SettingsCategory.AUDIO -> audioRowFocusRequester
+        SettingsCategory.PLAYER -> playerRowFocusRequester
         SettingsCategory.PLUS -> plusRowFocusRequester
     }
 
@@ -337,6 +341,11 @@ private fun SettingsDetailPane(
                 contentFocusRequester = contentFocusRequester
             )
             SettingsCategory.SUBTITLES -> SubtitleSettingsContent(
+                navFocusRequester = navFocusRequester,
+                contentFocusRequester = contentFocusRequester,
+                sidebarFocusRequester = sidebarFocusRequester
+            )
+            SettingsCategory.PLAYER -> PlayerSettingsContent(
                 navFocusRequester = navFocusRequester,
                 contentFocusRequester = contentFocusRequester,
                 sidebarFocusRequester = sidebarFocusRequester

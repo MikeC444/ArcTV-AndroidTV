@@ -40,24 +40,29 @@ enum class PlayerChoiceOption { BUILT_IN, VLC, EXTERNAL }
 /**
  * "Choose player": pick how to play this source, then press Play -- nothing happens (and nothing leaves Arc TV) until then. Pressing a row
  * only selects it. [externalAvailable] false means no other player app is installed, so that row is left out and a note says so.
- * [initial] is the row that starts selected. BACK closes it (the player's overlay stack handles that), like every other menu.
+ * [vlcAvailable] false (a chip LibVLC doesn't run on) leaves the VLC row out too. [initial] is the row that starts selected. BACK closes it (the player's overlay stack handles that), like every other menu.
  */
 @Composable
 fun PlayerChoiceCard(
     externalAvailable: Boolean,
     initial: PlayerChoiceOption,
+    vlcAvailable: Boolean = true,
     onPlay: (PlayerChoiceOption) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val start = if (initial == PlayerChoiceOption.EXTERNAL && !externalAvailable) PlayerChoiceOption.BUILT_IN else initial
+    val start = when {
+        initial == PlayerChoiceOption.EXTERNAL && !externalAvailable -> PlayerChoiceOption.BUILT_IN
+        initial == PlayerChoiceOption.VLC && !vlcAvailable -> PlayerChoiceOption.BUILT_IN
+        else -> initial
+    }
     var selected by remember { mutableStateOf(start) }
     val startFocusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { startFocusRequester.requestFocus() } }
 
     val options = buildList {
         add(Triple(PlayerChoiceOption.BUILT_IN, "Built-in player", "Arc TV's normal player"))
-        add(Triple(PlayerChoiceOption.VLC, "VLC engine", "Plays formats the built-in player can't; uses more power"))
+        if (vlcAvailable) add(Triple(PlayerChoiceOption.VLC, "VLC engine", "Plays formats the built-in player can't; uses more power"))
         if (externalAvailable) add(Triple(PlayerChoiceOption.EXTERNAL, "Another app", "Opens a player app on this device and leaves Arc TV"))
     }
 

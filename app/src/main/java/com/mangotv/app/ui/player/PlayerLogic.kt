@@ -34,6 +34,16 @@ fun shouldOfferResume(resumeMs: Long?, durationMs: Long): Boolean =
 fun formatRightTime(positionMs: Long, durationMs: Long, showRemaining: Boolean): String =
     if (showRemaining) "−" + formatTimestamp((durationMs - positionMs).coerceAtLeast(0)) else formatTimestamp(durationMs.coerceAtLeast(0))
 
+/** The two players Arc TV can play a title with (another app is a one-off pick, never remembered). */
+enum class PreferredPlayer(val wire: String) {
+    BUILT_IN("builtin"),
+    VLC("vlc");
+
+    companion object {
+        fun fromWire(value: String?): PreferredPlayer? = entries.firstOrNull { it.wire == value }
+    }
+}
+
 /**
  * What the player remembers between titles on this device only (not synced: a TV and a phone want different settings): the playback
  * speed, and whether the right-hand time shows what is left. (Volume is the TV's own, so it is not kept here.)
@@ -44,6 +54,8 @@ object DevicePlayerPrefs {
     private const val SHOW_REMAINING = "show_remaining"
     private const val AUDIO_PASSTHROUGH = "audio_passthrough"
     private const val AUDIO_CHANNELS = "audio_channels"
+    private const val DEFAULT_PLAYER = "default_player"
+    private const val TITLE_PLAYERS_FILE = "arctv_title_players"
 
     fun speed(context: Context): Float {
         val value = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getFloat(SPEED, 1f)
@@ -72,6 +84,25 @@ object DevicePlayerPrefs {
     fun setAudioChannelMode(context: Context, mode: AudioChannelMode) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(AUDIO_CHANNELS, mode.wire).apply()
     }
+
+    /** The player used for a title that has no pick of its own (Settings > Player): VLC's engine unless the person changed it. */
+    fun defaultPlayer(context: Context): PreferredPlayer =
+        PreferredPlayer.fromWire(context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(DEFAULT_PLAYER, null)) ?: PreferredPlayer.VLC
+
+    fun setDefaultPlayer(context: Context, player: PreferredPlayer) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(DEFAULT_PLAYER, player.wire).apply()
+    }
+
+    /** The player the person picked for this title (from the player's Choose player card), or null if they never did. */
+    fun titlePlayer(context: Context, titleKey: String): PreferredPlayer? =
+        PreferredPlayer.fromWire(context.getSharedPreferences(TITLE_PLAYERS_FILE, Context.MODE_PRIVATE).getString(titleKey, null))
+
+    fun setTitlePlayer(context: Context, titleKey: String, player: PreferredPlayer) {
+        context.getSharedPreferences(TITLE_PLAYERS_FILE, Context.MODE_PRIVATE).edit().putString(titleKey, player.wire).apply()
+    }
+
+    /** The player to start a title with: the one picked for it, else the default. */
+    fun playerFor(context: Context, titleKey: String): PreferredPlayer = titlePlayer(context, titleKey) ?: defaultPlayer(context)
 
     fun setShowRemaining(context: Context, value: Boolean) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(SHOW_REMAINING, value).apply()

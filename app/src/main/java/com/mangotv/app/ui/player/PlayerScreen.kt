@@ -60,6 +60,7 @@ import com.mangotv.app.ui.player.overlay.SettingsPanel
 import com.mangotv.app.ui.player.overlay.SourceInfoPanel
 import com.mangotv.app.ui.player.overlay.SubtitlesMenu
 import kotlin.math.abs
+import org.videolan.libvlc.util.VLCUtil
 import kotlinx.coroutines.delay
 
 /** How often a progress report fires while actively playing (Milestone 8) -- frequent enough that another device's Continue Watching stays reasonably current, infrequent enough not to flood the network on every position tick. */
@@ -84,8 +85,7 @@ fun PlayerScreen(
     val subtitleTracks by viewModel.subtitleTracks.collectAsStateWithLifecycle()
     val qualityOptions by viewModel.qualityOptions.collectAsStateWithLifecycle()
     val preferences by viewModel.preferences.collectAsStateWithLifecycle()
-    // Set (to the position to carry on from) when the built-in player can't play the source: VLC's own engine takes over (VlcPlayerScreen).
-    var vlcStartMs by remember { mutableStateOf<Long?>(null) }
+    val context = LocalContext.current
 
     Box(
         modifier = modifier
@@ -115,17 +115,40 @@ fun PlayerScreen(
             }
             is PlayerScreenUiState.Ready -> {
                 val streamUrl = state.stream.url
-                val vlcStart = vlcStartMs
-                if (vlcStart != null && streamUrl != null) {
+                val titleKey = viewModel.titleKey
+                val displayTitle = listOfNotNull(
+                    state.content.title,
+                    state.episode?.let { "S${it.seasonNumber}E${it.episodeNumber}" }
+                ).joinToString(" ")
+                // Which player starts: the one this title remembers, else the default (VLC's engine unless Settings > Player says otherwise).
+                // Only for a source with a direct link and a chip LibVLC runs on; everything else uses the built-in player.
+                val vlcUsable = remember { VLCUtil.hasCompatibleCPU(context) }
+                val resumeAtStart = remember(state.stream.id) { viewModel.resumePositionMs() }
+                val startsInVlc = remember(state.stream.id) {
+                    streamUrl != null && vlcUsable && DevicePlayerPrefs.playerFor(context, titleKey) == PreferredPlayer.VLC
+                }
+                // The position VLC starts from (null while the built-in player is the one playing), and where the built-in player starts.
+                var vlcStart by remember(state.stream.id) { mutableStateOf(if (startsInVlc) (resumeAtStart ?: 0L) else null) }
+                var builtInStart by remember(state.stream.id) { mutableStateOf(resumeAtStart) }
+                val rememberPlayer: (PreferredPlayer) -> Unit = { player -> DevicePlayerPrefs.setTitlePlayer(context, titleKey, player) }
+                val currentVlcStart = vlcStart
+                if (currentVlcStart != null && streamUrl != null) {
                     VlcPlaybackContent(
-                        title = listOfNotNull(
-                            state.content.title,
-                            state.episode?.let { "S${it.seasonNumber}E${it.episodeNumber}" }
-                        ).joinToString(" "),
+                        title = displayTitle,
                         url = streamUrl,
-                        startPositionMs = vlcStart,
+                        startPositionMs = currentVlcStart,
                         preferences = preferences,
                         onReportProgress = viewModel::reportProgress,
+                        onPlayWithBuiltIn = { positionMs ->
+                            builtInStart = positionMs.takeIf { it > 0 } ?: builtInStart
+                            vlcStart = null
+                        },
+                        onOpenExternal = {
+                            val opened = openInExternalPlayer(context, streamUrl, displayTitle)
+                            viewModel.recordExternalPlayer(false, opened, null, "external")
+                            opened
+                        },
+                        onRememberPlayer = rememberPlayer,
                         onChangeSource = onChangeSource,
                         onBack = onBack
                     )
@@ -133,7 +156,7 @@ fun PlayerScreen(
                     content = state.content,
                     episode = state.episode,
                     stream = state.stream,
-                    resumePositionMs = viewModel.resumePositionMs(),
+                    resumePositionMs = builtInStart,
                     phase = playbackPhase,
                     audioTracks = audioTracks,
                     subtitleTracks = subtitleTracks,
@@ -148,7 +171,9 @@ fun PlayerScreen(
                     onBack = onBack,
                     onChangeSource = onChangeSource,
                     onNextEpisode = onNextEpisode,
-                    onUseVlcEngine = { positionMs -> vlcStartMs = positionMs }
+                    onUseVlcEngine = { positionMs -> vlcStart = positionMs },
+                    vlcAvailable = vlcUsable,
+                    onRememberPlayer = rememberPlayer
                 )
             }
         }
@@ -175,7 +200,9 @@ private fun PlaybackContent(
     onBack: () -> Unit,
     onChangeSource: () -> Unit,
     onNextEpisode: (season: Int, episode: Int) -> Unit,
-    onUseVlcEngine: (positionMs: Long) -> Unit
+    onUseVlcEngine: (positionMs: Long) -> Unit,
+    vlcAvailable: Boolean,
+    onRememberPlayer: (PreferredPlayer) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -431,12 +458,14 @@ private fun PlaybackContent(
         when (option) {
             // The normal player: from the error screen that means trying again.
             PlayerChoiceOption.BUILT_IN -> {
+                onRememberPlayer(PreferredPlayer.BUILT_IN)
                 popOverlay()
                 if (choiceFromError) startPlayback() else focusLastControl()
             }
             // VLC's engine takes over from where playback was (or the saved resume point).
             PlayerChoiceOption.VLC -> {
                 onExternalPlayerChosen(choiceFromError, true, message, "vlc")
+                onRememberPlayer(PreferredPlayer.VLC)
                 popOverlay()
                 onUseVlcEngine(exoPlayer.currentPosition.takeIf { it > 0 } ?: resumePositionMs ?: 0L)
             }
@@ -858,6 +887,7 @@ private fun PlaybackContent(
             )
             PlayerOverlay.PLAYER_CHOICE -> PlayerChoiceCard(
                 externalAvailable = stream.url?.let { hasExternalPlayer(context, it) } == true,
+                vlcAvailable = vlcAvailable,
                 initial = if (choiceFromError) PlayerChoiceOption.VLC else PlayerChoiceOption.BUILT_IN,
                 onPlay = ::playWith,
                 onCancel = {
