@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.VolumeUp
@@ -57,8 +56,8 @@ import com.mangotv.app.ui.theme.TextSecondary
 
 /**
  * The VLC player's controls in the style of a streaming-app TV player: back and seek icons top left, the title's logo and episode top
- * right, and along the bottom a big round Play / Pause button, the elapsed time, a thin timeline and the time left, with a centred row of pills
- * under it (Audio, Subtitles, Speed, Next episode, Player, Sources). The original layout is kept in VlcControlsClassic.kt.
+ * right, and along the bottom a round Play / Pause button, the elapsed time, a thin timeline and the time left, with a centred row of pills
+ * under it (Audio, Subtitles, Next episode, Player, Sources). The original layout is kept in VlcControlsClassic.kt.
  */
 @Composable
 internal fun VlcControlsNetflix(m: VlcControlsModel, f: VlcControlFocus) {
@@ -134,7 +133,7 @@ internal fun VlcControlsNetflix(m: VlcControlsModel, f: VlcControlFocus) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TvFocusSurface(
                     onClick = m.onPlayPause,
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier.size(48.dp),
                     shape = CircleShape,
                     backgroundColor = Color.White,
                     borderColor = ArcAccent,
@@ -149,7 +148,7 @@ internal fun VlcControlsNetflix(m: VlcControlsModel, f: VlcControlFocus) {
                             imageVector = if (m.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                             contentDescription = if (m.playing) "Pause" else "Play",
                             tint = Color.Black,
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(26.dp)
                         )
                     }
                 }
@@ -174,7 +173,6 @@ internal fun VlcControlsNetflix(m: VlcControlsModel, f: VlcControlFocus) {
             ) {
                 if (m.showAudio) VlcPill("Audio", Icons.Filled.VolumeUp, m.onAudio, f.audio, f.play, m.onFocused)
                 if (m.showSubtitles) VlcPill("Subtitles", Icons.Filled.Subtitles, m.onSubtitles, f.subtitles, f.play, m.onFocused)
-                VlcPill("Speed ${m.speedLabel}", Icons.Filled.Speed, m.onSpeed, f.speed, f.play, m.onFocused)
                 if (m.hasNextEpisode) VlcPill("Next episode", Icons.Filled.SkipNext, m.onNextEpisode, f.next, f.play, m.onFocused)
                 VlcPill("Player", Icons.Filled.OpenInNew, m.onChoosePlayer, f.choose, f.play, m.onFocused)
                 VlcPill("Sources", Icons.Filled.SwapHoriz, m.onChangeSource, f.change, f.play, m.onFocused)

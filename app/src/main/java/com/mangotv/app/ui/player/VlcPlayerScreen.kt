@@ -325,6 +325,12 @@ fun VlcPlaybackContent(
                     if (event.type == KeyEventType.KeyUp) revealingKeyHeld = false
                     return@onPreviewKeyEvent true
                 }
+                // BACK with the controls showing hides them at once, on the key press itself (not left to the system's back handling, which
+                // took a second press); with them hidden BACK goes on to leave the player. Menus, the card and Up next close themselves.
+                if (event.key == Key.Back && event.type == KeyEventType.KeyDown && controlsVisible && menu == null && !showChoice && upNext == null && !offerFocused) {
+                    controlsVisible = false
+                    return@onPreviewKeyEvent true
+                }
                 // While the Next episode button or the Up next card has focus, it owns the keys.
                 if (offerFocused || upNext != null) return@onPreviewKeyEvent false
                 if (event.type != KeyEventType.KeyDown || menu != null || showChoice || failure != null) return@onPreviewKeyEvent false
