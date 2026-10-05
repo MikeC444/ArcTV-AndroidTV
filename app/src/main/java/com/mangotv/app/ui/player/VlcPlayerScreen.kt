@@ -475,7 +475,7 @@ fun VlcPlaybackContent(
             if (USE_CLASSIC_VLC_CONTROLS) VlcControlsClassic(controls, focus) else VlcControlsNetflix(controls, focus)
         }
 
-        if (offerShowing()) {
+        if (next != null && offerShowing()) {
             NextEpisodeOffer(
                 next = next,
                 onGo = { onNextEpisode(next.season, next.episode) },

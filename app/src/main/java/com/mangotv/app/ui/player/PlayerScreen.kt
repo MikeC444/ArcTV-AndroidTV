@@ -855,7 +855,7 @@ private fun PlaybackContent(
             }
         }
 
-        if (offerShown()) {
+        if (next != null && offerShown()) {
             NextEpisodeOffer(
                 next = next,
                 onGo = { goToNextEpisode(next) },
