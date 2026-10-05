@@ -77,6 +77,7 @@ import java.util.Locale
 
 internal const val SEEK_STEP_MS = 10_000L
 private const val FIRST_REPORT_MS = 4_000L
+private const val SEEK_APPLY_DELAY_MS = 350L
 private const val REPORT_INTERVAL_MS = 15_000L
 private const val CONTROLS_HIDE_MS = 5_000L
 private val SPEEDS = floatArrayOf(0.75f, 1f, 1.25f, 1.5f, 2f)
@@ -153,6 +154,8 @@ fun VlcPlaybackContent(
 
     var speedIndex by remember { mutableIntStateOf(1) }
     var seekText by remember { mutableStateOf<String?>(null) }
+    var scrubTarget by remember { mutableStateOf<Long?>(null) }
+    var scrubOrigin by remember { mutableStateOf<Long?>(null) }
     val rootFocus = remember { FocusRequester() }
     val focus = remember { VlcControlFocus() }
 
@@ -167,12 +170,19 @@ fun VlcPlaybackContent(
         if (mediaPlayer.isPlaying) mediaPlayer.pause() else mediaPlayer.play()
         bump()
     }
+    // Seeking while a key is held: each press only moves the target (the timeline and the pill follow at once); VLC is asked to jump once,
+    // a moment after the last press. Jumping on every press blocked the screen with a backlog of seeks, which left the pill stuck up.
     fun seekBy(deltaMs: Long) {
-        val length = mediaPlayer.length
-        val target = (mediaPlayer.time + deltaMs).coerceAtLeast(0)
-        mediaPlayer.setTime(if (length > 0) target.coerceAtMost(length - 1_000) else target)
-        positionMs = mediaPlayer.time
-        seekText = (if (deltaMs < 0) "−" else "+") + (kotlin.math.abs(deltaMs) / 1000) + "s"
+        val length = lengthMs.takeIf { it > 0 } ?: mediaPlayer.length
+        val origin = scrubOrigin ?: mediaPlayer.time.also { scrubOrigin = it }
+        val base = scrubTarget ?: origin
+        var target = (base + deltaMs).coerceAtLeast(0)
+        if (length > 1_000) target = target.coerceAtMost(length - 1_000)
+        scrubTarget = target
+        positionMs = target
+        val moved = target - origin
+        val seconds = kotlin.math.abs(moved) / 1000
+        seekText = (if (moved < 0) "−" else "+") + (if (seconds >= 60) "${seconds / 60} min ${seconds % 60} s" else "${seconds}s")
         bump()
     }
     fun cycleSpeed() {
@@ -258,6 +268,15 @@ fun VlcPlaybackContent(
         refreshTracks()
     }
 
+    // The one real seek, SEEK_APPLY_DELAY_MS after the last press (the effect restarts on every new target).
+    LaunchedEffect(scrubTarget) {
+        val target = scrubTarget ?: return@LaunchedEffect
+        delay(SEEK_APPLY_DELAY_MS)
+        mediaPlayer.setTime(target)
+        scrubTarget = null
+        scrubOrigin = null
+    }
+
     LaunchedEffect(seekText) {
         if (seekText != null) {
             delay(900)
@@ -274,7 +293,7 @@ fun VlcPlaybackContent(
     LaunchedEffect(playing) {
         var sinceReport = REPORT_INTERVAL_MS - FIRST_REPORT_MS
         while (true) {
-            positionMs = mediaPlayer.time.coerceAtLeast(0)
+            positionMs = scrubTarget ?: mediaPlayer.time.coerceAtLeast(0)
             if (lengthMs <= 0) lengthMs = mediaPlayer.length.coerceAtLeast(0)
             offerNext = offerNextEpisode(positionMs, lengthMs, next != null)
             delay(500)
