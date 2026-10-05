@@ -4481,6 +4481,8 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Tests performed:** `AudioFilterTest` and `DetectAudioChannelsTest` added (not run: no Gradle here; the regex was checked against sample release names in Python, whose engine treats these patterns the same way). Server: `tests/settings.test.ts` extended (round trip, clear with `null`, an omitted field keeps the stored value, a too-short code is rejected, the defaults include it); the full suite (241 tests) passes against a scratch Postgres and `tsc` is clean outside `scripts/`. App: no Gradle build (this sandbox cannot reach `dl.google.com`) and nothing tried on a TV; the downmix has no unit test because the Media3 `AudioProcessor` flow could not be compiled here.
 
+**Note:** the Speakers description in Settings > Audio says it automatically filters the source list to that audio type, and that a future auto source picker will choose it too (that picker does not exist yet; Next episode already takes the matching source).
+
 **Issues discovered:** many release names say nothing about their audio, so with a filter on they are hidden whenever any source does name one; the pill turns the filter off. The downmix uses fixed gains (centre and surrounds -3 dB, overall 0.7, bass dropped from stereo) and only handles 16-bit 5.1/7.1 PCM; other layouts and 24-bit/float PCM are sent as they are. There is no separate 7.1 choice: Auto already sends up to 7.1 when the TV supports it.
 
 **Issues fixed:** the above.

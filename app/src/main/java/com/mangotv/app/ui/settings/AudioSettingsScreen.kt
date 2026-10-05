@@ -120,7 +120,8 @@ fun ColumnScope.AudioSettingsContent(
         }
         item(key = "speakers_description") {
             Text(
-                text = "Lists matching sources and mixes surround down to fit. Applies to the next video.",
+                text = "Automatically filters the source list to this audio type (you can change it there any time) and mixes surround " +
+                    "sound down to fit. Applies to the next video. Coming in a future update: the auto source picker will choose this audio type for you.",
                 color = TextSecondary,
                 style = MaterialTheme.typography.bodySmall
             )
