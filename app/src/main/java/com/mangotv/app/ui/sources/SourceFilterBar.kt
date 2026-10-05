@@ -1,6 +1,7 @@
 package com.mangotv.app.ui.sources
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -71,6 +72,9 @@ fun SourceFilterBar(
         // pills themselves are sized to comfortably fit on one row.
         LazyRow(
             modifier = Modifier.weight(1f),
+            // A LazyRow clips to its own bounds, so the first pill's focus ring and scale-up were cut off at the left edge (and at
+            // the top and bottom): reserve a little room around the pills for them to grow into.
+            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             if (audioLabel != null) {
@@ -112,6 +116,8 @@ private fun SortPill(sort: SourceSort, onClick: () -> Unit) {
         onClick = onClick,
         shape = RoundedCornerShape(percent = 50),
         backgroundColor = MangoSurfaceHigh,
+        // No lift shadow: on a small pill it showed as a faint dark outline around it.
+        focusedElevation = 0f,
         bringIntoViewOnFocus = false
     ) {
         Row(

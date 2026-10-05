@@ -54,6 +54,8 @@ fun FilterPill(
         focusUp = focusUp,
         focusDown = focusDown,
         onFocusChanged = { focused = it },
+        // No lift shadow: on a small pill it showed as a faint dark outline around it.
+        focusedElevation = 0f,
         bringIntoViewOnFocus = false
     ) {
         Text(

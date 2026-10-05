@@ -102,6 +102,8 @@ fun DropdownPicker(
             focusRequester = buttonRequester,
             focusUp = focusUp,
             focusDown = focusDown,
+            // No lift shadow: on a pill it showed as a faint dark outline around it.
+            focusedElevation = 0f,
             bringIntoViewOnFocus = false
         ) {
             Row(

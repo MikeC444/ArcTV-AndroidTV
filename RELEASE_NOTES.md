@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Cleaner source filters: the Audio pill is no longer cut off at the edge, and the dark halo around pills is gone.
+
 - Pick your preferred audio language in Settings > Audio, and it follows you to all your devices.
 
 - Pick stereo, 5.1, 7.1 or Dolby Atmos in Settings > Audio and sources match it, with the next best if none. Change it from the source list anytime.

@@ -4486,3 +4486,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** many release names say nothing about their audio, so with a filter on they are hidden whenever any source does name one; the pill turns the filter off. The downmix uses fixed gains (centre and surrounds -3 dB, overall 0.7, bass dropped from stereo) and only handles 16-bit 5.1/7.1 PCM; other layouts and 24-bit/float PCM are sent as they are. A release can be two kinds (an Atmos 5.1 release is both). 7.1 and Atmos differ from Automatic mainly in which sources they list; Automatic already sends up to 7.1 when the TV supports it.
 
 **Issues fixed:** the above.
+
+## Post-Milestone-83 — Source filter bar: pill clipping and shadow
+
+**Status:** Written; not built or tried on a TV.
+
+**Context:** on Select a Source the first pill (the Audio drop-down) had its focus ring cut off at the left edge, and the pills showed a faint dark outline when focused.
+
+**Changes:** `SourceFilterBar`'s `LazyRow` now has `contentPadding` (6 dp sides, 4 dp top and bottom) so the first pill's focus ring and scale-up are not clipped by the row's bounds. The dark outline was the default 18 dp focus shadow of `TvFocusSurface`, which reads as a halo on a small pill: `FilterPill`, `DropdownPicker`'s button and the Sort pill now pass `focusedElevation = 0f`. `FilterPill` and `DropdownPicker` are shared, so My List's filter pills and the Movies / TV Shows / My List drop-downs lose that shadow too.
+
+**Tests performed:** none; no Gradle build here (no route to `dl.google.com`) and nothing seen on a TV. The cause of the outline was read from `TvFocusSurface`'s own note on `focusedElevation`.
+
+**Issues discovered:** none.
+
+**Issues fixed:** the above.
