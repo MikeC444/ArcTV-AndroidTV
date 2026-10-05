@@ -57,7 +57,7 @@ import com.mangotv.app.ui.theme.TextSecondary
 
 /**
  * The VLC player's controls in the style of a streaming-app TV player: back and seek icons top left, the title's logo and episode top
- * right, and along the bottom a big round Play / Pause button, the elapsed time, a thin timeline and the time left, with a row of pills
+ * right, and along the bottom a big round Play / Pause button, the elapsed time, a thin timeline and the time left, with a centred row of pills
  * under it (Audio, Subtitles, Speed, Next episode, Player, Sources). The original layout is kept in VlcControlsClassic.kt.
  */
 @Composable
@@ -168,8 +168,8 @@ internal fun VlcControlsNetflix(m: VlcControlsModel, f: VlcControlFocus) {
             }
             Spacer(Modifier.height(14.dp))
             Row(
-                modifier = Modifier.padding(start = 82.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (m.showAudio) VlcPill("Audio", Icons.Filled.VolumeUp, m.onAudio, f.audio, f.play, m.onFocused)
