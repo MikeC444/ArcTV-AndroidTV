@@ -140,7 +140,7 @@ class PlayerListenerBridge(
     override fun onPlayerError(error: PlaybackException) {
         if (switchToOtherAudioTrack(error)) return
         onPhaseChanged(
-            PlaybackPhase.Error(PlaybackErrorType.UNKNOWN, describePlaybackError(error))
+            PlaybackPhase.Error(if (isFormatFailure(error)) PlaybackErrorType.UNSUPPORTED_SOURCE else PlaybackErrorType.UNKNOWN, describePlaybackError(error))
         )
     }
 
@@ -184,4 +184,18 @@ internal fun describePlaybackError(error: PlaybackException): String {
         if (cause != null) append(" (").append(cause).append(')')
         append(" [").append(error.errorCodeName).append(']')
     }
+}
+
+/**
+ * True when the player could not decode or read the source's own format (a codec or profile the device has no decoder for, a container it
+ * can't parse), as opposed to a network or other failure -- the case VLC's engine can often still play, so PlaybackContent switches to it.
+ */
+internal fun isFormatFailure(error: PlaybackException): Boolean = when (error.errorCode) {
+    PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+    PlaybackException.ERROR_CODE_DECODING_FAILED,
+    PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES,
+    PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
+    PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+    PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED -> true
+    else -> false
 }

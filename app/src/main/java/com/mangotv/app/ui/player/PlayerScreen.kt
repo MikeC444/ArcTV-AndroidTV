@@ -83,6 +83,8 @@ fun PlayerScreen(
     val subtitleTracks by viewModel.subtitleTracks.collectAsStateWithLifecycle()
     val qualityOptions by viewModel.qualityOptions.collectAsStateWithLifecycle()
     val preferences by viewModel.preferences.collectAsStateWithLifecycle()
+    // Set (to the position to carry on from) when the built-in player can't play the source: VLC's own engine takes over (VlcPlayerScreen).
+    var vlcStartMs by remember { mutableStateOf<Long?>(null) }
 
     Box(
         modifier = modifier
@@ -111,7 +113,22 @@ fun PlayerScreen(
                 )
             }
             is PlayerScreenUiState.Ready -> {
-                PlaybackContent(
+                val streamUrl = state.stream.url
+                val vlcStart = vlcStartMs
+                if (vlcStart != null && streamUrl != null) {
+                    VlcPlaybackContent(
+                        title = listOfNotNull(
+                            state.content.title,
+                            state.episode?.let { "S${it.seasonNumber}E${it.episodeNumber}" }
+                        ).joinToString(" "),
+                        url = streamUrl,
+                        startPositionMs = vlcStart,
+                        preferences = preferences,
+                        onReportProgress = viewModel::reportProgress,
+                        onChangeSource = onChangeSource,
+                        onBack = onBack
+                    )
+                } else PlaybackContent(
                     content = state.content,
                     episode = state.episode,
                     stream = state.stream,
@@ -129,7 +146,8 @@ fun PlayerScreen(
                     onExternalPlayerChosen = viewModel::recordExternalPlayer,
                     onBack = onBack,
                     onChangeSource = onChangeSource,
-                    onNextEpisode = onNextEpisode
+                    onNextEpisode = onNextEpisode,
+                    onUseVlcEngine = { positionMs -> vlcStartMs = positionMs }
                 )
             }
         }
@@ -155,7 +173,8 @@ private fun PlaybackContent(
     onExternalPlayerChosen: (fromError: Boolean, opened: Boolean, errorMessage: String?) -> Unit,
     onBack: () -> Unit,
     onChangeSource: () -> Unit,
-    onNextEpisode: (season: Int, episode: Int) -> Unit
+    onNextEpisode: (season: Int, episode: Int) -> Unit,
+    onUseVlcEngine: (positionMs: Long) -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -365,6 +384,16 @@ private fun PlaybackContent(
         val opened = openInExternalPlayer(context, url, title)
         onExternalPlayerChosen(externalFromError, opened, message)
         if (opened) popOverlay()
+    }
+
+    // The built-in player can't decode this source (a codec or format the device has no decoder for): VLC's engine decodes in software, so
+    // hand over to it from where playback was (or the saved resume point). Offered on the error screen, and done by itself for format failures.
+    fun switchToVlc() {
+        if (stream.url == null) return
+        onUseVlcEngine(exoPlayer.currentPosition.takeIf { it > 0 } ?: resumePositionMs ?: 0L)
+    }
+    LaunchedEffect(phase) {
+        if (phase is PlaybackPhase.Error && phase.type == PlaybackErrorType.UNSUPPORTED_SOURCE) switchToVlc()
     }
 
     // The last speed chosen is kept for every title on this device.
@@ -665,6 +694,7 @@ private fun PlaybackContent(
                 message = phase.message,
                 onTryAgain = ::startPlayback,
                 onChangeSource = onChangeSource,
+                onVlcEngine = if (canUseExternalPlayer) ({ switchToVlc() }) else null,
                 onExternalPlayer = if (canUseExternalPlayer) ({ askExternalPlayer(fromError = true) }) else null,
                 externalPlayerFocusRequester = errorExternalFocusRequester,
                 onBack = onBack

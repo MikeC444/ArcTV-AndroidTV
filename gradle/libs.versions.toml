@@ -16,6 +16,8 @@ zxing = "3.5.3"
 media3 = "1.5.0"
 # Jellyfin's build of the Media3 FFmpeg audio decoder (LGPL); its version is "<media3 version>+<build>", so keep it on the same media3 version.
 media3-ffmpeg = "1.5.0+1"
+# VLC's player engine for Android (LibVLC 3), the fallback for sources the built-in player cannot decode.
+libvlc = "3.6.5"
 tink = "1.19.0"
 junit = "4.13.2"
 
@@ -48,6 +50,7 @@ androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplaye
 androidx-media3-exoplayer-hls = { group = "androidx.media3", name = "media3-exoplayer-hls", version.ref = "media3" }
 androidx-media3-exoplayer-dash = { group = "androidx.media3", name = "media3-exoplayer-dash", version.ref = "media3" }
 androidx-media3-decoder-ffmpeg = { group = "org.jellyfin.media3", name = "media3-ffmpeg-decoder", version.ref = "media3-ffmpeg" }
+org-videolan-libvlc = { group = "org.videolan.android", name = "libvlc-all", version.ref = "libvlc" }
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
 androidx-media3-datasource-okhttp = { group = "androidx.media3", name = "media3-datasource-okhttp", version.ref = "media3" }
 tink-android = { group = "com.google.crypto.tink", name = "tink-android", version.ref = "tink" }

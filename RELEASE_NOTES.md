@@ -18,6 +18,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - Can't play a source? Open it in another player app with the new button beside the timeline, after a quick confirmation.
 
+- Sources that wouldn't play now switch to a VLC-powered engine by themselves, so more videos just play.
+
 - Cleaner source filters: the Audio pill is no longer cut off at the edge, and the dark halo around pills is gone.
 
 - Pick your preferred audio language in Settings > Audio, and it follows you to all your devices.

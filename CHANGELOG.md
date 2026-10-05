@@ -4500,3 +4500,21 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** the above.
+
+## Post-Milestone-84 — VLC's player engine as a fallback
+
+**Status:** Written; not built or tried on a TV. The first build (and a real device) is the real test: this is the largest unverified change so far.
+
+**Context:** VLC plays sources the built-in player cannot (e.g. 4K Dolby Vision HEVC on a device with no matching decoder) because it ships FFmpeg's software decoders instead of relying on the device's. The built-in player (Media3 / ExoPlayer) only has the device's decoders (plus the FFmpeg audio decoder added earlier).
+
+**Changes:**
+- Added `org.videolan.android:libvlc-all` 3.6.5 (LibVLC 3, LGPL 2.1; the API used was checked against the 3.6.2 AAR with `javap`).
+- `VlcPlayerScreen.kt` (`VlcPlaybackContent`): a small player of its own on LibVLC: play / pause, 10-second seeks, a timeline, Audio and Subtitles track lists, Change Source and Back. It starts where the built-in player was (or at the saved resume point), reports progress to Continue Watching the same way (`onReportProgress`), applies the account's preferred audio language, subtitle on/off and subtitle language by matching a track's name to the language's English name, and releases LibVLC off the main thread.
+- `PlayerScreen`: when the built-in player fails with a format error (`isFormatFailure`: decoder init / decoding failed, format exceeds capabilities or unsupported, container unsupported/malformed; classed `UNSUPPORTED_SOURCE`), `PlaybackContent` hands over to VLC by itself, from the current position. The "Unable to play this source" screen also gets a "Try VLC Engine" button. It is one-way: if VLC fails too, it shows its own error with Change Source / Back.
+- Build: `abiFilters` arm64-v8a, armeabi-v7a, x86_64 (LibVLC is 40-50 MB per chip type), `jniLibs.useLegacyPackaging = true` so the native libraries stay compressed in the APK, and `pickFirsts` for `libc++_shared.so`. Expect the APK to grow by roughly 60 MB.
+
+**Tests performed:** `FormatFailureTest` added (not run). No Gradle build (no route to `dl.google.com`) and nothing tried on a device; the libVLC calls were matched to the real class signatures but not compiled.
+
+**Issues discovered:** VLC's software decoding of 4K HEVC can be too slow on a typical TV box (it tries the hardware decoder first and falls back to software). The VLC screen is simpler than the built-in player: no passthrough or speaker settings, no external-player button, no next-episode offer, and subtitle choices are not remembered. Dolby Vision plays as its HDR10 base layer.
+
+**Issues fixed:** sources the device's own decoders reject can now play, in software if need be.

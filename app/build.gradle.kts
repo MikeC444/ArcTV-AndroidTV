@@ -76,6 +76,11 @@ android {
         versionName = versionNameOverride ?: "0.1.0"
 
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+
+        // LibVLC is about 40-50 MB per chip type, so ship only the ones a TV box, Fire TV or (x86_64) emulator uses.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
     }
 
     signingConfigs {
@@ -125,6 +130,12 @@ android {
     }
 
     packaging {
+        // Keep the native libraries compressed inside the APK (LibVLC's would otherwise double the download); they are unpacked on install.
+        jniLibs {
+            useLegacyPackaging = true
+            // Defensive: if a second library ever ships its own copy of the C++ runtime, take the first.
+            pickFirsts += setOf("**/libc++_shared.so")
+        }
         resources {
             excludes += setOf(
                 "/META-INF/{AL2.0,LGPL2.1}",
@@ -176,6 +187,8 @@ dependencies {
     implementation(libs.androidx.media3.ui)
     // Software audio decoding (DTS, DTS-HD, TrueHD, AC3/E-AC3...) for devices whose own decoders lack a format, as VLC does.
     implementation(libs.androidx.media3.decoder.ffmpeg)
+    // VLC's own player engine, used when the built-in player cannot decode a source (see VlcPlayerScreen).
+    implementation(libs.org.videolan.libvlc)
     implementation(libs.androidx.media3.datasource.okhttp)
 
     testImplementation(libs.junit)
