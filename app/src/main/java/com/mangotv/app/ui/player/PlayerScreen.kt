@@ -149,6 +149,10 @@ fun PlayerScreen(
                             opened
                         },
                         onRememberPlayer = rememberPlayer,
+                        next = remember(state.content, state.episode) {
+                            nextEpisodeAfter(state.content.seasons, state.episode?.seasonNumber, state.episode?.episodeNumber)
+                        },
+                        onNextEpisode = onNextEpisode,
                         onChangeSource = onChangeSource,
                         onBack = onBack
                     )

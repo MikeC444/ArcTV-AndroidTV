@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Subtitles
@@ -111,6 +112,10 @@ fun VlcPlaybackContent(
     onOpenExternal: () -> Boolean,
     // Called when the card's built-in or VLC row is played, so the title remembers it.
     onRememberPlayer: (PreferredPlayer) -> Unit,
+    // The episode after this one (null for a movie or the last episode) and how to start it: it is offered in the last minute, and counted
+    // down to after the end when Auto Play Next Episode is on, exactly as in the built-in player.
+    next: NextEpisode?,
+    onNextEpisode: (season: Int, episode: Int) -> Unit,
     onChangeSource: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -131,6 +136,13 @@ fun VlcPlaybackContent(
     var interactionTick by remember { mutableIntStateOf(0) }
     var menu by remember { mutableStateOf<VlcMenu?>(null) }
     var showChoice by remember { mutableStateOf(false) }
+    var upNext by remember { mutableStateOf<NextEpisode?>(null) }
+    var offerNext by remember { mutableStateOf(false) }
+    var offerFocused by remember { mutableStateOf(false) }
+    val nextOfferFocus = remember { FocusRequester() }
+    // Settings > Audio: passthrough and the speaker layout, read once when playback starts.
+    val audioPassthrough = remember { DevicePlayerPrefs.audioPassthrough(context) }
+    val audioMode = remember { DevicePlayerPrefs.audioChannelMode(context) }
     var audioTracks by remember { mutableStateOf<List<VlcTrack>>(emptyList()) }
     var subtitleTracks by remember { mutableStateOf<List<VlcTrack>>(emptyList()) }
     var selectedAudio by remember { mutableIntStateOf(-1) }
@@ -186,6 +198,7 @@ fun VlcPlaybackContent(
                 MediaPlayer.Event.ESAdded, MediaPlayer.Event.ESSelected -> refreshTracks()
                 MediaPlayer.Event.EndReached -> {
                     playing = false
+                    if (next != null && preferences.autoplayNextEpisode) upNext = next
                     onReportProgress(mediaPlayer.length, mediaPlayer.length, true)
                 }
                 MediaPlayer.Event.EncounteredError -> failure = "VLC could not play this source either."
@@ -206,6 +219,11 @@ fun VlcPlaybackContent(
     }
 
     fun loadMedia() {
+        // Settings > Audio. Passthrough sends Dolby / DTS to the TV untouched (VLC only does it when the device says it can). Stereo uses VLC's
+        // OpenSL ES output, which plays two channels, so surround is mixed down; VLC cannot cap at 5.1 or 7.1, those play at the file's layout.
+        val stereoOnly = audioMode == AudioChannelMode.STEREO
+        if (stereoOnly) mediaPlayer.setAudioOutput("opensles_android")
+        mediaPlayer.setAudioDigitalOutputEnabled(audioPassthrough && !stereoOnly)
         val media = Media(libVlc, Uri.parse(url))
         // The device's hardware decoder (VLC still falls back to its own software decoder if the hardware one can't take the video).
         media.setHWDecoderEnabled(true, false)
@@ -245,12 +263,18 @@ fun VlcPlaybackContent(
         }
     }
 
+    // The Next episode button can only hold focus while it is on screen.
+    LaunchedEffect(offerNext, controlsVisible, upNext) {
+        if (!offerNext || controlsVisible || upNext != null) offerFocused = false
+    }
+
     // The timeline, and Continue Watching while playing (first after a few seconds, then every 15 s).
     LaunchedEffect(playing) {
         var sinceReport = REPORT_INTERVAL_MS - FIRST_REPORT_MS
         while (true) {
             positionMs = mediaPlayer.time.coerceAtLeast(0)
             if (lengthMs <= 0) lengthMs = mediaPlayer.length.coerceAtLeast(0)
+            offerNext = offerNextEpisode(positionMs, lengthMs, next != null)
             delay(500)
             if (playing) {
                 sinceReport += 500
@@ -285,6 +309,8 @@ fun VlcPlaybackContent(
             .focusRequester(rootFocus)
             .focusable()
             .onPreviewKeyEvent { event ->
+                // While the Next episode button or the Up next card has focus, it owns the keys.
+                if (offerFocused || upNext != null) return@onPreviewKeyEvent false
                 if (event.type != KeyEventType.KeyDown || menu != null || showChoice || failure != null) return@onPreviewKeyEvent false
                 when (event.key) {
                     Key.MediaPlayPause, Key.MediaPlay, Key.MediaPause -> { togglePlay(); true }
@@ -293,7 +319,12 @@ fun VlcPlaybackContent(
                             Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> { togglePlay(); controlsVisible = true; true }
                             Key.DirectionLeft -> { seekBy(-SEEK_STEP_MS); true }
                             Key.DirectionRight -> { seekBy(SEEK_STEP_MS); true }
-                            Key.DirectionUp, Key.DirectionDown -> { controlsVisible = true; true }
+                            Key.DirectionDown -> {
+                                // Down reaches the Next episode button while it is offered; otherwise it shows the controls.
+                                if (offerNext && next != null) runCatching { nextOfferFocus.requestFocus() } else controlsVisible = true
+                                true
+                            }
+                            Key.DirectionUp -> { controlsVisible = true; true }
                             else -> false
                         }
                     } else {
@@ -413,11 +444,27 @@ fun VlcPlaybackContent(
                     }
                     HeroIconButton(icon = Icons.Filled.Speed, contentDescription = "Playback speed", onClick = ::cycleSpeed, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
                     Spacer(Modifier.width(8.dp))
+                    if (next != null) {
+                        HeroIconButton(icon = Icons.Filled.SkipNext, contentDescription = "Next episode", onClick = { onNextEpisode(next.season, next.episode) }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
+                        Spacer(Modifier.width(8.dp))
+                    }
                     HeroIconButton(icon = Icons.Filled.OpenInNew, contentDescription = "Choose player", onClick = { showChoice = true }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
                     Spacer(Modifier.width(8.dp))
                     HeroIconButton(icon = Icons.Filled.SwapHoriz, contentDescription = "Change source", onClick = onChangeSource, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
                 }
             }
+        }
+
+        if (offerNext && next != null && upNext == null && !controlsVisible && menu == null && !showChoice && failure == null) {
+            NextEpisodeOffer(
+                next = next,
+                onGo = { onNextEpisode(next.season, next.episode) },
+                focusRequester = nextOfferFocus,
+                modifier = Modifier.align(Alignment.BottomEnd).onFocusChanged { offerFocused = it.hasFocus }
+            )
+        }
+        upNext?.let { target ->
+            UpNextCard(next = target, onGo = { onNextEpisode(target.season, target.episode) }, onCancel = { upNext = null })
         }
 
         if (showChoice) {
@@ -462,6 +509,8 @@ fun VlcPlaybackContent(
 
     BackHandler {
         when {
+            upNext != null -> upNext = null
+            offerFocused -> { offerFocused = false; runCatching { rootFocus.requestFocus() } }
             showChoice -> showChoice = false
             menu != null -> menu = null
             controlsVisible -> controlsVisible = false
