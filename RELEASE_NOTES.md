@@ -14,6 +14,10 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- No sound on surround sources? Turn off Audio Passthrough in Settings > Audio, or instantly in the player.
+
+- Can't play a source? Open it in another player app with the new button beside the timeline, after a quick confirmation.
+
 - Cleaner source filters: the Audio pill is no longer cut off at the edge, and the dark halo around pills is gone.
 
 - Pick your preferred audio language in Settings > Audio, and it follows you to all your devices.
@@ -21,10 +25,6 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Pick stereo, 5.1, 7.1 or Dolby Atmos in Settings > Audio and sources match it, with the next best if none. Change it from the source list anytime.
 
 - Sources with DTS, DTS-HD or TrueHD sound now play with audio, even on TVs that can't decode them.
-
-- No sound on surround sources? Turn off Audio Passthrough in Settings > Audio, or instantly in the player.
-
-- Can't play a source? Open it in another player app with the new button beside the timeline, after a quick confirmation.
 
 ## 0.1.8
 
