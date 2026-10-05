@@ -451,7 +451,9 @@ fun VlcPlaybackContent(
             )
         }
 
-        if (controlsVisible && failure == null) {
+        // Off screen while a popup (Audio, Subtitles, Episodes, the Choose player card) is open: they are focusable, so scrolling past the
+        // popup's edge used to land the cursor on a control behind it.
+        if (controlsVisible && failure == null && menu == null && !showChoice) {
             val controls = VlcControlsModel(
                 content = content,
                 episode = episode,

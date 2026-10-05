@@ -22,6 +22,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - New Episodes panel in the player: pick any season and episode with its thumbnail, and it plays right away.
 
+- Player menus no longer let the cursor slip behind them, so Subtitles, Episodes and the rest stay put.
+
 - Dolby Vision file won't play? It now retries by itself as HDR10.
 
 - Choose your default player in Settings > Player, and each title remembers the player you picked for it.

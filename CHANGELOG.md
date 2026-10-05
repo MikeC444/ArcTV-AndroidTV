@@ -4581,3 +4581,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the Sources screen's `auto` (autoPlay) route is no longer used by the app (left in place). The pending-resume position and remembered source for a title are per episode, as before. If the app is killed after the switch, the saved route still names the first episode.
 
 **Issues fixed:** the flash of the source selector between episodes.
+
+## Post-Milestone-88 — Player popups keep the cursor
+
+**Status:** Written; not built or tried on a TV.
+
+**Context:** with a popup open (Subtitles, Audio, Episodes, Settings, the Choose player card) the player's controls stayed on screen behind it and stayed focusable, so scrolling past the popup's edge moved the cursor onto a control behind it, and pressing OK there acted on the player.
+
+**Changes:** the controls are no longer composed while a popup is open (`AnimatedVisibility(visible = controlsVisible && activeOverlay == null)` in the built-in player, and `menu == null && !showChoice` in the VLC screen), so nothing behind a popup can take focus. When a popup closes, the controls come back and a `LaunchedEffect(activeOverlay)` puts the cursor on the control it came from (`focusLastControl`; the VLC screen already restored it the same way). The controls are covered by the popup's dimmed backdrop either way, so little changes on screen.
+
+**Tests performed:** none; no Gradle build here (no route to `dl.google.com`) and nothing tried on a device.
+
+**Issues discovered:** none.
+
+**Issues fixed:** the above.

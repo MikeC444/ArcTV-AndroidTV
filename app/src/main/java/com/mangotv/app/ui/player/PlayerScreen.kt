@@ -453,6 +453,11 @@ private fun PlaybackContent(
         if (!restored) runCatching { playPauseFocusRequester.requestFocus() }
     }
 
+    // Back from a popup: the controls were off screen while it was open, so once they are back the cursor goes to the control it came from.
+    LaunchedEffect(activeOverlay) {
+        if (activeOverlay == null && controlsVisible) focusLastControl()
+    }
+
     // Next episode: a few seconds after the button appears (last minute, controls hidden) the cursor lands on it, so one OK plays the next
     // episode. The short wait stops an OK pressed for something else from skipping the episode. LEFT / RIGHT still seek, UP brings up the controls.
     fun offerShown() = offerNext && next != null && upNext == null && activeOverlay == null && phase !is PlaybackPhase.Error
@@ -787,8 +792,10 @@ private fun PlaybackContent(
             PlayPauseIndicator(isPlaying = playPauseFlashIsPlaying, modifier = Modifier.align(Alignment.Center))
         }
 
+        // Off screen while a popup (Subtitles, Episodes, Settings...) is open: they are focusable, so scrolling past the popup's edge used to
+        // land the cursor on a control behind it.
         AnimatedVisibility(
-            visible = controlsVisible,
+            visible = controlsVisible && activeOverlay == null,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.fillMaxSize()
