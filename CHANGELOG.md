@@ -4446,6 +4446,22 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Tests performed:** none; this sandbox cannot reach `dl.google.com`, so no Gradle build was run, and nothing was tried on a TV. The code was re-read by hand against the Media3 1.4.1 API (`DefaultRenderersFactory.buildAudioSink`, `DefaultAudioSink.Builder.setAudioCapabilities`).
 
-**Issues discovered:** turning passthrough off does not make a DTS-HD track playable on a device with no DTS decoder: the built-in player has no FFmpeg audio decoder, so that file stays silent here. It only helps where the TV or receiver claims support it doesn't have (typically Dolby Digital Plus / Atmos).
+**Issues discovered:** turning passthrough off does not by itself make a DTS-HD track playable on a device with no DTS decoder (the FFmpeg decoder added in the next entry does). It helps where the TV or receiver claims support it doesn't have (typically Dolby Digital Plus / Atmos).
 
 **Issues fixed:** the above.
+
+## Post-Milestone-81 — FFmpeg audio decoder in the built-in player
+
+**Status:** Written; not built or tried on a TV. The first build is the real test.
+
+**Context:** a 4K file with only a DTS-HD MA audio track was silent in VLC with passthrough on and, for the same reason, would be in the built-in player: it only used the device's own audio decoders, and most TV boxes have none for DTS/TrueHD. VLC works because it ships FFmpeg's decoders.
+
+**Changes:**
+- Added `org.jellyfin.media3:media3-ffmpeg-decoder` (Jellyfin's LGPL build of the Media3 FFmpeg extension; its AAR carries the `dca` (DTS, DTS-HD core), `truehd`/`mlp`, AC3/E-AC3, FLAC and other audio decoders for arm64-v8a, armeabi-v7a, x86 and x86_64, about 6 MB). `PlayerEngine` now sets `EXTENSION_RENDERER_MODE_ON`, so the FFmpeg audio renderer is tried only after the device's own decoders; nothing changes for tracks the device already plays. Audio passthrough (previous entry) still works as before, and turning it off simply sends the FFmpeg-decoded sound as plain PCM.
+- Media3 moved 1.4.1 -> 1.5.0 because the decoder build is versioned to the Media3 release it was compiled against (there is no 1.4.1 build); `compileSdk` 34 -> 35 (`targetSdk` stays 34) with `android.suppressUnsupportedCompileSdk=35` in `gradle.properties`, since the AGP in use was tested up to 34.
+
+**Tests performed:** checked the published AAR directly: its native library contains the `ff_dca_decoder` and `ff_truehd_decoder`, and it depends on Media3 1.5.0. No Gradle build was run (this sandbox cannot reach `dl.google.com`), and nothing was tried on a TV, so the Media3 1.5.0 / compileSdk 35 combination is unverified here.
+
+**Issues discovered:** the decoder is software, so DTS-HD MA plays as its DTS core (lossy 5.1), as in VLC, not the lossless layer. FFmpeg is LGPL; the AAR bundles it as a shared library, which keeps the app's own code separate.
+
+**Issues fixed:** DTS / DTS-HD / TrueHD sources with no other audio track should now play with sound on devices lacking those decoders.

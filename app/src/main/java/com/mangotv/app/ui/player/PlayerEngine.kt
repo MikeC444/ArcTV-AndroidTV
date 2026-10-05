@@ -45,7 +45,9 @@ fun buildExoPlayer(context: Context, preferences: PlayerPreferences): ExoPlayer 
     // claims support it doesn't really have gives sound anyway. Read here, so a change applies from the next video.
     val renderersFactory = (if (DevicePlayerPrefs.audioPassthrough(context)) DefaultRenderersFactory(context) else PcmOnlyRenderersFactory(context))
         .setEnableDecoderFallback(true)
-        .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
+        // ON = the FFmpeg audio renderer (media3-ffmpeg-decoder) is tried only after the device's own decoders, so a track the device
+        // can't decode (DTS, DTS-HD, TrueHD on most TV boxes) is decoded in software instead of staying silent.
+        .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
     val player = ExoPlayer.Builder(context, renderersFactory)
         .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
         .build()

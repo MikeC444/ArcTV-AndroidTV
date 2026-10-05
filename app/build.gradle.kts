@@ -66,7 +66,7 @@ val hasReleaseSigningConfig = !releaseKeystorePath.isNullOrBlank()
 
 android {
     namespace = "com.mangotv.app"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.mangotv.app"
@@ -174,6 +174,8 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer.hls)
     implementation(libs.androidx.media3.exoplayer.dash)
     implementation(libs.androidx.media3.ui)
+    // Software audio decoding (DTS, DTS-HD, TrueHD, AC3/E-AC3...) for devices whose own decoders lack a format, as VLC does.
+    implementation(libs.androidx.media3.decoder.ffmpeg)
     implementation(libs.androidx.media3.datasource.okhttp)
 
     testImplementation(libs.junit)

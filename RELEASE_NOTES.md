@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Sources with DTS, DTS-HD or TrueHD sound now play with audio, even on TVs that can't decode them.
+
 - No sound on a surround source? Turn off Audio Passthrough in the player's Advanced settings.
 
 - Can't play a source? Open it in another player app with the new button beside the timeline, after a quick confirmation.
