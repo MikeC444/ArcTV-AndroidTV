@@ -47,6 +47,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.DividerSubtle
+import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoBackgroundElevated
 import com.mangotv.app.ui.theme.MangoMotion
 import com.mangotv.app.ui.theme.MangoSurfaceHigh
@@ -54,6 +55,7 @@ import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
 
 private val ButtonHeight = 36.dp
+private val CompactButtonHeight = 28.dp
 private val RowHeight = 38.dp
 
 /**
@@ -74,8 +76,13 @@ fun DropdownPicker(
     modifier: Modifier = Modifier,
     focusRequester: FocusRequester? = null,
     focusUp: FocusRequester? = null,
-    focusDown: FocusRequester? = null
+    focusDown: FocusRequester? = null,
+    // The smaller pill the Select a Source filter bar uses, and the filled look of a selected FilterPill (a filter is active).
+    compact: Boolean = false,
+    highlighted: Boolean = false
 ) {
+    val buttonHeight = if (compact) CompactButtonHeight else ButtonHeight
+    val contentColor = if (highlighted) MangoBackground else TextPrimary
     var open by remember { mutableStateOf(false) }
     val buttonRequester = focusRequester ?: remember { FocusRequester() }
 
@@ -89,23 +96,27 @@ fun DropdownPicker(
     Box(modifier = modifier) {
         TvFocusSurface(
             onClick = { open = !open },
-            modifier = Modifier.heightIn(min = ButtonHeight),
+            modifier = Modifier.heightIn(min = buttonHeight),
             shape = RoundedCornerShape(percent = 50),
-            backgroundColor = MangoSurfaceHigh,
+            backgroundColor = if (highlighted) ArcAccent else MangoSurfaceHigh,
             focusRequester = buttonRequester,
             focusUp = focusUp,
             focusDown = focusDown,
             bringIntoViewOnFocus = false
         ) {
             Row(
-                modifier = Modifier.padding(start = 16.dp, end = 10.dp, top = 7.dp, bottom = 7.dp),
+                modifier = if (compact) {
+                    Modifier.padding(start = 11.dp, end = 6.dp, top = 5.dp, bottom = 5.dp)
+                } else {
+                    Modifier.padding(start = 16.dp, end = 10.dp, top = 7.dp, bottom = 7.dp)
+                },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = buttonLabel,
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Medium,
+                    color = contentColor,
+                    style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelLarge,
+                    fontWeight = if (highlighted) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -113,8 +124,8 @@ fun DropdownPicker(
                 Icon(
                     imageVector = if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                     contentDescription = null,
-                    tint = TextSecondary,
-                    modifier = Modifier.size(20.dp)
+                    tint = if (highlighted) MangoBackground else TextSecondary,
+                    modifier = Modifier.size(if (compact) 16.dp else 20.dp)
                 )
             }
         }
@@ -123,7 +134,7 @@ fun DropdownPicker(
             val density = LocalDensity.current
             Popup(
                 alignment = Alignment.TopStart,
-                offset = with(density) { IntOffset(0, (ButtonHeight + 10.dp).roundToPx()) },
+                offset = with(density) { IntOffset(0, (buttonHeight + 10.dp).roundToPx()) },
                 onDismissRequest = { open = false },
                 properties = PopupProperties(focusable = true)
             ) {

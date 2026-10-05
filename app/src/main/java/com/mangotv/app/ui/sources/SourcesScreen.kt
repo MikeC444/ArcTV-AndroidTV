@@ -216,13 +216,17 @@ private fun SourcesContent(
     // Biggest file first, as on the web; "Recommended" still marks the best source and always sits on top.
     var selectedSort by remember { mutableStateOf(SourceSort.SIZE) }
 
-    // The Speakers setting (Settings > Audio) as a filter: only sources with the wanted layout are listed, else the next best. The pill
-    // turns it off for this visit. The recommended source comes from whatever is listed.
-    var audioFilterOn by remember { mutableStateOf(true) }
-    val audioPick = remember(state.streams, state.audioMode) { pickByAudio(state.streams, state.audioMode) }
-    val audioLabel = audioPillLabel(state.audioMode, audioPick)
-    val audioFiltering = audioLabel != null && audioFilterOn
-    val listed = if (audioFiltering) audioPick.streams else state.streams
+    // The Audio drop-down: filters by a sound layout this title's sources have. Until the person picks one it follows the Speakers setting
+    // (Settings > Audio): matching sources, else the next best. The recommended source comes from whatever is listed.
+    var pickedAudio by remember { mutableStateOf<AudioChoice?>(null) }
+    val audioChoiceList = remember(state.streams, state.audioMode) { audioChoices(state.streams, state.audioMode) }
+    val audioChoice = (pickedAudio ?: defaultAudioChoice(state.audioMode)).takeIf { it in audioChoiceList } ?: AudioChoice.All
+    val audioOptions = remember(audioChoiceList, state.streams, state.audioMode) {
+        audioChoiceList.map { audioChoiceLabel(it, state.streams, state.audioMode) }
+    }
+    val listed = remember(state.streams, state.audioMode, audioChoice, audioChoiceList) {
+        if (audioChoiceList.isEmpty()) state.streams else applyAudioChoice(state.streams, state.audioMode, audioChoice)
+    }
     val recommendedId = remember(listed) { recommendedStreamId(listed) }
 
     val filtered = remember(listed, selectedFilter) {
@@ -308,9 +312,11 @@ private fun SourcesContent(
                     onFilterChange = { selectedFilter = it },
                     selectedSort = selectedSort,
                     onSortChange = { selectedSort = it },
-                    audioLabel = audioLabel,
-                    audioFilterOn = audioFilterOn,
-                    onAudioFilterToggle = { audioFilterOn = !audioFilterOn }
+                    audioLabel = if (audioChoiceList.isEmpty()) null else audioButtonLabel(audioChoice, state.streams, state.audioMode),
+                    audioOptions = audioOptions,
+                    audioSelectedIndex = audioChoiceList.indexOf(audioChoice).coerceAtLeast(0),
+                    audioHighlighted = audioChoice != AudioChoice.All,
+                    onAudioSelect = { index -> pickedAudio = audioChoiceList.getOrNull(index) }
                 )
 
                 Spacer(Modifier.height(14.dp))

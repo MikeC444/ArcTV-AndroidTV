@@ -44,3 +44,60 @@ fun audioPillLabel(mode: AudioChannelMode, pick: AudioPick): String? {
     val wanted = layoutName(if (mode == AudioChannelMode.STEREO) 2 else 6)
     return if (pick.exact) "Audio: ${layoutName(channels)}" else "Audio: ${layoutName(channels)} (no $wanted found)"
 }
+
+/** What the Audio drop-down on Select a Source can be set to. */
+sealed interface AudioChoice {
+    /** Follow the Speakers setting, with the next best when nothing matches (see [pickByAudio]). */
+    data object Match : AudioChoice
+
+    /** Every source. */
+    data object All : AudioChoice
+
+    /** Only sources with this layout: 2, 6 or 8, or null for the ones whose name doesn't say. */
+    data class Layout(val bucket: Int?) : AudioChoice
+}
+
+/**
+ * The drop-down's entries for this title: "match my speakers" (unless Automatic), "all", then each layout that some source of THIS title has,
+ * stereo -> 7.1, then "not listed" for the sources that don't say. Empty when no source names its layout (nothing to filter by).
+ */
+fun audioChoices(streams: List<Stream>, mode: AudioChannelMode): List<AudioChoice> {
+    val buckets = streams.map { audioBucket(it) }
+    if (buckets.all { it == null }) return emptyList()
+    return buildList {
+        if (mode != AudioChannelMode.AUTO) add(AudioChoice.Match)
+        add(AudioChoice.All)
+        for (bucket in listOf(2, 6, 8)) if (bucket in buckets) add(AudioChoice.Layout(bucket))
+        if (null in buckets) add(AudioChoice.Layout(null))
+    }
+}
+
+/** The sources a choice lists. */
+fun applyAudioChoice(streams: List<Stream>, mode: AudioChannelMode, choice: AudioChoice): List<Stream> = when (choice) {
+    AudioChoice.Match -> pickByAudio(streams, mode).streams
+    AudioChoice.All -> streams
+    is AudioChoice.Layout -> streams.filter { audioBucket(it) == choice.bucket }
+}
+
+/** The choice used until the person picks one: their Speakers setting when it isn't Automatic, else everything. */
+fun defaultAudioChoice(mode: AudioChannelMode): AudioChoice = if (mode == AudioChannelMode.AUTO) AudioChoice.All else AudioChoice.Match
+
+private fun layoutLabel(bucket: Int?): String = if (bucket == null) "Not listed" else layoutName(bucket)
+
+/** One row of the drop-down, with how many sources it lists. */
+fun audioChoiceLabel(choice: AudioChoice, streams: List<Stream>, mode: AudioChannelMode): String {
+    val count = applyAudioChoice(streams, mode, choice).size
+    val name = when (choice) {
+        AudioChoice.Match -> "Match my speakers"
+        AudioChoice.All -> "All audio"
+        is AudioChoice.Layout -> layoutLabel(choice.bucket)
+    }
+    return "$name ($count)"
+}
+
+/** The pill's text: "Audio: 5.1", "Audio: 7.1 (no 5.1 found)" (the next best was used), "Audio: All". */
+fun audioButtonLabel(choice: AudioChoice, streams: List<Stream>, mode: AudioChannelMode): String = when (choice) {
+    AudioChoice.Match -> audioPillLabel(mode, pickByAudio(streams, mode)) ?: "Audio: All"
+    AudioChoice.All -> "Audio: All"
+    is AudioChoice.Layout -> "Audio: ${layoutLabel(choice.bucket)}"
+}

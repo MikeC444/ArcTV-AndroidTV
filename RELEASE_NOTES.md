@@ -16,7 +16,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - Pick your preferred audio language in Settings > Audio, and it follows you to all your devices.
 
-- Choose stereo or 5.1 in Settings > Audio: sources list only the matching sound, with the next best if none, and surround mixes down to fit.
+- Choose stereo or 5.1 in Settings > Audio and sources match it, with the next best if none. Change it anytime from the Audio drop-down on the source list.
 
 - Sources with DTS, DTS-HD or TrueHD sound now play with audio, even on TVs that can't decode them.
 

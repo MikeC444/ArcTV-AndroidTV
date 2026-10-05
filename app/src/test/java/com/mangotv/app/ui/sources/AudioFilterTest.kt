@@ -69,4 +69,40 @@ class AudioFilterTest {
         assertEquals(8, audioBucket(stream("c", 12)))
         assertNull(audioBucket(unknown))
     }
+
+    @Test
+    fun `the drop-down offers match, all and only the layouts this title has`() {
+        val streams = listOf(stereo, five, unknown, stream("five2", 6))
+        assertEquals(
+            listOf(AudioChoice.Match, AudioChoice.All, AudioChoice.Layout(2), AudioChoice.Layout(6), AudioChoice.Layout(null)),
+            audioChoices(streams, AudioChannelMode.SURROUND_5_1)
+        )
+        assertEquals(
+            listOf(AudioChoice.All, AudioChoice.Layout(2), AudioChoice.Layout(6), AudioChoice.Layout(null)),
+            audioChoices(streams, AudioChannelMode.AUTO)
+        )
+        assertEquals(emptyList<AudioChoice>(), audioChoices(listOf(unknown), AudioChannelMode.SURROUND_5_1))
+    }
+
+    @Test
+    fun `each choice lists its own sources`() {
+        val streams = listOf(stereo, five, seven, unknown)
+        val mode = AudioChannelMode.SURROUND_5_1
+        assertEquals(listOf("five"), applyAudioChoice(streams, mode, AudioChoice.Match).map { it.id })
+        assertEquals(4, applyAudioChoice(streams, mode, AudioChoice.All).size)
+        assertEquals(listOf("seven"), applyAudioChoice(streams, mode, AudioChoice.Layout(8)).map { it.id })
+        assertEquals(listOf("unknown"), applyAudioChoice(streams, mode, AudioChoice.Layout(null)).map { it.id })
+    }
+
+    @Test
+    fun `the default follows the speakers setting and the labels count sources`() {
+        assertEquals(AudioChoice.All, defaultAudioChoice(AudioChannelMode.AUTO))
+        assertEquals(AudioChoice.Match, defaultAudioChoice(AudioChannelMode.STEREO))
+        val streams = listOf(stereo, seven, unknown)
+        assertEquals("Audio: 7.1 (no 5.1 found)", audioButtonLabel(AudioChoice.Match, streams, AudioChannelMode.SURROUND_5_1))
+        assertEquals("Audio: All", audioButtonLabel(AudioChoice.All, streams, AudioChannelMode.SURROUND_5_1))
+        assertEquals("Audio: Not listed", audioButtonLabel(AudioChoice.Layout(null), streams, AudioChannelMode.AUTO))
+        assertEquals("7.1 (1)", audioChoiceLabel(AudioChoice.Layout(8), streams, AudioChannelMode.AUTO))
+        assertEquals("All audio (3)", audioChoiceLabel(AudioChoice.All, streams, AudioChannelMode.AUTO))
+    }
 }

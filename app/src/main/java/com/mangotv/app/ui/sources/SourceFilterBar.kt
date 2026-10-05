@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.mangotv.app.data.model.ResolutionTier
+import com.mangotv.app.ui.components.DropdownPicker
 import com.mangotv.app.ui.components.FilterPill
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.theme.MangoSurfaceHigh
@@ -50,10 +51,12 @@ fun SourceFilterBar(
     selectedSort: SourceSort,
     onSortChange: (SourceSort) -> Unit,
     modifier: Modifier = Modifier,
-    // The Speakers-setting filter (see pickByAudio): null hides the pill; on = only matching sources are listed.
+    // The Audio drop-down (see AudioChoice): a null label hides it; highlighted while it filters anything.
     audioLabel: String? = null,
-    audioFilterOn: Boolean = true,
-    onAudioFilterToggle: () -> Unit = {}
+    audioOptions: List<String> = emptyList(),
+    audioSelectedIndex: Int = 0,
+    audioHighlighted: Boolean = false,
+    onAudioSelect: (Int) -> Unit = {}
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -72,7 +75,14 @@ fun SourceFilterBar(
         ) {
             if (audioLabel != null) {
                 item(key = "audio") {
-                    FilterPill(label = audioLabel, selected = audioFilterOn, onClick = onAudioFilterToggle)
+                    DropdownPicker(
+                        buttonLabel = audioLabel,
+                        options = audioOptions,
+                        selectedIndex = audioSelectedIndex,
+                        onSelect = onAudioSelect,
+                        compact = true,
+                        highlighted = audioHighlighted
+                    )
                 }
             }
             items(SourceFilter.entries) { filter ->
