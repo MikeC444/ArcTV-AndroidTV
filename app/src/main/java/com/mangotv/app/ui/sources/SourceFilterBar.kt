@@ -49,7 +49,11 @@ fun SourceFilterBar(
     onFilterChange: (SourceFilter) -> Unit,
     selectedSort: SourceSort,
     onSortChange: (SourceSort) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // The Speakers-setting filter (see pickByAudio): null hides the pill; on = only matching sources are listed.
+    audioLabel: String? = null,
+    audioFilterOn: Boolean = true,
+    onAudioFilterToggle: () -> Unit = {}
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -66,6 +70,11 @@ fun SourceFilterBar(
             modifier = Modifier.weight(1f),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            if (audioLabel != null) {
+                item(key = "audio") {
+                    FilterPill(label = audioLabel, selected = audioFilterOn, onClick = onAudioFilterToggle)
+                }
+            }
             items(SourceFilter.entries) { filter ->
                 FilterPill(
                     label = filter.label,

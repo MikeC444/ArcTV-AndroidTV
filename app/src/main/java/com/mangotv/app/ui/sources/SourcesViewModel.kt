@@ -12,6 +12,8 @@ import com.mangotv.app.data.model.Stream
 import com.mangotv.app.data.model.StreamLookup
 import com.mangotv.app.data.model.StreamReport
 import com.mangotv.app.data.provider.ProviderRegistry
+import com.mangotv.app.ui.player.AudioChannelMode
+import com.mangotv.app.ui.player.DevicePlayerPrefs
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
@@ -49,7 +51,9 @@ sealed interface SourcesUiState {
         // this to keep the "no sources" empty state (with its "try
         // installing more addons" prompt) from flashing before slower
         // providers have had a chance to reply.
-        val isSearchingMore: Boolean = false
+        val isSearchingMore: Boolean = false,
+        // The Speakers setting at load time (Settings > Audio): the picker lists matching sources first-class, see pickByAudio().
+        val audioMode: AudioChannelMode = AudioChannelMode.AUTO
     ) : SourcesUiState
     data class Error(val message: String) : SourcesUiState
 }
@@ -80,6 +84,10 @@ class SourcesViewModel(
 
     // True only for "Next episode" from the player (see MangoRoutes.sources's autoPlay): take the best source without asking.
     private val autoPlay: Boolean = savedStateHandle.get<String>("auto").toBoolean()
+
+    // Read once per load: the Speakers setting decides which sources are listed and which one is recommended / taken for Next episode.
+    private val audioMode: AudioChannelMode = DevicePlayerPrefs.audioChannelMode(application)
+    private fun recommendedFor(streams: List<Stream>): String? = recommendedStreamId(pickByAudio(streams, audioMode).streams)
 
     private val _uiState = MutableStateFlow<SourcesUiState>(SourcesUiState.Loading)
     val uiState: StateFlow<SourcesUiState> = _uiState.asStateFlow()
@@ -134,15 +142,16 @@ class SourcesViewModel(
                     val autoSelectStream = lastSourceRepository.findLastSource(providerId, contentId, contentType, season, episode)
                         ?.let { last -> matchLastSource(streams, last) }
                         // Next episode: no source is remembered for it yet, so take the recommended one (the picker shows if there is none).
-                        ?: if (autoPlay) streams.find { it.id == recommendedStreamId(streams) } else null
+                        ?: if (autoPlay) streams.find { it.id == recommendedFor(streams) } else null
                     _uiState.value = SourcesUiState.Loaded(
                         content = content,
                         streams = streams,
-                        recommendedStreamId = recommendedStreamId(streams),
+                        recommendedStreamId = recommendedFor(streams),
                         addons = reports.map { AddonLookupRow(it.addonName, it.lookup) },
                         season = season,
                         episode = episode,
-                        autoSelectStream = autoSelectStream
+                        autoSelectStream = autoSelectStream,
+                        audioMode = audioMode
                     )
                     return@coroutineScope
                 }
@@ -180,11 +189,12 @@ class SourcesViewModel(
                     _uiState.value = SourcesUiState.Loaded(
                         content = content,
                         streams = accumulated.toList(),
-                        recommendedStreamId = recommendedStreamId(accumulated),
+                        recommendedStreamId = recommendedFor(accumulated),
                         addons = rows.toList(),
                         season = season,
                         episode = episode,
-                        isSearchingMore = index < providers.size - 1
+                        isSearchingMore = index < providers.size - 1,
+                        audioMode = audioMode
                     )
                 }
             }

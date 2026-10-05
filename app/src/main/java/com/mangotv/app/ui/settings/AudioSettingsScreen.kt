@@ -120,7 +120,7 @@ fun ColumnScope.AudioSettingsContent(
         }
         item(key = "speakers_description") {
             Text(
-                text = "Surround sound is mixed down to fit. Applies to the next video.",
+                text = "Lists matching sources and mixes surround down to fit. Applies to the next video.",
                 color = TextSecondary,
                 style = MaterialTheme.typography.bodySmall
             )

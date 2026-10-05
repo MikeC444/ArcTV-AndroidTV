@@ -138,6 +138,25 @@ private val SEEDERS_WORD = Regex("(\\d+)\\s*(?:seeds?|peers?)\\b", RegexOption.I
 private fun formatSeederCount(count: Int): String =
     if (count >= 1000) "%.1fK".format(count / 1000.0) else count.toString()
 
+// A channel layout written into a release name ("DDP5.1", "DTS-HD.MA.7.1", "AAC2.0", "6CH"). Not part of a longer number ("1.5.1", "H.264.5.1.1").
+private val CHANNEL_LAYOUT = Regex("(?<![0-9])(?<![0-9]\\.)(7\\.1|5\\.1|2\\.0)(?![0-9])(?!\\.[0-9]\\b)")
+private val CHANNEL_COUNT = Regex("(?<![0-9])(8|6|2)\\s?ch\\b", RegexOption.IGNORE_CASE)
+private val STEREO_WORD = Regex("\\b(stereo|mono)\\b", RegexOption.IGNORE_CASE)
+private val ATMOS_WORD = Regex("atmos", RegexOption.IGNORE_CASE)
+
+/**
+ * The most channels a release's text says its audio has: 8 (7.1), 6 (5.1) or 2 (stereo), or null when it doesn't say. The highest wins when
+ * several are listed (a multi-audio release); a bare "Atmos" with no layout counts as 8.
+ */
+fun detectAudioChannels(text: String): Int? {
+    val found = mutableListOf<Int>()
+    CHANNEL_LAYOUT.findAll(text).forEach { found += when (it.groupValues[1]) { "7.1" -> 8; "5.1" -> 6; else -> 2 } }
+    CHANNEL_COUNT.findAll(text).forEach { found += it.groupValues[1].toInt() }
+    if (STEREO_WORD.containsMatchIn(text)) found += 2
+    found.maxOrNull()?.let { return it }
+    return if (ATMOS_WORD.containsMatchIn(text)) 8 else null
+}
+
 fun StremioStream.toStream(providerId: String, providerLabel: String): Stream {
     val haystack = listOfNotNull(title, name, description).joinToString("\n")
 
@@ -159,6 +178,7 @@ fun StremioStream.toStream(providerId: String, providerLabel: String): Stream {
         else -> null
     }
     val audioTag = AUDIO_TAG.find(haystack)?.value
+    val audioChannels = detectAudioChannels(haystack)
 
     val sizeMatch = SIZE_PATTERN.find(haystack)
     val sizeLabel = sizeMatch?.value
@@ -201,6 +221,7 @@ fun StremioStream.toStream(providerId: String, providerLabel: String): Stream {
         sourceTag = sourceTag,
         codec = codec,
         audioTag = audioTag,
+        audioChannels = audioChannels,
         sizeLabel = sizeLabel,
         sizeBytes = sizeBytes,
         seeders = seeders,
