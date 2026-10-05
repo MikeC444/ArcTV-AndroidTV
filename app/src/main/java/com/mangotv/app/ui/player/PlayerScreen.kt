@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -70,6 +71,8 @@ private const val HOLD_SEEK_STEP_MS = 10_000L
 private const val HOLD_SEEK_STEP_INTERVAL_MS = 250L
 private const val FIRST_PROGRESS_REPORT_MS = 4_000L
 private const val PROGRESS_REPORT_INTERVAL_MS = 15_000L
+/** How long the Next episode button is on screen before the cursor lands on it by itself. */
+private const val OFFER_FOCUS_DELAY_MS = 3_000L
 
 @Composable
 fun PlayerScreen(
@@ -235,6 +238,9 @@ private fun PlaybackContent(
     var upNext by remember { mutableStateOf<NextEpisode?>(null) }
     var offerNext by remember { mutableStateOf(false) }
     val nextOfferFocusRequester = remember { FocusRequester() }
+    // Up or BACK on the focused Next episode button dismisses it for the rest of this episode.
+    var offerDismissed by remember { mutableStateOf(false) }
+    var offerFocused by remember { mutableStateOf(false) }
 
     // Without this, Fire TV's system screensaver/idle timeout kicks in
     // during playback the same as it would over any other idle screen --
@@ -448,6 +454,18 @@ private fun PlaybackContent(
         if (!restored) runCatching { playPauseFocusRequester.requestFocus() }
     }
 
+    // Next episode: a few seconds after the button appears (last minute, controls hidden) the cursor lands on it, so one OK plays the next
+    // episode. The short wait stops an OK pressed for something else from skipping the episode. LEFT / RIGHT still seek, UP or BACK dismisses it.
+    fun offerShown() = offerNext && next != null && upNext == null && !offerDismissed && activeOverlay == null && phase !is PlaybackPhase.Error
+    LaunchedEffect(offerNext, offerDismissed, controlsVisible, upNext, activeOverlay) {
+        if (offerShown() && !controlsVisible) {
+            delay(OFFER_FOCUS_DELAY_MS)
+            if (offerShown() && !controlsVisible) runCatching { nextOfferFocusRequester.requestFocus() }
+        } else {
+            offerFocused = false
+        }
+    }
+
     // "Choose player": the built-in player, VLC's engine inside Arc TV, or another app on the device. Only for a source with a direct link, and
     // nothing happens until the person picks one and presses Play. Where it was asked from is kept for the usage report (the error screen's
     // button points at the built-in player, not taste).
@@ -625,6 +643,21 @@ private fun PlaybackContent(
                         if (shouldToggle) togglePlayPause()
                     }
                     return@onPreviewKeyEvent true
+                }
+                // The focused Next episode button: OK plays it, LEFT / RIGHT keep seeking, UP dismisses it (BACK does, in the back handler).
+                if (offerFocused && event.type == KeyEventType.KeyDown) {
+                    when (event.key) {
+                        Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> { next?.let { goToNextEpisode(it) }; return@onPreviewKeyEvent true }
+                        Key.DirectionLeft -> { seekByClick(-10_000); return@onPreviewKeyEvent true }
+                        Key.DirectionRight -> { seekByClick(10_000); return@onPreviewKeyEvent true }
+                        Key.DirectionUp -> {
+                            offerDismissed = true
+                            offerFocused = false
+                            runCatching { rootFocusRequester.requestFocus() }
+                            return@onPreviewKeyEvent true
+                        }
+                        else -> Unit
+                    }
                 }
                 // Down reaches the "Next episode" button while the controls are hidden.
                 if (offerNext && next != null && upNext == null && !controlsVisible && activeOverlay == null &&
@@ -822,12 +855,12 @@ private fun PlaybackContent(
             }
         }
 
-        if (offerNext && next != null && upNext == null && activeOverlay == null && phase !is PlaybackPhase.Error) {
+        if (offerShown()) {
             NextEpisodeOffer(
                 next = next,
                 onGo = { goToNextEpisode(next) },
                 focusRequester = nextOfferFocusRequester,
-                modifier = Modifier.align(Alignment.BottomEnd)
+                modifier = Modifier.align(Alignment.BottomEnd).onFocusChanged { offerFocused = it.hasFocus }
             )
         }
 
@@ -915,6 +948,11 @@ private fun PlaybackContent(
     BackHandler {
         uiSoundPlayer?.playBack()
         when {
+            offerFocused -> {
+                offerDismissed = true
+                offerFocused = false
+                runCatching { rootFocusRequester.requestFocus() }
+            }
             // No separate "just exit scrub mode" branch here on purpose --
             // timelineScrubbing can only ever be true while controlsVisible
             // already is (scrubbing requires the timeline to be focused,

@@ -18,6 +18,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - Can't play a source? Pick the built-in player, a VLC engine or another app from the new button beside the timeline.
 
+- Next episode now highlights itself in the last minute: press OK to play it, or Up to dismiss it.
+
 - Dolby Vision file won't play? It now retries by itself as HDR10.
 
 - Choose your default player in Settings > Player, and each title remembers the player you picked for it.

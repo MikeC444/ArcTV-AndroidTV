@@ -4571,6 +4571,8 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 - The route's season and episode go stale once the next episode starts, so `PlayerScreen.onChangeSource` now takes the season and episode being played (`currentSeason` / `currentEpisode`) and the nav host builds the Sources route from them.
 - Progress is filed under the episode on screen (`activeReady`, `activeSeason`, `activeEpisodeNumber`, moved on only when the next episode's player is ready), so the old player's last report, sent as it is removed, still goes to the episode it was playing, not the next one.
 
+- Next episode button (both players): a few seconds (`OFFER_FOCUS_DELAY_MS`, 3 s) after it appears in the last minute with the controls hidden, the cursor lands on it by itself, so one OK plays the next episode (the wait keeps an OK pressed for something else from skipping). While it has the cursor LEFT / RIGHT still seek 10 s, UP or BACK dismisses it for the rest of the episode (`offerDismissed`), and the play / pause key still pauses. The built-in player used to hand an OK on the focused button to its "reveal the controls" handling instead of clicking it; the focused button now handles OK itself.
+
 **Tests performed:** none; no Gradle build here (no route to `dl.google.com`) and nothing tried on a device.
 
 **Issues discovered:** the Sources screen's `auto` (autoPlay) route is no longer used by the app (left in place). The pending-resume position and remembered source for a title are per episode, as before. If the app is killed after the switch, the saved route still names the first episode.
