@@ -169,6 +169,7 @@ private fun PlaybackContent(
     var started by remember { mutableStateOf(false) }
     LaunchedEffect(phase) { if (phase is PlaybackPhase.Playing) started = true }
     var showRemaining by remember { mutableStateOf(DevicePlayerPrefs.showRemaining(context)) }
+    var audioPassthrough by remember { mutableStateOf(DevicePlayerPrefs.audioPassthrough(context)) }
     // The episode after this one, offered in the last minute and counted down to after the end (when Auto Play Next Episode is on).
     val next = remember(content, episode) { nextEpisodeAfter(content.seasons, episode?.seasonNumber, episode?.episodeNumber) }
     var upNext by remember { mutableStateOf<NextEpisode?>(null) }
@@ -794,6 +795,11 @@ private fun PlaybackContent(
             PlayerOverlay.ADVANCED -> AdvancedSettingsPanel(
                 skipIntroEnabled = preferences.skipIntroEnabled,
                 onSkipIntroChange = onSkipIntroChange,
+                audioPassthrough = audioPassthrough,
+                onAudioPassthroughChange = { enabled ->
+                    audioPassthrough = enabled
+                    DevicePlayerPrefs.setAudioPassthrough(context, enabled)
+                },
                 onOpenSourceInfo = { pushOverlay(PlayerOverlay.SOURCE_INFO) },
                 onChangeSource = onChangeSource
             )

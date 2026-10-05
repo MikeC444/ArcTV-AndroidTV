@@ -4434,3 +4434,18 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the screenshot's error comes from the emulator's own decoder, so it may not happen on a real TV. The developer panel screen in the app does not show the new numbers yet (they are in `/admin/summary`).
 
 **Issues fixed:** the above.
+
+## Post-Milestone-80 — Audio Passthrough switch
+
+**Status:** Written; not built or tried on a TV.
+
+**Context:** a 4K file whose only audio was DTS-HD MA played silently in VLC (via the external-player button); VLC's fix is turning its passthrough off. The built-in player had no such switch and, by default, offers the TV the raw Dolby/DTS stream whenever the HDMI device says it can take it.
+
+**Changes:**
+- Player > Settings > Advanced has an "Audio Passthrough" toggle (on by default), kept per device in `DevicePlayerPrefs`. Off builds the player with `PcmOnlyRenderersFactory` (`PlayerEngine.kt`), whose audio sink only accepts decoded PCM (`AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES`), so the TV is never sent a stream it can't really play. It applies from the next video (the player is built once per playback).
+
+**Tests performed:** none; this sandbox cannot reach `dl.google.com`, so no Gradle build was run, and nothing was tried on a TV. The code was re-read by hand against the Media3 1.4.1 API (`DefaultRenderersFactory.buildAudioSink`, `DefaultAudioSink.Builder.setAudioCapabilities`).
+
+**Issues discovered:** turning passthrough off does not make a DTS-HD track playable on a device with no DTS decoder: the built-in player has no FFmpeg audio decoder, so that file stays silent here. It only helps where the TV or receiver claims support it doesn't have (typically Dolby Digital Plus / Atmos).
+
+**Issues fixed:** the above.

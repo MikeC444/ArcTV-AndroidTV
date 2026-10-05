@@ -12,6 +12,9 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioCapabilities
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.mangotv.app.data.model.PlayerPreferences
 import okhttp3.OkHttpClient
@@ -38,7 +41,9 @@ fun buildExoPlayer(context: Context, preferences: PlayerPreferences): ExoPlayer 
     // Decoder fallback: when the first-choice hardware decoder for a track can't start (some Fire TV audio decoders
     // accept a format on paper, e.g. AAC "Main" profile, then fail when asked to play it), try the next decoder the
     // device offers -- usually the software one -- instead of giving up with "Unable to play this source".
-    val renderersFactory = DefaultRenderersFactory(context)
+    // Audio passthrough off (Advanced settings in the player): the TV is never offered the raw Dolby/DTS stream, so a TV or receiver that
+    // claims support it doesn't really have gives sound anyway. Read here, so a change applies from the next video.
+    val renderersFactory = (if (DevicePlayerPrefs.audioPassthrough(context)) DefaultRenderersFactory(context) else PcmOnlyRenderersFactory(context))
         .setEnableDecoderFallback(true)
         .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
     val player = ExoPlayer.Builder(context, renderersFactory)
@@ -53,6 +58,17 @@ fun buildExoPlayer(context: Context, preferences: PlayerPreferences): ExoPlayer 
     player.trackSelectionParameters = parametersBuilder.build()
 
     return player
+}
+
+/** Like the default, but its audio output only ever accepts decoded (PCM) sound, which is what turns passthrough off. */
+@OptIn(UnstableApi::class)
+private class PcmOnlyRenderersFactory(context: Context) : DefaultRenderersFactory(context) {
+    override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink =
+        DefaultAudioSink.Builder(context)
+            .setAudioCapabilities(AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES)
+            .setEnableFloatOutput(enableFloatOutput)
+            .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+            .build()
 }
 
 /**

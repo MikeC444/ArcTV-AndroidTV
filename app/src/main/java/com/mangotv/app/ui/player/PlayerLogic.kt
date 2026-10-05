@@ -42,6 +42,7 @@ object DevicePlayerPrefs {
     private const val FILE = "arctv_device_player"
     private const val SPEED = "speed"
     private const val SHOW_REMAINING = "show_remaining"
+    private const val AUDIO_PASSTHROUGH = "audio_passthrough"
 
     fun speed(context: Context): Float {
         val value = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getFloat(SPEED, 1f)
@@ -54,6 +55,14 @@ object DevicePlayerPrefs {
 
     fun showRemaining(context: Context): Boolean =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(SHOW_REMAINING, true)
+
+    /** Whether surround audio (Dolby / DTS) may be sent untouched to the TV or receiver; off decodes it to plain stereo/5.1 sound in the app. On by default. */
+    fun audioPassthrough(context: Context): Boolean =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(AUDIO_PASSTHROUGH, true)
+
+    fun setAudioPassthrough(context: Context, value: Boolean) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(AUDIO_PASSTHROUGH, value).apply()
+    }
 
     fun setShowRemaining(context: Context, value: Boolean) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(SHOW_REMAINING, value).apply()

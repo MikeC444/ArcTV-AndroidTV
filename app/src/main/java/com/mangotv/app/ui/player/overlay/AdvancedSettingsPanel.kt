@@ -3,6 +3,7 @@ package com.mangotv.app.ui.player.overlay
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.runtime.Composable
@@ -18,6 +19,8 @@ import androidx.compose.ui.focus.FocusRequester
 fun AdvancedSettingsPanel(
     skipIntroEnabled: Boolean,
     onSkipIntroChange: (Boolean) -> Unit,
+    audioPassthrough: Boolean,
+    onAudioPassthroughChange: (Boolean) -> Unit,
     onOpenSourceInfo: () -> Unit,
     onChangeSource: () -> Unit,
     modifier: Modifier = Modifier
@@ -38,6 +41,13 @@ fun AdvancedSettingsPanel(
             onClick = { onSkipIntroChange(!skipIntroEnabled) },
             focusRequester = firstFocusRequester,
             trailing = { ToggleSwitch(checked = skipIntroEnabled) }
+        )
+        SettingsRow(
+            icon = Icons.Filled.SurroundSound,
+            title = "Audio Passthrough",
+            subtitle = if (audioPassthrough) "On" else "Off, from the next video",
+            onClick = { onAudioPassthroughChange(!audioPassthrough) },
+            trailing = { ToggleSwitch(checked = audioPassthrough) }
         )
         SettingsRow(
             icon = Icons.Filled.Info,
