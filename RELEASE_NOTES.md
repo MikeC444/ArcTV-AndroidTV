@@ -16,9 +16,11 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - No sound on surround sources? Turn off Audio Passthrough in Settings > Audio, or instantly in the player.
 
-- Can't play a source? Pick the built-in player, a VLC engine or another app from the new button beside the timeline.
+- A new VLC-powered player is now the default: streaming-style controls, and it plays more videos.
 
-- Next episode now stays on screen from the last minute to the end, with the cursor on it: press OK to play it.
+- Can't play a source? Pick the built-in player, VLC or another app with the new button by the timeline.
+
+- Next episode stays on screen through the last minute, with the cursor on it. Press OK to play.
 
 - New Episodes panel in the player: pick any season and episode with its thumbnail, and it plays right away.
 
@@ -28,11 +30,11 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - Choose your default player in Settings > Player, and each title remembers the player you picked for it.
 
-- Cleaner source filters: the Audio pill is no longer cut off at the edge, and the dark halo around pills is gone.
+- Cleaner source filters: the Audio pill is no longer cut off, and the dark halo around pills is gone.
 
 - Pick your preferred audio language in Settings > Audio, and it follows you to all your devices.
 
-- Pick stereo, 5.1, 7.1 or Dolby Atmos in Settings > Audio and sources match it, with the next best if none. Change it from the source list anytime.
+- Pick stereo, 5.1, 7.1 or Atmos in Settings > Audio and the source list matches it.
 
 - Sources with DTS, DTS-HD or TrueHD sound now play with audio, even on TVs that can't decode them.
 
