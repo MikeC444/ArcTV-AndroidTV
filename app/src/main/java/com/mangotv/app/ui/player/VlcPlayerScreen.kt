@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.VolumeUp
@@ -118,6 +119,11 @@ fun VlcPlaybackContent(
     var selectedAudio by remember { mutableIntStateOf(-1) }
     var selectedSubtitle by remember { mutableIntStateOf(-1) }
     var startApplied by remember { mutableStateOf(false) }
+    // Where to carry on from once the picture starts: the position handed over, or (after switching decoders) where the person was.
+    var seekOnPlay by remember { mutableLongStateOf(startPositionMs) }
+    // Software decoding is the default (this engine is chosen when the device's own decoders already failed, and a decoder that
+    // half-works shows as blocky, grey picture); the Decoding button switches to the device's hardware decoder, which is faster on big video.
+    var hardware by remember { mutableStateOf(DevicePlayerPrefs.vlcHardwareDecoding(context)) }
     var preferencesApplied by remember { mutableStateOf(false) }
 
     val rootFocus = remember { FocusRequester() }
@@ -152,7 +158,7 @@ fun VlcPlaybackContent(
                     buffering = false
                     if (!startApplied) {
                         startApplied = true
-                        if (startPositionMs > 5_000) mediaPlayer.setTime(startPositionMs)
+                        if (seekOnPlay > 5_000) mediaPlayer.setTime(seekOnPlay)
                     }
                 }
                 MediaPlayer.Event.Paused -> {
@@ -183,13 +189,27 @@ fun VlcPlaybackContent(
         }
     }
 
-    LaunchedEffect(viewReady) {
-        if (!viewReady) return@LaunchedEffect
+    fun loadMedia() {
         val media = Media(libVlc, Uri.parse(url))
-        media.setHWDecoderEnabled(true, false)
+        media.setHWDecoderEnabled(hardware, false)
         mediaPlayer.setMedia(media)
         media.release()
         mediaPlayer.play()
+    }
+    fun toggleDecoding() {
+        hardware = !hardware
+        DevicePlayerPrefs.setVlcHardwareDecoding(context, hardware)
+        // The decoder is chosen when the media is opened, so reopen it from where the person is.
+        seekOnPlay = mediaPlayer.time.coerceAtLeast(0)
+        startApplied = false
+        buffering = true
+        mediaPlayer.stop()
+        loadMedia()
+        bump()
+    }
+
+    LaunchedEffect(viewReady) {
+        if (viewReady) loadMedia()
     }
 
     // Language preferences: match a track's name against the language's English name, the way VLC labels them ("Track 1 - [English]").
@@ -337,6 +357,14 @@ fun VlcPlaybackContent(
                     if (subtitleTracks.size > 1) {
                         MangoButton(text = "Subtitles", icon = Icons.Filled.Subtitles, onClick = { menu = VlcMenu.SUBTITLES }, style = MangoButtonStyle.GLASS, borderColor = Color.White, compact = true)
                     }
+                    MangoButton(
+                        text = if (hardware) "Decoding: Hardware" else "Decoding: Software",
+                        icon = Icons.Filled.Settings,
+                        onClick = ::toggleDecoding,
+                        style = MangoButtonStyle.GLASS,
+                        borderColor = Color.White,
+                        compact = true
+                    )
                     MangoButton(text = "Change Source", icon = Icons.Filled.SwapHoriz, onClick = onChangeSource, style = MangoButtonStyle.GLASS, borderColor = Color.White, compact = true)
                 }
             }

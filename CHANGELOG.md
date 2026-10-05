@@ -4515,6 +4515,6 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Tests performed:** `FormatFailureTest` added (not run). No Gradle build (no route to `dl.google.com`) and nothing tried on a device; the libVLC calls were matched to the real class signatures but not compiled.
 
-**Issues discovered:** VLC's software decoding of 4K HEVC can be too slow on a typical TV box (it tries the hardware decoder first and falls back to software). The VLC screen is simpler than the built-in player: no passthrough or speaker settings, no external-player button, no next-episode offer, and subtitle choices are not remembered. Dolby Vision plays as its HDR10 base layer.
+**Issues discovered:** VLC's software decoding of 4K HEVC can be too slow on a typical TV box. Decoding is software by default (a half-working hardware decoder shows as a blocky grey picture, which is what the first version showed on a test device by letting VLC choose the hardware decoder), with a "Decoding" button in the VLC controls that reopens the source from the same spot on the device's hardware decoder (remembered per device, `DevicePlayerPrefs.vlcHardwareDecoding`). The VLC screen is simpler than the built-in player: no passthrough or speaker settings, no external-player button, no next-episode offer, and subtitle choices are not remembered. Dolby Vision plays as its HDR10 base layer.
 
 **Issues fixed:** sources the device's own decoders reject can now play, in software if need be.
