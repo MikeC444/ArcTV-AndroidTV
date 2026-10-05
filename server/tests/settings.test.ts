@@ -20,6 +20,7 @@ function validBody(overrides: Partial<Record<string, unknown>> = {}) {
     skipIntroEnabled: true,
     subtitlesEnabled: false,
     defaultSubtitleLanguage: "es",
+    defaultAudioLanguage: "fr",
     blockedGenres: ["Horror", "Reality-TV"],
     updatedAt: "2025-01-01T00:00:00.000Z",
     ...overrides,
@@ -43,6 +44,7 @@ describe("GET /user/settings", () => {
       skipIntroEnabled: true,
       subtitlesEnabled: true,
       defaultSubtitleLanguage: null,
+      defaultAudioLanguage: null,
       blockedGenres: [],
       updatedAt: null,
     });
@@ -181,6 +183,7 @@ describe("cross-user isolation", () => {
       skipIntroEnabled: true,
       subtitlesEnabled: true,
       defaultSubtitleLanguage: null,
+      defaultAudioLanguage: null,
       blockedGenres: [],
       updatedAt: null,
     });
@@ -235,5 +238,25 @@ describe("blocked genres on the account", () => {
     await put(app, a.token, validBody({ blockedGenres: ["Horror"] }));
     const seenByB = await request(app).get("/user/settings").set("Authorization", `Bearer ${b.token}`);
     expect(seenByB.body.blockedGenres).toEqual([]);
+  });
+});
+
+describe("default audio language on the account", () => {
+  const put = (token: string, body: Record<string, unknown>) =>
+    request(app).put("/user/settings").set("Authorization", `Bearer ${token}`).send(body);
+
+  it("round-trips, a newer push can clear it, and a client that omits it leaves the stored one alone", async () => {
+    const session = await createTestSession();
+    expect((await put(session.token, validBody({ defaultAudioLanguage: "es" }))).body.defaultAudioLanguage).toBe("es");
+    const { defaultAudioLanguage: _omitted, ...withoutIt } = validBody({ updatedAt: "2025-01-02T00:00:00.000Z" });
+    expect((await put(session.token, withoutIt)).body.defaultAudioLanguage).toBe("es");
+    const cleared = await put(session.token, validBody({ defaultAudioLanguage: null, updatedAt: "2025-01-03T00:00:00.000Z" }));
+    expect(cleared.body.defaultAudioLanguage).toBeNull();
+    expect((await request(app).get("/user/settings").set("Authorization", `Bearer ${session.token}`)).body.defaultAudioLanguage).toBeNull();
+  });
+
+  it("rejects a value too short to be a language code", async () => {
+    const session = await createTestSession();
+    expect((await put(session.token, validBody({ defaultAudioLanguage: "e" }))).status).toBe(400);
   });
 });

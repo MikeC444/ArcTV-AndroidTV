@@ -16,6 +16,9 @@ export const settingsBodySchema = z.object({
   // (never validated against a fixed set): the client's own language list
   // is free to grow without this schema needing to track it.
   defaultSubtitleLanguage: z.string().min(2).max(35).nullable(),
+  // The preferred audio language, same shape as defaultSubtitleLanguage (migrations/0022). Optional so a client that predates it
+  // still pushes cleanly -- it then leaves the stored value alone; null clears it.
+  defaultAudioLanguage: z.string().min(2).max(35).nullable().optional(),
   // Genre names the person never wants to see (migrations/0015). Optional so
   // a client that predates it still pushes cleanly -- it then leaves the
   // stored list alone instead of wiping it.

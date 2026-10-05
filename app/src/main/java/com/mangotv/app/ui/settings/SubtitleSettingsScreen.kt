@@ -192,7 +192,7 @@ private fun SubtitlesToggleRow(
 }
 
 @Composable
-private fun LanguageOptionRow(
+internal fun LanguageOptionRow(
     label: String,
     selected: Boolean,
     onClick: () -> Unit

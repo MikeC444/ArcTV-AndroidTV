@@ -4466,3 +4466,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the decoder is software, so DTS-HD MA plays as its DTS core (lossy 5.1), as in VLC, not the lossless layer. FFmpeg is LGPL; the AAR bundles it as a shared library, which keeps the app's own code separate.
 
 **Issues fixed:** DTS / DTS-HD / TrueHD sources with no other audio track should now play with sound on devices lacking those decoders.
+
+## Post-Milestone-82 — Audio language and speaker layout in Settings > Audio
+
+**Status:** Written; the server's tests pass; the app is not built or tried on a TV.
+
+**Context:** a file with several audio tracks played whichever one the player chose first, and a stereo TV or soundbar had no way to ask for surround to be mixed down.
+
+**Changes:**
+- Default audio language: `PlayerPreferences.defaultAudioLanguage` (an ISO 639-1 code or null = automatic), set in Settings > Audio (`AudioSettingsViewModel`, `AudioLanguageOptions` = the subtitle list with "Automatic" first) and applied in `buildExoPlayer` with `setPreferredAudioLanguage`. Synced like the subtitle language: migration `0022_user_settings_audio_language.sql`, `defaultAudioLanguage` in the `/user/settings` schema, service and route (optional on `PUT`, so an older client leaves the stored value alone; `null` clears it), and in `SettingsRequest`/`SettingsResponse`. The app treats a response without the field (`AUDIO_LANGUAGE_ABSENT`, for an older server) as "keep the local value", so deploying the app before the server cannot wipe the choice.
+- Speakers: Auto / Stereo / 5.1 (`AudioChannelMode`, per device in `DevicePlayerPrefs`). `buildExoPlayer` asks track selection for a track within the limit (`setMaxAudioChannelCount`), and `DownmixAudioProcessor` (in the audio sink) mixes 5.1/7.1 16-bit sound down to stereo, or 7.1 to 5.1. A raw (passthrough) stream can't be mixed, so it is only passed through when it fits the limit (`SwitchableAudioSink`); stereo therefore never passes through. `AudioPassthroughSwitch` became `AudioOutputSettings` (passthrough + channel mode). A change applies to the next video.
+- `server/README.md` documents the new settings field.
+
+**Tests performed:** server: `tests/settings.test.ts` extended (round trip, clear with `null`, an omitted field keeps the stored value, a too-short code is rejected, the defaults include it); the full suite (241 tests) passes against a scratch Postgres and `tsc` is clean outside `scripts/`. App: no Gradle build (this sandbox cannot reach `dl.google.com`) and nothing tried on a TV; the downmix has no unit test because the Media3 `AudioProcessor` flow could not be compiled here.
+
+**Issues discovered:** the downmix uses fixed gains (centre and surrounds -3 dB, overall 0.7, bass dropped from stereo) and only handles 16-bit 5.1/7.1 PCM; other layouts and 24-bit/float PCM are sent as they are. There is no separate 7.1 choice: Auto already sends up to 7.1 when the TV supports it.
+
+**Issues fixed:** the above.

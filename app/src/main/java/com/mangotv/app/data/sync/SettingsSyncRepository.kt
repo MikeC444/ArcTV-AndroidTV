@@ -5,8 +5,10 @@ import com.mangotv.app.BuildConfig
 import com.mangotv.app.data.auth.AuthRepository
 import com.mangotv.app.data.model.PlayerPreferences
 import com.mangotv.app.data.network.ApiException
+import com.mangotv.app.data.network.AUDIO_LANGUAGE_ABSENT
 import com.mangotv.app.data.network.SettingsApiClient
 import com.mangotv.app.data.network.SettingsRequest
+import com.mangotv.app.data.network.SettingsResponse
 import com.mangotv.app.data.player.PlayerPreferencesRepository
 import com.mangotv.app.data.provider.BlockedGenresRepository
 import com.mangotv.app.data.provider.HomeRowPreferences
@@ -67,10 +69,7 @@ class SettingsSyncRepository(
         try {
             val token = freshAccessTokenOrNull() ?: return
             val response = apiClient.getSettings(token)
-            applyRemote(
-                response.homeRowOrder, response.hiddenRowIds, response.autoplayNextEpisode, response.skipIntroEnabled,
-                response.subtitlesEnabled, response.defaultSubtitleLanguage, response.blockedGenres
-            )
+            applyRemote(response)
         } catch (e: ApiException) {
             if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
         } catch (e: IOException) {
@@ -90,10 +89,7 @@ class SettingsSyncRepository(
             val body = pendingStore.all()[PENDING_KEY] ?: return
             val token = freshAccessTokenOrNull() ?: return
             val response = apiClient.putSettings(token, body)
-            applyRemote(
-                response.homeRowOrder, response.hiddenRowIds, response.autoplayNextEpisode, response.skipIntroEnabled,
-                response.subtitlesEnabled, response.defaultSubtitleLanguage, response.blockedGenres
-            )
+            applyRemote(response)
             pendingStore.remove(PENDING_KEY)
         } catch (e: ApiException) {
             if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
@@ -152,6 +148,7 @@ class SettingsSyncRepository(
             skipIntroEnabled = player.skipIntroEnabled,
             subtitlesEnabled = player.subtitlesEnabled,
             defaultSubtitleLanguage = player.defaultSubtitleLanguage,
+            defaultAudioLanguage = player.defaultAudioLanguage,
             blockedGenres = blockedGenresRepository.genres.value,
             updatedAt = Iso8601.nowString()
         )
@@ -167,10 +164,7 @@ class SettingsSyncRepository(
             // device): applies whatever the server says is
             // authoritative now, which is just this write's own values
             // echoed back when it won.
-            applyRemote(
-                response.homeRowOrder, response.hiddenRowIds, response.autoplayNextEpisode, response.skipIntroEnabled,
-                response.subtitlesEnabled, response.defaultSubtitleLanguage, response.blockedGenres
-            )
+            applyRemote(response)
             pendingStore.remove(PENDING_KEY)
         } catch (e: ApiException) {
             pendingStore.put(PENDING_KEY, body)
@@ -190,23 +184,21 @@ class SettingsSyncRepository(
         return authRepository.getCurrentSession()?.accessToken
     }
 
-    private suspend fun applyRemote(
-        homeRowOrder: List<String>,
-        hiddenRowIds: List<String>,
-        autoplay: Boolean,
-        skipIntro: Boolean,
-        subtitlesEnabled: Boolean,
-        defaultSubtitleLanguage: String?,
-        blockedGenres: List<String>?
-    ) {
-        if (blockedGenres != null) blockedGenresRepository.applyRemote(blockedGenres)
-        homeRowPreferencesRepository.applyRemote(HomeRowPreferences(order = homeRowOrder, hiddenRowIds = hiddenRowIds.toSet()))
+    private suspend fun applyRemote(response: SettingsResponse) {
+        if (response.blockedGenres != null) blockedGenresRepository.applyRemote(response.blockedGenres)
+        homeRowPreferencesRepository.applyRemote(HomeRowPreferences(order = response.homeRowOrder, hiddenRowIds = response.hiddenRowIds.toSet()))
         playerPreferencesRepository.applyRemote(
             PlayerPreferences(
-                autoplayNextEpisode = autoplay,
-                skipIntroEnabled = skipIntro,
-                subtitlesEnabled = subtitlesEnabled,
-                defaultSubtitleLanguage = defaultSubtitleLanguage
+                autoplayNextEpisode = response.autoplayNextEpisode,
+                skipIntroEnabled = response.skipIntroEnabled,
+                subtitlesEnabled = response.subtitlesEnabled,
+                defaultSubtitleLanguage = response.defaultSubtitleLanguage,
+                // An older server doesn't send it: keep the local choice rather than clearing it.
+                defaultAudioLanguage = if (response.defaultAudioLanguage == AUDIO_LANGUAGE_ABSENT) {
+                    playerPreferencesRepository.preferences.value.defaultAudioLanguage
+                } else {
+                    response.defaultAudioLanguage
+                }
             )
         )
     }

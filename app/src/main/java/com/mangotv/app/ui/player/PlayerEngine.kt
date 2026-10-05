@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.TrackGroup
@@ -37,7 +38,7 @@ import okhttp3.OkHttpClient
  * still override it once tracks are known, exactly like it always could.
  */
 @OptIn(UnstableApi::class)
-fun buildExoPlayer(context: Context, preferences: PlayerPreferences, passthrough: AudioPassthroughSwitch): ExoPlayer {
+fun buildExoPlayer(context: Context, preferences: PlayerPreferences, audioOutput: AudioOutputSettings): ExoPlayer {
     val httpDataSourceFactory = OkHttpDataSource.Factory(OkHttpClient.Builder().build())
     val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
     // Decoder fallback: when the first-choice hardware decoder for a track can't start (some Fire TV audio decoders
@@ -45,7 +46,7 @@ fun buildExoPlayer(context: Context, preferences: PlayerPreferences, passthrough
     // device offers -- usually the software one -- instead of giving up with "Unable to play this source".
     // Audio passthrough off (Advanced settings in the player): the TV is never offered the raw Dolby/DTS stream, so a TV or receiver that
     // claims support it doesn't really have gives sound anyway. The switch is read live; PlayerScreen re-prepares playback when it flips.
-    val renderersFactory = SwitchableRenderersFactory(context, passthrough)
+    val renderersFactory = SwitchableRenderersFactory(context, audioOutput)
         .setEnableDecoderFallback(true)
         // ON = the FFmpeg audio renderer (media3-ffmpeg-decoder) is tried only after the device's own decoders, so a track the device
         // can't decode (DTS, DTS-HD, TrueHD on most TV boxes) is decoded in software instead of staying silent.
@@ -56,6 +57,11 @@ fun buildExoPlayer(context: Context, preferences: PlayerPreferences, passthrough
 
     var parametersBuilder = player.trackSelectionParameters.buildUpon()
         .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !preferences.subtitlesEnabled)
+        // Settings > Audio: prefer a track in the chosen language, and (stereo / 5.1) one that already fits the speakers when the file has it.
+        .setMaxAudioChannelCount(audioOutput.channelMode.maxChannels)
+    if (preferences.defaultAudioLanguage != null) {
+        parametersBuilder = parametersBuilder.setPreferredAudioLanguage(preferences.defaultAudioLanguage)
+    }
     if (preferences.subtitlesEnabled && preferences.defaultSubtitleLanguage != null) {
         parametersBuilder = parametersBuilder.setPreferredTextLanguage(preferences.defaultSubtitleLanguage)
     }
@@ -64,25 +70,35 @@ fun buildExoPlayer(context: Context, preferences: PlayerPreferences, passthrough
     return player
 }
 
-/** Whether the TV may be sent raw Dolby/DTS audio. Read each time the audio output is asked, so flipping it takes effect on the next (re)prepare. */
-class AudioPassthroughSwitch(@Volatile var enabled: Boolean)
+/**
+ * What this playback may send to the TV, read live: whether raw Dolby/DTS audio may be passed through, and the most channels wanted.
+ * Flipping either takes effect on the next (re)prepare.
+ */
+class AudioOutputSettings(@Volatile var passthrough: Boolean, @Volatile var channelMode: AudioChannelMode)
 
-/** The default renderers, with an audio output that refuses encoded (non-PCM) formats while [passthrough] is off, so only decoded sound is ever sent. */
+/** The default renderers, with an audio output that follows [settings]: it refuses encoded (non-PCM) formats the person doesn't want passed through, and mixes surround sound down. */
 @OptIn(UnstableApi::class)
-private class SwitchableRenderersFactory(context: Context, private val passthrough: AudioPassthroughSwitch) : DefaultRenderersFactory(context) {
+private class SwitchableRenderersFactory(context: Context, private val settings: AudioOutputSettings) : DefaultRenderersFactory(context) {
     override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink =
         SwitchableAudioSink(
             DefaultAudioSink.Builder(context)
                 .setEnableFloatOutput(enableFloatOutput)
                 .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                .setAudioProcessors(arrayOf<AudioProcessor>(DownmixAudioProcessor { settings.channelMode.maxChannels }))
                 .build(),
-            passthrough
+            settings
         )
 }
 
 @OptIn(UnstableApi::class)
-private class SwitchableAudioSink(delegate: AudioSink, private val passthrough: AudioPassthroughSwitch) : ForwardingAudioSink(delegate) {
-    private fun blocked(format: Format) = !passthrough.enabled && format.sampleMimeType != MimeTypes.AUDIO_RAW
+private class SwitchableAudioSink(delegate: AudioSink, private val settings: AudioOutputSettings) : ForwardingAudioSink(delegate) {
+    // An encoded stream can't be mixed down here, so it is only passed through when that is wanted and it stays within the channel limit
+    // (a stream whose channel count is unknown is allowed).
+    private fun blocked(format: Format): Boolean {
+        if (format.sampleMimeType == MimeTypes.AUDIO_RAW) return false
+        if (!settings.passthrough) return true
+        return format.channelCount != Format.NO_VALUE && format.channelCount > settings.channelMode.maxChannels
+    }
 
     override fun supportsFormat(format: Format): Boolean = !blocked(format) && super.supportsFormat(format)
 

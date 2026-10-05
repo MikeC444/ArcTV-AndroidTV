@@ -16,6 +16,7 @@ function serialize(settings: settingsService.UserSettings) {
     skipIntroEnabled: settings.skipIntroEnabled,
     subtitlesEnabled: settings.subtitlesEnabled,
     defaultSubtitleLanguage: settings.defaultSubtitleLanguage,
+    defaultAudioLanguage: settings.defaultAudioLanguage,
     blockedGenres: settings.blockedGenres,
     updatedAt: settings.updatedAt ? settings.updatedAt.toISOString() : null,
   };

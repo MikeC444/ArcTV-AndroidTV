@@ -37,7 +37,8 @@ Endpoints:
   account's Home Rows order/hidden state + Player autoplay/skip-intro
   preferences, plus the account's blocked genres (`blockedGenres`, a list
   of genre names; optional on `PUT` — an older client that omits it leaves
-  the stored list alone), one row per account, last-write-wins on the
+  the stored list alone) and `defaultAudioLanguage` (an ISO 639-1 code or
+  `null`; optional on `PUT` the same way), one row per account, last-write-wins on the
   client's own `updatedAt`.
 - `GET /user/plus` (authenticated) — `{ active, plan, validUntil, paywall }`: whether this account has ArcTV Plus.
   With `PLUS_PAYWALL` off (the default) everyone is `active` with plan `early_access`; on, only paying accounts.

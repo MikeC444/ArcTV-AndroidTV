@@ -43,6 +43,7 @@ object DevicePlayerPrefs {
     private const val SPEED = "speed"
     private const val SHOW_REMAINING = "show_remaining"
     private const val AUDIO_PASSTHROUGH = "audio_passthrough"
+    private const val AUDIO_CHANNELS = "audio_channels"
 
     fun speed(context: Context): Float {
         val value = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getFloat(SPEED, 1f)
@@ -62,6 +63,14 @@ object DevicePlayerPrefs {
 
     fun setAudioPassthrough(context: Context, value: Boolean) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(AUDIO_PASSTHROUGH, value).apply()
+    }
+
+    /** The most speakers' worth of sound to send out (Settings > Audio); Auto leaves it to what the TV supports. */
+    fun audioChannelMode(context: Context): AudioChannelMode =
+        AudioChannelMode.fromWire(context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(AUDIO_CHANNELS, null))
+
+    fun setAudioChannelMode(context: Context, mode: AudioChannelMode) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(AUDIO_CHANNELS, mode.wire).apply()
     }
 
     fun setShowRemaining(context: Context, value: Boolean) {

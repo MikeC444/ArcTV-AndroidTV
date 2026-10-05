@@ -22,5 +22,7 @@ data class PlayerPreferences(
     val autoplayNextEpisode: Boolean = true,
     val skipIntroEnabled: Boolean = true,
     val subtitlesEnabled: Boolean = true,
-    val defaultSubtitleLanguage: String? = null
+    val defaultSubtitleLanguage: String? = null,
+    /** An ISO 639-1 code (e.g. "en"), or null for "no preference" (the file's own default track). Synced like the subtitle language. */
+    val defaultAudioLanguage: String? = null
 )

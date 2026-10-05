@@ -56,6 +56,9 @@ class PlayerPreferencesRepository(context: Context) {
     /** [languageCode] is an ISO 639-1 code (e.g. "en"), or null for "no preference". */
     suspend fun setDefaultSubtitleLanguage(languageCode: String?) = update { it.copy(defaultSubtitleLanguage = languageCode) }
 
+    /** [languageCode] is an ISO 639-1 code (e.g. "en"), or null for "no preference". */
+    suspend fun setDefaultAudioLanguage(languageCode: String?) = update { it.copy(defaultAudioLanguage = languageCode) }
+
     /** Applies a value pulled from the server — persists locally without notifying [onLocalChange]; see its own kdoc for why. */
     suspend fun applyRemote(preferences: PlayerPreferences) = withContext(Dispatchers.IO) {
         _preferences.value = preferences
