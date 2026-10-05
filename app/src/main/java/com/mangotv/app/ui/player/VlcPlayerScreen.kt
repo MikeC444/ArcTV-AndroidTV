@@ -143,8 +143,6 @@ fun VlcPlaybackContent(
     var upNext by remember { mutableStateOf<NextEpisode?>(null) }
     var offerNext by remember { mutableStateOf(false) }
     var offerFocused by remember { mutableStateOf(false) }
-    // Up or BACK on the focused Next episode button dismisses it for the rest of this episode.
-    var offerDismissed by remember { mutableStateOf(false) }
     val nextOfferFocus = remember { FocusRequester() }
     // Settings > Audio: passthrough and the speaker layout, read once when playback starts.
     val audioPassthrough = remember { DevicePlayerPrefs.audioPassthrough(context) }
@@ -187,11 +185,6 @@ fun VlcPlaybackContent(
         val seconds = kotlin.math.abs(moved) / 1000
         seekText = (if (moved < 0) "−" else "+") + (if (seconds >= 60) "${seconds / 60} min ${seconds % 60} s" else "${seconds}s")
         bump()
-    }
-    fun dismissOffer() {
-        offerDismissed = true
-        offerFocused = false
-        runCatching { rootFocus.requestFocus() }
     }
     fun cycleSpeed() {
         speedIndex = (speedIndex + 1) % SPEEDS.size
@@ -293,12 +286,14 @@ fun VlcPlaybackContent(
     }
 
     // Next episode: a few seconds after the button appears (last minute, controls hidden) the cursor lands on it, so one OK plays the next
-    // episode. The short wait stops an OK pressed for something else from skipping the episode. LEFT / RIGHT still seek, UP or BACK dismisses it.
-    fun offerShowing() = offerNext && next != null && upNext == null && !offerDismissed && !controlsVisible && menu == null && !showChoice && failure == null
-    LaunchedEffect(offerNext, offerDismissed, controlsVisible, upNext, menu, showChoice, failure) {
-        if (offerShowing()) {
+    // episode. The short wait stops an OK pressed for something else from skipping the episode. LEFT / RIGHT still seek, UP brings up the controls.
+    // The button stays up from the last minute until the episode ends (also while the controls are showing, a little higher then), and goes
+    // only for the Up next card, a menu or an error.
+    fun offerShown() = offerNext && next != null && upNext == null && menu == null && !showChoice && failure == null
+    LaunchedEffect(offerNext, controlsVisible, upNext, menu, showChoice, failure) {
+        if (offerShown() && !controlsVisible) {
             delay(OFFER_FOCUS_DELAY_MS)
-            if (offerShowing()) runCatching { nextOfferFocus.requestFocus() }
+            if (offerShown() && !controlsVisible) runCatching { nextOfferFocus.requestFocus() }
         } else {
             offerFocused = false
         }
@@ -308,7 +303,11 @@ fun VlcPlaybackContent(
     LaunchedEffect(playing) {
         var sinceReport = REPORT_INTERVAL_MS - FIRST_REPORT_MS
         while (true) {
-            positionMs = scrubTarget ?: mediaPlayer.time.coerceAtLeast(0)
+            val reported = mediaPlayer.time.coerceAtLeast(0)
+            // VLC reports 0 once playback has stopped at the end: keep the last real position then, so the Next episode button (which needs a
+            // position inside the last minute) stays up until the episode is over.
+            val stoppedAtEnd = reported == 0L && positionMs > 0 && lengthMs > 0 && positionMs >= lengthMs - 120_000
+            positionMs = scrubTarget ?: if (stoppedAtEnd) positionMs else reported
             if (lengthMs <= 0) lengthMs = mediaPlayer.length.coerceAtLeast(0)
             offerNext = offerNextEpisode(positionMs, lengthMs, next != null)
             delay(500)
@@ -365,14 +364,15 @@ fun VlcPlaybackContent(
                     controlsVisible = false
                     return@onPreviewKeyEvent true
                 }
-                // The focused Next episode button: OK plays it, LEFT / RIGHT keep seeking, UP or BACK dismiss it, play / pause still pauses.
+                // The focused Next episode button: OK plays it, LEFT / RIGHT keep seeking, UP brings up the controls, BACK goes on as usual, and
+                // play / pause still pauses.
                 if (offerFocused && upNext == null) {
                     if (event.type == KeyEventType.KeyDown) {
                         when (event.key) {
                             Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> { next?.let { onNextEpisode(it.season, it.episode) }; return@onPreviewKeyEvent true }
                             Key.DirectionLeft -> { seekBy(-SEEK_STEP_MS); return@onPreviewKeyEvent true }
                             Key.DirectionRight -> { seekBy(SEEK_STEP_MS); return@onPreviewKeyEvent true }
-                            Key.DirectionUp, Key.Back -> { dismissOffer(); return@onPreviewKeyEvent true }
+                            Key.DirectionUp -> { offerFocused = false; controlsVisible = true; return@onPreviewKeyEvent true }
                             Key.MediaPlayPause, Key.MediaPlay, Key.MediaPause -> { togglePlay(); return@onPreviewKeyEvent true }
                             else -> Unit
                         }
@@ -475,13 +475,16 @@ fun VlcPlaybackContent(
             if (USE_CLASSIC_VLC_CONTROLS) VlcControlsClassic(controls, focus) else VlcControlsNetflix(controls, focus)
         }
 
-        if (next != null && offerShowing()) {
-            NextEpisodeOffer(
-                next = next,
-                onGo = { onNextEpisode(next.season, next.episode) },
-                focusRequester = nextOfferFocus,
-                modifier = Modifier.align(Alignment.BottomEnd).onFocusChanged { offerFocused = it.hasFocus }
-            )
+        if (next != null && offerShown()) {
+            // Higher while the controls are showing, so it sits clear of the timeline and the pills.
+            Box(modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = if (controlsVisible) 70.dp else 0.dp)) {
+                NextEpisodeOffer(
+                    next = next,
+                    onGo = { onNextEpisode(next.season, next.episode) },
+                    focusRequester = nextOfferFocus,
+                    modifier = Modifier.onFocusChanged { offerFocused = it.hasFocus }
+                )
+            }
         }
         upNext?.let { target ->
             UpNextCard(next = target, onGo = { onNextEpisode(target.season, target.episode) }, onCancel = { upNext = null })
@@ -530,7 +533,6 @@ fun VlcPlaybackContent(
     BackHandler {
         when {
             upNext != null -> upNext = null
-            offerFocused -> dismissOffer()
             showChoice -> showChoice = false
             menu != null -> menu = null
             controlsVisible -> controlsVisible = false

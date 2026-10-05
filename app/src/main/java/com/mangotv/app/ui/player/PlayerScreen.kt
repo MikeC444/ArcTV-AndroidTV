@@ -238,8 +238,6 @@ private fun PlaybackContent(
     var upNext by remember { mutableStateOf<NextEpisode?>(null) }
     var offerNext by remember { mutableStateOf(false) }
     val nextOfferFocusRequester = remember { FocusRequester() }
-    // Up or BACK on the focused Next episode button dismisses it for the rest of this episode.
-    var offerDismissed by remember { mutableStateOf(false) }
     var offerFocused by remember { mutableStateOf(false) }
 
     // Without this, Fire TV's system screensaver/idle timeout kicks in
@@ -455,9 +453,9 @@ private fun PlaybackContent(
     }
 
     // Next episode: a few seconds after the button appears (last minute, controls hidden) the cursor lands on it, so one OK plays the next
-    // episode. The short wait stops an OK pressed for something else from skipping the episode. LEFT / RIGHT still seek, UP or BACK dismisses it.
-    fun offerShown() = offerNext && next != null && upNext == null && !offerDismissed && activeOverlay == null && phase !is PlaybackPhase.Error
-    LaunchedEffect(offerNext, offerDismissed, controlsVisible, upNext, activeOverlay) {
+    // episode. The short wait stops an OK pressed for something else from skipping the episode. LEFT / RIGHT still seek, UP brings up the controls.
+    fun offerShown() = offerNext && next != null && upNext == null && activeOverlay == null && phase !is PlaybackPhase.Error
+    LaunchedEffect(offerNext, controlsVisible, upNext, activeOverlay) {
         if (offerShown() && !controlsVisible) {
             delay(OFFER_FOCUS_DELAY_MS)
             if (offerShown() && !controlsVisible) runCatching { nextOfferFocusRequester.requestFocus() }
@@ -644,16 +642,15 @@ private fun PlaybackContent(
                     }
                     return@onPreviewKeyEvent true
                 }
-                // The focused Next episode button: OK plays it, LEFT / RIGHT keep seeking, UP dismisses it (BACK does, in the back handler).
+                // The focused Next episode button: OK plays it, LEFT / RIGHT keep seeking, UP brings up the controls.
                 if (offerFocused && event.type == KeyEventType.KeyDown) {
                     when (event.key) {
                         Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> { next?.let { goToNextEpisode(it) }; return@onPreviewKeyEvent true }
                         Key.DirectionLeft -> { seekByClick(-10_000); return@onPreviewKeyEvent true }
                         Key.DirectionRight -> { seekByClick(10_000); return@onPreviewKeyEvent true }
                         Key.DirectionUp -> {
-                            offerDismissed = true
                             offerFocused = false
-                            runCatching { rootFocusRequester.requestFocus() }
+                            controlsVisible = true
                             return@onPreviewKeyEvent true
                         }
                         else -> Unit
@@ -948,11 +945,6 @@ private fun PlaybackContent(
     BackHandler {
         uiSoundPlayer?.playBack()
         when {
-            offerFocused -> {
-                offerDismissed = true
-                offerFocused = false
-                runCatching { rootFocusRequester.requestFocus() }
-            }
             // No separate "just exit scrub mode" branch here on purpose --
             // timelineScrubbing can only ever be true while controlsVisible
             // already is (scrubbing requires the timeline to be focused,
