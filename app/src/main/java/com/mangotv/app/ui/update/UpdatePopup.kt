@@ -1,6 +1,8 @@
 package com.mangotv.app.ui.update
 
 import android.text.format.Formatter
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -31,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +51,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -55,11 +59,13 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import com.mangotv.app.data.update.AppUpdate
 import com.mangotv.app.data.update.NO_NOTES_FALLBACK
 import com.mangotv.app.ui.components.ClickSound
@@ -113,10 +119,19 @@ internal fun UpdatePopup(
             usePlatformDefaultWidth = false
         )
     ) {
+        // The dialog window dims whatever is behind it by itself, on top of the backdrop below, which made Home go almost black: turn
+        // the window's own dimming off, so the backdrop alone decides how dark it is.
+        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect { dialogWindow?.setDimAmount(0f) }
+        // Home only dims (it stays visible behind the card), and the backdrop and card fade in together instead of the screen going dark first.
+        var visible by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { visible = true }
+        val backdropAlpha by animateFloatAsState(if (visible) BACKDROP_DIM else 0f, tween(260), label = "backdrop")
+        val cardAlpha by animateFloatAsState(if (visible) 1f else 0f, tween(260), label = "card")
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.85f)),
+                .background(Color.Black.copy(alpha = backdropAlpha)),
             contentAlignment = Alignment.Center
         ) {
             // A card in the same style as the Arc TV Plus pop-up: about 560 dp wide, with the same soft blue / violet glows in the top corners,
@@ -125,6 +140,11 @@ internal fun UpdatePopup(
             Column(
                 modifier = Modifier
                     .widthIn(max = 560.dp)
+                    .graphicsLayer {
+                        alpha = cardAlpha
+                        scaleX = 0.97f + 0.03f * cardAlpha
+                        scaleY = 0.97f + 0.03f * cardAlpha
+                    }
                     .clip(panelShape)
                     .background(MangoBackgroundElevated)
                     .drawBehind {
@@ -361,3 +381,6 @@ private fun ScrollableNotes(notes: String) {
 }
 
 private val SCROLL_STEP = 45.dp
+
+/** How dark the screen behind the update pop-up gets: dimmed, not blacked out. */
+private const val BACKDROP_DIM = 0.55f

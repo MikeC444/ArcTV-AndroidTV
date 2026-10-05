@@ -4604,6 +4604,8 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Changes:** `UpdatePopup.kt`: the card is 560 dp wide with more padding, a larger header (44 dp icon, a bigger title, the version as an accent pill on the right, and "Download size …" under the title instead of repeating the version), a divider above "What's new in …", and full-size buttons (no longer compact). The notes box is up to 220 dp tall and draws the notes as a list: an accent dot and the line for each bullet (blank lines dropped, the gap comes from spacing), a bold line for a "Version x" heading when several releases were missed, 14 sp-ish body text (`bodyMedium`, 20 sp line height) in a lighter colour, so about five notes show before scrolling. Scrolling with the remote and the scroll hint are unchanged.
 
+- The screen behind the pop-up dims instead of blacking out: the dialog window's own dimming (`setDimAmount(0f)`, which stacked on the backdrop's 85% black) is switched off, the backdrop is 55% black (`BACKDROP_DIM`), and the backdrop and card fade in together (260 ms, the card also scaling up from 97%) rather than the screen going dark before the card appears.
+
 **Tests performed:** none; no Gradle build here (no route to `dl.google.com`) and nothing tried on a device. The pop-up was drawn as an HTML mockup to judge the layout, which is not the real rendering.
 
 **Issues discovered:** the taller card plus a download-progress line is close to the 540 dp screen height; the notes box is capped at 220 dp for that reason.
