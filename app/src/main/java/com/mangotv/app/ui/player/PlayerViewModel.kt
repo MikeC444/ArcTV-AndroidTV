@@ -59,7 +59,7 @@ class PlayerViewModel(
         }
     private val contentId: String =
         URLDecoder.decode(savedStateHandle.get<String>("id").orEmpty(), "UTF-8")
-    // Start as the route says; playNextEpisode moves them on without leaving the player.
+    // Start as the route says; playEpisode moves them on without leaving the player.
     private var season: Int? = savedStateHandle.get<String>("season")?.toIntOrNull()?.takeIf { it >= 0 }
     private var episodeNumber: Int? = savedStateHandle.get<String>("episode")?.toIntOrNull()?.takeIf { it >= 0 }
     private var streamId: String =
@@ -146,12 +146,13 @@ class PlayerViewModel(
     }
 
     /**
-     * Next episode: switches to it inside the player, so there is no trip through the source list (which flashed on screen). The
+     * Plays an episode (the next one, or one picked in the episode selector) inside the player: so there is no trip through the source list (which flashed on screen). The
      * loading screen (backdrop and logo) shows while its sources are found; the source is the one this episode was last watched on,
      * else the recommended one for the person's Speakers setting. With none found, the error screen offers the source list.
      */
-    fun playNextEpisode(nextSeason: Int, nextEpisode: Int) {
+    fun playEpisode(nextSeason: Int, nextEpisode: Int) {
         val content = (uiState.value as? PlayerScreenUiState.Ready)?.content ?: return
+        if (nextSeason == season && nextEpisode == episodeNumber) return // already playing it
         season = nextSeason
         episodeNumber = nextEpisode
         streamId = ""

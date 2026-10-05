@@ -22,9 +22,9 @@ import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -57,7 +57,7 @@ import com.mangotv.app.ui.theme.TextSecondary
 /**
  * The VLC player's controls in the style of a streaming-app TV player: back and seek icons top left, the title's logo and episode top
  * right, and along the bottom a round Play / Pause button, the elapsed time, a thin timeline and the time left, with a centred row of pills
- * under it (Audio, Subtitles, Next episode, Player, Sources). The original layout is kept in VlcControlsClassic.kt.
+ * under it (Audio, Subtitles, Episodes, Player, Sources). The original layout is kept in VlcControlsClassic.kt.
  */
 @Composable
 internal fun VlcControlsNetflix(m: VlcControlsModel, f: VlcControlFocus) {
@@ -165,7 +165,8 @@ internal fun VlcControlsNetflix(m: VlcControlsModel, f: VlcControlFocus) {
                 Spacer(Modifier.width(14.dp))
                 Text(formatRightTime(m.positionMs, m.lengthMs, showRemaining = true), color = TextPrimary, style = MaterialTheme.typography.labelLarge)
             }
-            Spacer(Modifier.height(14.dp))
+            // Close to the pills under it.
+            Spacer(Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
@@ -173,7 +174,7 @@ internal fun VlcControlsNetflix(m: VlcControlsModel, f: VlcControlFocus) {
             ) {
                 if (m.showAudio) VlcPill("Audio", Icons.Filled.VolumeUp, m.onAudio, f.audio, f.play, m.onFocused)
                 if (m.showSubtitles) VlcPill("Subtitles", Icons.Filled.Subtitles, m.onSubtitles, f.subtitles, f.play, m.onFocused)
-                if (m.hasNextEpisode) VlcPill("Next episode", Icons.Filled.SkipNext, m.onNextEpisode, f.next, f.play, m.onFocused)
+                if (m.hasEpisodes) VlcPill("Episodes", Icons.Filled.VideoLibrary, m.onEpisodes, f.episodes, f.play, m.onFocused)
                 VlcPill("Player", Icons.Filled.OpenInNew, m.onChoosePlayer, f.choose, f.play, m.onFocused)
                 VlcPill("Sources", Icons.Filled.SwapHoriz, m.onChangeSource, f.change, f.play, m.onFocused)
             }

@@ -24,6 +24,7 @@ internal class VlcControlFocus {
     val next = FocusRequester()
     val choose = FocusRequester()
     val change = FocusRequester()
+    val episodes = FocusRequester()
 }
 
 /** Everything the controls show and can do; the VLC screen owns the state and the player, the controls only draw and report presses. */
@@ -37,12 +38,15 @@ internal class VlcControlsModel(
     val showAudio: Boolean,
     val showSubtitles: Boolean,
     val hasNextEpisode: Boolean,
+    /** A show with seasons: the Episodes selector is offered (the new layout shows it where the classic one shows Next episode). */
+    val hasEpisodes: Boolean,
     val onPlayPause: () -> Unit,
     val onSeek: (deltaMs: Long) -> Unit,
     val onAudio: () -> Unit,
     val onSubtitles: () -> Unit,
     val onSpeed: () -> Unit,
     val onNextEpisode: () -> Unit,
+    val onEpisodes: () -> Unit,
     val onChoosePlayer: () -> Unit,
     val onChangeSource: () -> Unit,
     val onBack: () -> Unit,

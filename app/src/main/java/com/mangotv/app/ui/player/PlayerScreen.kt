@@ -52,6 +52,7 @@ import com.mangotv.app.ui.components.FullScreenErrorState
 import com.mangotv.app.ui.player.overlay.AdvancedSettingsPanel
 import com.mangotv.app.ui.player.overlay.AudioInfoPanel
 import com.mangotv.app.ui.player.overlay.AudioTrackMenu
+import com.mangotv.app.ui.player.overlay.EpisodePanel
 import com.mangotv.app.ui.player.overlay.PlaybackErrorOverlay
 import com.mangotv.app.ui.player.overlay.PlayerChoiceCard
 import com.mangotv.app.ui.player.overlay.PlayerChoiceOption
@@ -161,7 +162,7 @@ fun PlayerScreen(
                         next = remember(state.content, state.episode) {
                             nextEpisodeAfter(state.content.seasons, state.episode?.seasonNumber, state.episode?.episodeNumber)
                         },
-                        onNextEpisode = viewModel::playNextEpisode,
+                        onNextEpisode = viewModel::playEpisode,
                         onChangeSource = changeSource,
                         onBack = onBack
                     )
@@ -183,7 +184,7 @@ fun PlayerScreen(
                     onExternalPlayerChosen = viewModel::recordExternalPlayer,
                     onBack = onBack,
                     onChangeSource = changeSource,
-                    onNextEpisode = viewModel::playNextEpisode,
+                    onNextEpisode = viewModel::playEpisode,
                     onUseVlcEngine = { positionMs -> vlcStart = positionMs },
                     vlcAvailable = vlcUsable,
                     onRememberPlayer = rememberPlayer
@@ -815,7 +816,8 @@ private fun PlaybackContent(
                     PlayerBottomControls(
                         exoPlayer = exoPlayer,
                         phase = phase,
-                        showNextEpisode = next != null,
+                        // The icon opens the episode selector (a show with seasons); the last-minute Next episode button is separate.
+                        showNextEpisode = episode != null && content.seasons.any { it.episodes.isNotEmpty() },
                         showRemaining = showRemaining,
                         onToggleRemaining = {
                             showRemaining = !showRemaining
@@ -833,7 +835,7 @@ private fun PlaybackContent(
                         onQuality = { pushOverlay(PlayerOverlay.QUALITY) },
                         onChoosePlayer = { askPlayerChoice(fromError = false) },
                         onSettings = { pushOverlay(PlayerOverlay.SETTINGS) },
-                        onNextEpisode = { next?.let { goToNextEpisode(it) } },
+                        onNextEpisode = { pushOverlay(PlayerOverlay.EPISODES) },
                         onFocusZoneChanged = ::onFocusZoneChanged,
                         isTimelineScrubbing = timelineScrubbing,
                         playPauseFocusRequester = playPauseFocusRequester,
@@ -924,6 +926,15 @@ private fun PlaybackContent(
                 stream = stream,
                 audioTracks = audioTracks,
                 subtitleTracks = subtitleTracks
+            )
+            PlayerOverlay.EPISODES -> EpisodePanel(
+                seasons = content.seasons,
+                currentSeason = episode?.seasonNumber,
+                currentEpisode = episode?.episodeNumber,
+                onPick = { pickedSeason, pickedEpisode ->
+                    popOverlay()
+                    onNextEpisode(pickedSeason, pickedEpisode)
+                }
             )
             PlayerOverlay.PLAYER_CHOICE -> PlayerChoiceCard(
                 externalAvailable = stream.url?.let { hasExternalPlayer(context, it) } == true,

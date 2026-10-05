@@ -13,7 +13,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.MaterialTheme
@@ -234,8 +234,8 @@ fun PlayerBottomControls(
         if (showNextEpisode) {
             Spacer(Modifier.width(8.dp))
             HeroIconButton(
-                icon = Icons.Filled.SkipNext,
-                contentDescription = "Next episode",
+                icon = Icons.Filled.VideoLibrary,
+                contentDescription = "Episodes",
                 onClick = onNextEpisode,
                 focusRequester = nextEpisodeFocusRequester,
                 focusDown = timelineFocusRequester,

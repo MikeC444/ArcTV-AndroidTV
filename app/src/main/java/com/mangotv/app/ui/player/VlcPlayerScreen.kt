@@ -61,6 +61,7 @@ import com.mangotv.app.data.model.Episode
 import com.mangotv.app.data.model.PlayerPreferences
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
+import com.mangotv.app.ui.player.overlay.EpisodePanel
 import com.mangotv.app.ui.player.overlay.MenuOptionRow
 import com.mangotv.app.ui.player.overlay.MenuOverlayScaffold
 import com.mangotv.app.ui.player.overlay.PlayerChoiceCard
@@ -83,7 +84,7 @@ private const val REPORT_INTERVAL_MS = 15_000L
 private const val CONTROLS_HIDE_MS = 5_000L
 private val SPEEDS = floatArrayOf(0.75f, 1f, 1.25f, 1.5f, 2f)
 
-private enum class VlcMenu { AUDIO, SUBTITLES }
+private enum class VlcMenu { AUDIO, SUBTITLES, EPISODES }
 
 private data class VlcTrack(val id: Int, val name: String)
 
@@ -461,12 +462,14 @@ fun VlcPlaybackContent(
                 showAudio = audioTracks.size > 1,
                 showSubtitles = subtitleTracks.size > 1,
                 hasNextEpisode = next != null,
+                hasEpisodes = episode != null && content.seasons.any { it.episodes.isNotEmpty() },
                 onPlayPause = ::togglePlay,
                 onSeek = ::seekBy,
                 onAudio = { menu = VlcMenu.AUDIO },
                 onSubtitles = { menu = VlcMenu.SUBTITLES },
                 onSpeed = ::cycleSpeed,
                 onNextEpisode = { next?.let { onNextEpisode(it.season, it.episode) } },
+                onEpisodes = { menu = VlcMenu.EPISODES },
                 onChoosePlayer = { showChoice = true },
                 onChangeSource = onChangeSource,
                 onBack = onBack,
@@ -521,6 +524,15 @@ fun VlcPlaybackContent(
                 refreshTracks()
                 menu = null
             }
+            VlcMenu.EPISODES -> EpisodePanel(
+                seasons = content.seasons,
+                currentSeason = episode?.seasonNumber,
+                currentEpisode = episode?.episodeNumber,
+                onPick = { pickedSeason, pickedEpisode ->
+                    menu = null
+                    onNextEpisode(pickedSeason, pickedEpisode)
+                }
+            )
             VlcMenu.SUBTITLES -> VlcTrackMenu("Subtitles", subtitleTracks, selectedSubtitle) { track ->
                 mediaPlayer.setSpuTrack(track.id)
                 refreshTracks()
