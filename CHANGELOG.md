@@ -4559,3 +4559,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the VLC screen still has no quality menu (single-file sources have nothing to choose) and no skip intro (no addon supplies intro timestamps, so it does nothing in the built-in player either). VLC cannot cap its output at 5.1 or 7.1, so those speaker modes play at the file's layout, and Atmos only reaches a receiver through passthrough; the passthrough and Stereo calls were matched to the real LibVLC class (`javap`) and the audio module's strings but not run on a device, and VLC reads them when playback starts, so a change in Settings > Audio applies to the next video. The OpenSL ES output name is the one VLC for Android uses; if a device rejects it, VLC falls back to its default output.
 
 **Issues fixed:** the above.
+
+## Post-Milestone-87 — Next episode switches inside the player
+
+**Status:** Written; not built or tried on a TV.
+
+**Context:** "Next episode" went by way of the source list (Sources with `auto=true`, which replaced the player), so the person saw the source selector flash up before the next episode started.
+
+**Changes:**
+- `PlayerViewModel.playNextEpisode` moves to the next episode inside the same player: the screen shows the loading screen (backdrop, logo and "S1 E3 • title", `PlayerScreenUiState.Switching`) at once, finds the episode's sources, and starts the one it was last watched on, else the recommended one for the Speakers setting (`recommendedStreamId(pickByAudio(...))`, the same pick Sources made). With no sources it shows the error screen, whose "Choose a Different Source" opens the list for that episode. Both players (built-in and VLC) use it, and the Up next countdown too; the navigation route no longer handles Next episode (`onNextEpisode` is gone from `PlayerScreen` and the nav host).
+- The route's season and episode go stale once the next episode starts, so `PlayerScreen.onChangeSource` now takes the season and episode being played (`currentSeason` / `currentEpisode`) and the nav host builds the Sources route from them.
+- Progress is filed under the episode on screen (`activeReady`, `activeSeason`, `activeEpisodeNumber`, moved on only when the next episode's player is ready), so the old player's last report, sent as it is removed, still goes to the episode it was playing, not the next one.
+
+**Tests performed:** none; no Gradle build here (no route to `dl.google.com`) and nothing tried on a device.
+
+**Issues discovered:** the Sources screen's `auto` (autoPlay) route is no longer used by the app (left in place). The pending-resume position and remembered source for a title are per episode, as before. If the app is killed after the switch, the saved route still names the first episode.
+
+**Issues fixed:** the flash of the source selector between episodes.

@@ -425,20 +425,11 @@ fun MangoNavHost() {
                     CompositionLocalProvider(LocalUiSoundPlayer provides null) {
                         PlayerScreen(
                             onBack = { navController.popBackStack() },
-                            // "Next episode": Sources picks the best source by itself, and replaces the player so Back skips the finished episode.
-                            onNextEpisode = { nextSeason, nextEpisode ->
-                                val args = backStackEntry.arguments
-                                val providerId = URLDecoder.decode(args?.getString("providerId").orEmpty(), "UTF-8")
-                                val type = if (args?.getString("type") == ContentType.TV_SHOW.name) ContentType.TV_SHOW else ContentType.MOVIE
-                                val id = URLDecoder.decode(args?.getString("id").orEmpty(), "UTF-8")
-                                navController.navigate(MangoRoutes.sources(providerId, type, id, nextSeason, nextEpisode, autoPlay = true)) {
-                                    popUpTo(MangoRoutes.PLAYER_PATTERN) { inclusive = true }
-                                }
-                            },
                             // Pops the player off the back stack before pushing Sources
                             // rather than stacking Sources on top of a dead player
                             // instance the user could otherwise navigate back into.
-                            onChangeSource = {
+                            // [season] / [episode] are the ones playing now: "Next episode" is started inside the player, so the route's can be stale.
+                            onChangeSource = { season, episode ->
                                 val args = backStackEntry.arguments
                                 val providerId = URLDecoder.decode(args?.getString("providerId").orEmpty(), "UTF-8")
                                 val type = if (args?.getString("type") == ContentType.TV_SHOW.name) {
@@ -447,8 +438,6 @@ fun MangoNavHost() {
                                     ContentType.MOVIE
                                 }
                                 val id = URLDecoder.decode(args?.getString("id").orEmpty(), "UTF-8")
-                                val season = args?.getString("season")?.toIntOrNull()?.takeIf { it >= 0 }
-                                val episode = args?.getString("episode")?.toIntOrNull()?.takeIf { it >= 0 }
                                 // Explicit "change source" request -- always show
                                 // the picker, even for a title that would
                                 // otherwise auto-continue with the very source

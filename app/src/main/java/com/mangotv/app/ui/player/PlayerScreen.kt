@@ -74,8 +74,8 @@ private const val PROGRESS_REPORT_INTERVAL_MS = 15_000L
 @Composable
 fun PlayerScreen(
     onBack: () -> Unit,
-    onChangeSource: () -> Unit,
-    onNextEpisode: (season: Int, episode: Int) -> Unit,
+    // The season and episode being played now (the next episode is started inside the player, so the route's can be out of date).
+    onChangeSource: (season: Int?, episode: Int?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlayerViewModel = viewModel()
 ) {
@@ -86,6 +86,7 @@ fun PlayerScreen(
     val qualityOptions by viewModel.qualityOptions.collectAsStateWithLifecycle()
     val preferences by viewModel.preferences.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val changeSource: () -> Unit = { onChangeSource(viewModel.currentSeason, viewModel.currentEpisode) }
 
     Box(
         modifier = modifier
@@ -99,6 +100,10 @@ fun PlayerScreen(
                     color = Color.White
                 )
             }
+            is PlayerScreenUiState.Switching -> {
+                // Straight to the next episode's loading screen: backdrop and logo, no source list in between.
+                PlayerLoadingScreen(content = state.content, episode = state.episode, busy = true)
+            }
             is PlayerScreenUiState.Error -> {
                 // Reachable now that Detail can jump straight here on Resume,
                 // skipping the Sources picker (see DetailScreen's
@@ -110,7 +115,7 @@ fun PlayerScreen(
                     message = state.message,
                     onRetry = viewModel::load,
                     secondaryActionLabel = "Choose a Different Source",
-                    onSecondaryAction = onChangeSource
+                    onSecondaryAction = changeSource
                 )
             }
             is PlayerScreenUiState.Ready -> {
@@ -153,8 +158,8 @@ fun PlayerScreen(
                         next = remember(state.content, state.episode) {
                             nextEpisodeAfter(state.content.seasons, state.episode?.seasonNumber, state.episode?.episodeNumber)
                         },
-                        onNextEpisode = onNextEpisode,
-                        onChangeSource = onChangeSource,
+                        onNextEpisode = viewModel::playNextEpisode,
+                        onChangeSource = changeSource,
                         onBack = onBack
                     )
                 } else PlaybackContent(
@@ -174,8 +179,8 @@ fun PlayerScreen(
                     onReportProgress = viewModel::reportProgress,
                     onExternalPlayerChosen = viewModel::recordExternalPlayer,
                     onBack = onBack,
-                    onChangeSource = onChangeSource,
-                    onNextEpisode = onNextEpisode,
+                    onChangeSource = changeSource,
+                    onNextEpisode = viewModel::playNextEpisode,
                     onUseVlcEngine = { positionMs -> vlcStart = positionMs },
                     vlcAvailable = vlcUsable,
                     onRememberPlayer = rememberPlayer

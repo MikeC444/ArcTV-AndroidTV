@@ -8,6 +8,8 @@ import com.mangotv.app.data.model.Stream
 sealed interface PlayerScreenUiState {
     data object Loading : PlayerScreenUiState
     data class Ready(val content: Content, val episode: Episode?, val stream: Stream) : PlayerScreenUiState
+    /** Moving to the next episode inside the player: the loading screen (backdrop and logo) shows while its source is found. */
+    data class Switching(val content: Content, val episode: Episode?) : PlayerScreenUiState
     data class Error(val message: String) : PlayerScreenUiState
 }
 
