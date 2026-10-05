@@ -11,6 +11,8 @@ export const externalPlayerEventSchema = z.object({
   codec: z.string().max(80).nullable().optional(),
   trigger: z.enum(["button", "error"]),
   outcome: z.enum(["opened", "no_player"]),
+  // Which player was chosen (migrations/0023): another app on the device, or VLC's engine inside the app. Optional for older app builds.
+  engine: z.enum(["external", "vlc"]).default("external"),
   errorMessage: z.string().max(1000).nullable().optional(),
 });
 export type ExternalPlayerEventInput = z.infer<typeof externalPlayerEventSchema>;

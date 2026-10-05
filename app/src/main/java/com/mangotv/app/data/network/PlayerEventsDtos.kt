@@ -19,5 +19,7 @@ data class ExternalPlayerEventDto(
     val trigger: String,
     /** "opened" (an external player took it) or "no_player" (none installed). */
     val outcome: String,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    /** "external" (another app on the device) or "vlc" (VLC's engine inside the app). */
+    val engine: String = "external"
 )

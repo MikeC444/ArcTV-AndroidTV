@@ -42,6 +42,18 @@ describe("POST /user/player-events/external", () => {
     expect(summary.body.externalPlayer.recent).toHaveLength(2);
   });
 
+  it("records which player was chosen and counts VLC separately", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    const send = (over: Record<string, unknown>) => request(app).post("/user/player-events/external").set("Authorization", `Bearer ${admin.token}`).send(event(over));
+    expect((await send({ engine: "vlc" })).status).toBe(204);
+    expect((await send({})).status).toBe(204);
+    const rows = await pool.query("SELECT engine FROM external_player_events ORDER BY created_at");
+    expect(rows.rows.map((r: { engine: string }) => r.engine)).toEqual(["vlc", "external"]);
+    const summary = await request(app).get("/admin/summary").set("Authorization", `Bearer ${admin.token}`);
+    expect(summary.body.externalPlayer).toMatchObject({ opens7d: 1, vlc7d: 1 });
+    expect((await send({ engine: "mpv" })).status).toBe(400);
+  });
+
   it("rejects an unknown trigger", async () => {
     const s = await createTestSession();
     expect((await request(app).post("/user/player-events/external").set("Authorization", `Bearer ${s.token}`).send(event({ trigger: "x" }))).status).toBe(400);

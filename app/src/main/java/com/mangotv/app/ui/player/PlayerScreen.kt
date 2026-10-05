@@ -51,8 +51,9 @@ import com.mangotv.app.ui.components.FullScreenErrorState
 import com.mangotv.app.ui.player.overlay.AdvancedSettingsPanel
 import com.mangotv.app.ui.player.overlay.AudioInfoPanel
 import com.mangotv.app.ui.player.overlay.AudioTrackMenu
-import com.mangotv.app.ui.player.overlay.ExternalPlayerConfirm
 import com.mangotv.app.ui.player.overlay.PlaybackErrorOverlay
+import com.mangotv.app.ui.player.overlay.PlayerChoiceCard
+import com.mangotv.app.ui.player.overlay.PlayerChoiceOption
 import com.mangotv.app.ui.player.overlay.PlaybackSpeedMenu
 import com.mangotv.app.ui.player.overlay.QualityMenu
 import com.mangotv.app.ui.player.overlay.SettingsPanel
@@ -170,7 +171,7 @@ private fun PlaybackContent(
     onAutoplayChange: (Boolean) -> Unit,
     onSkipIntroChange: (Boolean) -> Unit,
     onReportProgress: (positionMs: Long, durationMs: Long, completed: Boolean) -> Unit,
-    onExternalPlayerChosen: (fromError: Boolean, opened: Boolean, errorMessage: String?) -> Unit,
+    onExternalPlayerChosen: (fromError: Boolean, opened: Boolean, errorMessage: String?, engine: String) -> Unit,
     onBack: () -> Unit,
     onChangeSource: () -> Unit,
     onNextEpisode: (season: Int, episode: Int) -> Unit,
@@ -363,39 +364,6 @@ private fun PlaybackContent(
         bumpInteraction()
     }
 
-    // "Play in external player": only for a source with a direct link, and never instant -- the confirmation card comes first.
-    // Where it was asked from is kept for the usage report (the error screen's button points at the built-in player, not taste).
-    val canUseExternalPlayer = stream.url != null
-    var externalFromError by remember { mutableStateOf(false) }
-    fun askExternalPlayer(fromError: Boolean) {
-        externalFromError = fromError
-        // No player app on this device: the card says so instead of offering to open, and that is worth knowing about too.
-        val url = stream.url
-        if (url != null && !hasExternalPlayer(context, url)) {
-            onExternalPlayerChosen(fromError, false, (phase as? PlaybackPhase.Error)?.message.takeIf { fromError })
-        }
-        pushOverlay(PlayerOverlay.EXTERNAL_PLAYER)
-    }
-    fun openExternalPlayer() {
-        val url = stream.url ?: return
-        val title = listOfNotNull(content.title, episode?.let { "S${it.seasonNumber}E${it.episodeNumber}" }).joinToString(" ")
-        val message = (phase as? PlaybackPhase.Error)?.message.takeIf { externalFromError }
-        exoPlayer.pause()
-        val opened = openInExternalPlayer(context, url, title)
-        onExternalPlayerChosen(externalFromError, opened, message)
-        if (opened) popOverlay()
-    }
-
-    // The built-in player can't decode this source (a codec or format the device has no decoder for): VLC's engine decodes in software, so
-    // hand over to it from where playback was (or the saved resume point). Offered on the error screen, and done by itself for format failures.
-    fun switchToVlc() {
-        if (stream.url == null) return
-        onUseVlcEngine(exoPlayer.currentPosition.takeIf { it > 0 } ?: resumePositionMs ?: 0L)
-    }
-    LaunchedEffect(phase) {
-        if (phase is PlaybackPhase.Error && phase.type == PlaybackErrorType.UNSUPPORTED_SOURCE) switchToVlc()
-    }
-
     // The last speed chosen is kept for every title on this device.
     var playbackSpeed by remember { mutableFloatStateOf(DevicePlayerPrefs.speed(context)) }
     fun changePlaybackSpeed(speed: Float) {
@@ -427,7 +395,7 @@ private fun PlaybackContent(
     val subtitleFocusRequester = remember { FocusRequester() }
     val audioFocusRequester = remember { FocusRequester() }
     val qualityFocusRequester = remember { FocusRequester() }
-    val externalPlayerFocusRequester = remember { FocusRequester() }
+    val choosePlayerFocusRequester = remember { FocusRequester() }
     val errorExternalFocusRequester = remember { FocusRequester() }
     val settingsFocusRequester = remember { FocusRequester() }
     val nextEpisodeFocusRequester = remember { FocusRequester() }
@@ -439,6 +407,45 @@ private fun PlaybackContent(
         // requestFocus() throws when that control isn't on screen any more (e.g. the Next episode button), so success means it worked.
         val restored = last != null && runCatching { last.requestFocus() }.isSuccess
         if (!restored) runCatching { playPauseFocusRequester.requestFocus() }
+    }
+
+    // "Choose player": the built-in player, VLC's engine inside Arc TV, or another app on the device. Only for a source with a direct link, and
+    // nothing happens until the person picks one and presses Play. Where it was asked from is kept for the usage report (the error screen's
+    // button points at the built-in player, not taste).
+    val canChoosePlayer = stream.url != null
+    var choiceFromError by remember { mutableStateOf(false) }
+    fun askPlayerChoice(fromError: Boolean) {
+        choiceFromError = fromError
+        // No player app on this device: the card leaves that row out, and that is worth knowing about too.
+        val url = stream.url
+        if (url != null && !hasExternalPlayer(context, url)) {
+            onExternalPlayerChosen(fromError, false, (phase as? PlaybackPhase.Error)?.message.takeIf { fromError }, "external")
+        }
+        pushOverlay(PlayerOverlay.PLAYER_CHOICE)
+    }
+    fun playWith(option: PlayerChoiceOption) {
+        val url = stream.url ?: return
+        val message = (phase as? PlaybackPhase.Error)?.message.takeIf { choiceFromError }
+        when (option) {
+            // The normal player: from the error screen that means trying again.
+            PlayerChoiceOption.BUILT_IN -> {
+                popOverlay()
+                if (choiceFromError) startPlayback() else focusLastControl()
+            }
+            // VLC's engine takes over from where playback was (or the saved resume point).
+            PlayerChoiceOption.VLC -> {
+                onExternalPlayerChosen(choiceFromError, true, message, "vlc")
+                popOverlay()
+                onUseVlcEngine(exoPlayer.currentPosition.takeIf { it > 0 } ?: resumePositionMs ?: 0L)
+            }
+            PlayerChoiceOption.EXTERNAL -> {
+                val title = listOfNotNull(content.title, episode?.let { "S${it.seasonNumber}E${it.episodeNumber}" }).joinToString(" ")
+                exoPlayer.pause()
+                val opened = openInExternalPlayer(context, url, title)
+                onExternalPlayerChosen(choiceFromError, opened, message, "external")
+                if (opened) popOverlay()
+            }
+        }
     }
 
     // Moves focus in both directions: onto play/pause when controls appear
@@ -694,9 +701,8 @@ private fun PlaybackContent(
                 message = phase.message,
                 onTryAgain = ::startPlayback,
                 onChangeSource = onChangeSource,
-                onVlcEngine = if (canUseExternalPlayer) ({ switchToVlc() }) else null,
-                onExternalPlayer = if (canUseExternalPlayer) ({ askExternalPlayer(fromError = true) }) else null,
-                externalPlayerFocusRequester = errorExternalFocusRequester,
+                onChoosePlayer = if (canChoosePlayer) ({ askPlayerChoice(fromError = true) }) else null,
+                choosePlayerFocusRequester = errorExternalFocusRequester,
                 onBack = onBack
             )
         }
@@ -748,13 +754,13 @@ private fun PlaybackContent(
                         showSubtitles = showSubtitles,
                         showAudio = showAudio,
                         showQuality = showQuality,
-                        showExternalPlayer = canUseExternalPlayer,
+                        showChoosePlayer = canChoosePlayer,
                         onPlayPause = ::togglePlayPause,
                         onSeek = ::seekByClick,
                         onSubtitles = { pushOverlay(PlayerOverlay.SUBTITLES) },
                         onAudio = { pushOverlay(PlayerOverlay.AUDIO) },
                         onQuality = { pushOverlay(PlayerOverlay.QUALITY) },
-                        onExternalPlayer = { askExternalPlayer(fromError = false) },
+                        onChoosePlayer = { askPlayerChoice(fromError = false) },
                         onSettings = { pushOverlay(PlayerOverlay.SETTINGS) },
                         onNextEpisode = { next?.let { goToNextEpisode(it) } },
                         onFocusZoneChanged = ::onFocusZoneChanged,
@@ -765,7 +771,7 @@ private fun PlaybackContent(
                         subtitleFocusRequester = subtitleFocusRequester,
                         audioFocusRequester = audioFocusRequester,
                         qualityFocusRequester = qualityFocusRequester,
-                        externalPlayerFocusRequester = externalPlayerFocusRequester,
+                        choosePlayerFocusRequester = choosePlayerFocusRequester,
                         settingsFocusRequester = settingsFocusRequester,
                         nextEpisodeFocusRequester = nextEpisodeFocusRequester,
                         timelineFocusRequester = timelineFocusRequester,
@@ -848,14 +854,15 @@ private fun PlaybackContent(
                 audioTracks = audioTracks,
                 subtitleTracks = subtitleTracks
             )
-            PlayerOverlay.EXTERNAL_PLAYER -> ExternalPlayerConfirm(
-                available = stream.url?.let { hasExternalPlayer(context, it) } == true,
-                onConfirm = ::openExternalPlayer,
+            PlayerOverlay.PLAYER_CHOICE -> PlayerChoiceCard(
+                externalAvailable = stream.url?.let { hasExternalPlayer(context, it) } == true,
+                initial = if (choiceFromError) PlayerChoiceOption.VLC else PlayerChoiceOption.BUILT_IN,
+                onPlay = ::playWith,
                 onCancel = {
                     popOverlay()
                     // Back onto whatever asked: the error screen's button, else the control last used.
                     if (overlayStack.isEmpty()) {
-                        if (externalFromError) runCatching { errorExternalFocusRequester.requestFocus() } else focusLastControl()
+                        if (choiceFromError) runCatching { errorExternalFocusRequester.requestFocus() } else focusLastControl()
                     }
                 }
             )

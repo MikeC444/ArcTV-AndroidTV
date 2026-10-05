@@ -64,13 +64,13 @@ fun PlayerBottomControls(
     showSubtitles: Boolean,
     showAudio: Boolean,
     showQuality: Boolean,
-    showExternalPlayer: Boolean,
+    showChoosePlayer: Boolean,
     onPlayPause: () -> Unit,
     onSeek: (Long) -> Unit,
     onSubtitles: () -> Unit,
     onAudio: () -> Unit,
     onQuality: () -> Unit,
-    onExternalPlayer: () -> Unit,
+    onChoosePlayer: () -> Unit,
     onSettings: () -> Unit,
     onNextEpisode: () -> Unit,
     onFocusZoneChanged: (PlayerFocusZone) -> Unit,
@@ -82,7 +82,7 @@ fun PlayerBottomControls(
     subtitleFocusRequester: FocusRequester? = null,
     audioFocusRequester: FocusRequester? = null,
     qualityFocusRequester: FocusRequester? = null,
-    externalPlayerFocusRequester: FocusRequester? = null,
+    choosePlayerFocusRequester: FocusRequester? = null,
     settingsFocusRequester: FocusRequester? = null,
     nextEpisodeFocusRequester: FocusRequester? = null,
     timelineFocusRequester: FocusRequester? = null,
@@ -164,14 +164,14 @@ fun PlayerBottomControls(
         )
         Spacer(Modifier.width(18.dp))
 
-        if (showExternalPlayer) {
+        if (showChoosePlayer) {
             HeroIconButton(
                 icon = Icons.Filled.OpenInNew,
-                contentDescription = "Play in external player",
-                onClick = onExternalPlayer,
-                focusRequester = externalPlayerFocusRequester,
+                contentDescription = "Choose player",
+                onClick = onChoosePlayer,
+                focusRequester = choosePlayerFocusRequester,
                 focusDown = timelineFocusRequester,
-                onFocusChanged = tracked(onIconRowFocused, externalPlayerFocusRequester),
+                onFocusChanged = tracked(onIconRowFocused, choosePlayerFocusRequester),
                 compact = true,
                 showBackground = false,
                 borderColor = Color.White

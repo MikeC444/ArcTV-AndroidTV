@@ -188,7 +188,7 @@ internal fun describePlaybackError(error: PlaybackException): String {
 
 /**
  * True when the player could not decode or read the source's own format (a codec or profile the device has no decoder for, a container it
- * can't parse), as opposed to a network or other failure -- the case VLC's engine can often still play, so PlaybackContent switches to it.
+ * can't parse), as opposed to a network or other failure -- the case VLC's engine can often still play (the error screen's "Other Players" button leads to it).
  */
 internal fun isFormatFailure(error: PlaybackException): Boolean = when (error.errorCode) {
     PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,

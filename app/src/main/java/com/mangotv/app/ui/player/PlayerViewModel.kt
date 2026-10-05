@@ -122,8 +122,11 @@ class PlayerViewModel(
         }
     }
 
-    /** One confirmed "Play in external player": [fromError] when it was offered because the built-in player failed, [opened] false when no player app took it. */
-    fun recordExternalPlayer(fromError: Boolean, opened: Boolean, errorMessage: String?) {
+    /**
+     * One confirmed "Choose player" pick other than the built-in player: [fromError] when it was offered because the built-in player failed,
+     * [engine] "external" (another app) or "vlc" (VLC's engine inside Arc TV), [opened] false when no player app took it.
+     */
+    fun recordExternalPlayer(fromError: Boolean, opened: Boolean, errorMessage: String?, engine: String) {
         val state = uiState.value as? PlayerScreenUiState.Ready ?: return
         externalPlayerRepository.record(
             ExternalPlayerEventDto(
@@ -136,6 +139,7 @@ class PlayerViewModel(
                 codec = state.stream.codec,
                 trigger = if (fromError) "error" else "button",
                 outcome = if (opened) "opened" else "no_player",
+                engine = engine,
                 errorMessage = errorMessage?.take(1000)
             )
         )

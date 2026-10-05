@@ -44,4 +44,4 @@ enum class PlayerFocusZone { NONE, TOP_BAR, TRANSPORT, TIMELINE, ICON_ROW }
  * from their own bottom-row icon (dismissing straight back to the plain
  * controls) or via Settings (dismissing back to Settings instead).
  */
-enum class PlayerOverlay { SUBTITLES, AUDIO, QUALITY, SETTINGS, SOURCE_INFO, PLAYBACK_SPEED, ADVANCED, AUDIO_INFO, EXTERNAL_PLAYER }
+enum class PlayerOverlay { SUBTITLES, AUDIO, QUALITY, SETTINGS, SOURCE_INFO, PLAYBACK_SPEED, ADVANCED, AUDIO_INFO, PLAYER_CHOICE }

@@ -42,20 +42,21 @@ export async function summary() {
   return { users: users.rows[0]!.total, newLast7Days: users.rows[0]!.new7d, activeLast7Days: active.rows[0]!.n, plus, versions: versions.rows, externalPlayer: external };
 }
 
-/** How often people hand a title to another player: a lot of "after an error" points at the built-in player, not at taste. */
+/** How often people hand a title to another player (another app, or VLC's engine inside the app; `opens7d` counts the apps, `vlc7d` the engine): a lot of "after an error" points at the built-in player, not at taste. */
 export async function externalPlayerSummary() {
   const [totals, recent] = await Promise.all([
-    pool.query<{ opens7d: number; users7d: number; afterError7d: number; fromButton7d: number; noPlayer7d: number; opensTotal: number }>(
-      `SELECT count(*) FILTER (WHERE created_at > now() - interval '7 days' AND outcome = 'opened')::int AS "opens7d",
+    pool.query<{ opens7d: number; vlc7d: number; users7d: number; afterError7d: number; fromButton7d: number; noPlayer7d: number; opensTotal: number }>(
+      `SELECT count(*) FILTER (WHERE created_at > now() - interval '7 days' AND outcome = 'opened' AND engine = 'external')::int AS "opens7d",
+              count(*) FILTER (WHERE created_at > now() - interval '7 days' AND engine = 'vlc')::int AS "vlc7d",
               count(DISTINCT user_id) FILTER (WHERE created_at > now() - interval '7 days')::int AS "users7d",
               count(*) FILTER (WHERE created_at > now() - interval '7 days' AND launched_from = 'error')::int AS "afterError7d",
               count(*) FILTER (WHERE created_at > now() - interval '7 days' AND launched_from = 'button')::int AS "fromButton7d",
               count(*) FILTER (WHERE created_at > now() - interval '7 days' AND outcome = 'no_player')::int AS "noPlayer7d",
-              count(*) FILTER (WHERE outcome = 'opened')::int AS "opensTotal"
+              count(*) FILTER (WHERE outcome = 'opened' AND engine = 'external')::int AS "opensTotal"
        FROM external_player_events`
     ),
     pool.query(
-      `SELECT e.title, e.release_title AS "releaseTitle", e.resolution, e.codec, e.launched_from AS trigger, e.outcome, e.error_message AS "errorMessage",
+      `SELECT e.title, e.release_title AS "releaseTitle", e.resolution, e.codec, e.launched_from AS trigger, e.outcome, e.engine, e.error_message AS "errorMessage",
               e.app_version AS "appVersion", e.created_at AS "createdAt", u.email
        FROM external_player_events e JOIN users u ON u.id = e.user_id
        ORDER BY e.created_at DESC LIMIT 50`

@@ -16,9 +16,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - No sound on surround sources? Turn off Audio Passthrough in Settings > Audio, or instantly in the player.
 
-- Can't play a source? Open it in another player app with the new button beside the timeline, after a quick confirmation.
-
-- Sources that wouldn't play now switch to a VLC-powered engine by themselves, so more videos just play.
+- Can't play a source? Pick the built-in player, a VLC engine or another app from the new button beside the timeline.
 
 - Cleaner source filters: the Audio pill is no longer cut off at the edge, and the dark halo around pills is gone.
 

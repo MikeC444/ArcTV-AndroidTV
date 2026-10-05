@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.OpenInNew
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.MaterialTheme
@@ -41,9 +40,8 @@ fun PlaybackErrorOverlay(
     message: String,
     onTryAgain: () -> Unit,
     onChangeSource: () -> Unit,
-    onVlcEngine: (() -> Unit)?,
-    onExternalPlayer: (() -> Unit)?,
-    externalPlayerFocusRequester: FocusRequester? = null,
+    onChoosePlayer: (() -> Unit)?,
+    choosePlayerFocusRequester: FocusRequester? = null,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -84,23 +82,13 @@ fun PlaybackErrorOverlay(
                     style = MangoButtonStyle.GLASS,
                     borderColor = Color.White
                 )
-                if (onVlcEngine != null) {
+                if (onChoosePlayer != null) {
                     Spacer(Modifier.width(12.dp))
                     MangoButton(
-                        text = "Try VLC Engine",
-                        icon = Icons.Filled.PlayArrow,
-                        onClick = onVlcEngine,
-                        style = MangoButtonStyle.GLASS,
-                        borderColor = Color.White
-                    )
-                }
-                if (onExternalPlayer != null) {
-                    Spacer(Modifier.width(12.dp))
-                    MangoButton(
-                        text = "External Player",
+                        text = "Other Players",
                         icon = Icons.Filled.OpenInNew,
-                        onClick = onExternalPlayer,
-                        focusRequester = externalPlayerFocusRequester,
+                        onClick = onChoosePlayer,
+                        focusRequester = choosePlayerFocusRequester,
                         style = MangoButtonStyle.GLASS,
                         borderColor = Color.White
                     )
