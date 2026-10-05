@@ -38,6 +38,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - Sources with DTS, DTS-HD or TrueHD sound now play with audio, even on TVs that can't decode them.
 
+- The update pop-up is bigger and easier to read, with a tidy list of what's new.
+
 ## 0.1.8
 
 - Press a Continue Watching title and it carries straight on, using the same source you watched before, with no source list.
