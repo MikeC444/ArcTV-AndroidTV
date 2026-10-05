@@ -134,7 +134,8 @@ fun PlayerScreen(
                 val currentVlcStart = vlcStart
                 if (currentVlcStart != null && streamUrl != null) {
                     VlcPlaybackContent(
-                        title = displayTitle,
+                        content = state.content,
+                        episode = state.episode,
                         url = streamUrl,
                         startPositionMs = currentVlcStart,
                         preferences = preferences,

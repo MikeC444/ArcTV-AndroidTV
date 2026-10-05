@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -53,6 +54,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -62,6 +64,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import coil.compose.AsyncImage
+import com.mangotv.app.data.model.Content
+import com.mangotv.app.data.model.Episode
 import com.mangotv.app.data.model.PlayerPreferences
 import com.mangotv.app.ui.components.HeroIconButton
 import com.mangotv.app.ui.components.MangoButton
@@ -102,7 +107,8 @@ private data class VlcTrack(val id: Int, val name: String)
  */
 @Composable
 fun VlcPlaybackContent(
-    title: String,
+    content: Content,
+    episode: Episode?,
     url: String,
     startPositionMs: Long,
     preferences: PlayerPreferences,
@@ -136,6 +142,12 @@ fun VlcPlaybackContent(
     var interactionTick by remember { mutableIntStateOf(0) }
     var menu by remember { mutableStateOf<VlcMenu?>(null) }
     var showChoice by remember { mutableStateOf(false) }
+    // True once the first picture plays: until then the loading screen (backdrop and logo) covers the video.
+    var started by remember { mutableStateOf(false) }
+    // True for the rest of a confirm press that only revealed the controls, so its repeat / release can't click the button it landed on.
+    var revealingKeyHeld by remember { mutableStateOf(false) }
+    // The control the cursor was last on: it returns there after a menu closes, but not after the controls hid (then it starts on Play).
+    var lastFocus by remember { mutableStateOf<FocusRequester?>(null) }
     var upNext by remember { mutableStateOf<NextEpisode?>(null) }
     var offerNext by remember { mutableStateOf(false) }
     var offerFocused by remember { mutableStateOf(false) }
@@ -154,6 +166,14 @@ fun VlcPlaybackContent(
     val rootFocus = remember { FocusRequester() }
     val timelineFocus = remember { FocusRequester() }
     val playFocus = remember { FocusRequester() }
+    val rewindFocus = remember { FocusRequester() }
+    val forwardFocus = remember { FocusRequester() }
+    val audioFocus = remember { FocusRequester() }
+    val subtitlesFocus = remember { FocusRequester() }
+    val speedFocus = remember { FocusRequester() }
+    val nextFocus = remember { FocusRequester() }
+    val chooseFocus = remember { FocusRequester() }
+    val changeFocus = remember { FocusRequester() }
 
     fun bump() { interactionTick++ }
     fun refreshTracks() {
@@ -187,6 +207,7 @@ fun VlcPlaybackContent(
             when (event.type) {
                 MediaPlayer.Event.Playing -> {
                     playing = true
+                    started = true
                     buffering = false
                 }
                 MediaPlayer.Event.Paused -> {
@@ -299,7 +320,16 @@ fun VlcPlaybackContent(
         }
     }
     LaunchedEffect(controlsVisible, menu, showChoice) {
-        if (menu == null && !showChoice) runCatching { if (controlsVisible) playFocus.requestFocus() else rootFocus.requestFocus() }
+        if (!controlsVisible) {
+            // The controls went away (inactivity or BACK): the next time they appear the cursor starts on Play / Pause again.
+            lastFocus = null
+            if (menu == null && !showChoice) runCatching { rootFocus.requestFocus() }
+        } else if (menu == null && !showChoice) {
+            // Back from a menu: onto the control that opened it, not Play / Pause.
+            val last = lastFocus
+            val restored = last != null && runCatching { last.requestFocus() }.isSuccess
+            if (!restored) runCatching { playFocus.requestFocus() }
+        }
     }
 
     Box(
@@ -309,6 +339,11 @@ fun VlcPlaybackContent(
             .focusRequester(rootFocus)
             .focusable()
             .onPreviewKeyEvent { event ->
+                val isConfirm = event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter
+                if (revealingKeyHeld && isConfirm) {
+                    if (event.type == KeyEventType.KeyUp) revealingKeyHeld = false
+                    return@onPreviewKeyEvent true
+                }
                 // While the Next episode button or the Up next card has focus, it owns the keys.
                 if (offerFocused || upNext != null) return@onPreviewKeyEvent false
                 if (event.type != KeyEventType.KeyDown || menu != null || showChoice || failure != null) return@onPreviewKeyEvent false
@@ -316,7 +351,8 @@ fun VlcPlaybackContent(
                     Key.MediaPlayPause, Key.MediaPlay, Key.MediaPause -> { togglePlay(); true }
                     else -> if (!controlsVisible) {
                         when (event.key) {
-                            Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> { togglePlay(); controlsVisible = true; true }
+                            // OK with the controls hidden only brings them up; pausing is a second press, on the Play / Pause button.
+                            Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> { controlsVisible = true; revealingKeyHeld = true; true }
                             Key.DirectionLeft -> { seekBy(-SEEK_STEP_MS); true }
                             Key.DirectionRight -> { seekBy(SEEK_STEP_MS); true }
                             Key.DirectionDown -> {
@@ -346,7 +382,11 @@ fun VlcPlaybackContent(
             modifier = Modifier.fillMaxSize()
         )
 
-        if (buffering && failure == null) {
+        if (!started && failure == null) {
+            PlayerLoadingScreen(content = content, episode = episode, busy = true)
+        }
+
+        if (buffering && started && failure == null) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center).size(48.dp), color = Color.White)
         }
 
@@ -385,7 +425,7 @@ fun VlcPlaybackContent(
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))))
             )
             Column(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 40.dp, vertical = 28.dp)) {
-                Text(title, color = TextPrimary, style = MaterialTheme.typography.titleLarge)
+                VlcTitle(content = content, episode = episode)
                 Text(
                     text = SPEEDS[speedIndex].toString().removeSuffix(".0") + "x speed",
                     color = TextSecondary,
@@ -399,6 +439,7 @@ fun VlcPlaybackContent(
                         onClick = ::togglePlay,
                         focusRequester = playFocus,
                         focusDown = timelineFocus,
+                        onFocusChanged = { if (it) lastFocus = playFocus },
                         showBackground = false,
                         borderColor = Color.White
                     )
@@ -407,6 +448,8 @@ fun VlcPlaybackContent(
                         icon = Icons.Filled.Replay10,
                         contentDescription = "Rewind 10 seconds",
                         onClick = { seekBy(-SEEK_STEP_MS) },
+                        focusRequester = rewindFocus,
+                        onFocusChanged = { if (it) lastFocus = rewindFocus },
                         focusDown = timelineFocus,
                         compact = true,
                         showBackground = false,
@@ -417,6 +460,8 @@ fun VlcPlaybackContent(
                         icon = Icons.Filled.Forward10,
                         contentDescription = "Forward 10 seconds",
                         onClick = { seekBy(SEEK_STEP_MS) },
+                        focusRequester = forwardFocus,
+                        onFocusChanged = { if (it) lastFocus = forwardFocus },
                         focusDown = timelineFocus,
                         compact = true,
                         showBackground = false,
@@ -429,28 +474,29 @@ fun VlcPlaybackContent(
                         fraction = if (lengthMs > 0) (positionMs.toFloat() / lengthMs).coerceIn(0f, 1f) else 0f,
                         focusRequester = timelineFocus,
                         onSeek = ::seekBy,
+                        onFocused = { lastFocus = timelineFocus },
                         modifier = Modifier.weight(1f)
                     )
                     Spacer(Modifier.width(14.dp))
                     Text(formatRightTime(positionMs, lengthMs, showRemaining = true), color = TextSecondary, style = MaterialTheme.typography.labelMedium)
                     Spacer(Modifier.width(18.dp))
                     if (audioTracks.size > 1) {
-                        HeroIconButton(icon = Icons.Filled.VolumeUp, contentDescription = "Audio", onClick = { menu = VlcMenu.AUDIO }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
+                        HeroIconButton(icon = Icons.Filled.VolumeUp, contentDescription = "Audio", onClick = { menu = VlcMenu.AUDIO }, focusRequester = audioFocus, onFocusChanged = { if (it) lastFocus = audioFocus }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
                         Spacer(Modifier.width(8.dp))
                     }
                     if (subtitleTracks.size > 1) {
-                        HeroIconButton(icon = Icons.Filled.Subtitles, contentDescription = "Subtitles", onClick = { menu = VlcMenu.SUBTITLES }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
+                        HeroIconButton(icon = Icons.Filled.Subtitles, contentDescription = "Subtitles", onClick = { menu = VlcMenu.SUBTITLES }, focusRequester = subtitlesFocus, onFocusChanged = { if (it) lastFocus = subtitlesFocus }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
                         Spacer(Modifier.width(8.dp))
                     }
-                    HeroIconButton(icon = Icons.Filled.Speed, contentDescription = "Playback speed", onClick = ::cycleSpeed, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
+                    HeroIconButton(icon = Icons.Filled.Speed, contentDescription = "Playback speed", onClick = ::cycleSpeed, focusRequester = speedFocus, onFocusChanged = { if (it) lastFocus = speedFocus }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
                     Spacer(Modifier.width(8.dp))
                     if (next != null) {
-                        HeroIconButton(icon = Icons.Filled.SkipNext, contentDescription = "Next episode", onClick = { onNextEpisode(next.season, next.episode) }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
+                        HeroIconButton(icon = Icons.Filled.SkipNext, contentDescription = "Next episode", onClick = { onNextEpisode(next.season, next.episode) }, focusRequester = nextFocus, onFocusChanged = { if (it) lastFocus = nextFocus }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
                         Spacer(Modifier.width(8.dp))
                     }
-                    HeroIconButton(icon = Icons.Filled.OpenInNew, contentDescription = "Choose player", onClick = { showChoice = true }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
+                    HeroIconButton(icon = Icons.Filled.OpenInNew, contentDescription = "Choose player", onClick = { showChoice = true }, focusRequester = chooseFocus, onFocusChanged = { if (it) lastFocus = chooseFocus }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
                     Spacer(Modifier.width(8.dp))
-                    HeroIconButton(icon = Icons.Filled.SwapHoriz, contentDescription = "Change source", onClick = onChangeSource, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
+                    HeroIconButton(icon = Icons.Filled.SwapHoriz, contentDescription = "Change source", onClick = onChangeSource, focusRequester = changeFocus, onFocusChanged = { if (it) lastFocus = changeFocus }, focusDown = timelineFocus, compact = true, showBackground = false, borderColor = Color.White)
                 }
             }
         }
@@ -543,7 +589,7 @@ private fun VlcTrackMenu(title: String, tracks: List<VlcTrack>, selectedId: Int,
  * OK again, UP, DOWN or moving off it ends scrubbing.
  */
 @Composable
-private fun VlcTimeline(fraction: Float, focusRequester: FocusRequester, onSeek: (Long) -> Unit, modifier: Modifier = Modifier) {
+private fun VlcTimeline(fraction: Float, focusRequester: FocusRequester, onSeek: (Long) -> Unit, onFocused: () -> Unit, modifier: Modifier = Modifier) {
     var focused by remember { mutableStateOf(false) }
     var scrubbing by remember { mutableStateOf(false) }
     val barHeight = if (scrubbing) 8.dp else if (focused) 7.dp else 5.dp
@@ -553,7 +599,7 @@ private fun VlcTimeline(fraction: Float, focusRequester: FocusRequester, onSeek:
             .focusRequester(focusRequester)
             .onFocusChanged {
                 focused = it.isFocused
-                if (!it.isFocused) scrubbing = false
+                if (it.isFocused) onFocused() else scrubbing = false
             }
             .onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
@@ -580,5 +626,30 @@ private fun VlcTimeline(fraction: Float, focusRequester: FocusRequester, onSeek:
                 )
             }
         }
+    }
+}
+
+/**
+ * Bottom left of the controls: the title's logo when it has one (its name otherwise), and "S1 E2 • title" for an episode.
+ */
+@Composable
+private fun VlcTitle(content: Content, episode: Episode?) {
+    if (content.logoUrl != null) {
+        AsyncImage(
+            model = content.logoUrl,
+            contentDescription = content.title,
+            contentScale = ContentScale.Fit,
+            alignment = Alignment.CenterStart,
+            modifier = Modifier.height(56.dp).widthIn(max = 280.dp)
+        )
+    } else {
+        Text(content.title, color = TextPrimary, style = MaterialTheme.typography.titleLarge)
+    }
+    if (episode != null) {
+        Text(
+            text = "S${episode.seasonNumber} E${episode.episodeNumber} • ${episode.title}",
+            color = TextSecondary,
+            style = MaterialTheme.typography.labelMedium
+        )
     }
 }
