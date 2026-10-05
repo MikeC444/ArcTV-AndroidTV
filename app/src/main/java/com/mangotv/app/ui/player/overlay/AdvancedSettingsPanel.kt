@@ -45,7 +45,7 @@ fun AdvancedSettingsPanel(
         SettingsRow(
             icon = Icons.Filled.SurroundSound,
             title = "Audio Passthrough",
-            subtitle = if (audioPassthrough) "On" else "Off, from the next video",
+            subtitle = if (audioPassthrough) "On" else "Off",
             onClick = { onAudioPassthroughChange(!audioPassthrough) },
             trailing = { ToggleSwitch(checked = audioPassthrough) }
         )

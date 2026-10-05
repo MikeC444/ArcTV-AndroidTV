@@ -4442,9 +4442,9 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Context:** a 4K file whose only audio was DTS-HD MA played silently in VLC (via the external-player button); VLC's fix is turning its passthrough off. The built-in player had no such switch and, by default, offers the TV the raw Dolby/DTS stream whenever the HDMI device says it can take it.
 
 **Changes:**
-- Player > Settings > Advanced has an "Audio Passthrough" toggle (on by default), kept per device in `DevicePlayerPrefs`. Off builds the player with `PcmOnlyRenderersFactory` (`PlayerEngine.kt`), whose audio sink only accepts decoded PCM (`AudioCapabilities.DEFAULT_AUDIO_CAPABILITIES`), so the TV is never sent a stream it can't really play. It applies from the next video (the player is built once per playback).
+- Player > Settings > Advanced has an "Audio Passthrough" toggle (on by default), kept per device in `DevicePlayerPrefs`. Off makes the player's audio output (`SwitchableAudioSink` in `PlayerEngine.kt`, a `ForwardingAudioSink` built by `SwitchableRenderersFactory`) refuse every non-PCM format, so the TV is never sent a stream it can't really play. The switch (`AudioPassthroughSwitch`) is read live: flipping it in the player re-prepares playback from the same position (a brief rebuffer), so it takes effect at once, on the video that is playing.
 
-**Tests performed:** none; this sandbox cannot reach `dl.google.com`, so no Gradle build was run, and nothing was tried on a TV. The code was re-read by hand against the Media3 1.4.1 API (`DefaultRenderersFactory.buildAudioSink`, `DefaultAudioSink.Builder.setAudioCapabilities`).
+**Tests performed:** none; this sandbox cannot reach `dl.google.com`, so no Gradle build was run, and nothing was tried on a TV. The code was re-read by hand against the Media3 API (`DefaultRenderersFactory.buildAudioSink`, `ForwardingAudioSink.supportsFormat` / `getFormatSupport`).
 
 **Issues discovered:** turning passthrough off does not by itself make a DTS-HD track playable on a device with no DTS decoder (the FFmpeg decoder added in the next entry does). It helps where the TV or receiver claims support it doesn't have (typically Dolby Digital Plus / Atmos).
 

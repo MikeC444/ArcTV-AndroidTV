@@ -162,7 +162,8 @@ private fun PlaybackContent(
     // Captured once at first composition, same as exoPlayer itself below --
     // a later change to Subtitles settings only takes effect on the next
     // playback session (leaving/re-entering the player), not live mid-session.
-    val exoPlayer = remember { buildExoPlayer(context, preferences) }
+    val audioPassthroughSwitch = remember { AudioPassthroughSwitch(DevicePlayerPrefs.audioPassthrough(context)) }
+    val exoPlayer = remember { buildExoPlayer(context, preferences, audioPassthroughSwitch) }
     val uiSoundPlayer = LocalUiSoundPlayer.current
 
     // Opening: the loading screen stays until the first picture plays (and behind the resume question).
@@ -799,6 +800,15 @@ private fun PlaybackContent(
                 onAudioPassthroughChange = { enabled ->
                     audioPassthrough = enabled
                     DevicePlayerPrefs.setAudioPassthrough(context, enabled)
+                    audioPassthroughSwitch.enabled = enabled
+                    // The audio output is chosen when playback is prepared, so prepare again from the same spot (a brief rebuffer).
+                    exoPlayer.currentMediaItem?.let { item ->
+                        val position = exoPlayer.currentPosition
+                        val play = exoPlayer.playWhenReady
+                        exoPlayer.setMediaItem(item, position)
+                        exoPlayer.prepare()
+                        exoPlayer.playWhenReady = play
+                    }
                 },
                 onOpenSourceInfo = { pushOverlay(PlayerOverlay.SOURCE_INFO) },
                 onChangeSource = onChangeSource
