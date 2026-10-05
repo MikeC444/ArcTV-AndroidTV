@@ -29,4 +29,11 @@ class DetectAudioChannelsTest {
         assertNull(detectAudioChannels("Movie v1.5.1 x264"))
         assertNull(detectAudioChannels("Movie.S01E05.1080p"))
     }
+
+    @Test
+    fun `spots Dolby Atmos`() {
+        assertEquals(true, detectAtmos("Movie.TrueHD.7.1.Atmos"))
+        assertEquals(true, detectAtmos("Movie DDP5.1 ATMOS"))
+        assertEquals(false, detectAtmos("Movie.DDP5.1.x265"))
+    }
 }

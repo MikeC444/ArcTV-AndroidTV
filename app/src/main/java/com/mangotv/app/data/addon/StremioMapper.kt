@@ -144,6 +144,9 @@ private val CHANNEL_COUNT = Regex("(?<![0-9])(8|6|2)\\s?ch\\b", RegexOption.IGNO
 private val STEREO_WORD = Regex("\\b(stereo|mono)\\b", RegexOption.IGNORE_CASE)
 private val ATMOS_WORD = Regex("atmos", RegexOption.IGNORE_CASE)
 
+/** True when a release's text says Dolby Atmos. */
+fun detectAtmos(text: String): Boolean = ATMOS_WORD.containsMatchIn(text)
+
 /**
  * The most channels a release's text says its audio has: 8 (7.1), 6 (5.1) or 2 (stereo), or null when it doesn't say. The highest wins when
  * several are listed (a multi-audio release); a bare "Atmos" with no layout counts as 8.
@@ -154,7 +157,7 @@ fun detectAudioChannels(text: String): Int? {
     CHANNEL_COUNT.findAll(text).forEach { found += it.groupValues[1].toInt() }
     if (STEREO_WORD.containsMatchIn(text)) found += 2
     found.maxOrNull()?.let { return it }
-    return if (ATMOS_WORD.containsMatchIn(text)) 8 else null
+    return if (detectAtmos(text)) 8 else null
 }
 
 fun StremioStream.toStream(providerId: String, providerLabel: String): Stream {
@@ -179,6 +182,7 @@ fun StremioStream.toStream(providerId: String, providerLabel: String): Stream {
     }
     val audioTag = AUDIO_TAG.find(haystack)?.value
     val audioChannels = detectAudioChannels(haystack)
+    val audioAtmos = detectAtmos(haystack)
 
     val sizeMatch = SIZE_PATTERN.find(haystack)
     val sizeLabel = sizeMatch?.value
@@ -222,6 +226,7 @@ fun StremioStream.toStream(providerId: String, providerLabel: String): Stream {
         codec = codec,
         audioTag = audioTag,
         audioChannels = audioChannels,
+        audioAtmos = audioAtmos,
         sizeLabel = sizeLabel,
         sizeBytes = sizeBytes,
         seeders = seeders,

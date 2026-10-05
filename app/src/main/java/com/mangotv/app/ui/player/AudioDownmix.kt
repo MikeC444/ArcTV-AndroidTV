@@ -6,11 +6,17 @@ import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import java.nio.ByteBuffer
 
-/** The most speakers' worth of sound the person wants sent out (Settings > Audio): what the device supports, stereo, or 5.1. */
+/**
+ * The audio type the person wants (Settings > Audio): it limits how many speakers' worth of sound is sent out ([maxChannels]) and picks
+ * which sources Select a Source lists. Automatic leaves both to the device. 7.1 and Dolby Atmos send up to 7.1 (no mixing down); Atmos
+ * itself only reaches a receiver through passthrough, otherwise its 5.1 / 7.1 base is what plays.
+ */
 enum class AudioChannelMode(val wire: String, val maxChannels: Int) {
     AUTO("auto", Int.MAX_VALUE),
     STEREO("stereo", 2),
-    SURROUND_5_1("5.1", 6);
+    SURROUND_5_1("5.1", 6),
+    SURROUND_7_1("7.1", 8),
+    DOLBY_ATMOS("atmos", 8);
 
     companion object {
         fun fromWire(value: String?): AudioChannelMode = entries.firstOrNull { it.wire == value } ?: AUTO

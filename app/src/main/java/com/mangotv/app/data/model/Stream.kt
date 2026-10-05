@@ -56,6 +56,8 @@ data class Stream(
     val audioTag: String? = null,
     // How many channels the release says its audio has (2, 6 for 5.1, 8 for 7.1), or null when its name doesn't say.
     val audioChannels: Int? = null,
+    // True when the release name says Dolby Atmos.
+    val audioAtmos: Boolean = false,
     val sizeLabel: String? = null,
     val sizeBytes: Long? = null,
     val seeders: Int? = null,

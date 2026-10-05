@@ -11,14 +11,15 @@ import org.junit.Test
 
 class AudioFilterTest {
 
-    private fun stream(id: String, channels: Int?) = Stream(
+    private fun stream(id: String, channels: Int?, atmos: Boolean = false) = Stream(
         id = id, providerId = "p", providerLabel = "P", resolutionTier = ResolutionTier.FHD_1080P, qualityBadge = "1080p",
-        releaseTitle = id, audioChannels = channels
+        releaseTitle = id, audioChannels = channels, audioAtmos = atmos
     )
 
     private val stereo = stream("stereo", 2)
     private val five = stream("five", 6)
     private val seven = stream("seven", 8)
+    private val atmos = stream("atmos", 6, atmos = true)
     private val unknown = stream("unknown", null)
     private fun ids(pick: AudioPick) = pick.streams.map { it.id }
 
@@ -56,30 +57,52 @@ class AudioFilterTest {
     }
 
     @Test
-    fun `when no source names its layout everything is listed and there is no pill`() {
+    fun `7_1 prefers 7_1, then 5_1, then stereo`() {
+        assertEquals(listOf("seven"), ids(pickByAudio(listOf(stereo, five, seven), AudioChannelMode.SURROUND_7_1)))
+        assertEquals(listOf("five"), ids(pickByAudio(listOf(stereo, five), AudioChannelMode.SURROUND_7_1)))
+        assertEquals("Audio: 5.1 (no 7.1 found)", audioPillLabel(AudioChannelMode.SURROUND_7_1, pickByAudio(listOf(stereo, five), AudioChannelMode.SURROUND_7_1)))
+    }
+
+    @Test
+    fun `Atmos prefers Atmos sources, then 7_1, 5_1 and stereo`() {
+        assertEquals(listOf("atmos"), ids(pickByAudio(listOf(stereo, five, seven, atmos), AudioChannelMode.DOLBY_ATMOS)))
+        val noAtmos = pickByAudio(listOf(stereo, five, seven), AudioChannelMode.DOLBY_ATMOS)
+        assertEquals(listOf("seven"), ids(noAtmos))
+        assertEquals("Audio: 7.1 (no Atmos found)", audioPillLabel(AudioChannelMode.DOLBY_ATMOS, noAtmos))
+    }
+
+    @Test
+    fun `when no source names its audio everything is listed and there is no pill`() {
         val pick = pickByAudio(listOf(unknown, stream("also", null)), AudioChannelMode.SURROUND_5_1)
         assertEquals(listOf("unknown", "also"), ids(pick))
         assertNull(audioPillLabel(AudioChannelMode.SURROUND_5_1, pick))
     }
 
     @Test
-    fun `layouts are bucketed`() {
+    fun `layouts are bucketed and an Atmos release can be two kinds`() {
         assertEquals(2, audioBucket(stream("a", 1)))
         assertEquals(6, audioBucket(stream("b", 3)))
         assertEquals(8, audioBucket(stream("c", 12)))
         assertNull(audioBucket(unknown))
+        assertTrue(matchesKind(atmos, AudioKind.ATMOS))
+        assertTrue(matchesKind(atmos, AudioKind.SURROUND_5_1))
+        assertFalse(audioUnlisted(atmos))
+        assertTrue(audioUnlisted(unknown))
     }
 
     @Test
-    fun `the drop-down offers match, all and only the layouts this title has`() {
-        val streams = listOf(stereo, five, unknown, stream("five2", 6))
+    fun `the drop-down offers match, all and only the kinds this title has`() {
+        val streams = listOf(stereo, five, unknown, stream("five2", 6), atmos)
         assertEquals(
-            listOf(AudioChoice.Match, AudioChoice.All, AudioChoice.Layout(2), AudioChoice.Layout(6), AudioChoice.Layout(null)),
+            listOf(
+                AudioChoice.Match, AudioChoice.All, AudioChoice.OfKind(AudioKind.STEREO), AudioChoice.OfKind(AudioKind.SURROUND_5_1),
+                AudioChoice.OfKind(AudioKind.ATMOS), AudioChoice.Unlisted
+            ),
             audioChoices(streams, AudioChannelMode.SURROUND_5_1)
         )
         assertEquals(
-            listOf(AudioChoice.All, AudioChoice.Layout(2), AudioChoice.Layout(6), AudioChoice.Layout(null)),
-            audioChoices(streams, AudioChannelMode.AUTO)
+            listOf(AudioChoice.All, AudioChoice.OfKind(AudioKind.STEREO), AudioChoice.Unlisted),
+            audioChoices(listOf(stereo, unknown), AudioChannelMode.AUTO)
         )
         assertEquals(emptyList<AudioChoice>(), audioChoices(listOf(unknown), AudioChannelMode.SURROUND_5_1))
     }
@@ -90,8 +113,8 @@ class AudioFilterTest {
         val mode = AudioChannelMode.SURROUND_5_1
         assertEquals(listOf("five"), applyAudioChoice(streams, mode, AudioChoice.Match).map { it.id })
         assertEquals(4, applyAudioChoice(streams, mode, AudioChoice.All).size)
-        assertEquals(listOf("seven"), applyAudioChoice(streams, mode, AudioChoice.Layout(8)).map { it.id })
-        assertEquals(listOf("unknown"), applyAudioChoice(streams, mode, AudioChoice.Layout(null)).map { it.id })
+        assertEquals(listOf("seven"), applyAudioChoice(streams, mode, AudioChoice.OfKind(AudioKind.SURROUND_7_1)).map { it.id })
+        assertEquals(listOf("unknown"), applyAudioChoice(streams, mode, AudioChoice.Unlisted).map { it.id })
     }
 
     @Test
@@ -101,8 +124,8 @@ class AudioFilterTest {
         val streams = listOf(stereo, seven, unknown)
         assertEquals("Audio: 7.1 (no 5.1 found)", audioButtonLabel(AudioChoice.Match, streams, AudioChannelMode.SURROUND_5_1))
         assertEquals("Audio: All", audioButtonLabel(AudioChoice.All, streams, AudioChannelMode.SURROUND_5_1))
-        assertEquals("Audio: Not listed", audioButtonLabel(AudioChoice.Layout(null), streams, AudioChannelMode.AUTO))
-        assertEquals("7.1 (1)", audioChoiceLabel(AudioChoice.Layout(8), streams, AudioChannelMode.AUTO))
+        assertEquals("Audio: Not listed", audioButtonLabel(AudioChoice.Unlisted, streams, AudioChannelMode.AUTO))
+        assertEquals("7.1 (1)", audioChoiceLabel(AudioChoice.OfKind(AudioKind.SURROUND_7_1), streams, AudioChannelMode.AUTO))
         assertEquals("All audio (3)", audioChoiceLabel(AudioChoice.All, streams, AudioChannelMode.AUTO))
     }
 }

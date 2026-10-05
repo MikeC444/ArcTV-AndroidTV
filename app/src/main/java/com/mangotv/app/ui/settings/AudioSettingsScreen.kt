@@ -164,5 +164,7 @@ fun ColumnScope.AudioSettingsContent(
 private val ChannelModeOptions: List<Pair<AudioChannelMode, String>> = listOf(
     AudioChannelMode.AUTO to "Automatic (what your TV supports)",
     AudioChannelMode.STEREO to "Stereo",
-    AudioChannelMode.SURROUND_5_1 to "5.1 surround"
+    AudioChannelMode.SURROUND_5_1 to "5.1 surround",
+    AudioChannelMode.SURROUND_7_1 to "7.1 surround",
+    AudioChannelMode.DOLBY_ATMOS to "Dolby Atmos (needs passthrough and a compatible receiver)"
 )
