@@ -26,7 +26,7 @@ export function describeAddonUrl(url: string): { host: string; configured: boole
 const ACTIVE_PLAN = `CASE WHEN p.status = 'active' AND (p.plan = 'lifetime' OR p.valid_until > now()) THEN p.plan ELSE NULL END`;
 
 export async function summary() {
-  const [users, active, plans, versions] = await Promise.all([
+  const [users, active, plans, versions, external] = await Promise.all([
     pool.query<{ total: number; new7d: number }>(`SELECT count(*)::int AS total, count(*) FILTER (WHERE created_at > now() - interval '7 days')::int AS new7d FROM users WHERE deleted_at IS NULL`),
     pool.query<{ n: number }>(`SELECT count(DISTINCT d.user_id)::int AS n FROM devices d JOIN users u ON u.id = d.user_id WHERE d.revoked_at IS NULL AND u.deleted_at IS NULL AND d.last_seen_at > now() - interval '7 days'`),
     pool.query<{ plan: string; n: number }>(`SELECT ${ACTIVE_PLAN} AS plan, count(*)::int AS n FROM user_plus p JOIN users u ON u.id = p.user_id WHERE u.deleted_at IS NULL GROUP BY 1`),
@@ -35,10 +35,33 @@ export async function summary() {
        FROM devices d JOIN users u ON u.id = d.user_id WHERE d.revoked_at IS NULL AND u.deleted_at IS NULL
        GROUP BY 1, 2 ORDER BY devices DESC, version DESC`
     ),
+    externalPlayerSummary(),
   ]);
   const plus: Record<string, number> = { monthly: 0, yearly: 0, lifetime: 0 };
   for (const row of plans.rows) if (row.plan) plus[row.plan] = row.n;
-  return { users: users.rows[0]!.total, newLast7Days: users.rows[0]!.new7d, activeLast7Days: active.rows[0]!.n, plus, versions: versions.rows };
+  return { users: users.rows[0]!.total, newLast7Days: users.rows[0]!.new7d, activeLast7Days: active.rows[0]!.n, plus, versions: versions.rows, externalPlayer: external };
+}
+
+/** How often people hand a title to another player: a lot of "after an error" points at the built-in player, not at taste. */
+export async function externalPlayerSummary() {
+  const [totals, recent] = await Promise.all([
+    pool.query<{ opens7d: number; users7d: number; afterError7d: number; fromButton7d: number; noPlayer7d: number; opensTotal: number }>(
+      `SELECT count(*) FILTER (WHERE created_at > now() - interval '7 days' AND outcome = 'opened')::int AS "opens7d",
+              count(DISTINCT user_id) FILTER (WHERE created_at > now() - interval '7 days')::int AS "users7d",
+              count(*) FILTER (WHERE created_at > now() - interval '7 days' AND launched_from = 'error')::int AS "afterError7d",
+              count(*) FILTER (WHERE created_at > now() - interval '7 days' AND launched_from = 'button')::int AS "fromButton7d",
+              count(*) FILTER (WHERE created_at > now() - interval '7 days' AND outcome = 'no_player')::int AS "noPlayer7d",
+              count(*) FILTER (WHERE outcome = 'opened')::int AS "opensTotal"
+       FROM external_player_events`
+    ),
+    pool.query(
+      `SELECT e.title, e.release_title AS "releaseTitle", e.resolution, e.codec, e.launched_from AS trigger, e.outcome, e.error_message AS "errorMessage",
+              e.app_version AS "appVersion", e.created_at AS "createdAt", u.email
+       FROM external_player_events e JOIN users u ON u.id = e.user_id
+       ORDER BY e.created_at DESC LIMIT 50`
+    ),
+  ]);
+  return { ...totals.rows[0]!, recent: recent.rows };
 }
 
 export interface UserListQuery {

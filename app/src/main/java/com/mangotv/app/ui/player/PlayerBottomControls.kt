@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.HighQuality
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
@@ -63,11 +64,13 @@ fun PlayerBottomControls(
     showSubtitles: Boolean,
     showAudio: Boolean,
     showQuality: Boolean,
+    showExternalPlayer: Boolean,
     onPlayPause: () -> Unit,
     onSeek: (Long) -> Unit,
     onSubtitles: () -> Unit,
     onAudio: () -> Unit,
     onQuality: () -> Unit,
+    onExternalPlayer: () -> Unit,
     onSettings: () -> Unit,
     onNextEpisode: () -> Unit,
     onFocusZoneChanged: (PlayerFocusZone) -> Unit,
@@ -79,6 +82,7 @@ fun PlayerBottomControls(
     subtitleFocusRequester: FocusRequester? = null,
     audioFocusRequester: FocusRequester? = null,
     qualityFocusRequester: FocusRequester? = null,
+    externalPlayerFocusRequester: FocusRequester? = null,
     settingsFocusRequester: FocusRequester? = null,
     nextEpisodeFocusRequester: FocusRequester? = null,
     timelineFocusRequester: FocusRequester? = null,
@@ -160,6 +164,20 @@ fun PlayerBottomControls(
         )
         Spacer(Modifier.width(18.dp))
 
+        if (showExternalPlayer) {
+            HeroIconButton(
+                icon = Icons.Filled.OpenInNew,
+                contentDescription = "Play in external player",
+                onClick = onExternalPlayer,
+                focusRequester = externalPlayerFocusRequester,
+                focusDown = timelineFocusRequester,
+                onFocusChanged = tracked(onIconRowFocused, externalPlayerFocusRequester),
+                compact = true,
+                showBackground = false,
+                borderColor = Color.White
+            )
+            Spacer(Modifier.width(8.dp))
+        }
         if (showSubtitles) {
             HeroIconButton(
                 icon = Icons.Filled.Subtitles,

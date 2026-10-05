@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Can't play a source? Open it in another player app with the new button beside the timeline, after a quick confirmation.
+
 ## 0.1.8
 
 - Press a Continue Watching title and it carries straight on, using the same source you watched before, with no source list.

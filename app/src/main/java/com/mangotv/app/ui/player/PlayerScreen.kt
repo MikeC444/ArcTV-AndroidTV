@@ -51,6 +51,7 @@ import com.mangotv.app.ui.components.FullScreenErrorState
 import com.mangotv.app.ui.player.overlay.AdvancedSettingsPanel
 import com.mangotv.app.ui.player.overlay.AudioInfoPanel
 import com.mangotv.app.ui.player.overlay.AudioTrackMenu
+import com.mangotv.app.ui.player.overlay.ExternalPlayerConfirm
 import com.mangotv.app.ui.player.overlay.PlaybackErrorOverlay
 import com.mangotv.app.ui.player.overlay.PlaybackSpeedMenu
 import com.mangotv.app.ui.player.overlay.QualityMenu
@@ -125,6 +126,7 @@ fun PlayerScreen(
                     onAutoplayChange = viewModel::setAutoplayNextEpisode,
                     onSkipIntroChange = viewModel::setSkipIntroEnabled,
                     onReportProgress = viewModel::reportProgress,
+                    onExternalPlayerChosen = viewModel::recordExternalPlayer,
                     onBack = onBack,
                     onChangeSource = onChangeSource,
                     onNextEpisode = onNextEpisode
@@ -150,6 +152,7 @@ private fun PlaybackContent(
     onAutoplayChange: (Boolean) -> Unit,
     onSkipIntroChange: (Boolean) -> Unit,
     onReportProgress: (positionMs: Long, durationMs: Long, completed: Boolean) -> Unit,
+    onExternalPlayerChosen: (fromError: Boolean, opened: Boolean, errorMessage: String?) -> Unit,
     onBack: () -> Unit,
     onChangeSource: () -> Unit,
     onNextEpisode: (season: Int, episode: Int) -> Unit
@@ -339,6 +342,29 @@ private fun PlaybackContent(
         bumpInteraction()
     }
 
+    // "Play in external player": only for a source with a direct link, and never instant -- the confirmation card comes first.
+    // Where it was asked from is kept for the usage report (the error screen's button points at the built-in player, not taste).
+    val canUseExternalPlayer = stream.url != null
+    var externalFromError by remember { mutableStateOf(false) }
+    fun askExternalPlayer(fromError: Boolean) {
+        externalFromError = fromError
+        // No player app on this device: the card says so instead of offering to open, and that is worth knowing about too.
+        val url = stream.url
+        if (url != null && !hasExternalPlayer(context, url)) {
+            onExternalPlayerChosen(fromError, false, (phase as? PlaybackPhase.Error)?.message.takeIf { fromError })
+        }
+        pushOverlay(PlayerOverlay.EXTERNAL_PLAYER)
+    }
+    fun openExternalPlayer() {
+        val url = stream.url ?: return
+        val title = listOfNotNull(content.title, episode?.let { "S${it.seasonNumber}E${it.episodeNumber}" }).joinToString(" ")
+        val message = (phase as? PlaybackPhase.Error)?.message.takeIf { externalFromError }
+        exoPlayer.pause()
+        val opened = openInExternalPlayer(context, url, title)
+        onExternalPlayerChosen(externalFromError, opened, message)
+        if (opened) popOverlay()
+    }
+
     // The last speed chosen is kept for every title on this device.
     var playbackSpeed by remember { mutableFloatStateOf(DevicePlayerPrefs.speed(context)) }
     fun changePlaybackSpeed(speed: Float) {
@@ -370,6 +396,8 @@ private fun PlaybackContent(
     val subtitleFocusRequester = remember { FocusRequester() }
     val audioFocusRequester = remember { FocusRequester() }
     val qualityFocusRequester = remember { FocusRequester() }
+    val externalPlayerFocusRequester = remember { FocusRequester() }
+    val errorExternalFocusRequester = remember { FocusRequester() }
     val settingsFocusRequester = remember { FocusRequester() }
     val nextEpisodeFocusRequester = remember { FocusRequester() }
     val timelineFocusRequester = remember { FocusRequester() }
@@ -635,6 +663,8 @@ private fun PlaybackContent(
                 message = phase.message,
                 onTryAgain = ::startPlayback,
                 onChangeSource = onChangeSource,
+                onExternalPlayer = if (canUseExternalPlayer) ({ askExternalPlayer(fromError = true) }) else null,
+                externalPlayerFocusRequester = errorExternalFocusRequester,
                 onBack = onBack
             )
         }
@@ -686,11 +716,13 @@ private fun PlaybackContent(
                         showSubtitles = showSubtitles,
                         showAudio = showAudio,
                         showQuality = showQuality,
+                        showExternalPlayer = canUseExternalPlayer,
                         onPlayPause = ::togglePlayPause,
                         onSeek = ::seekByClick,
                         onSubtitles = { pushOverlay(PlayerOverlay.SUBTITLES) },
                         onAudio = { pushOverlay(PlayerOverlay.AUDIO) },
                         onQuality = { pushOverlay(PlayerOverlay.QUALITY) },
+                        onExternalPlayer = { askExternalPlayer(fromError = false) },
                         onSettings = { pushOverlay(PlayerOverlay.SETTINGS) },
                         onNextEpisode = { next?.let { goToNextEpisode(it) } },
                         onFocusZoneChanged = ::onFocusZoneChanged,
@@ -701,6 +733,7 @@ private fun PlaybackContent(
                         subtitleFocusRequester = subtitleFocusRequester,
                         audioFocusRequester = audioFocusRequester,
                         qualityFocusRequester = qualityFocusRequester,
+                        externalPlayerFocusRequester = externalPlayerFocusRequester,
                         settingsFocusRequester = settingsFocusRequester,
                         nextEpisodeFocusRequester = nextEpisodeFocusRequester,
                         timelineFocusRequester = timelineFocusRequester,
@@ -768,6 +801,17 @@ private fun PlaybackContent(
                 stream = stream,
                 audioTracks = audioTracks,
                 subtitleTracks = subtitleTracks
+            )
+            PlayerOverlay.EXTERNAL_PLAYER -> ExternalPlayerConfirm(
+                available = stream.url?.let { hasExternalPlayer(context, it) } == true,
+                onConfirm = ::openExternalPlayer,
+                onCancel = {
+                    popOverlay()
+                    // Back onto whatever asked: the error screen's button, else the control last used.
+                    if (overlayStack.isEmpty()) {
+                        if (externalFromError) runCatching { errorExternalFocusRequester.requestFocus() } else focusLastControl()
+                    }
+                }
             )
             null -> Unit
         }

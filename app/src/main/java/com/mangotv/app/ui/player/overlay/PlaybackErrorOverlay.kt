@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.MaterialTheme
@@ -18,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -38,6 +40,8 @@ fun PlaybackErrorOverlay(
     message: String,
     onTryAgain: () -> Unit,
     onChangeSource: () -> Unit,
+    onExternalPlayer: (() -> Unit)?,
+    externalPlayerFocusRequester: FocusRequester? = null,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -78,6 +82,17 @@ fun PlaybackErrorOverlay(
                     style = MangoButtonStyle.GLASS,
                     borderColor = Color.White
                 )
+                if (onExternalPlayer != null) {
+                    Spacer(Modifier.width(12.dp))
+                    MangoButton(
+                        text = "External Player",
+                        icon = Icons.Filled.OpenInNew,
+                        onClick = onExternalPlayer,
+                        focusRequester = externalPlayerFocusRequester,
+                        style = MangoButtonStyle.GLASS,
+                        borderColor = Color.White
+                    )
+                }
                 Spacer(Modifier.width(12.dp))
                 MangoButton(
                     text = "Back",

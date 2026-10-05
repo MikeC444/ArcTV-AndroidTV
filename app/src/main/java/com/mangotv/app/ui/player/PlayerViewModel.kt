@@ -10,6 +10,7 @@ import com.mangotv.app.MangoTvApplication
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.model.Episode
 import com.mangotv.app.data.model.PlayerPreferences
+import com.mangotv.app.data.network.ExternalPlayerEventDto
 import com.mangotv.app.data.provider.ProviderRegistry
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -40,6 +41,7 @@ class PlayerViewModel(
     private val continueWatchingRepository = (application as MangoTvApplication).container.continueWatchingRepository
     private val continueWatchingSyncRepository = (application as MangoTvApplication).container.continueWatchingSyncRepository
     private val lastSourceRepository = (application as MangoTvApplication).container.lastSourceRepository
+    private val externalPlayerRepository = (application as MangoTvApplication).container.externalPlayerRepository
     private val myListRepository = (application as MangoTvApplication).container.myListRepository
 
     private val providerId: String =
@@ -118,6 +120,25 @@ class PlayerViewModel(
 
             _uiState.value = PlayerScreenUiState.Ready(content, episode, stream)
         }
+    }
+
+    /** One confirmed "Play in external player": [fromError] when it was offered because the built-in player failed, [opened] false when no player app took it. */
+    fun recordExternalPlayer(fromError: Boolean, opened: Boolean, errorMessage: String?) {
+        val state = uiState.value as? PlayerScreenUiState.Ready ?: return
+        externalPlayerRepository.record(
+            ExternalPlayerEventDto(
+                providerId = providerId,
+                contentId = contentId,
+                contentType = contentType.name,
+                title = state.content.title,
+                releaseTitle = state.stream.releaseTitle.take(500),
+                resolution = state.stream.qualityBadge,
+                codec = state.stream.codec,
+                trigger = if (fromError) "error" else "button",
+                outcome = if (opened) "opened" else "no_player",
+                errorMessage = errorMessage?.take(1000)
+            )
+        )
     }
 
     fun onPlaybackPhaseChanged(phase: PlaybackPhase) {

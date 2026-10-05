@@ -15,6 +15,7 @@ import com.mangotv.app.data.recommend.PickedStateRepository
 import com.mangotv.app.data.search.SearchHistoryRepository
 import com.mangotv.app.data.sync.ProfileSwitcher
 import com.mangotv.app.data.recommend.FeatureCacheRepository
+import com.mangotv.app.data.player.ExternalPlayerRepository
 import com.mangotv.app.data.player.LastSourceRepository
 import com.mangotv.app.data.player.PlayerPreferencesRepository
 import com.mangotv.app.data.provider.BlockedGenresRepository
@@ -173,6 +174,8 @@ class AppContainer(context: Context) {
     )
     val continueWatchingRepository: ContinueWatchingRepository = ContinueWatchingRepository(context)
     val lastSourceRepository: LastSourceRepository = LastSourceRepository(context)
+    /** Reports each confirmed "Play in external player" to the developer panel. */
+    val externalPlayerRepository: ExternalPlayerRepository = ExternalPlayerRepository(authRepository)
     val continueWatchingSyncRepository: ContinueWatchingSyncRepository = ContinueWatchingSyncRepository(
         context, continueWatchingRepository, authRepository
     )

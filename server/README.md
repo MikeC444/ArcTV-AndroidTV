@@ -51,6 +51,7 @@ Endpoints:
   rules as the watchlist: `GET` returns only feedback that is currently
   set, `POST` returns the slot's authoritative state, `DELETE` clears it
   (`204` if it never existed).
+- `POST /user/player-events/external` (authenticated) — `{ providerId, contentId, contentType, title, releaseTitle?, resolution?, codec?, trigger: "button"|"error", outcome: "opened"|"no_player", errorMessage? }` → `204`. Reported when someone confirms "Play in external player"; read back by admins in `GET /admin/summary` (`externalPlayer`). Never carries the stream address.
 - `GET /user/profiles` / `POST /user/profiles` / `PUT /user/profiles/:id` /
   `DELETE /user/profiles/:id` / `POST /user/profiles/:id/verify-pin`
   (authenticated) — ArcTV Plus profiles: up to 5 per account (any adult /

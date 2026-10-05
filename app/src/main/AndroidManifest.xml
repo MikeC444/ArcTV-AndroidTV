@@ -11,6 +11,14 @@
          permission only lets the app ASK, never installs anything silently. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Lets the player see whether any other video player app is installed (Android 11+ hides other apps otherwise), for "Play in external player". -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="video/*" />
+        </intent>
+    </queries>
+
     <uses-feature
         android:name="android.software.leanback"
         android:required="false" />

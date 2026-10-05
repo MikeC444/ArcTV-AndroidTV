@@ -4417,3 +4417,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues fixed:** the above.
 
+
+## Post-Milestone-79 — Play in an external player, with a usage tracker
+
+**Status:** Written; the server's tests pass; the app is not built or tried on a TV.
+
+**Context:** some sources (e.g. 4K Dolby Vision HEVC on a device whose HEVC decoder can't take it, as on the emulator's `c2.goldfish.hevc.decoder`) end in "Unable to play this source" with no way forward. Stremio's answer is handing the stream to another player app. This adds that, always behind a confirmation, and records each use so the developer panel can show whether people are leaving because the built-in player fails.
+
+**Changes:**
+- App: an "open in external player" icon beside the timeline (first in the icon cluster, only for a source with a direct link), and an "External Player" button on the "Unable to play this source" screen. Both open `ExternalPlayerConfirm` first (a new `PlayerOverlay.EXTERNAL_PLAYER`; BACK closes it); only its "Open External Player" button leaves ArcTV, via `ACTION_VIEW` with `video/*` (`ExternalPlayerLauncher`). With no player app installed the card says so instead; a `<queries>` entry in the manifest lets the app see that. Playback is paused when it hands over.
+- Tracker: `PlayerViewModel.recordExternalPlayer` -> `ExternalPlayerRepository` -> `POST /user/player-events/external` (`PlayerEventsApiClient`), fire-and-forget and dropped if offline. It sends the title, release name, resolution, codec, where it was asked from (`button` or `error`), the outcome (`opened` or `no_player`) and, from the error screen, the player's error text. Never the stream address (it can carry a debrid key).
+- Server: migration `0021_external_player_events.sql`, `routes/playerEvents.ts`, `playerEventService.ts`, `schemas/playerEvents.ts`; `GET /admin/summary` gains `externalPlayer` (opens, people, after-error and from-button counts and no-player count for 7 days, all-time opens, the 50 latest events).
+
+**Tests performed:** server: `tests/player-events.test.ts` added (needs sign-in, stores and shows in the admin summary, rejects a bad trigger); the full server suite (239 tests) passes against a scratch Postgres, and `tsc` is clean outside `scripts/`. App: this sandbox cannot reach `dl.google.com`, so no Gradle/Android build was run; the Kotlin was only re-read by hand and nothing was run on a TV or emulator.
+
+**Issues discovered:** the screenshot's error comes from the emulator's own decoder, so it may not happen on a real TV. The developer panel screen in the app does not show the new numbers yet (they are in `/admin/summary`).
+
+**Issues fixed:** the above.
