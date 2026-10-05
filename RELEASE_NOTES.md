@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+## 0.2.0
+
 - A new VLC-powered player is now the default: streaming-style controls, and it plays more videos.
 
 - No sound on surround sources? Turn off Audio Passthrough in Settings > Audio, or instantly in the player.
