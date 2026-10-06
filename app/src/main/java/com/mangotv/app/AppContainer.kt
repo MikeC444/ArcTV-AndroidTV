@@ -1,5 +1,7 @@
 package com.mangotv.app
 
+import com.mangotv.app.data.torrent.platform.CustomTorrentRepository
+import com.mangotv.app.data.torrent.platform.TorrentStreamManager
 import android.content.Context
 import com.mangotv.app.data.addon.AddonRepository
 import com.mangotv.app.data.audio.SoundPreferencesRepository
@@ -284,4 +286,10 @@ class AppContainer(context: Context) {
     // laziness here costs nothing.
     val updateRepository: UpdateRepository by lazy { UpdateRepository() }
     val updatePreferencesRepository: UpdatePreferencesRepository by lazy { UpdatePreferencesRepository(context) }
+
+    // Both lazy: nothing torrent-related (no native library load, no socket, no folder) happens until a torrent source is played or added.
+    val customTorrentRepository: CustomTorrentRepository by lazy { CustomTorrentRepository(context) }
+    val torrentStreamManager: TorrentStreamManager by lazy {
+        TorrentStreamManager(context, okhttp3.OkHttpClient(), customTorrentRepository)
+    }
 }

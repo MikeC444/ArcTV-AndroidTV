@@ -2,6 +2,8 @@ package com.mangotv.app.ui.player
 
 import android.content.Context
 import com.mangotv.app.data.model.Season
+import com.mangotv.app.data.torrent.TorrentBuffer
+import com.mangotv.app.data.torrent.TorrentStorageLimit
 
 /** The episode that follows the one playing, in the same show (the web app's `nextEpisodeAfter`). */
 data class NextEpisode(val season: Int, val episode: Int, val title: String)
@@ -56,6 +58,8 @@ object DevicePlayerPrefs {
     private const val AUDIO_CHANNELS = "audio_channels"
     private const val DEFAULT_PLAYER = "default_player"
     private const val TITLE_PLAYERS_FILE = "arctv_title_players"
+    private const val TORRENT_BUFFER = "torrent_buffer"
+    private const val TORRENT_STORAGE = "torrent_storage"
 
     fun speed(context: Context): Float {
         val value = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getFloat(SPEED, 1f)
@@ -103,6 +107,22 @@ object DevicePlayerPrefs {
 
     /** The player to start a title with: the one picked for it, else the default. */
     fun playerFor(context: Context, titleKey: String): PreferredPlayer = titlePlayer(context, titleKey) ?: defaultPlayer(context)
+
+    /** How far ahead of the picture a torrent is fetched (Settings > Player > Torrent buffer). */
+    fun torrentBuffer(context: Context): TorrentBuffer =
+        TorrentBuffer.fromWire(context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(TORRENT_BUFFER, null))
+
+    fun setTorrentBuffer(context: Context, value: TorrentBuffer) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(TORRENT_BUFFER, value.wire).apply()
+    }
+
+    /** The most temporary storage one torrent may use (Settings > Player > Torrent storage limit). */
+    fun torrentStorageLimit(context: Context): TorrentStorageLimit =
+        TorrentStorageLimit.fromWire(context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(TORRENT_STORAGE, null))
+
+    fun setTorrentStorageLimit(context: Context, value: TorrentStorageLimit) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(TORRENT_STORAGE, value.wire).apply()
+    }
 
     fun setShowRemaining(context: Context, value: Boolean) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(SHOW_REMAINING, value).apply()

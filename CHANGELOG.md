@@ -4611,3 +4611,25 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the taller card plus a download-progress line is close to the 540 dp screen height; the notes box is capped at 220 dp for that reason.
 
 **Issues fixed:** the above.
+
+## Post-Milestone-90 -- Built-in torrent streaming
+
+**Status:** Built (debug APK) and unit-tested; not tried on a TV or emulator.
+
+**Context:** Sources that were only a BitTorrent info hash could not play ("torrent streaming isn't supported yet"). Magnet links and .torrent files had no way in at all.
+
+**Changes:**
+- Engine: libtorrent4j 2.1.0-39 (MIT bindings of libtorrent, BSD; Maven Central; native libs for arm64-v8a, armeabi-v7a, x86_64, 16 KB aligned). Nuvio's TorrServer integration (GPL-3.0, drives an external TorrServer process) was used as an architectural reference only; no code was copied. Only its file listing was read.
+- `data/torrent/`: magnet parsing (hex/base32, trackers, `x.pe`), video file selection for multi-file torrents (addon `fileIdx`, file name, season/episode, else largest non-sample), piece window + deadlines, loopback-only HTTP server (GET/HEAD, 200/206/416), `TorrentEngine` (metadata fetch, hash-verified pieces, bounded storage, idle pause, cleanup), `platform/` Android glue (`TorrentStreamManager`, `CustomTorrentRepository`).
+- Storage bound: only a read-ahead window is requested; over the cap, the torrent is re-added from its metadata at the playhead and its files deleted (one re-buffer per cap of playing). Posix disk I/O is used so a full disk is an error, not SIGBUS.
+- Player: `TorrentSourceHost` starts the engine, shows progress/errors on the loading screen, then hands the unchanged ExoPlayer/VLC paths the local URL. Direct, HLS, DASH and debrid links never reach it. The torrent is closed whenever the screen leaves (exit, source change, next episode, retry).
+- Sources: "+ Torrent" pill to paste a magnet link / .torrent address or pick a .torrent file. Settings > Player: torrent buffer and storage limit.
+
+**Tests performed:** `gradle :app:assembleDebug` succeeded (SDK installed from dl.google.com). `:app:testDebugUnitTest`: 244 passed, 7 skipped. `TorrentEngineSwarmTest` (real libtorrent seeder and engine on loopback, synthetic data): 7/7 pass when run with `java` and `-Djava.library.path` set to the desktop `libtorrent4j.so`; under Gradle's test worker that JVM crashes natively (cause not found), so the test skips by default and `-PtorrentNativeDir` is not reliable.
+
+**Issues discovered:** the libtorrent build has no TLS library string, so https trackers/web seeds may not work. Seeds close connections to peers that want nothing, so the engine keeps a window wanted and sets a short reconnect delay.
+
+**Not verified:** playback on a device; real swarms (trackers/DHT); ExoPlayer/VLC against the local URL; D-pad use of the Add dialog; Fire TV storage behaviour.
+
+**Issues fixed:** none beyond those found during development.
+

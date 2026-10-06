@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Play magnet links and .torrent files right inside Arc TV, with buffer and storage settings. Nothing extra to install.
+
 ## 0.2.0
 
 - A new VLC-powered player is now the default: streaming-style controls, and it plays more videos.

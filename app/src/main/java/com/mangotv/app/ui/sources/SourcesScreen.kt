@@ -72,6 +72,7 @@ fun SourcesScreen(
     viewModel: SourcesViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val addTorrentError by viewModel.addTorrentError.collectAsStateWithLifecycle()
 
     Box(
         modifier = modifier
@@ -111,6 +112,10 @@ fun SourcesScreen(
                         // Settings' default tab, not Addons specifically.
                         onManageAddons = { onNavigate(MangoRoutes.SETTINGS) },
                         onRetry = viewModel::load,
+                        addTorrentError = addTorrentError,
+                        onAddTorrentText = viewModel::addTorrentText,
+                        onAddTorrentFile = viewModel::addTorrentFile,
+                        onClearAddTorrentError = viewModel::clearAddTorrentError,
                         onSelectSource = { stream ->
                             state.content.providerId?.let { pid ->
                                 onNavigate(
@@ -210,8 +215,25 @@ private fun SourcesContent(
     onBack: () -> Unit,
     onManageAddons: () -> Unit,
     onRetry: () -> Unit,
+    addTorrentError: String?,
+    onAddTorrentText: (String) -> Boolean,
+    onAddTorrentFile: (android.net.Uri) -> Boolean,
+    onClearAddTorrentError: () -> Unit,
     onSelectSource: (Stream) -> Unit
 ) {
+    // "Add a torrent": the person's own magnet link or .torrent file for this title.
+    var addingTorrent by remember { mutableStateOf(false) }
+    if (addingTorrent) {
+        AddTorrentDialog(
+            error = addTorrentError,
+            onSubmitText = { text -> if (onAddTorrentText(text)) addingTorrent = false },
+            onPickFile = { uri -> if (onAddTorrentFile(uri)) addingTorrent = false },
+            onDismiss = {
+                addingTorrent = false
+                onClearAddTorrentError()
+            }
+        )
+    }
     var selectedFilter by remember { mutableStateOf(SourceFilter.ALL) }
     // Biggest file first, as on the web; "Recommended" still marks the best source and always sits on top.
     var selectedSort by remember { mutableStateOf(SourceSort.SIZE) }
@@ -316,7 +338,8 @@ private fun SourcesContent(
                     audioOptions = audioOptions,
                     audioSelectedIndex = audioChoiceList.indexOf(audioChoice).coerceAtLeast(0),
                     audioHighlighted = audioChoice != AudioChoice.All,
-                    onAudioSelect = { index -> pickedAudio = audioChoiceList.getOrNull(index) }
+                    onAudioSelect = { index -> pickedAudio = audioChoiceList.getOrNull(index) },
+                    onAddTorrent = { addingTorrent = true }
                 )
 
                 Spacer(Modifier.height(14.dp))

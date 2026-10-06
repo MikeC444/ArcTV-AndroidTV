@@ -65,6 +65,10 @@ data class Stream(
     val sourceHealth: SourceHealth? = null,
     val url: String? = null,
     val infoHash: String? = null,
+    // Torrent sources only: the file inside the torrent an addon named (its index, or its file name), and its trackers.
+    val fileIdx: Int? = null,
+    val torrentFilename: String? = null,
+    val trackers: List<String> = emptyList(),
     val ytId: String? = null,
     // Null for a source that isn't a debrid link at all (a plain file or a torrent).
     val debrid: DebridState? = null

@@ -65,6 +65,7 @@ class SourcesViewModel(
 
     private val continueWatchingRepository = (application as MangoTvApplication).container.continueWatchingRepository
     private val lastSourceRepository = (application as MangoTvApplication).container.lastSourceRepository
+    private val customTorrentRepository = (application as MangoTvApplication).container.customTorrentRepository
 
     private val providerId: String =
         URLDecoder.decode(savedStateHandle.get<String>("providerId").orEmpty(), "UTF-8")
@@ -91,6 +92,37 @@ class SourcesViewModel(
 
     private val _uiState = MutableStateFlow<SourcesUiState>(SourcesUiState.Loading)
     val uiState: StateFlow<SourcesUiState> = _uiState.asStateFlow()
+
+    /** Why the last "Add a torrent" attempt was refused (shown in its dialog), or null. */
+    private val _addTorrentError = MutableStateFlow<String?>(null)
+    val addTorrentError: StateFlow<String?> = _addTorrentError.asStateFlow()
+
+    /** The magnet links and .torrent files the person added to this title / episode earlier. */
+    private fun customSources(): List<Stream> =
+        customTorrentRepository.streamsFor(providerId, contentId, contentType, season, episode)
+
+    fun clearAddTorrentError() { _addTorrentError.value = null }
+
+    /** Adds what was typed or pasted; returns true when it became a source (the list shows it at once, the dialog closes). */
+    fun addTorrentText(text: String): Boolean {
+        val added = customTorrentRepository.addText(providerId, contentId, contentType, season, episode, text) { _addTorrentError.value = it }
+        return showAdded(added)
+    }
+
+    fun addTorrentFile(uri: android.net.Uri): Boolean {
+        val added = customTorrentRepository.addFile(providerId, contentId, contentType, season, episode, uri) { _addTorrentError.value = it }
+        return showAdded(added)
+    }
+
+    private fun showAdded(added: Stream?): Boolean {
+        if (added == null) return false
+        _addTorrentError.value = null
+        val current = _uiState.value
+        if (current is SourcesUiState.Loaded) {
+            _uiState.value = current.copy(streams = listOf(added) + current.streams.filter { it.id != added.id })
+        }
+        return true
+    }
 
     init {
         load()
@@ -133,7 +165,7 @@ class SourcesViewModel(
                     val reports = providers.map { provider ->
                         async { provider.getStreamReport(contentType, contentId, season, episode) }
                     }.awaitAll()
-                    val streams = reports.flatMap { it.streams }
+                    val streams = customSources() + reports.flatMap { it.streams }
                     val content = contentDeferred.await()
                     if (content == null) {
                         _uiState.value = SourcesUiState.Error("Couldn't load details for this title.")
@@ -186,10 +218,12 @@ class SourcesViewModel(
                     val (providerIndex, report) = resultsChannel.receive()
                     accumulated += report.streams
                     rows[providerIndex] = AddonLookupRow(report.addonName, report.lookup)
+                    // Read again each time, so a torrent added by hand while the addons are still answering is not lost.
+                    val combined = customSources() + accumulated
                     _uiState.value = SourcesUiState.Loaded(
                         content = content,
-                        streams = accumulated.toList(),
-                        recommendedStreamId = recommendedFor(accumulated),
+                        streams = combined,
+                        recommendedStreamId = recommendedFor(combined),
                         addons = rows.toList(),
                         season = season,
                         episode = episode,

@@ -88,7 +88,18 @@ data class StremioStream(
     val url: String? = null,
     val ytId: String? = null,
     val infoHash: String? = null,
+    // Which file of a multi-file torrent to play (an index into the torrent's own file list), and the addon's tracker list
+    // (`tracker:udp://...` entries; `dht:` entries are ignored).
+    val fileIdx: Int? = null,
+    val sources: List<String>? = null,
+    val behaviorHints: StremioBehaviorHints? = null,
     val title: String? = null,
     val name: String? = null,
     val description: String? = null
+)
+
+/** The few `behaviorHints` the app reads; addons add many others, which are ignored. */
+@Serializable
+data class StremioBehaviorHints(
+    val filename: String? = null
 )

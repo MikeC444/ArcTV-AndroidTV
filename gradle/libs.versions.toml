@@ -19,6 +19,9 @@ media3-ffmpeg = "1.5.0+1"
 # VLC's player engine for Android (LibVLC 3), the fallback for sources the built-in player cannot decode.
 libvlc = "3.6.5"
 tink = "1.19.0"
+# libtorrent4j: MIT-licensed Java bindings of libtorrent (BSD-licensed), the BitTorrent engine behind torrent playback. The per-chip artifacts hold the native
+# library; the three below match the ABIs this app ships (see abiFilters in app/build.gradle.kts).
+libtorrent4j = "2.1.0-39"
 junit = "4.13.2"
 
 [libraries]
@@ -53,6 +56,10 @@ androidx-media3-decoder-ffmpeg = { group = "org.jellyfin.media3", name = "media3
 org-videolan-libvlc = { group = "org.videolan.android", name = "libvlc-all", version.ref = "libvlc" }
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
 androidx-media3-datasource-okhttp = { group = "androidx.media3", name = "media3-datasource-okhttp", version.ref = "media3" }
+libtorrent4j = { group = "org.libtorrent4j", name = "libtorrent4j", version.ref = "libtorrent4j" }
+libtorrent4j-android-arm64 = { group = "org.libtorrent4j", name = "libtorrent4j-android-arm64", version.ref = "libtorrent4j" }
+libtorrent4j-android-arm = { group = "org.libtorrent4j", name = "libtorrent4j-android-arm", version.ref = "libtorrent4j" }
+libtorrent4j-android-intel64 = { group = "org.libtorrent4j", name = "libtorrent4j-android-x86_64", version.ref = "libtorrent4j" }
 tink-android = { group = "com.google.crypto.tink", name = "tink-android", version.ref = "tink" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }

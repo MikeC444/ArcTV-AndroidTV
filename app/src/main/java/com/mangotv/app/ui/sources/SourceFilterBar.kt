@@ -57,7 +57,9 @@ fun SourceFilterBar(
     audioOptions: List<String> = emptyList(),
     audioSelectedIndex: Int = 0,
     audioHighlighted: Boolean = false,
-    onAudioSelect: (Int) -> Unit = {}
+    onAudioSelect: (Int) -> Unit = {},
+    // When set, a pill at the end opens "Add a torrent" (a magnet link or .torrent file of the person's own).
+    onAddTorrent: (() -> Unit)? = null
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -107,6 +109,10 @@ fun SourceFilterBar(
             sort = selectedSort,
             onClick = { onSortChange(selectedSort.next()) }
         )
+        if (onAddTorrent != null) {
+            Spacer(Modifier.width(6.dp))
+            FilterPill(label = "+ Torrent", selected = false, onClick = onAddTorrent)
+        }
     }
 }
 

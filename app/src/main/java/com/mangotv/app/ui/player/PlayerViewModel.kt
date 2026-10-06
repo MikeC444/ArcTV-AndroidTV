@@ -45,6 +45,7 @@ class PlayerViewModel(
     private val lastSourceRepository = (application as MangoTvApplication).container.lastSourceRepository
     private val externalPlayerRepository = (application as MangoTvApplication).container.externalPlayerRepository
     private val myListRepository = (application as MangoTvApplication).container.myListRepository
+    private val customTorrentRepository = (application as MangoTvApplication).container.customTorrentRepository
 
     /** Identifies this title (not the episode) for the player remembered for it (DevicePlayerPrefs.titlePlayer). */
     val titleKey: String get() = "$providerId|$contentId|${contentType.name}"
@@ -110,7 +111,7 @@ class PlayerViewModel(
                 providers.map { provider ->
                     async { runCatching { provider.getStreams(contentType, contentId, season, episodeNumber) }.getOrDefault(emptyList()) }
                 }.awaitAll()
-            }.flatten()
+            }.flatten() + customTorrentRepository.streamsFor(providerId, contentId, contentType, season, episodeNumber)
 
             // The source's id can change between two fetches of the same addon: carry on with the same release when it is still offered.
             val stream = streams.find { it.id == streamId }
@@ -168,7 +169,7 @@ class PlayerViewModel(
                 providers.map { provider ->
                     async { runCatching { provider.getStreams(contentType, contentId, nextSeason, nextEpisode) }.getOrDefault(emptyList()) }
                 }.awaitAll()
-            }.flatten()
+            }.flatten() + customTorrentRepository.streamsFor(providerId, contentId, contentType, nextSeason, nextEpisode)
             val audioMode = DevicePlayerPrefs.audioChannelMode(getApplication<Application>())
             val stream = lastSourceRepository.findLastSource(providerId, contentId, contentType, nextSeason, nextEpisode)
                 ?.let { matchLastSource(streams, it) }

@@ -10,6 +10,7 @@ import com.mangotv.app.data.model.ResolutionTier
 import com.mangotv.app.data.model.Season
 import com.mangotv.app.data.model.SourceHealth
 import com.mangotv.app.data.model.Stream
+import com.mangotv.app.data.torrent.trackersFromStremioSources
 
 fun StremioMetaPreview.toContent(providerId: String): Content {
     val year = releaseInfo
@@ -209,7 +210,8 @@ fun StremioStream.toStream(providerId: String, providerLabel: String): Stream {
         ?: name?.takeIf { it.isNotBlank() }
         ?: "Unknown Source"
 
-    val idSeed = infoHash ?: url ?: (title.orEmpty() + name.orEmpty())
+    // The same torrent can be offered once per file (a season pack, one row per episode), so the file index is part of the id.
+    val idSeed = infoHash?.let { hash -> fileIdx?.let { "$hash#$it" } ?: hash } ?: url ?: (title.orEmpty() + name.orEmpty())
 
     // Some addons prefix `name` with a bracketed tag (e.g. "[TB+] Torrentio")
     // that reads as noise in a compact provider label — strip it for display.
@@ -234,6 +236,9 @@ fun StremioStream.toStream(providerId: String, providerLabel: String): Stream {
         sourceHealth = sourceHealth,
         url = url,
         infoHash = infoHash,
+        fileIdx = fileIdx?.takeIf { it >= 0 },
+        torrentFilename = behaviorHints?.filename?.takeIf { it.isNotBlank() },
+        trackers = trackersFromStremioSources(sources),
         ytId = ytId,
         debrid = parseDebridTag(name)
     )

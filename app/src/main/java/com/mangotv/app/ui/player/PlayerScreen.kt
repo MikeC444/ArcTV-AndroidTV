@@ -48,6 +48,7 @@ import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.Episode
 import com.mangotv.app.data.model.PlayerPreferences
 import com.mangotv.app.data.model.Stream
+import com.mangotv.app.data.torrent.isLocalTorrentUrl
 import com.mangotv.app.ui.components.FullScreenErrorState
 import com.mangotv.app.ui.player.overlay.AdvancedSettingsPanel
 import com.mangotv.app.ui.player.overlay.AudioInfoPanel
@@ -122,8 +123,16 @@ fun PlayerScreen(
                     onSecondaryAction = changeSource
                 )
             }
-            is PlayerScreenUiState.Ready -> {
-                val streamUrl = state.stream.url
+            is PlayerScreenUiState.Ready -> TorrentSourceHost(
+                content = state.content,
+                episode = state.episode,
+                stream = state.stream,
+                season = viewModel.currentSeason,
+                episodeNumber = viewModel.currentEpisode,
+                onChangeSource = changeSource
+            ) { stream ->
+                // `stream` is the source to play: an ordinary link as it is, a torrent with the engine's local address in place of its own.
+                val streamUrl = stream.url
                 val titleKey = viewModel.titleKey
                 val displayTitle = listOfNotNull(
                     state.content.title,
@@ -132,13 +141,13 @@ fun PlayerScreen(
                 // Which player starts: the one this title remembers, else the default (VLC's engine unless Settings > Player says otherwise).
                 // Only for a source with a direct link and a chip LibVLC runs on; everything else uses the built-in player.
                 val vlcUsable = remember { VLCUtil.hasCompatibleCPU(context) }
-                val resumeAtStart = remember(state.stream.id) { viewModel.resumePositionMs() }
-                val startsInVlc = remember(state.stream.id) {
+                val resumeAtStart = remember(stream.id) { viewModel.resumePositionMs() }
+                val startsInVlc = remember(stream.id) {
                     streamUrl != null && vlcUsable && DevicePlayerPrefs.playerFor(context, titleKey) == PreferredPlayer.VLC
                 }
                 // The position VLC starts from (null while the built-in player is the one playing), and where the built-in player starts.
-                var vlcStart by remember(state.stream.id) { mutableStateOf(if (startsInVlc) (resumeAtStart ?: 0L) else null) }
-                var builtInStart by remember(state.stream.id) { mutableStateOf(resumeAtStart) }
+                var vlcStart by remember(stream.id) { mutableStateOf(if (startsInVlc) (resumeAtStart ?: 0L) else null) }
+                var builtInStart by remember(stream.id) { mutableStateOf(resumeAtStart) }
                 val rememberPlayer: (PreferredPlayer) -> Unit = { player -> DevicePlayerPrefs.setTitlePlayer(context, titleKey, player) }
                 val currentVlcStart = vlcStart
                 if (currentVlcStart != null && streamUrl != null) {
@@ -169,7 +178,7 @@ fun PlayerScreen(
                 } else PlaybackContent(
                     content = state.content,
                     episode = state.episode,
-                    stream = state.stream,
+                    stream = stream,
                     resumePositionMs = builtInStart,
                     phase = playbackPhase,
                     audioTracks = audioTracks,
@@ -226,7 +235,7 @@ private fun PlaybackContent(
     val audioOutput = remember { AudioOutputSettings(DevicePlayerPrefs.audioPassthrough(context), DevicePlayerPrefs.audioChannelMode(context)) }
     // Always on to begin with; turned off for this playback only by the automatic retry in PlayerListenerBridge when a Dolby Vision file fails.
     val dolbyVisionSwitch = remember { DolbyVisionSwitch(true) }
-    val exoPlayer = remember { buildExoPlayer(context, preferences, audioOutput, dolbyVisionSwitch) }
+    val exoPlayer = remember { buildExoPlayer(context, preferences, audioOutput, dolbyVisionSwitch, isLocalTorrentUrl(stream.url)) }
     val uiSoundPlayer = LocalUiSoundPlayer.current
 
     // Opening: the loading screen stays until the first picture plays (and behind the resume question).
@@ -312,7 +321,7 @@ private fun PlaybackContent(
             onPhaseChanged(
                 PlaybackPhase.Error(
                     PlaybackErrorType.TORRENT_UNSUPPORTED,
-                    "This source requires torrent streaming, which isn't supported yet. Try a different source."
+                    "This source isn't a link the player can open. Try a different source."
                 )
             )
         } else {

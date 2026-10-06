@@ -126,6 +126,13 @@ android {
     testOptions {
         unitTests {
             isReturnDefaultValues = true
+            // TorrentEngineSwarmTest streams a synthetic torrent between two real libtorrent sessions on this machine. It needs libtorrent4j's
+            // desktop native library (the Android ones in the APK cannot load here), so it skips itself unless this is given: extract
+            // lib/x86_64/libtorrent4j.so from the libtorrent4j-linux jar and pass its folder, e.g.
+            //   ./gradlew :app:testDebugUnitTest -PtorrentNativeDir=/path/to/folder
+            all { test ->
+                (project.findProperty("torrentNativeDir") as String?)?.let { test.jvmArgs("-Djava.library.path=$it") }
+            }
         }
     }
 
@@ -190,6 +197,11 @@ dependencies {
     // VLC's own player engine, used when the built-in player cannot decode a source (see VlcPlayerScreen).
     implementation(libs.org.videolan.libvlc)
     implementation(libs.androidx.media3.datasource.okhttp)
+    // BitTorrent engine for magnet links and .torrent files (see data/torrent). The native library ships per chip, matching abiFilters above.
+    implementation(libs.libtorrent4j)
+    implementation(libs.libtorrent4j.android.arm64)
+    implementation(libs.libtorrent4j.android.arm)
+    implementation(libs.libtorrent4j.android.intel64)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

@@ -29,9 +29,10 @@ import com.mangotv.app.ui.theme.TextSecondary
 /**
  * Shown while a title is opening (the web app's loading screen): its backdrop behind its logo (or name), "S1 E2 • title" for an episode,
  * and a loading symbol underneath, until the first picture plays. [busy] false (the resume question is up) leaves the symbol out.
+ * [status] is an optional line under the symbol (what a torrent is doing while it starts).
  */
 @Composable
-fun PlayerLoadingScreen(content: Content, episode: Episode?, busy: Boolean, modifier: Modifier = Modifier) {
+fun PlayerLoadingScreen(content: Content, episode: Episode?, busy: Boolean, modifier: Modifier = Modifier, status: String? = null) {
     Box(modifier = modifier.fillMaxSize().background(MangoBackground)) {
         AsyncImage(
             model = content.backdropUrl ?: content.posterUrl,
@@ -71,6 +72,15 @@ fun PlayerLoadingScreen(content: Content, episode: Episode?, busy: Boolean, modi
             }
             Spacer(Modifier.height(24.dp))
             if (busy) CircularProgressIndicator(modifier = Modifier.size(44.dp), color = Color.White)
+            if (status != null) {
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = status,
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.titleSmall,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }

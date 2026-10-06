@@ -29,6 +29,8 @@ class MangoTvApplication : Application(), ImageLoaderFactory {
     private fun warmUp() {
         Thread {
             runCatching { container.uiSoundPlayer }
+            // Temporary torrent data a killed run left behind; touches no torrent code unless there is something to delete.
+            runCatching { container.torrentStreamManager.purgeStaleStorage() }
             // The cached hero's first pictures go into Coil's memory cache now, so the first slide is drawn from
             // memory the moment Home appears instead of being decoded from disk then.
             runCatching {

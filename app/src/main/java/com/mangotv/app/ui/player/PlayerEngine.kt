@@ -38,9 +38,22 @@ import okhttp3.OkHttpClient
  * -- the in-player Subtitles menu (SubtitlesMenu/selectSubtitleTrack) can
  * still override it once tracks are known, exactly like it always could.
  */
+private const val TORRENT_READ_TIMEOUT_MINUTES = 2L
+
 @OptIn(UnstableApi::class)
-fun buildExoPlayer(context: Context, preferences: PlayerPreferences, audioOutput: AudioOutputSettings, dolbyVision: DolbyVisionSwitch): ExoPlayer {
-    val httpDataSourceFactory = OkHttpDataSource.Factory(OkHttpClient.Builder().build())
+fun buildExoPlayer(
+    context: Context,
+    preferences: PlayerPreferences,
+    audioOutput: AudioOutputSettings,
+    dolbyVision: DolbyVisionSwitch,
+    // True for a torrent served from the app's own local address: a piece can take a while to arrive, so the connection is given far longer
+    // than the 10 seconds OkHttp allows by default before a slow read counts as a failure (the torrent engine reports a dead torrent itself).
+    localTorrent: Boolean = false
+): ExoPlayer {
+    val client = OkHttpClient.Builder().apply {
+        if (localTorrent) readTimeout(TORRENT_READ_TIMEOUT_MINUTES, java.util.concurrent.TimeUnit.MINUTES)
+    }.build()
+    val httpDataSourceFactory = OkHttpDataSource.Factory(client)
     val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
     // Decoder fallback: when the first-choice hardware decoder for a track can't start (some Fire TV audio decoders
     // accept a format on paper, e.g. AAC "Main" profile, then fail when asked to play it), try the next decoder the
