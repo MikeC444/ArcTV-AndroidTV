@@ -4633,3 +4633,4 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues fixed:** none beyond those found during development.
 
+**Follow-up:** a magnet link with no trackers is given five public UDP trackers (`DEFAULT_TRACKERS`) so peers are found quickly; links that list their own are untouched. The loopback server now logs each request (tag ArcTorrent).

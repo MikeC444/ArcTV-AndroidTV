@@ -32,7 +32,10 @@ interface RangedContent {
  * responses, and always closes the connection after a response, so no idle sockets are left behind. Written by hand rather than on a
  * library so range handling and the blocking-read behaviour are fully under control and testable on the plain JVM.
  */
-class LoopbackHttpServer(private val resolve: (path: String) -> RangedContent?) : Closeable {
+class LoopbackHttpServer(
+    private val resolve: (path: String) -> RangedContent?,
+    private val log: (String) -> Unit = {}
+) : Closeable {
     private val serverSocket = ServerSocket(0, BACKLOG, InetAddress.getLoopbackAddress())
     private val clients: MutableSet<Socket> = Collections.synchronizedSet(HashSet())
     private val threadCount = AtomicInteger()
@@ -103,6 +106,7 @@ class LoopbackHttpServer(private val resolve: (path: String) -> RangedContent?) 
         val content = try { resolve(request.path) } catch (_: Exception) { null }
             ?: return writeSimple(out, 404, "Not Found")
         val length = content.length
+        log("http ${request.method} range=${request.range ?: "-"} length=$length")
         val body = when (val range = parseRangeHeader(request.range, length)) {
             RangeRequest.Unsatisfiable -> return writeSimple(out, 416, "Range Not Satisfiable", "Content-Range: bytes */$length\r\n")
             RangeRequest.Full -> Triple(200, 0L, length - 1)

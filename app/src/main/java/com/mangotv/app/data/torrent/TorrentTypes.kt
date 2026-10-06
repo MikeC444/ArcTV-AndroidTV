@@ -109,3 +109,15 @@ fun mimeTypeFor(fileName: String): String = when (fileName.substringAfterLast('.
 fun deleteTorrentFolder(folder: java.io.File) {
     try { folder.deleteRecursively() } catch (_: Throwable) {}
 }
+
+/**
+ * Long-running public UDP trackers, added only to a magnet link that names none (a bare info hash, or a link pasted without `tr=`), so peers
+ * are found in a second or two instead of waiting for the DHT. A link or addon that lists its own trackers is never given these.
+ */
+val DEFAULT_TRACKERS: List<String> = listOf(
+    "udp://tracker.opentrackr.org:1337/announce",
+    "udp://open.stealth.si:80/announce",
+    "udp://tracker.torrent.eu.org:451/announce",
+    "udp://exodus.desync.com:6969/announce",
+    "udp://open.demonii.com:1337/announce"
+)

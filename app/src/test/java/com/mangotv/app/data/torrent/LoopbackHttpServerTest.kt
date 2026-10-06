@@ -36,7 +36,7 @@ class LoopbackHttpServerTest {
     }
 
     @Before fun setUp() {
-        server = LoopbackHttpServer { path -> when (path) { "/v.mp4" -> good; "/bad.mp4" -> failing; else -> null } }
+        server = LoopbackHttpServer({ path -> when (path) { "/v.mp4" -> good; "/bad.mp4" -> failing; else -> null } })
     }
 
     @After fun tearDown() = server.close()

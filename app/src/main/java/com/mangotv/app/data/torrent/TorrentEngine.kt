@@ -136,7 +136,7 @@ class TorrentEngine(
                 )
             }
         }
-        if (server == null) server = LoopbackHttpServer { path -> byPath[path]?.content }
+        if (server == null) server = LoopbackHttpServer({ path -> byPath[path]?.content }, log)
         active++
         manager!! to server!!
     }
@@ -347,7 +347,7 @@ class TorrentEngine(
                 val endpoints = request.peers.mapNotNull { toEndpoint(it) }
                 mgr.download(torrent, dir, null, priorities, endpoints, flags)
             } else {
-                val uri = magnet!!.let { buildMagnetUri(it.infoHash, it.displayName, it.trackers, peers.distinct()) }
+                val uri = magnet!!.let { buildMagnetUri(it.infoHash, it.displayName, it.trackers.ifEmpty { DEFAULT_TRACKERS }, peers.distinct()) }
                 try { mgr.download(uri, dir, flags) } catch (e: IllegalArgumentException) {
                     throw TorrentStreamException(TorrentErrorKind.INVALID_SOURCE, "That magnet link isn't valid.", e)
                 }
