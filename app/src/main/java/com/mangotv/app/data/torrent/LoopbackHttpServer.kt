@@ -36,7 +36,7 @@ class LoopbackHttpServer(
     private val resolve: (path: String) -> RangedContent?,
     private val log: (String) -> Unit = {}
 ) : Closeable {
-    private val serverSocket = ServerSocket(0, BACKLOG, InetAddress.getLoopbackAddress())
+    private val serverSocket = ServerSocket(0, BACKLOG, IPV4_LOOPBACK)
     private val clients: MutableSet<Socket> = Collections.synchronizedSet(HashSet())
     private val threadCount = AtomicInteger()
     private val pool: ExecutorService = Executors.newCachedThreadPool(ThreadFactory { r ->
@@ -167,6 +167,8 @@ class LoopbackHttpServer(
     private fun closeQuietly(c: Closeable) { try { c.close() } catch (_: Exception) {} }
 
     companion object {
+        // Explicitly IPv4: on Android getLoopbackAddress() can be ::1, which would leave nothing listening on the 127.0.0.1 address the URL names.
+        private val IPV4_LOOPBACK: InetAddress = InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1))
         private const val BACKLOG = 16
         private const val REQUEST_READ_TIMEOUT_MS = 10_000
         private const val MAX_HEAD_BYTES = 16 * 1024
