@@ -71,7 +71,7 @@ private data class IntroPoint(val icon: ImageVector, val title: String, val deta
 private val Points = listOf(
     IntroPoint(Icons.Filled.Link, "Magnet links and .torrent files", "Tap + Torrent on Select a Source and paste one in"),
     IntroPoint(Icons.Filled.Bolt, "Plays while it downloads", "Only what you're watching is fetched, and seeking just works"),
-    IntroPoint(Icons.Filled.Tune, "Your buffer, your storage", "Choose both in Settings → Player. Temporary files are deleted when you stop")
+    IntroPoint(Icons.Filled.Tune, "Your buffer, your storage", "Set both in Settings → Player. Nothing is kept afterwards")
 )
 
 /**
