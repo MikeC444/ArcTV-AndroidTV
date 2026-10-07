@@ -147,7 +147,15 @@ fun PlayerScreen(
                 val vlcUsable = remember { VLCUtil.hasCompatibleCPU(context) }
                 val resumeAtStart = remember(stream.id) { viewModel.resumePositionMs() }
                 val startsInVlc = remember(stream.id) {
-                    streamUrl != null && vlcUsable && DevicePlayerPrefs.playerFor(context, titleKey) == PreferredPlayer.VLC
+                    // A surround-sound source opens in the built-in player (VLC can drop to stereo on the same TV) unless this title has its own pick.
+                    startsInVlc(
+                        preferred = DevicePlayerPrefs.defaultPlayer(context),
+                        titlePick = DevicePlayerPrefs.titlePlayer(context, titleKey),
+                        stream = stream,
+                        speakers = DevicePlayerPrefs.audioChannelMode(context),
+                        hasLink = streamUrl != null,
+                        vlcUsable = vlcUsable
+                    )
                 }
                 // The position VLC starts from (null while the built-in player is the one playing), and where the built-in player starts.
                 var vlcStart by remember(stream.id) { mutableStateOf(if (startsInVlc) (resumeAtStart ?: 0L) else null) }

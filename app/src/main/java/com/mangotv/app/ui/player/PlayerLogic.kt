@@ -2,6 +2,7 @@ package com.mangotv.app.ui.player
 
 import android.content.Context
 import com.mangotv.app.data.model.Season
+import com.mangotv.app.data.model.Stream
 import com.mangotv.app.data.torrent.TorrentBuffer
 import com.mangotv.app.data.torrent.TorrentStorageLimit
 
@@ -44,6 +45,31 @@ enum class PreferredPlayer(val wire: String) {
     companion object {
         fun fromWire(value: String?): PreferredPlayer? = entries.firstOrNull { it.wire == value }
     }
+}
+
+private val SURROUND_TAG = Regex("dts|truehd|atmos|e-?ac-?3|ddp|dd\\+|dd\\s?[57]", RegexOption.IGNORE_CASE)
+
+/** True when a source's release says it has surround sound (5.1 or more channels, Atmos, or a Dolby / DTS format that is surround). */
+fun hasSurroundSound(stream: Stream): Boolean =
+    (stream.audioChannels ?: 0) >= 6 || stream.audioAtmos || (stream.audioTag?.let { SURROUND_TAG.containsMatchIn(it) } == true)
+
+/**
+ * Whether a source starts in VLC's engine. The built-in player reads what the TV can take over HDMI (including Fire TV's own surround setting)
+ * and plays surround properly; VLC can fall back to stereo on the same device. So a source with surround sound opens in the built-in player
+ * unless the person picked a player for this title themselves, or set Speakers to Stereo (where VLC's stereo output is fine).
+ */
+fun startsInVlc(
+    preferred: PreferredPlayer,
+    titlePick: PreferredPlayer?,
+    stream: Stream,
+    speakers: AudioChannelMode,
+    hasLink: Boolean,
+    vlcUsable: Boolean
+): Boolean {
+    if (!hasLink || !vlcUsable) return false
+    if (titlePick != null) return titlePick == PreferredPlayer.VLC
+    if (preferred != PreferredPlayer.VLC) return false
+    return !(hasSurroundSound(stream) && speakers != AudioChannelMode.STEREO)
 }
 
 /**

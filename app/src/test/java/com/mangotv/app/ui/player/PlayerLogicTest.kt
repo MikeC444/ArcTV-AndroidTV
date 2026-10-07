@@ -52,4 +52,33 @@ class PlayerLogicTest {
         assertEquals("−58:20", formatRightTime(positionMs = 1_930_000, durationMs = 5_430_000, showRemaining = true))
         assertEquals("1:30:30", formatRightTime(positionMs = 1_930_000, durationMs = 5_430_000, showRemaining = false))
     }
+
+    private fun src(channels: Int? = null, atmos: Boolean = false, tag: String? = null) = com.mangotv.app.data.model.Stream(
+        id = "s", providerId = "p", providerLabel = "P", resolutionTier = com.mangotv.app.data.model.ResolutionTier.FHD_1080P,
+        qualityBadge = "1080p", releaseTitle = "r", audioChannels = channels, audioAtmos = atmos, audioTag = tag
+    )
+
+    @Test
+    fun `surround sources open in the built-in player unless the title or the stereo setting says otherwise`() {
+        val vlc = PreferredPlayer.VLC
+        val auto = AudioChannelMode.AUTO
+        // plain stereo or unknown audio: VLC, as before
+        assertTrue(startsInVlc(vlc, null, src(), auto, hasLink = true, vlcUsable = true))
+        assertTrue(startsInVlc(vlc, null, src(channels = 2, tag = "AAC"), auto, true, true))
+        // surround by channel count, Atmos, or a surround format: the built-in player
+        assertFalse(startsInVlc(vlc, null, src(channels = 6), auto, true, true))
+        assertFalse(startsInVlc(vlc, null, src(atmos = true), auto, true, true))
+        assertFalse(startsInVlc(vlc, null, src(tag = "DTS-HD.MA"), auto, true, true))
+        assertFalse(startsInVlc(vlc, null, src(tag = "TrueHD"), auto, true, true))
+        assertFalse(startsInVlc(vlc, null, src(tag = "DDP5.1"), auto, true, true))
+        // a pick made for this title wins, either way
+        assertTrue(startsInVlc(vlc, PreferredPlayer.VLC, src(channels = 6), auto, true, true))
+        assertFalse(startsInVlc(vlc, PreferredPlayer.BUILT_IN, src(), auto, true, true))
+        // Speakers set to Stereo: VLC's stereo output is fine
+        assertTrue(startsInVlc(vlc, null, src(channels = 6), AudioChannelMode.STEREO, true, true))
+        // the built-in default stays built-in; no link or no VLC support: never VLC
+        assertFalse(startsInVlc(PreferredPlayer.BUILT_IN, null, src(), auto, true, true))
+        assertFalse(startsInVlc(vlc, null, src(), auto, hasLink = false, vlcUsable = true))
+        assertFalse(startsInVlc(vlc, null, src(), auto, hasLink = true, vlcUsable = false))
+    }
 }

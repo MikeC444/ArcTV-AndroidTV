@@ -81,7 +81,7 @@ fun ColumnScope.PlayerSettingsContent(
         }
         item(key = "note") {
             Text(
-                text = "VLC plays almost any file but has simpler controls. The built-in player has the full controls, next episode and surround settings.",
+                text = "VLC plays almost any file but has simpler controls. The built-in player has the full controls, next episode and surround settings. Sources with surround sound open in the built-in player so every speaker works, unless you pick a player for that title.",
                 color = TextSecondary,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp)

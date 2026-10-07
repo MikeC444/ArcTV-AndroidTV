@@ -16,6 +16,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - Play magnet links and .torrent files right inside Arc TV, with buffer and storage settings. Nothing extra to install.
 - Settings now shows your app version, with a Check for updates button.
+- Surround-sound videos now open in the built-in player, so your rear speakers work.
 
 ## 0.2.0
 
