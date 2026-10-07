@@ -1,7 +1,9 @@
 package com.mangotv.app.ui.player
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.AudioFormat
+import android.media.AudioTrack
 import android.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.audio.AudioCapabilities
@@ -55,5 +57,41 @@ fun configureVlcAudio(player: MediaPlayer, context: Context, mode: AudioChannelM
         VlcAudioDevice.Stereo -> player.setAudioOutput("opensles_android")
         VlcAudioDevice.Pcm -> player.setAudioOutputDevice("pcm")
         is VlcAudioDevice.Encoded -> player.forceAudioDigitalEncodings(device.encodings.toIntArray())
+    }
+}
+
+@Volatile private var surroundPrimed = false
+
+/**
+ * Opens a silent 5.1 output for a moment, once per run of the app. On the Fire TV Stick 4K Max, VLC played stereo until the built-in player had
+ * played something (that player's output switches the TV or soundbar into surround), after which VLC's surround worked. Doing the same
+ * briefly before VLC starts makes the first VLC playback behave like the second. Blocks for a few hundred milliseconds; call off the main thread.
+ */
+fun primeSurroundOutput() {
+    if (surroundPrimed) return
+    surroundPrimed = true
+    var track: AudioTrack? = null
+    try {
+        val format = AudioFormat.Builder()
+            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+            .setSampleRate(48000)
+            .setChannelMask(AudioFormat.CHANNEL_OUT_5POINT1)
+            .build()
+        val bytes = 48000 * 6 * 2 / 4 // a quarter of a second of silence
+        track = AudioTrack.Builder()
+            .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MOVIE).build())
+            .setAudioFormat(format)
+            .setBufferSizeInBytes(bytes)
+            .setTransferMode(AudioTrack.MODE_STREAM)
+            .build()
+        track.play()
+        track.write(ByteArray(bytes), 0, bytes)
+        Thread.sleep(400)
+        Log.d("ArcAudio", "Primed a 5.1 output")
+    } catch (e: Exception) {
+        Log.w("ArcAudio", "Could not prime a 5.1 output", e)
+    } finally {
+        try { track?.stop() } catch (_: Exception) {}
+        try { track?.release() } catch (_: Exception) {}
     }
 }

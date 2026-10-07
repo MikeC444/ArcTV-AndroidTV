@@ -251,7 +251,11 @@ fun VlcPlaybackContent(
     }
 
     LaunchedEffect(viewReady) {
-        if (viewReady) loadMedia()
+        if (viewReady) {
+            // First wake the TV's surround output (see primeSurroundOutput); it is a no-op after the first playback.
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { primeSurroundOutput() }
+            loadMedia()
+        }
     }
 
     // Language preferences: match a track's name against the language's English name, the way VLC labels them ("Track 1 - [English]").
