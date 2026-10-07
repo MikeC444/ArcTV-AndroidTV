@@ -254,7 +254,7 @@ private fun DetailContent(
                 )
         )
 
-        TolerantBringIntoView(slackDp = 24) {
+        TolerantBringIntoView(slackDp = 6) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier

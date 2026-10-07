@@ -184,7 +184,7 @@ internal fun SettingsLayout(
     rowFocusRequesterFor: (SettingsCategory) -> FocusRequester,
     pane: @Composable (SettingsCategory, FocusRequester) -> Unit
 ) {
-    TolerantBringIntoView(slackDp = 16) {
+    TolerantBringIntoView(slackDp = 3) {
         SettingsScaffold(
             title = "Settings",
             onNavigate = onNavigate,
