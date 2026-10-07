@@ -50,7 +50,10 @@ fun supportedPassthroughEncodings(context: Context): List<Int> = try {
 /** Applies [vlcAudioDevice] to [player]; call before the media starts. */
 fun configureVlcAudio(player: MediaPlayer, context: Context, mode: AudioChannelMode, passthrough: Boolean) {
     val device = vlcAudioDevice(mode, passthrough, if (passthrough) supportedPassthroughEncodings(context) else emptyList())
-    Log.d("ArcAudio", "VLC audio: $device (speakers=$mode, passthrough=$passthrough)")
+    val summary = "VLC audio: $device (speakers=$mode, passthrough=$passthrough)"
+    Log.w("ArcAudio", summary)
+    // Temporary diagnostic: shown on screen so the choice can be read without Logcat.
+    android.widget.Toast.makeText(context, summary, android.widget.Toast.LENGTH_LONG).show()
     when (device) {
         VlcAudioDevice.Stereo -> player.setAudioOutput("opensles_android")
         VlcAudioDevice.Pcm -> player.setAudioOutputDevice("pcm")
