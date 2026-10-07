@@ -23,6 +23,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -61,6 +65,9 @@ fun ColumnScope.AddonsSettingsContent(
     viewModel: AddonsViewModel = viewModel()
 ) {
     val addons by viewModel.installedAddons.collectAsStateWithLifecycle()
+    // "Click here for help" on the debrid note: a QR code for a phone.
+    var showDebridHelp by remember { mutableStateOf(false) }
+    if (showDebridHelp) DebridHelpDialog(onClose = { showDebridHelp = false })
 
     // The "Add Addon" header and the addon list are both items in this one
     // LazyColumn (rather than a static header above a separately-scrolling
@@ -100,7 +107,7 @@ fun ColumnScope.AddonsSettingsContent(
         }
 
         // Same note as the web app: only debrid-backed addons give playable links.
-        item(key = "debrid_notice") { DebridNotice() }
+        item(key = "debrid_notice") { DebridNotice(onHelp = { showDebridHelp = true }) }
 
         if (addons.isEmpty()) {
             item(key = "empty") { EmptyAddonsHint() }
@@ -117,7 +124,7 @@ fun ColumnScope.AddonsSettingsContent(
 }
 
 @Composable
-private fun DebridNotice() {
+private fun DebridNotice(onHelp: () -> Unit) {
     val shape = RoundedCornerShape(MangoDimens.CardCornerRadius)
     Row(
         modifier = Modifier
@@ -130,14 +137,27 @@ private fun DebridNotice() {
     ) {
         Icon(Icons.Filled.Info, contentDescription = null, tint = ArcAccent, modifier = Modifier.size(20.dp).padding(top = 2.dp))
         Spacer(Modifier.width(10.dp))
-        Text(
-            text = buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Torrent sources play inside Arc TV.") }
-                append(" A debrid service (Real-Debrid, TorBox) is still faster and needs no downloading.")
-            },
-            color = TextPrimary,
-            style = MaterialTheme.typography.bodySmall
-        )
+        Column {
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Torrent sources play inside Arc TV.") }
+                    append(" A debrid service (Real-Debrid, TorBox) is still faster and needs no downloading.")
+                },
+                color = TextPrimary,
+                style = MaterialTheme.typography.bodySmall
+            )
+            Spacer(Modifier.height(6.dp))
+            // Selectable with the remote; opens a QR code to scan with a phone.
+            TvFocusSurface(onClick = onHelp, shape = RoundedCornerShape(8.dp), focusedScale = 1.04f) {
+                Text(
+                    text = "Click here for help",
+                    color = ArcAccent,
+                    style = MaterialTheme.typography.labelLarge,
+                    textDecoration = TextDecoration.Underline,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+        }
     }
 }
 
