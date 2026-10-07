@@ -124,7 +124,7 @@ fun VlcPlaybackContent(
     val context = LocalContext.current
     val view = LocalView.current
 
-    val libVlc = remember { LibVLC(context, arrayListOf("-vv", "--http-reconnect", "--network-caching=2000", "--no-drop-late-frames", "--no-skip-frames")) }
+    val libVlc = remember { LibVLC(context, arrayListOf("-vv", "--aout=audiotrack", "--http-reconnect", "--network-caching=2000", "--no-drop-late-frames", "--no-skip-frames")) }
     val mediaPlayer = remember { MediaPlayer(libVlc) }
 
     var viewReady by remember { mutableStateOf(false) }
