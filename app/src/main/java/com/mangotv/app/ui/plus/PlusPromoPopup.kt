@@ -87,7 +87,7 @@ private val Benefits = listOf(
  * opens Settings on the Arc TV Plus tab. It is a real dialog window, so the remote stays inside it and BACK means Close.
  */
 @Composable
-fun PlusPromoHost(onTakeMeThere: () -> Unit) {
+fun PlusPromoHost(onTakeMeThere: () -> Unit, blocked: Boolean = false) {
     val context = LocalContext.current
     val container = remember { (context.applicationContext as MangoTvApplication).container }
     val repository = container.plusPromoRepository
@@ -100,7 +100,7 @@ fun PlusPromoHost(onTakeMeThere: () -> Unit) {
     // Eligible: signed in, the paywall is on (not early access), no Plus, and not a kids profile.
     val eligible = !isGuest && plus.paywall && !plus.active && profiles.active?.isKids != true
     val current = record
-    val due = eligible && current != null && promoDue(current, repository.shownThisSession, System.currentTimeMillis())
+    val due = eligible && current != null && !blocked && promoDue(current, repository.shownThisSession, System.currentTimeMillis())
 
     // Leaving Home before the delay is up cancels this, so the popup is only "used up" once it has actually been on screen.
     LaunchedEffect(due) {
