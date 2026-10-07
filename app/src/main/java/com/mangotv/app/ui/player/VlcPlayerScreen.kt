@@ -238,9 +238,8 @@ fun VlcPlaybackContent(
     fun loadMedia() {
         // Settings > Audio. Passthrough sends Dolby / DTS to the TV untouched (VLC only does it when the device says it can). Stereo uses VLC's
         // OpenSL ES output, which plays two channels, so surround is mixed down; VLC cannot cap at 5.1 or 7.1, those play at the file's layout.
-        val stereoOnly = audioMode == AudioChannelMode.STEREO
-        if (stereoOnly) mediaPlayer.setAudioOutput("opensles_android")
-        mediaPlayer.setAudioDigitalOutputEnabled(audioPassthrough && !stereoOnly)
+        // The output is chosen outright (see vlcAudioDevice): VLC's own default is two channels.
+        configureVlcAudio(mediaPlayer, context, audioMode, audioPassthrough)
         val media = Media(libVlc, Uri.parse(url))
         // The device's hardware decoder (VLC still falls back to its own software decoder if the hardware one can't take the video).
         media.setHWDecoderEnabled(true, false)
