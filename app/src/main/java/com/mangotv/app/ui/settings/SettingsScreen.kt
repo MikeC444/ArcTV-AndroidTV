@@ -46,6 +46,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
@@ -277,7 +282,16 @@ private fun SettingsSidebarRow(
     TvFocusSurface(
         // A locked (Plus-only) row can be focused, so the list moves normally, but pressing it does nothing.
         onClick = if (locked) ({}) else onClick,
-        modifier = Modifier.fillMaxWidth(),
+        // Right moves into the open pane's first item. That item can have scrolled out of composition (scroll a tab down, go Left, then Right), and
+        // pinning Right on its FocusRequester as a focus property then throws "FocusRequester is not initialized" and crashes the app. So try it
+        // here instead, and when it can't be reached let the normal focus search pick whatever is on screen to the right.
+        modifier = Modifier.fillMaxWidth().onPreviewKeyEvent { event ->
+            if (focusRight != null && event.key == Key.DirectionRight && event.type == KeyEventType.KeyDown) {
+                runCatching { focusRight.requestFocus() }.isSuccess
+            } else {
+                false
+            }
+        },
         shape = RoundedCornerShape(12.dp),
         // Same reasoning as HomeRowToggleRow/SubtitlesToggleRow's own focusedScale override: the default (tuned for small poster cards) is
         // too big a jump for a row that spans its whole container's width.
@@ -287,8 +301,7 @@ private fun SettingsSidebarRow(
         backgroundColor = if (selected) MangoSurfaceHigh else Color.Transparent,
         borderColor = TextPrimary,
         focusRequester = focusRequester,
-        focusUp = focusUp,
-        focusRight = focusRight
+        focusUp = focusUp
     ) {
         Row(
             modifier = Modifier

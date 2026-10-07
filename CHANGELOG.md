@@ -4809,3 +4809,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** the unreachable Cancel subscription button.
+
+## Post-Milestone-101 -- Settings: no crash going back into a scrolled tab
+
+**Status:** Done in code; not run on a TV. The reported "random" crashes came with no log, so this fixes the one crash path found by reading the code, not a reproduced crash.
+
+**Context:** the app crashes at random times on the Firestick.
+
+**Changes:** every Settings side-panel row pinned Right on the open pane's first-item `FocusRequester` as a focus property. When that item is not composed (the tab was scrolled down, the person went Left to the side panel, then pressed Right; or Your stats while loading/empty, or a locked tab), Compose throws "FocusRequester is not initialized" and the app crashes. The rows now try that focus themselves on Right, and when it can't be reached the normal focus search picks what is on screen.
+
+**Tests performed:** `:app:compileDebugKotlin` and the unit tests pass. The crash itself was not reproduced (no TV or device here), so the fix is unverified on hardware.
+
+**Issues discovered:** the same class of crash is documented in several existing comments (Home rows, Subtitles tab), so it is a known weak spot.
+
+**Issues fixed:** the Settings Right-key crash.
