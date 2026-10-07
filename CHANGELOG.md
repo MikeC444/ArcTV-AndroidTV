@@ -4648,3 +4648,5 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Follow-up 7:** the Addons tab's debrid note has a selectable "Click here for help" that opens a QR code (`DebridHelpDialog`) for https://web.arctv.org/guides/debrid, to scan with a phone.
 
 **Follow-up 8:** Settings' side panel ends with the app's version (small text) and a "Check for updates" button (`UpdateCheckRow`; `UpdateViewModel.checkNow()`), with the result under it (checking / latest version / `<tag>` available / couldn't check). A newer release brings up the usual update pop-up, even if that release was dismissed before. Works in debug builds too. Compiles; not tried on a device.
+
+**Follow-up 9:** the update check's result line ("v0.2.0 is available.") was cut off at the bottom of Settings' side panel; the version, button and result are now pinned below the scrolling category list instead of inside it.

@@ -154,9 +154,10 @@ fun SettingsScreen(
                     .clip(RoundedCornerShape(18.dp))
                     .background(MangoBackgroundElevated)
                     .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
-                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 10.dp, vertical = 12.dp)
             ) {
+              // The categories scroll; the version and update check below them stay pinned, so their result line is never cut off.
+              Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 SettingsGroups.forEachIndexed { groupIndex, (label, categories) ->
                     Text(
                         text = label.uppercase(),
@@ -180,8 +181,9 @@ fun SettingsScreen(
                         }
                     }
                 }
-                // The app's version and the update check, at the foot of the panel.
-                Spacer(Modifier.height(18.dp))
+              }
+                // The app's version and the update check, pinned at the foot of the panel.
+                Spacer(Modifier.height(10.dp))
                 UpdateCheckRow(viewModel = updateViewModel, focusRight = paneContentFocusRequester)
             }
 
