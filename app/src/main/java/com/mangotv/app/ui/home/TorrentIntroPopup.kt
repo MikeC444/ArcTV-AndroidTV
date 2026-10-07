@@ -114,7 +114,7 @@ private fun TorrentIntroDialog(onClose: () -> Unit) {
         onDismissRequest = onClose,
         properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = false, usePlatformDefaultWidth = false)
     ) {
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.85f)), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) {
             Column(
                 modifier = Modifier
                     .widthIn(max = 460.dp)
