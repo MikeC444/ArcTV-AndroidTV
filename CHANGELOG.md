@@ -4711,3 +4711,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** Compose's `captureToImage` times out under Robolectric, so the test draws the window to a bitmap instead.
 
 **Issues fixed:** none.
+
+## Post-Milestone-94 -- Settings and episode list no longer shake
+
+**Status:** Done in code; not run on a TV.
+
+**Context:** reports of Settings "shivering" and the TV show episode row shaking while moving along the thumbnails.
+
+**Changes:** the cause matches the one already fixed on Home: a focused card scales up, so the focus rect it reports changes by a few dp each frame, and the default bring-into-view scrolled the whole page by that sliver on every move. Added `TolerantBringIntoView` (`MangoMotion.tolerantBringIntoViewSpec`): a container only scrolls once the focused item is more than a slack (16-24 dp) outside the visible area. Applied to the Settings layout and the detail page's list; the episode row also uses the existing edge-safe spec (`EdgeSafeBringIntoView`) so the scaled card isn't clipped at the row's edge.
+
+**Tests performed:** `:app:compileDebugKotlin` and the unit tests pass. The shaking itself could not be reproduced or measured here (no TV, no device), so the fix is from reading the code and matches how Home was fixed; unverified on hardware.
+
+**Issues discovered:** none.
+
+**Issues fixed:** the page nudge on focus scale-up in Settings and on the detail page.

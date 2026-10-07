@@ -1,6 +1,9 @@
 package com.mangotv.app.ui.theme
 
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.Composable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -87,4 +90,41 @@ object MangoMotion {
             }
         }
     }
+
+    // For a scrolling page that holds focusable cards which scale up on focus (the detail page's episode list, the Settings panes): while a
+    // card grows, the focus rect it reports shifts by a few dp, and the default positioning scrolls the whole page by that sliver on every
+    // move, which reads as the page shaking. This only scrolls once the focused item is more than [slackPx] outside the visible area, so a
+    // card's own scale-up never moves the page, while a real move to something off-screen still scrolls it into view.
+    @OptIn(ExperimentalFoundationApi::class)
+    fun tolerantBringIntoViewSpec(slackPx: Float): BringIntoViewSpec = object : BringIntoViewSpec {
+        override val scrollAnimationSpec: AnimationSpec<Float> = focusTween
+        override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+            val trailing = offset + size
+            return when {
+                offset >= -slackPx && trailing <= containerSize + slackPx -> 0f
+                size > containerSize -> if (offset < 0f) offset else 0f
+                offset < 0f -> offset
+                trailing > containerSize -> trailing - containerSize
+                else -> 0f
+            }
+        }
+    }
+}
+
+/** Provides [MangoMotion.tolerantBringIntoViewSpec] (slack in dp) to the scrolling containers inside [content]. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun TolerantBringIntoView(slackDp: Int = 24, content: @Composable () -> Unit) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val spec = remember(density, slackDp) { with(density) { MangoMotion.tolerantBringIntoViewSpec(slackDp.dp.toPx()) } }
+    androidx.compose.runtime.CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides spec, content = content)
+}
+
+/** Provides [MangoMotion.edgeSafeBringIntoViewSpec] to the row inside [content], so a card's scale-up is never clipped at the row's edge. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun EdgeSafeBringIntoView(content: @Composable () -> Unit) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val spec = remember(density) { with(density) { MangoMotion.edgeSafeBringIntoViewSpec(MangoMotion.CardEdgeSafeBufferDp.dp.toPx()) } }
+    androidx.compose.runtime.CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides spec, content = content)
 }

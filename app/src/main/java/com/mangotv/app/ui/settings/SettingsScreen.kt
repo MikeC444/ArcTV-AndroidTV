@@ -1,5 +1,6 @@
 package com.mangotv.app.ui.settings
 
+import com.mangotv.app.ui.theme.TolerantBringIntoView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -179,83 +180,85 @@ internal fun SettingsLayout(
     footer: @Composable () -> Unit,
     pane: @Composable (SettingsCategory, FocusRequester) -> Unit
 ) {
-    SettingsScaffold(
-        title = "Settings",
-        onNavigate = onNavigate,
-        navFocusRequester = navFocusRequester,
-        firstContentFocusRequester = rowFocusRequesterFor(SettingsCategory.ACCOUNT),
-        // The screen is only 540 dp tall: no big title (the nav bar already shows Settings as the open tab) and slim margins, so the side
-        // panel shows every category and the card has the height left for its settings.
-        showTitle = false,
-        horizontalPadding = 32.dp,
-        verticalPadding = 8.dp,
-        titleGap = 0.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+    TolerantBringIntoView(slackDp = 16) {
+        SettingsScaffold(
+            title = "Settings",
+            onNavigate = onNavigate,
+            navFocusRequester = navFocusRequester,
+            firstContentFocusRequester = rowFocusRequesterFor(SettingsCategory.ACCOUNT),
+            // The screen is only 540 dp tall: no big title (the nav bar already shows Settings as the open tab) and slim margins, so the side
+            // panel shows every category and the card has the height left for its settings.
+            showTitle = false,
+            horizontalPadding = 32.dp,
+            verticalPadding = 8.dp,
+            titleGap = 0.dp
         ) {
-            // The side navigation: a rounded panel of grouped categories (You / Content / Playback & sound), wide enough that no name
-            // is squeezed. It scrolls with the remote if the groups don't fit. The padding inside the scroll leaves room for a
-            // focused row's scale-up, which the scroll area would otherwise clip at its edges.
-            Column(
+            Row(
                 modifier = Modifier
-                    .width(230.dp)
-                    .fillMaxHeight()
-                    .padding(end = 16.dp, bottom = 8.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(MangoBackgroundElevated)
-                    .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
-                    .padding(horizontal = 10.dp, vertical = 12.dp)
+                    .fillMaxWidth()
+                    .weight(1f)
             ) {
-              // The categories scroll; the version and update check below them stay pinned, so their result line is never cut off.
-              Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                SettingsGroups.forEachIndexed { groupIndex, (label, categories) ->
-                    Text(
-                        text = label.uppercase(),
-                        color = TextTertiary,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp,
-                        modifier = Modifier.padding(start = 10.dp, bottom = 4.dp, top = if (groupIndex == 0) 0.dp else 14.dp)
-                    )
-                    categories.forEachIndexed { index, category ->
-                        SettingsSidebarRow(
-                            category = category,
-                            selected = category == selected,
-                            locked = (category == SettingsCategory.STATS || category == SettingsCategory.PLUS_SETTINGS) && !plusActive,
-                            onClick = { onSelect(category) },
-                            focusRequester = rowFocusRequesterFor(category),
-                            focusUp = if (groupIndex == 0 && index == 0) navFocusRequester else null,
-                            focusRight = paneContentFocusRequester
+                // The side navigation: a rounded panel of grouped categories (You / Content / Playback & sound), wide enough that no name
+                // is squeezed. It scrolls with the remote if the groups don't fit. The padding inside the scroll leaves room for a
+                // focused row's scale-up, which the scroll area would otherwise clip at its edges.
+                Column(
+                    modifier = Modifier
+                        .width(230.dp)
+                        .fillMaxHeight()
+                        .padding(end = 16.dp, bottom = 8.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MangoBackgroundElevated)
+                        .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
+                        .padding(horizontal = 10.dp, vertical = 12.dp)
+                ) {
+                  // The categories scroll; the version and update check below them stay pinned, so their result line is never cut off.
+                  Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                    SettingsGroups.forEachIndexed { groupIndex, (label, categories) ->
+                        Text(
+                            text = label.uppercase(),
+                            color = TextTertiary,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.2.sp,
+                            modifier = Modifier.padding(start = 10.dp, bottom = 4.dp, top = if (groupIndex == 0) 0.dp else 14.dp)
                         )
-                        if (index != categories.lastIndex) {
-                            Spacer(Modifier.height(4.dp))
+                        categories.forEachIndexed { index, category ->
+                            SettingsSidebarRow(
+                                category = category,
+                                selected = category == selected,
+                                locked = (category == SettingsCategory.STATS || category == SettingsCategory.PLUS_SETTINGS) && !plusActive,
+                                onClick = { onSelect(category) },
+                                focusRequester = rowFocusRequesterFor(category),
+                                focusUp = if (groupIndex == 0 && index == 0) navFocusRequester else null,
+                                focusRight = paneContentFocusRequester
+                            )
+                            if (index != categories.lastIndex) {
+                                Spacer(Modifier.height(4.dp))
+                            }
                         }
                     }
+                  }
+                    // The app's version and the update check, pinned at the foot of the panel.
+                    Spacer(Modifier.height(10.dp))
+                    footer()
                 }
-              }
-                // The app's version and the update check, pinned at the foot of the panel.
-                Spacer(Modifier.height(10.dp))
-                footer()
-            }
-
-            // The open category's settings, in a card that takes all the width left.
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .padding(bottom = 8.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(MangoBackgroundElevated)
-                    .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
-                    .padding(horizontal = 22.dp, vertical = 16.dp)
-            ) {
-                pane(selected, rowFocusRequesterFor(selected))
+    
+                // The open category's settings, in a card that takes all the width left.
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .padding(bottom = 8.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MangoBackgroundElevated)
+                        .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
+                        .padding(horizontal = 22.dp, vertical = 16.dp)
+                ) {
+                    pane(selected, rowFocusRequesterFor(selected))
+                }
             }
         }
-    }
+}
 }
 
 @Composable

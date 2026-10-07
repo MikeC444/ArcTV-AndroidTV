@@ -1,5 +1,6 @@
 package com.mangotv.app.ui.detail
 
+import com.mangotv.app.ui.theme.TolerantBringIntoView
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -253,118 +254,120 @@ private fun DetailContent(
                 )
         )
 
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .nestedScroll(heroScrollLock)
-                .fillMaxSize()
-        ) {
-            item(key = "hero") {
-                DetailHeroSection(
-                    content = content,
-                    playFocusRequester = playFocusRequester,
-                    onPlay = { episode ->
-                        content.providerId?.let { pid ->
-                            navigateToPlayback(pid, episode?.seasonNumber, episode?.episodeNumber)
-                        }
-                    },
-                    onWatched = onToggleWatched,
-                    isWatched = content.watched,
-                    onWatchlist = onToggleMyList,
-                    isInMyList = isInMyList,
-                    // Like / Not for me are a movie-only, Plus-preview feature (they feed "Picked for you").
-                    feedback = feedback,
-                    onFeedback = if (hasPlus && content.type == ContentType.MOVIE) onFeedback else null,
-                    onTrailer = onTrailer,
-                    trailerReady = trailerReady,
-                    releaseDateState = releaseDateState,
-                    onMore = {},
-                    navUpFocusRequester = navFocusRequester,
-                    // Deliberately NOT returnToHero() -- that re-focuses the
-                    // hero's OWN Play/Resume button, which is already
-                    // focused when this fires (UP is pressed FROM there),
-                    // making the nav bar completely unreachable by D-pad.
-                    // This mirrors HomeContent's own onNavigateUpPastHero:
-                    // focus the nav bar itself, one level further up.
-                    onNavigateUpPastHero = {
-                        heroRegionFocused = true
-                        coroutineScope.launch {
-                            listState.scrollToItem(0, 0)
-                            runCatching { navFocusRequester.requestFocus() }
-                        }
-                    },
-                    onNavigateDownFromHero = { heroRegionFocused = false },
-                    compact = compact,
-                    resumeEntry = resumeEntry
-                )
-            }
-            item(key = "seasons_or_cast_and_similar") {
-                // TV shows with real season/episode data get a season
-                // picker + episode list instead — "similar" doesn't apply
-                // the same way once there's something more useful (and more
-                // central to actually watching the show) to show. The cast
-                // still sits under the episodes.
-                if (content.type == ContentType.TV_SHOW && content.seasons.isNotEmpty()) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        SeasonsSection(
-                            seasons = content.seasons,
-                            modifier = Modifier.fillMaxWidth(),
-                            onNavigateUpPastRow = { returnToHero() },
-                            onEpisodeClick = { episode ->
-                                content.providerId?.let { pid ->
-                                    navigateToPlayback(pid, episode.seasonNumber, episode.episodeNumber)
-                                }
+        TolerantBringIntoView(slackDp = 24) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .nestedScroll(heroScrollLock)
+                    .fillMaxSize()
+            ) {
+                item(key = "hero") {
+                    DetailHeroSection(
+                        content = content,
+                        playFocusRequester = playFocusRequester,
+                        onPlay = { episode ->
+                            content.providerId?.let { pid ->
+                                navigateToPlayback(pid, episode?.seasonNumber, episode?.episodeNumber)
                             }
-                        )
-                        // The cast sits under the episodes, as on the web. Nothing is drawn for a show with no
-                        // cast; UP from here falls through to the episode list above rather than the hero.
-                        if (content.cast.isNotEmpty()) {
-                            Spacer(Modifier.height(24.dp))
-                            CastRow(cast = content.cast, modifier = Modifier.fillMaxWidth())
+                        },
+                        onWatched = onToggleWatched,
+                        isWatched = content.watched,
+                        onWatchlist = onToggleMyList,
+                        isInMyList = isInMyList,
+                        // Like / Not for me are a movie-only, Plus-preview feature (they feed "Picked for you").
+                        feedback = feedback,
+                        onFeedback = if (hasPlus && content.type == ContentType.MOVIE) onFeedback else null,
+                        onTrailer = onTrailer,
+                        trailerReady = trailerReady,
+                        releaseDateState = releaseDateState,
+                        onMore = {},
+                        navUpFocusRequester = navFocusRequester,
+                        // Deliberately NOT returnToHero() -- that re-focuses the
+                        // hero's OWN Play/Resume button, which is already
+                        // focused when this fires (UP is pressed FROM there),
+                        // making the nav bar completely unreachable by D-pad.
+                        // This mirrors HomeContent's own onNavigateUpPastHero:
+                        // focus the nav bar itself, one level further up.
+                        onNavigateUpPastHero = {
+                            heroRegionFocused = true
+                            coroutineScope.launch {
+                                listState.scrollToItem(0, 0)
+                                runCatching { navFocusRequester.requestFocus() }
+                            }
+                        },
+                        onNavigateDownFromHero = { heroRegionFocused = false },
+                        compact = compact,
+                        resumeEntry = resumeEntry
+                    )
+                }
+                item(key = "seasons_or_cast_and_similar") {
+                    // TV shows with real season/episode data get a season
+                    // picker + episode list instead — "similar" doesn't apply
+                    // the same way once there's something more useful (and more
+                    // central to actually watching the show) to show. The cast
+                    // still sits under the episodes.
+                    if (content.type == ContentType.TV_SHOW && content.seasons.isNotEmpty()) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            SeasonsSection(
+                                seasons = content.seasons,
+                                modifier = Modifier.fillMaxWidth(),
+                                onNavigateUpPastRow = { returnToHero() },
+                                onEpisodeClick = { episode ->
+                                    content.providerId?.let { pid ->
+                                        navigateToPlayback(pid, episode.seasonNumber, episode.episodeNumber)
+                                    }
+                                }
+                            )
+                            // The cast sits under the episodes, as on the web. Nothing is drawn for a show with no
+                            // cast; UP from here falls through to the episode list above rather than the hero.
+                            if (content.cast.isNotEmpty()) {
+                                Spacer(Modifier.height(24.dp))
+                                CastRow(cast = content.cast, modifier = Modifier.fillMaxWidth())
+                            }
                         }
-                    }
-                } else {
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        CastRow(
-                            cast = content.cast,
-                            modifier = Modifier.weight(1f),
-                            onNavigateUpPastRow = { returnToHero() },
-                            compact = compact
-                        )
-                        if (similar.isNotEmpty()) {
-                            // Movies get the smaller, landscape-card
-                            // treatment; the TV show fallback (a show with
-                            // no season data) keeps the original ContentRow
-                            // layout, since compact is only ever true for
-                            // movies.
-                            if (compact) {
-                                SimilarRow(
-                                    title = "You May Also Like",
-                                    items = similar,
-                                    onItemClick = ::navigateToContent,
-                                    modifier = Modifier.weight(2f),
-                                    onNavigateUpPastRow = { returnToHero() }
-                                )
-                            } else {
-                                ContentRow(
-                                    section = HomeSection(
-                                        id = "similar",
+                    } else {
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            CastRow(
+                                cast = content.cast,
+                                modifier = Modifier.weight(1f),
+                                onNavigateUpPastRow = { returnToHero() },
+                                compact = compact
+                            )
+                            if (similar.isNotEmpty()) {
+                                // Movies get the smaller, landscape-card
+                                // treatment; the TV show fallback (a show with
+                                // no season data) keeps the original ContentRow
+                                // layout, since compact is only ever true for
+                                // movies.
+                                if (compact) {
+                                    SimilarRow(
                                         title = "You May Also Like",
-                                        items = similar
-                                    ),
-                                    onItemClick = ::navigateToContent,
-                                    modifier = Modifier.weight(2f),
-                                    onNavigateUpPastRow = { returnToHero() }
-                                )
+                                        items = similar,
+                                        onItemClick = ::navigateToContent,
+                                        modifier = Modifier.weight(2f),
+                                        onNavigateUpPastRow = { returnToHero() }
+                                    )
+                                } else {
+                                    ContentRow(
+                                        section = HomeSection(
+                                            id = "similar",
+                                            title = "You May Also Like",
+                                            items = similar
+                                        ),
+                                        onItemClick = ::navigateToContent,
+                                        modifier = Modifier.weight(2f),
+                                        onNavigateUpPastRow = { returnToHero() }
+                                    )
+                                }
                             }
                         }
                     }
                 }
+                item(key = "bottom_spacer") {
+                    Spacer(Modifier.height(if (compact) 16.dp else 48.dp))
+                }
             }
-            item(key = "bottom_spacer") {
-                Spacer(Modifier.height(if (compact) 16.dp else 48.dp))
-            }
-        }
+}
 
         TopNavBar(
             transparentBackground = !isScrolled,

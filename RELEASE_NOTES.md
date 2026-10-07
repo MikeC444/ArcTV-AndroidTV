@@ -21,6 +21,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Plus: Smart source picking plays the best source for you, skipping the list. Switch it in the new Plus settings tab.
 - Plus: Your stats shows your watch time, streaks and busiest days.
 - No sources yet? Scan a QR code for a step-by-step setup guide.
+- Smoother menus: Settings and the episode list no longer shake as you move around.
 - Fixed the Change plan button being cut off on the pay-on-your-phone page.
 
 ## 0.2.0

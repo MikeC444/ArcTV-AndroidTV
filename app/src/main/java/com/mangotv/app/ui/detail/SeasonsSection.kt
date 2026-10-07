@@ -43,6 +43,7 @@ import coil.compose.AsyncImage
 import com.mangotv.app.data.model.Episode
 import com.mangotv.app.data.model.Season
 import com.mangotv.app.ui.components.TvFocusSurface
+import com.mangotv.app.ui.theme.EdgeSafeBringIntoView
 import com.mangotv.app.ui.components.rememberOpaqueImageRequest
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoSurfaceHigh
@@ -127,12 +128,14 @@ fun SeasonsSection(
 
         Spacer(Modifier.height(16.dp))
 
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = MangoDimens.ScreenPaddingHorizontal),
-            horizontalArrangement = Arrangement.spacedBy(MangoDimens.CardSpacing)
-        ) {
-            items(selectedSeason.episodes, key = { it.id }) { episode ->
-                EpisodeCard(episode = episode, onClick = { onEpisodeClick(episode) })
+        EdgeSafeBringIntoView {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = MangoDimens.ScreenPaddingHorizontal),
+                horizontalArrangement = Arrangement.spacedBy(MangoDimens.CardSpacing)
+            ) {
+                items(selectedSeason.episodes, key = { it.id }) { episode ->
+                    EpisodeCard(episode = episode, onClick = { onEpisodeClick(episode) })
+                }
             }
         }
     }
