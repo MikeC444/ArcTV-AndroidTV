@@ -53,11 +53,14 @@ export async function handleStripeEvent(event: StripeEvent): Promise<WebhookOutc
       return applied ? "applied" : "ignored";
     }
     if (mode !== "subscription") return "ignored";
+    // A free trial: access for the trial and a day over, until Stripe's own subscription event brings the real end.
+    const trialDays = Number(obj(object.metadata).trial_days);
+    const provisionalDays = Number.isInteger(trialDays) && trialDays > 0 && trialDays <= 31 ? trialDays + 1 : PROVISIONAL_DAYS[plan];
     const applied = await writePlus({
       userId,
       plan,
       status: "active",
-      validUntil: new Date(eventAt.getTime() + PROVISIONAL_DAYS[plan] * DAY_MS),
+      validUntil: new Date(eventAt.getTime() + provisionalDays * DAY_MS),
       stripeCustomerId: str(object.customer),
       stripeSubscriptionId: str(object.subscription),
       eventAt,

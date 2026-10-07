@@ -4660,3 +4660,21 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Follow-up 14 (fixed):** confirmed on a Fire TV Stick 4K Max (Fire OS 7, MediaTek): rear speakers now work in the VLC engine. Root cause, found with temporary diagnostics: LibVLC's logs showed `too low audio sample frequency (0)` / `module not functional`, then a 2-channel OpenSL ES output (`channels:2`), so the device-level pcm/encoded choice in follow-up 12 never took effect (those devices belong to the AudioTrack output only). Fix: LibVLC is created with `--aout=audiotrack`, so the AudioTrack output is used and the follow-up 12 device choice applies. The temporary on-screen toast, `-vv` logging are removed. Not compiled here (no route to Maven Central earlier); only the user's TV run of the diagnostic build, which had the same `--aout=audiotrack` option, verified it. Passthrough off (Pcm) path was not tested. Known risk: other devices where AudioTrack fails will now have no fallback to OpenSL ES.
 
 **Follow-up 15:** follow-up 14 did not hold: 5.1 was missing on some sources. The user then noticed that VLC plays stereo until the built-in player has played something, after which VLC's surround works (also with Passthrough off). Reading: the TV/soundbar's HDMI output is only switched to surround once something opens a multichannel output. `primeSurroundOutput()` (`VlcAudio.kt`) now opens a silent 5.1 `AudioTrack` for 400 ms once per app run, off the main thread, before VLC loads the media. Confirmed by the user on the Fire TV Stick 4K Max: after a full app relaunch, the first VLC playback now has surround. Not compiled here (no route to Maven Central). Adds about 0.4 s to the first VLC playback after launch.
+
+## Post-Milestone-91 -- 5-day free trial for ArcTV Plus
+
+**Status:** Done in code and backend tests; not deployed.
+
+**Context:** the Plus paywall is on (`PLUS_PAYWALL=on`); a free trial was wanted on the monthly and yearly plans.
+
+**Changes:**
+- `POST /user/plus/checkout` now adds `subscription_data[trial_period_days]=5` (and `metadata[trial_days]`) for Monthly/Yearly when the account has no `user_plus` row, i.e. has never had Plus. A cancelled trial leaves a row, so the offer is once per account. Lifetime has no trial. Stripe takes the card at checkout and bills when the trial ends.
+- The response gains `trialDays` (0 when not offered) so apps can say so.
+- The checkout webhook gives provisional access of trial + 1 day (was 33/368 days) until Stripe's subscription event brings the real period end; the existing handler already treats `trialing` as active.
+- Release note added.
+
+**Tests performed:** full backend suite against a local Postgres: 21 files, 249 tests pass, including a new test for trial offer, once-only rule and provisional access. `tsc --noEmit` clean. NOT tested against real Stripe.
+
+**Issues discovered:** the web and Android apps do not yet mention the trial (the Stripe page does); the Stripe dashboard's own product text is separate.
+
+**Issues fixed:** none.

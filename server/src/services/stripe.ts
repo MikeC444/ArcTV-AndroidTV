@@ -36,12 +36,17 @@ export const setStripeFetch = (impl: StripeFetch | null): void => {
   stripeFetch = impl ?? ((url, init) => fetch(url, init));
 };
 
+/** Free days on a first monthly or yearly subscription: Stripe takes the card now and bills when they end. */
+export const PLUS_TRIAL_DAYS = 5;
+
 export interface CheckoutInput {
   userId: string;
   email: string;
   plan: PlusPlanId;
   /** A customer id we already know for this account, so a returning payer isn't created twice. */
   stripeCustomerId: string | null;
+  /** Free days before the first charge (subscriptions only; ignored for Lifetime). 0 or missing: none. */
+  trialDays?: number;
 }
 
 /**
@@ -76,6 +81,11 @@ export async function createCheckoutSession(input: CheckoutInput): Promise<Check
   if (input.plan !== "lifetime") {
     form.set("subscription_data[metadata][plan]", input.plan);
     form.set("subscription_data[metadata][user_id]", input.userId);
+    if (input.trialDays && input.trialDays > 0) {
+      form.set("subscription_data[trial_period_days]", String(input.trialDays));
+      // Read back by the webhook, so a trial's provisional access is the trial, not a whole month.
+      form.set("metadata[trial_days]", String(input.trialDays));
+    }
   }
   if (input.stripeCustomerId) form.set("customer", input.stripeCustomerId);
   else form.set("customer_email", input.email);
