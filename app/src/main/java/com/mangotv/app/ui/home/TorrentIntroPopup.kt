@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.mangotv.app.BuildConfig
 import com.mangotv.app.MangoTvApplication
 import com.mangotv.app.data.torrent.torrentIntroDue
 import com.mangotv.app.ui.components.ArcLogo
@@ -84,7 +85,8 @@ fun TorrentIntroHost(onOpenChanged: (Boolean) -> Unit = {}) {
     val context = LocalContext.current
     val store = remember { (context.applicationContext as MangoTvApplication).container.torrentIntroStore }
     var open by remember { mutableStateOf(false) }
-    val due = torrentIntroDue(store.seen, store.updated(), store.shownThisSession)
+    // TESTING: debug builds show it on every launch (once per launch) so it can be looked at; release builds follow the real rule.
+    val due = if (BuildConfig.DEBUG) !store.shownThisSession else torrentIntroDue(store.seen, store.updated(), store.shownThisSession)
 
     // Leaving Home before the delay is up cancels this, so it is only used up once it has actually been on screen.
     LaunchedEffect(due) {
