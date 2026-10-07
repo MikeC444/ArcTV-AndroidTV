@@ -17,11 +17,8 @@ Releasing needs nothing done to this file: add each change as a bullet under `##
 - New to Plus? Your first monthly or yearly subscription now starts with 5 free days.
 - Plus: Smart source picking plays the best source for you, skipping the list. Switch it in the new Plus settings tab.
 - Plus: Your stats shows your watch time, streaks and busiest days.
-- Cancel subscription can now be selected with the remote.
 - Fixed a crash in Settings when moving back into a tab you had scrolled.
 - A clean black Arc TV logo screen at startup while the app loads.
-- Smoother menus: Settings and the episode list no longer shake, and nothing gets cut off.
-- The pay-on-your-phone page now fits the screen, with every detail and the Change plan button in view.
 
 ## 0.2.0
 
