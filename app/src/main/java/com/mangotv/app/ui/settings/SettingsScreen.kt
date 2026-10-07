@@ -31,6 +31,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.Brush
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,9 +72,10 @@ import com.mangotv.app.ui.theme.TextSecondary
  * git history) -- nothing new added, just consolidated onto one enum so the
  * sidebar row and the detail pane's header stay in sync automatically.
  */
-private enum class SettingsCategory(val icon: ImageVector, val title: String, val subtitle: String) {
+internal enum class SettingsCategory(val icon: ImageVector, val title: String, val subtitle: String) {
     ACCOUNT(Icons.Filled.AccountCircle, "Account", "Manage your Arc TV account"),
     PLUS(Icons.Filled.WorkspacePremium, "Arc TV Plus", "Extra features for supporters"),
+    STATS(Icons.Filled.BarChart, "Your stats", "How much you watch, at a glance"),
     ADDONS(Icons.Filled.Extension, "Addons", "Manage installed content providers"),
     HOME_ROWS(Icons.Filled.GridView, "Home Rows", "Choose which rows show up on Home"),
     BLOCKED_GENRES(Icons.Filled.Block, "Blocked Genres", "Hide genres you don't want to see"),
@@ -81,7 +87,7 @@ private enum class SettingsCategory(val icon: ImageVector, val title: String, va
 
 /** The side navigation's groups, in the same order and with the same headings as the web app's Settings. */
 private val SettingsGroups: List<Pair<String, List<SettingsCategory>>> = listOf(
-    "You" to listOf(SettingsCategory.ACCOUNT, SettingsCategory.PLUS),
+    "You" to listOf(SettingsCategory.ACCOUNT, SettingsCategory.PLUS, SettingsCategory.STATS),
     "Content" to listOf(SettingsCategory.ADDONS, SettingsCategory.HOME_ROWS, SettingsCategory.BLOCKED_GENRES),
     "Playback & sound" to listOf(SettingsCategory.PLAYER, SettingsCategory.SUBTITLES, SettingsCategory.AUDIO, SettingsCategory.SOUNDS)
 )
@@ -103,6 +109,9 @@ fun SettingsScreen(
     val audioRowFocusRequester = remember { FocusRequester() }
     val playerRowFocusRequester = remember { FocusRequester() }
     val plusRowFocusRequester = remember { FocusRequester() }
+    val statsRowFocusRequester = remember { FocusRequester() }
+    // Your stats is a Plus feature: without Plus its row stays in the list, locked and not clickable.
+    val plusStatus by (LocalContext.current.applicationContext as com.mangotv.app.MangoTvApplication).container.plusRepository.status.collectAsStateWithLifecycle()
 
     // Shared by every sidebar row's focusRight: only the selected category's
     // content is ever actually composed on the right (see the `when` in
@@ -124,13 +133,53 @@ fun SettingsScreen(
         SettingsCategory.AUDIO -> audioRowFocusRequester
         SettingsCategory.PLAYER -> playerRowFocusRequester
         SettingsCategory.PLUS -> plusRowFocusRequester
+        SettingsCategory.STATS -> statsRowFocusRequester
     }
 
+    SettingsLayout(
+        selected = selected,
+        onSelect = { selected = it },
+        plusActive = plusStatus.active,
+        onNavigate = onNavigate,
+        navFocusRequester = navFocusRequester,
+        paneContentFocusRequester = paneContentFocusRequester,
+        rowFocusRequesterFor = ::rowFocusRequesterFor,
+        footer = { UpdateCheckRow(viewModel = updateViewModel, focusRight = paneContentFocusRequester) },
+        pane = { category, sidebarFocus ->
+            SettingsDetailPane(
+                category = category,
+                navFocusRequester = navFocusRequester,
+                contentFocusRequester = paneContentFocusRequester,
+                sidebarFocusRequester = sidebarFocus,
+                onSignedOut = onSignedOut,
+                onAddAddon = onAddAddon,
+                onOpenProfiles = { onNavigate(com.mangotv.app.navigation.MangoRoutes.PROFILES) }
+            )
+        }
+    )
+}
+
+/**
+ * The Settings page itself -- the nav bar, the grouped side panel and the open category's card -- with everything that needs the app's state
+ * handed in, so it can also be drawn on its own (the screenshot test does).
+ */
+@Composable
+internal fun SettingsLayout(
+    selected: SettingsCategory,
+    onSelect: (SettingsCategory) -> Unit,
+    plusActive: Boolean,
+    onNavigate: (String) -> Unit,
+    navFocusRequester: FocusRequester,
+    paneContentFocusRequester: FocusRequester,
+    rowFocusRequesterFor: (SettingsCategory) -> FocusRequester,
+    footer: @Composable () -> Unit,
+    pane: @Composable (SettingsCategory, FocusRequester) -> Unit
+) {
     SettingsScaffold(
         title = "Settings",
         onNavigate = onNavigate,
         navFocusRequester = navFocusRequester,
-        firstContentFocusRequester = accountRowFocusRequester,
+        firstContentFocusRequester = rowFocusRequesterFor(SettingsCategory.ACCOUNT),
         // The screen is only 540 dp tall: no big title (the nav bar already shows Settings as the open tab) and slim margins, so the side
         // panel shows every category and the card has the height left for its settings.
         showTitle = false,
@@ -171,7 +220,8 @@ fun SettingsScreen(
                         SettingsSidebarRow(
                             category = category,
                             selected = category == selected,
-                            onClick = { selected = category },
+                            locked = category == SettingsCategory.STATS && !plusActive,
+                            onClick = { onSelect(category) },
                             focusRequester = rowFocusRequesterFor(category),
                             focusUp = if (groupIndex == 0 && index == 0) navFocusRequester else null,
                             focusRight = paneContentFocusRequester
@@ -184,7 +234,7 @@ fun SettingsScreen(
               }
                 // The app's version and the update check, pinned at the foot of the panel.
                 Spacer(Modifier.height(10.dp))
-                UpdateCheckRow(viewModel = updateViewModel, focusRight = paneContentFocusRequester)
+                footer()
             }
 
             // The open category's settings, in a card that takes all the width left.
@@ -198,15 +248,7 @@ fun SettingsScreen(
                     .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
                     .padding(horizontal = 22.dp, vertical = 16.dp)
             ) {
-                SettingsDetailPane(
-                    category = selected,
-                    navFocusRequester = navFocusRequester,
-                    contentFocusRequester = paneContentFocusRequester,
-                    sidebarFocusRequester = rowFocusRequesterFor(selected),
-                    onSignedOut = onSignedOut,
-                    onAddAddon = onAddAddon,
-                    onOpenProfiles = { onNavigate(com.mangotv.app.navigation.MangoRoutes.PROFILES) }
-                )
+                pane(selected, rowFocusRequesterFor(selected))
             }
         }
     }
@@ -216,13 +258,15 @@ fun SettingsScreen(
 private fun SettingsSidebarRow(
     category: SettingsCategory,
     selected: Boolean,
+    locked: Boolean = false,
     onClick: () -> Unit,
     focusRequester: FocusRequester? = null,
     focusUp: FocusRequester? = null,
     focusRight: FocusRequester? = null
 ) {
     TvFocusSurface(
-        onClick = onClick,
+        // A locked (Plus-only) row can be focused, so the list moves normally, but pressing it does nothing.
+        onClick = if (locked) ({}) else onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         // Same reasoning as HomeRowToggleRow/SubtitlesToggleRow's own focusedScale override: the default (tuned for small poster cards) is
@@ -252,14 +296,19 @@ private fun SettingsSidebarRow(
                 .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CategoryIconTile(category.icon, selected, size = 32)
+            CategoryIconTile(if (locked) Icons.Filled.Lock else category.icon, selected, size = 32)
             Spacer(Modifier.width(12.dp))
             Text(
                 text = category.title,
-                color = if (selected) TextPrimary else TextSecondary,
+                color = if (locked) TextTertiary else if (selected) TextPrimary else TextSecondary,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                modifier = Modifier.weight(1f, fill = false)
             )
+            if (locked) {
+                Spacer(Modifier.width(8.dp))
+                PlusTag()
+            }
         }
     }
 }
@@ -295,7 +344,7 @@ private fun CategoryIconTile(icon: ImageVector, highlighted: Boolean, size: Int)
  * pattern) rather than reintroducing a fixed header above a nested list.
  */
 @Composable
-private fun SettingsDetailPane(
+internal fun SettingsDetailPane(
     category: SettingsCategory,
     navFocusRequester: FocusRequester,
     contentFocusRequester: FocusRequester,
@@ -361,6 +410,10 @@ private fun SettingsDetailPane(
                 contentFocusRequester = contentFocusRequester,
                 sidebarFocusRequester = sidebarFocusRequester
             )
+            SettingsCategory.STATS -> StatsSettingsContent(
+                contentFocusRequester = contentFocusRequester,
+                sidebarFocusRequester = sidebarFocusRequester
+            )
             SettingsCategory.PLUS -> PlusSettingsContent(
                 navFocusRequester = navFocusRequester,
                 contentFocusRequester = contentFocusRequester,
@@ -368,4 +421,29 @@ private fun SettingsDetailPane(
             )
         }
     }
+}
+
+/** The small glowing "Plus" tag on a feature only Arc TV Plus has: a brand-gradient rim and glow, same as the web app's. */
+@Composable
+internal fun PlusTag(text: String = "Plus") {
+    val shape = RoundedCornerShape(percent = 50)
+    Text(
+        text = text,
+        color = com.mangotv.app.ui.theme.ArcCyan,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier
+            .drawBehind {
+                // A soft glow behind the tag, then its rim.
+                drawRoundRect(
+                    brush = Brush.horizontalGradient(listOf(com.mangotv.app.ui.theme.ArcCyan.copy(alpha = 0.28f), com.mangotv.app.ui.theme.ArcViolet.copy(alpha = 0.28f))),
+                    cornerRadius = CornerRadius(size.height / 2),
+                    topLeft = Offset(-3.dp.toPx(), -3.dp.toPx()),
+                    size = Size(size.width + 6.dp.toPx(), size.height + 6.dp.toPx())
+                )
+            }
+            .background(MangoBackgroundElevated, shape)
+            .border(1.dp, ArcBrandGradient, shape)
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+    )
 }

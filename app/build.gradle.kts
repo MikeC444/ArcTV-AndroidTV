@@ -126,11 +126,13 @@ android {
     testOptions {
         unitTests {
             isReturnDefaultValues = true
+            isIncludeAndroidResources = true
             // TorrentEngineSwarmTest streams a synthetic torrent between two real libtorrent sessions on this machine. It needs libtorrent4j's
             // desktop native library (the Android ones in the APK cannot load here), so it skips itself unless this is given: extract
             // lib/x86_64/libtorrent4j.so from the libtorrent4j-linux jar and pass its folder, e.g.
             //   ./gradlew :app:testDebugUnitTest -PtorrentNativeDir=/path/to/folder
             all { test ->
+                (project.findProperty("screenshotOut") as String?)?.let { test.systemProperty("screenshot.out", it) }
                 (project.findProperty("torrentNativeDir") as String?)?.let { test.jvmArgs("-Djava.library.path=$it") }
             }
         }
@@ -205,4 +207,9 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // Renders real screens to a picture on the desktop (see ui/settings/StatsScreenshotTest).
+    testImplementation(libs.robolectric)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(libs.androidx.ui.test.manifest)
 }

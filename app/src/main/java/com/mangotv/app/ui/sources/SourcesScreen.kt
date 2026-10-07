@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.Security
@@ -221,6 +222,9 @@ private fun SourcesContent(
     onClearAddTorrentError: () -> Unit,
     onSelectSource: (Stream) -> Unit
 ) {
+    // The step-by-step setup guide, as a QR code (from the "No sources found" page).
+    var showGuide by remember { mutableStateOf(false) }
+    if (showGuide) com.mangotv.app.ui.settings.DebridHelpDialog(onClose = { showGuide = false })
     // "Add a torrent": the person's own magnet link or .torrent file for this title.
     var addingTorrent by remember { mutableStateOf(false) }
     if (addingTorrent) {
@@ -342,6 +346,14 @@ private fun SourcesContent(
                     onAddTorrent = { addingTorrent = true }
                 )
 
+                if (state.smartMissed) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Smart source picking couldn't find a source that surely plays here, so the choice is yours.",
+                        color = ArcAccent,
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
                 Spacer(Modifier.height(14.dp))
 
                 when {
@@ -356,6 +368,7 @@ private fun SourcesContent(
                             addons = state.addons,
                             onManageAddons = onManageAddons,
                             onRetry = onRetry,
+                            onShowGuide = { showGuide = true },
                             modifier = Modifier.weight(1f)
                         )
                     else -> Column(modifier = Modifier.weight(1f)) {
@@ -423,6 +436,7 @@ private fun SourcesEmptyState(
     addons: List<AddonLookupRow>,
     onManageAddons: () -> Unit,
     onRetry: () -> Unit,
+    onShowGuide: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -487,6 +501,16 @@ private fun SourcesEmptyState(
                 style = MangoButtonStyle.GLASS
             )
         }
+        // The same step-by-step guide as the web app's "No sources found" page: a TV can't open a web page, so it is a QR code to scan.
+        Spacer(Modifier.height(18.dp))
+        Text(text = "New to this?", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(8.dp))
+        MangoButton(
+            text = "Step-by-step guide to setting up your sources",
+            icon = Icons.Filled.MenuBook,
+            onClick = onShowGuide,
+            style = MangoButtonStyle.FILLED
+        )
     }
 }
 

@@ -32,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,6 +80,8 @@ fun ColumnScope.PlusSettingsContent(
     val remaining by viewModel.remainingSeconds.collectAsStateWithLifecycle()
     val cancelState by viewModel.cancel.collectAsStateWithLifecycle()
     val showCheckout = checkout is PlusCheckoutState.Error
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var smartPicking by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(com.mangotv.app.ui.player.DevicePlayerPrefs.smartSourcePicking(context)) }
     val sellPlans = status.paywall && !status.active
 
     // The QR code gets a full-screen page of its own; Back or "Change plan" returns here.
@@ -167,6 +170,32 @@ fun ColumnScope.PlusSettingsContent(
                     focusUp = null,
                     focusLeft = sidebarFocusRequester
                 )
+            }
+        }
+
+        if (status.active) {
+            item(key = "plus_settings_header") {
+                Column(Modifier.padding(top = 8.dp)) {
+                    Text(text = "Your Plus settings", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "Smart source picking skips Select a Source and starts the best source for this device. If none surely plays, you still get the list. Kept on this device.",
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+            listOf(false to "Smart source picking: Off", true to "Smart source picking: On").forEach { (on, label) ->
+                item(key = "smart_$on") {
+                    LanguageOptionRow(
+                        label = label,
+                        selected = smartPicking == on,
+                        onClick = {
+                            smartPicking = on
+                            com.mangotv.app.ui.player.DevicePlayerPrefs.setSmartSourcePicking(context, on)
+                        },
+                        focusLeft = sidebarFocusRequester
+                    )
+                }
             }
         }
 

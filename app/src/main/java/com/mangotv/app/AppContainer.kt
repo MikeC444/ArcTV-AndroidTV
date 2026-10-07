@@ -1,5 +1,6 @@
 package com.mangotv.app
 
+import com.mangotv.app.data.stats.WatchStatsRepository
 import com.mangotv.app.data.torrent.platform.CustomTorrentRepository
 import com.mangotv.app.data.torrent.platform.TorrentIntroStore
 import com.mangotv.app.data.torrent.platform.TorrentStreamManager
@@ -290,6 +291,7 @@ class AppContainer(context: Context) {
 
     // Both lazy: nothing torrent-related (no native library load, no socket, no folder) happens until a torrent source is played or added.
     val torrentIntroStore: TorrentIntroStore by lazy { TorrentIntroStore(context, authRepository) }
+    val watchStatsRepository: WatchStatsRepository by lazy { WatchStatsRepository(authRepository) }
     val customTorrentRepository: CustomTorrentRepository by lazy { CustomTorrentRepository(context) }
     val torrentStreamManager: TorrentStreamManager by lazy {
         TorrentStreamManager(context, okhttp3.OkHttpClient(), customTorrentRepository)

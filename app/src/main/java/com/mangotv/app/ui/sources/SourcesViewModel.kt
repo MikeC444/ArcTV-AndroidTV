@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.net.URLDecoder
 
 /** One installed addon and what it answered; [lookup] is null while it is still being asked. */
@@ -53,7 +54,9 @@ sealed interface SourcesUiState {
         // providers have had a chance to reply.
         val isSearchingMore: Boolean = false,
         // The Speakers setting at load time (Settings > Audio): the picker lists matching sources first-class, see pickByAudio().
-        val audioMode: AudioChannelMode = AudioChannelMode.AUTO
+        val audioMode: AudioChannelMode = AudioChannelMode.AUTO,
+        // Smart source picking was on but found no source that surely plays, so the choice is left to the person.
+        val smartMissed: Boolean = false
     ) : SourcesUiState
     data class Error(val message: String) : SourcesUiState
 }
@@ -144,7 +147,11 @@ class SourcesViewModel(
             // guard PlayerViewModel.resumePositionMs() already applies.
             val resumeEntry = continueWatchingRepository.findResumePoint(providerId, contentId, contentType)
             val isSameResumeTarget = resumeEntry != null && resumeEntry.seasonNumber == season && resumeEntry.episodeNumber == episode
-            val isResumeFlow = (isSameResumeTarget && !skipAutoSelect) || autoPlay
+            // Arc TV Plus, Smart source picking (when switched on): wait for the addons behind the loading screen, then play the best source
+            // without asking. Not after "Choose a different source" (skipAutoSelect), the same way a remembered source is skipped.
+            val smart = !skipAutoSelect && !autoPlay && DevicePlayerPrefs.smartSourcePicking(getApplication()) &&
+                (getApplication<Application>() as MangoTvApplication).container.plusRepository.status.value.active
+            val isResumeFlow = (isSameResumeTarget && !skipAutoSelect) || autoPlay || smart
 
             coroutineScope {
                 // getDetails and every provider's getStreams are independent
@@ -162,10 +169,9 @@ class SourcesViewModel(
                     // real picker) for as long as this state stays Loading,
                     // and a resumable title should never flash the
                     // interactive source list the user doesn't need to see.
-                    val reports = providers.map { provider ->
-                        async { provider.getStreamReport(contentType, contentId, season, episode) }
-                    }.awaitAll()
-                    val streams = customSources() + reports.flatMap { it.streams }
+                    // A smart pick does not wait on a slow addon once a sure pick is already there (SMART_PICK_GRACE_MS); the others wait for all.
+                    val reports = gatherReports(providers, if (smart && !isSameResumeTarget) SMART_PICK_GRACE_MS else null)
+                    val streams = customSources() + reports.filterNotNull().flatMap { it.streams }
                     val content = contentDeferred.await()
                     if (content == null) {
                         _uiState.value = SourcesUiState.Error("Couldn't load details for this title.")
@@ -175,15 +181,17 @@ class SourcesViewModel(
                         ?.let { last -> matchLastSource(streams, last) }
                         // Next episode: no source is remembered for it yet, so take the recommended one (the picker shows if there is none).
                         ?: if (autoPlay) streams.find { it.id == recommendedFor(streams) } else null
+                        ?: if (smart) streams.find { it.id == recommendedFor(streams) }?.takeIf { isSurePick(it) } else null
                     _uiState.value = SourcesUiState.Loaded(
                         content = content,
                         streams = streams,
                         recommendedStreamId = recommendedFor(streams),
-                        addons = reports.map { AddonLookupRow(it.addonName, it.lookup) },
+                        addons = providers.mapIndexed { i, provider -> reports[i]?.let { AddonLookupRow(it.addonName, it.lookup) } ?: AddonLookupRow(provider.name, null) },
                         season = season,
                         episode = episode,
                         autoSelectStream = autoSelectStream,
-                        audioMode = audioMode
+                        audioMode = audioMode,
+                        smartMissed = smart && autoSelectStream == null
                     )
                     return@coroutineScope
                 }
@@ -233,5 +241,34 @@ class SourcesViewModel(
                 }
             }
         }
+    }
+
+    /**
+     * Asks every addon at once and returns what each said, in addon order (null for one that had not answered). With [graceMs], once
+     * some source that surely plays is in, the rest are waited for only until that long after the start.
+     */
+    private suspend fun gatherReports(providers: List<com.mangotv.app.data.provider.CatalogProvider>, graceMs: Long?): List<StreamReport?> = coroutineScope {
+        val channel = Channel<Pair<Int, StreamReport>>(capacity = providers.size)
+        val jobs = providers.mapIndexed { i, provider -> launch { channel.send(i to provider.getStreamReport(contentType, contentId, season, episode)) } }
+        val reports = arrayOfNulls<StreamReport>(providers.size)
+        val started = System.currentTimeMillis()
+        var received = 0
+        while (received < providers.size) {
+            val surePickIn = graceMs != null && reports.any { r -> r?.streams?.any(::isSurePick) == true }
+            val next = if (surePickIn) {
+                val left = (started + graceMs!! - System.currentTimeMillis()).coerceAtLeast(0)
+                withTimeoutOrNull(left) { channel.receive() }
+            } else channel.receive()
+            if (next == null) break
+            reports[next.first] = next.second
+            received++
+        }
+        jobs.forEach { it.cancel() }
+        reports.toList()
+    }
+
+    private companion object {
+        /** How long Smart source picking waits for slow addons once a sure pick is already there. */
+        const val SMART_PICK_GRACE_MS = 3_500L
     }
 }

@@ -60,6 +60,7 @@ object DevicePlayerPrefs {
     private const val TITLE_PLAYERS_FILE = "arctv_title_players"
     private const val TORRENT_BUFFER = "torrent_buffer"
     private const val TORRENT_STORAGE = "torrent_storage"
+    private const val SMART_PICKING = "smart_source_picking"
 
     fun speed(context: Context): Float {
         val value = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getFloat(SPEED, 1f)
@@ -119,6 +120,14 @@ object DevicePlayerPrefs {
     /** The most temporary storage one torrent may use (Settings > Player > Torrent storage limit). */
     fun torrentStorageLimit(context: Context): TorrentStorageLimit =
         TorrentStorageLimit.fromWire(context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(TORRENT_STORAGE, null))
+
+    /** Arc TV Plus: skip Select a Source and play the best source (Settings > Arc TV Plus). Off until turned on; kept on this device. */
+    fun smartSourcePicking(context: Context): Boolean =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(SMART_PICKING, false)
+
+    fun setSmartSourcePicking(context: Context, value: Boolean) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(SMART_PICKING, value).apply()
+    }
 
     fun setTorrentStorageLimit(context: Context, value: TorrentStorageLimit) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(TORRENT_STORAGE, value.wire).apply()

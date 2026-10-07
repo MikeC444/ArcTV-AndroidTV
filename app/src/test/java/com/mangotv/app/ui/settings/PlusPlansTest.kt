@@ -16,6 +16,6 @@ class PlusPlansTest {
     fun `every perk says what it is, and Picked for you is the one that is on`() {
         assertTrue(PLUS_PERKS.isNotEmpty())
         assertTrue(PLUS_PERKS.all { it.title.isNotBlank() && it.detail.isNotBlank() })
-        assertEquals(listOf("Picked for you", "Profiles"), PLUS_PERKS.filter { !it.comingSoon }.map { it.title })
+        assertEquals(listOf("Picked for you", "Profiles", "Smart source picking", "Your stats"), PLUS_PERKS.filter { !it.comingSoon }.map { it.title })
     }
 }

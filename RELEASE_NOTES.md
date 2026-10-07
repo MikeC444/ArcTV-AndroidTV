@@ -18,6 +18,9 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Settings now shows your app version, with a Check for updates button.
 - Surround sound now reaches all speakers in the VLC player, and the Speakers setting only filters sources.
 - New to Plus? Your first monthly or yearly subscription now starts with 5 free days.
+- Plus: Smart source picking plays the best source for you, skipping the list.
+- Plus: Your stats shows your watch time, streaks and busiest days.
+- No sources yet? Scan a QR code for a step-by-step setup guide.
 - Fixed the Change plan button being cut off on the pay-on-your-phone page.
 
 ## 0.2.0

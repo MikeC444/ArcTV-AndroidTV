@@ -17,6 +17,16 @@ private val qualityOrder: Comparator<Stream> =
         .thenBy { it.resolutionTier.ordinal }
         .thenByDescending { it.seeders ?: -1 }
 
+/**
+ * Arc TV Plus "Smart source picking": a source worth starting without asking. It must start at once (cached, or no debrid wait) and have a
+ * link to play: a direct or debrid link, or a torrent (info hash or magnet) that is not known to have no seeders.
+ */
+fun isSurePick(stream: Stream): Boolean {
+    if (cacheRank(stream) != 0) return false
+    if (stream.url != null) return true
+    return stream.infoHash != null && (stream.seeders ?: 1) > 0
+}
+
 /** The source Select a Source marks "Recommended": the first of [streams] in the Quality order. */
 fun recommendedStreamId(streams: List<Stream>): String? = streams.sortedWith(qualityOrder).firstOrNull()?.id
 
