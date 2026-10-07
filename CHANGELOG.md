@@ -4781,3 +4781,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** the stale "Turn it on below" wording.
+
+## Post-Milestone-99 -- "Finish payment on your phone" page fits the TV screen
+
+**Status:** Done; checked in a desktop render at TV size, not run on a TV.
+
+**Context:** with four Plus perks the plan panel was taller than the screen: its top was scrolled out of view and the Change plan button was cut off (user screenshot).
+
+**Changes:** the page's content is now `CheckoutPageContent` (so it can be drawn on its own); the plan panel is compact (plan name and trial/price on one line, perks in two columns, tighter spacing), the QR panel sizes its code to the height left, and the page's own margins are smaller. `CheckoutScreenshotTest` draws the page at 1920x1080.
+
+**Tests performed:** `:app:compileDebugKotlin` and the unit tests pass. The desktop render at 960x540 dp shows the plan, billing lines, note, Change plan button and QR code all on screen. Not run on a TV.
+
+**Issues discovered:** the previous layout only fit with three or fewer perks.
+
+**Issues fixed:** the cut-off plan panel and Change plan button.

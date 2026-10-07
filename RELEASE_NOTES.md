@@ -18,7 +18,7 @@ Releasing needs nothing done to this file: add each change as a bullet under `##
 - Plus: Smart source picking plays the best source for you, skipping the list. Switch it in the new Plus settings tab.
 - Plus: Your stats shows your watch time, streaks and busiest days.
 - Smoother menus: Settings and the episode list no longer shake, and nothing gets cut off.
-- Fixed the Change plan button being cut off on the pay-on-your-phone page.
+- The pay-on-your-phone page now fits the screen, with every detail and the Change plan button in view.
 
 ## 0.2.0
 

@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -65,36 +66,42 @@ fun PlusCheckoutPage(state: PlusCheckoutState, remainingSeconds: Int, onClose: (
             is PlusCheckoutState.Done -> state.plan
             else -> return@Dialog
         }
-        val planName = PLUS_PLANS.firstOrNull { it.id == plan }?.label ?: "Plus"
-        Box(modifier = Modifier.fillMaxSize().background(MangoBackground).padding(horizontal = 56.dp, vertical = 32.dp)) {
-            Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Image(painter = painterResource(R.drawable.logo_arctv), contentDescription = "Arc TV", modifier = Modifier.height(36.dp))
-                Spacer(Modifier.height(14.dp))
-                Steps(done = state is PlusCheckoutState.Done)
-                Spacer(Modifier.height(16.dp))
-                if (state is PlusCheckoutState.Done) {
-                    DonePanel(planName)
-                } else {
-                    Text(
-                        text = "Finish payment on your phone",
-                        color = TextPrimary,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(text = "Scan the code, pay on Stripe's secure page, and Plus switches on here by itself.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(18.dp))
-                    Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
-                        val ready = state as? PlusCheckoutState.ShowingQr
-                        PlanCardPanel(plan = plan, planName = planName, price = ready?.priceLabel, trialDays = ready?.trialDays ?: 0, loading = ready == null, onChange = onClose, modifier = Modifier.weight(1f))
-                        QrPanel(url = ready?.url, remainingSeconds = remainingSeconds, modifier = Modifier.weight(1f))
-                    }
-                }
+        CheckoutPageContent(state, plan, remainingSeconds, onClose)
+    }
+}
+
+/** The full-screen checkout page itself (the dialog's content), so it can also be drawn on its own. */
+@Composable
+internal fun CheckoutPageContent(state: PlusCheckoutState, plan: String, remainingSeconds: Int, onClose: () -> Unit) {
+    val planName = PLUS_PLANS.firstOrNull { it.id == plan }?.label ?: "Plus"
+    Box(modifier = Modifier.fillMaxSize().background(MangoBackground).padding(horizontal = 56.dp, vertical = 20.dp)) {
+        Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Image(painter = painterResource(R.drawable.logo_arctv), contentDescription = "Arc TV", modifier = Modifier.height(28.dp))
+            Spacer(Modifier.height(6.dp))
+            Steps(done = state is PlusCheckoutState.Done)
+            Spacer(Modifier.height(10.dp))
+            if (state is PlusCheckoutState.Done) {
+                DonePanel(planName)
+            } else {
+                Text(
+                    text = "Finish payment on your phone",
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(text = "Scan the code, pay on Stripe's secure page, and Plus switches on here by itself.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Lock, contentDescription = null, tint = TextTertiary, modifier = Modifier.size(14.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(text = "Secure payment by Stripe. Arc TV never sees your card.", color = TextTertiary, style = MaterialTheme.typography.bodySmall)
+                Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val ready = state as? PlusCheckoutState.ShowingQr
+                    PlanCardPanel(plan = plan, planName = planName, price = ready?.priceLabel, trialDays = ready?.trialDays ?: 0, loading = ready == null, onChange = onClose, modifier = Modifier.weight(1f))
+                    QrPanel(url = ready?.url, remainingSeconds = remainingSeconds, modifier = Modifier.weight(1f))
                 }
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Lock, contentDescription = null, tint = TextTertiary, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(text = "Secure payment by Stripe. Arc TV never sees your card.", color = TextTertiary, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -135,34 +142,40 @@ private fun PlanCardPanel(plan: String, planName: String, price: String?, trialD
     Column(
         modifier = modifier
             .background(MangoSurface, RoundedCornerShape(MangoDimens.CardCornerRadius))
-            // Scrolls when the plan details don't fit the screen: without it the last child, the Change plan button, was squeezed to a sliver and its label cut off.
+            // Scrolls only as a safety net: the details are laid out compactly so that, on a TV screen, they and the Change plan button all fit.
             .verticalScroll(rememberScrollState())
-            .padding(22.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         Text(text = "YOUR PLAN", color = TextTertiary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-        Text(text = "Arc TV Plus · $planName", color = TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Row(verticalAlignment = Alignment.Bottom) {
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+            Text(text = "Arc TV Plus · $planName", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             val trial = hasTrial(plan, trialDays)
-            Text(text = if (loading) "" else if (trial) "Free for $trialDays days" else price ?: "Shown on your phone", color = ArcAccent, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            val suffix = billingSuffix(plan)
-            if (!trial && price != null && suffix != null) {
-                Spacer(Modifier.width(6.dp))
-                Text(text = suffix, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(text = if (loading) "" else if (trial) "Free for $trialDays days" else price ?: "Shown on your phone", color = ArcAccent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                val suffix = billingSuffix(plan)
+                if (!trial && price != null && suffix != null) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(text = suffix, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                }
             }
         }
-        PLUS_PERKS.filter { !it.comingSoon }.forEach { perk ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Check, contentDescription = null, tint = ArcAccent, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(text = perk.title, color = TextPrimary, style = MaterialTheme.typography.bodyMedium)
+        // The perks in two columns, so four of them take two lines instead of four.
+        PLUS_PERKS.filter { !it.comingSoon }.chunked(2).forEach { pair ->
+            Row(modifier = Modifier.fillMaxWidth()) {
+                pair.forEach { perk ->
+                    Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.Check, contentDescription = null, tint = ArcAccent, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(text = perk.title, color = TextPrimary, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
         }
-        Spacer(Modifier.height(2.dp))
         InfoRow("Billing", billingLabel(plan))
         InfoRow("Due today", if (loading) "" else if (hasTrial(plan, trialDays)) "Free" else price ?: "-")
-        Text(text = if (hasTrial(plan, trialDays)) trialBillingNote(plan, trialDays) else billingNote(plan), color = TextTertiary, style = MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.height(6.dp))
+        Text(text = if (hasTrial(plan, trialDays)) trialBillingNote(plan, trialDays) else billingNote(plan), color = TextTertiary, style = MaterialTheme.typography.labelSmall)
         MangoButton(text = "Change plan", icon = Icons.Filled.ArrowBack, onClick = onChange, focusRequester = changeFocus, compact = true)
     }
 }
@@ -177,22 +190,24 @@ private fun InfoRow(label: String, value: String) {
 
 @Composable
 private fun QrPanel(url: String?, remainingSeconds: Int, modifier: Modifier) {
+    // The code takes what height is left after its heading and two lines of text (at most 280 dp), so the panel never outgrows the screen.
+    BoxWithConstraints(modifier = modifier.background(MangoSurface, RoundedCornerShape(MangoDimens.CardCornerRadius))) {
+    val qrSize = (maxHeight - 130.dp).coerceIn(140.dp, 280.dp)
     Column(
-        modifier = modifier
-            .background(MangoSurface, RoundedCornerShape(MangoDimens.CardCornerRadius))
-            .padding(22.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)
     ) {
         Text(text = "Scan to pay", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         if (url != null) {
-            QrCodeImage(content = url, modifier = Modifier.size(280.dp), sizePx = 840)
+            QrCodeImage(content = url, modifier = Modifier.size(qrSize), sizePx = 840)
         } else {
             // Same size as the code, so the page doesn't jump when it arrives.
-            Box(modifier = Modifier.size(304.dp).background(MangoSurfaceHigh, RoundedCornerShape(12.dp)))
+            Box(modifier = Modifier.size(qrSize + 24.dp).background(MangoSurfaceHigh, RoundedCornerShape(12.dp)))
         }
         Text(text = "Point your phone's camera at the code.", color = TextSecondary, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
         Text(text = if (url == null) " " else "Waiting for payment…  ${formatCountdown(remainingSeconds)}", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+    }
     }
 }
 
