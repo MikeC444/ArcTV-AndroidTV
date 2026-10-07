@@ -4795,3 +4795,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the previous layout only fit with three or fewer perks.
 
 **Issues fixed:** the cut-off plan panel and Change plan button.
+
+## Post-Milestone-100 -- Cancel subscription button can be reached with the remote
+
+**Status:** Done in code; not run on a TV.
+
+**Context:** on the Arc TV Plus tab, the Cancel subscription button (above the status block) could not be selected with the remote.
+
+**Changes:** the status block, where focus lands, pointed Up straight at the nav bar, skipping the button above it. Up from the status block now goes to the Cancel subscription button (when it is shown), and the button links Up to the nav bar and Down to the status block.
+
+**Tests performed:** `:app:compileDebugKotlin` and the unit tests pass. Not run on a TV, so the remote path is unverified on hardware.
+
+**Issues discovered:** none.
+
+**Issues fixed:** the unreachable Cancel subscription button.

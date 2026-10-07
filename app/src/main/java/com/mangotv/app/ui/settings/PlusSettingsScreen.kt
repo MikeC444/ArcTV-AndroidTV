@@ -82,6 +82,9 @@ fun ColumnScope.PlusSettingsContent(
     val showCheckout = checkout is PlusCheckoutState.Error
     val context = androidx.compose.ui.platform.LocalContext.current
     val sellPlans = status.paywall && !status.active
+    // The Cancel subscription button sits above the status block (where focus lands), so Up from the status block must reach it.
+    val cancelFocus = remember { FocusRequester() }
+    val hasCancelButton = status.owned && (status.plan == "monthly" || status.plan == "yearly") && !status.cancelAtPeriodEnd
 
     // The QR code gets a full-screen page of its own; Back or "Change plan" returns here.
     PlusCheckoutPage(state = checkout, remainingSeconds = remaining, onClose = viewModel::cancelCheckout)
@@ -98,7 +101,7 @@ fun ColumnScope.PlusSettingsContent(
     ) {
         if (status.owned && (status.plan == "monthly" || status.plan == "yearly")) {
             item(key = "subscription") {
-                SubscriptionRow(status = status, onCancel = viewModel::askToCancel, focusLeft = sidebarFocusRequester)
+                SubscriptionRow(status = status, onCancel = viewModel::askToCancel, focusLeft = sidebarFocusRequester, focusUp = navFocusRequester, focusDown = contentFocusRequester, focusRequester = cancelFocus)
             }
         }
 
@@ -115,7 +118,7 @@ fun ColumnScope.PlusSettingsContent(
                 backgroundColor = MangoBackground,
                 borderColor = Color.Transparent,
                 focusRequester = contentFocusRequester,
-                focusUp = navFocusRequester,
+                focusUp = if (hasCancelButton) cancelFocus else navFocusRequester,
                 focusLeft = sidebarFocusRequester
             ) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -229,7 +232,7 @@ private fun ownedSentence(plan: String?, validUntil: String?): String {
 
 /** Under the plan status, for a paying monthly or yearly subscriber (not Lifetime): when it renews, and a way to cancel it. Same wording as the web app. */
 @Composable
-private fun SubscriptionRow(status: PlusStatus, onCancel: () -> Unit, focusLeft: FocusRequester) {
+private fun SubscriptionRow(status: PlusStatus, onCancel: () -> Unit, focusLeft: FocusRequester, focusUp: FocusRequester, focusDown: FocusRequester, focusRequester: FocusRequester) {
     val planLabel = PLUS_PLANS.firstOrNull { it.id == status.plan }?.label.orEmpty()
     val until = status.validUntil?.let { runCatching { formatDate(it) }.getOrNull() }
     Row(
@@ -254,7 +257,7 @@ private fun SubscriptionRow(status: PlusStatus, onCancel: () -> Unit, focusLeft:
         }
         if (!status.cancelAtPeriodEnd) {
             Spacer(Modifier.width(16.dp))
-            MangoButton(text = "Cancel subscription", icon = Icons.Filled.Close, onClick = onCancel, compact = true, focusLeft = focusLeft)
+            MangoButton(text = "Cancel subscription", icon = Icons.Filled.Close, onClick = onCancel, compact = true, focusRequester = focusRequester, focusUp = focusUp, focusDown = focusDown, focusLeft = focusLeft)
         }
     }
 }
