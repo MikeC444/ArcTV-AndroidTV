@@ -326,7 +326,7 @@ private fun PlaybackContent(
         if (mediaItem == null) {
             onPhaseChanged(
                 PlaybackPhase.Error(
-                    PlaybackErrorType.TORRENT_UNSUPPORTED,
+                    PlaybackErrorType.UNSUPPORTED_SOURCE,
                     "This source isn't a link the player can open. Try a different source."
                 )
             )

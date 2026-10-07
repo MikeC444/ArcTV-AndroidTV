@@ -28,7 +28,7 @@ sealed interface PlaybackPhase {
     data class Error(val type: PlaybackErrorType, val message: String) : PlaybackPhase
 }
 
-enum class PlaybackErrorType { UNSUPPORTED_SOURCE, TORRENT_UNSUPPORTED, NETWORK, UNKNOWN }
+enum class PlaybackErrorType { UNSUPPORTED_SOURCE, NETWORK, UNKNOWN }
 
 /**
  * Which cluster of the bottom control row currently holds D-pad focus.

@@ -132,8 +132,8 @@ private fun DebridNotice() {
         Spacer(Modifier.width(10.dp))
         Text(
             text = buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Only addons with a debrid service will play.") }
-                append(" Arc TV plays links, not torrents: sources that are only a torrent can't be played. Use an addon set up with your own debrid service (such as Real-Debrid or TorBox), whose sources arrive as ready-to-play links.")
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("Torrent sources play inside Arc TV.") }
+                append(" A debrid service (Real-Debrid, TorBox) is still faster and needs no downloading.")
             },
             color = TextPrimary,
             style = MaterialTheme.typography.bodySmall
