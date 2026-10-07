@@ -238,7 +238,8 @@ private fun PlaybackContent(
     // Captured once at first composition, same as exoPlayer itself below --
     // a later change to Subtitles settings only takes effect on the next
     // playback session (leaving/re-entering the player), not live mid-session.
-    val audioOutput = remember { AudioOutputSettings(DevicePlayerPrefs.audioPassthrough(context), DevicePlayerPrefs.audioChannelMode(context)) }
+    // Speakers (Settings > Audio) only filters sources; playback is never mixed down.
+    val audioOutput = remember { AudioOutputSettings(DevicePlayerPrefs.audioPassthrough(context), AudioChannelMode.AUTO) }
     // Always on to begin with; turned off for this playback only by the automatic retry in PlayerListenerBridge when a Dolby Vision file fails.
     val dolbyVisionSwitch = remember { DolbyVisionSwitch(true) }
     val exoPlayer = remember { buildExoPlayer(context, preferences, audioOutput, dolbyVisionSwitch, isLocalTorrentUrl(stream.url)) }

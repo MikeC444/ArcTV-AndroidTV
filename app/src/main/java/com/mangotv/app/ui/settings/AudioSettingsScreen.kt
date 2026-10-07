@@ -42,7 +42,7 @@ val AudioLanguageOptions: List<SubtitleLanguageOption> =
  * Settings > Audio. Three things:
  *  - Audio Passthrough: the same switch as the player's Settings > Advanced (both read and write [DevicePlayerPrefs], so they always
  *    agree). Kept on this device only, not synced: what a TV or receiver can play is a property of the device.
- *  - Speakers: the most channels to send out (Auto / Stereo / 5.1), also device-only; surround is mixed down to fit.
+ *  - Speakers: filters the source list to this audio type (Auto / Stereo / 5.1 / ...), device-only; it never mixes playback down.
  *  - Default Language: the preferred audio language, synced to the account like the subtitle language.
  * A change here applies to the next video; the player's own passthrough switch applies instantly.
  *
@@ -120,8 +120,8 @@ fun ColumnScope.AudioSettingsContent(
         }
         item(key = "speakers_description") {
             Text(
-                text = "Automatically filters the source list to this audio type (you can change it there any time) and mixes surround " +
-                    "sound down to fit. Applies to the next video. Coming in a future update: the auto source picker will choose this audio type for you.",
+                text = "Automatically filters the source list to this audio type (you can change it there any time). It never changes how the video plays. " +
+                    "Applies to the next video. Coming in a future update: the auto source picker will choose this audio type for you.",
                 color = TextSecondary,
                 style = MaterialTheme.typography.bodySmall
             )

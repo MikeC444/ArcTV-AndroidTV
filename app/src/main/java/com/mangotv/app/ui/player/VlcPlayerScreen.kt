@@ -148,9 +148,9 @@ fun VlcPlaybackContent(
     var offerNext by remember { mutableStateOf(false) }
     var offerFocused by remember { mutableStateOf(false) }
     val nextOfferFocus = remember { FocusRequester() }
-    // Settings > Audio: passthrough and the speaker layout, read once when playback starts.
+    // Settings > Audio: passthrough, read once when playback starts. The Speakers setting only filters sources; it never limits playback.
     val audioPassthrough = remember { DevicePlayerPrefs.audioPassthrough(context) }
-    val audioMode = remember { DevicePlayerPrefs.audioChannelMode(context) }
+    val audioMode = AudioChannelMode.AUTO
     var audioTracks by remember { mutableStateOf<List<VlcTrack>>(emptyList()) }
     var subtitleTracks by remember { mutableStateOf<List<VlcTrack>>(emptyList()) }
     var selectedAudio by remember { mutableIntStateOf(-1) }
@@ -236,9 +236,8 @@ fun VlcPlaybackContent(
     }
 
     fun loadMedia() {
-        // Settings > Audio. Passthrough sends Dolby / DTS to the TV untouched (VLC only does it when the device says it can). Stereo uses VLC's
-        // OpenSL ES output, which plays two channels, so surround is mixed down; VLC cannot cap at 5.1 or 7.1, those play at the file's layout.
-        // The output is chosen outright (see vlcAudioDevice): VLC's own default is two channels.
+        // Passthrough sends Dolby / DTS to the TV untouched; otherwise surround plays as multichannel PCM (see vlcAudioDevice). The Speakers
+        // setting only filters sources, so playback always uses the file's full layout.
         configureVlcAudio(mediaPlayer, context, audioMode, audioPassthrough)
         val media = Media(libVlc, Uri.parse(url))
         // The device's hardware decoder (VLC still falls back to its own software decoder if the hardware one can't take the video).
