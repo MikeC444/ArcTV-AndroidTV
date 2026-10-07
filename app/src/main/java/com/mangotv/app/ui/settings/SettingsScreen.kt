@@ -204,7 +204,7 @@ internal fun SettingsLayout(
             ) {
                 // The side navigation: a rounded panel of grouped categories (You / Content / Playback & sound), wide enough that no name
                 // is squeezed. It scrolls with the remote if the groups don't fit. The padding inside the scroll leaves room for a
-                // focused row's scale-up, which the scroll area would otherwise clip at its edges.
+                // focused row's scale-up and outline, so the padding sits inside the scroll area (outside it the scroll area would clip them at its edges).
                 Column(
                     modifier = Modifier
                         .width(230.dp)
@@ -213,10 +213,9 @@ internal fun SettingsLayout(
                         .clip(RoundedCornerShape(18.dp))
                         .background(MangoBackgroundElevated)
                         .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
-                        .padding(horizontal = 10.dp, vertical = 12.dp)
                 ) {
                   // The categories scroll; the version and update check below them stay pinned, so their result line is never cut off.
-                  Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                  Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 12.dp)) {
                     SettingsGroups.forEachIndexed { groupIndex, (label, categories) ->
                         Text(
                             text = label.uppercase(),

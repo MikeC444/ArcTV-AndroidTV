@@ -4739,3 +4739,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** focus jumping to Check for updates.
+
+## Post-Milestone-96 -- Settings side panel keeps the focus outline whole
+
+**Status:** Done in code; not run on a TV.
+
+**Context:** the white outline of the focused category (e.g. Account) was cut off at the top and sides of the side panel.
+
+**Changes:** the side panel's padding moved inside its scrolling column, so the scroll area no longer clips a focused row's outline and scale-up at its edges.
+
+**Tests performed:** `:app:compileDebugKotlin` and the unit tests pass. Not run on a TV, so the outline is unverified on hardware.
+
+**Issues discovered:** none.
+
+**Issues fixed:** the clipped focus outline.
