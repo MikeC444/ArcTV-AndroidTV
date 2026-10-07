@@ -70,9 +70,9 @@ private const val SHOW_AFTER_MS = 1_500L
 private data class IntroPoint(val icon: ImageVector, val title: String, val detail: String)
 
 private val Points = listOf(
-    IntroPoint(Icons.Filled.Link, "Magnet links and .torrent files", "Tap + Torrent on Select a Source and paste one in"),
+    IntroPoint(Icons.Filled.Link, "Works with your addons", "Torrent sources from your addons now play, with nothing else to install"),
     IntroPoint(Icons.Filled.Bolt, "Plays while it downloads", "Only what you're watching is fetched, and seeking just works"),
-    IntroPoint(Icons.Filled.Tune, "Your buffer, your storage", "Set both in Settings → Player. Nothing is kept afterwards")
+    IntroPoint(Icons.Filled.Tune, "Add your own too", "Tap + Torrent on Select a Source for a magnet link or .torrent file. Tune it in Settings \u2192 Player")
 )
 
 /**
@@ -140,10 +140,10 @@ private fun TorrentIntroDialog(onClose: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                Text(text = "Torrents are here.", color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+                Text(text = "Addons now support torrents.", color = TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Play magnet links and .torrent files right inside Arc TV. Nothing else to install.",
+                    text = "Torrent sources now play right inside Arc TV.",
                     color = TextSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
