@@ -8,19 +8,15 @@ description, so there's no need to visit GitHub to see what changed.
 (For the backend/engineering build log, see CHANGELOG.md instead -- this
 file is only ever end-user-facing release notes.)
 
-Releasing needs nothing done to this file: add each change as a bullet under `## Unreleased` as you make it. When a release is
-published, the workflow uses what is under `## Unreleased` as that release's notes (what the app's update pop-up shows), then moves it
-under the new version heading and leaves a fresh empty `## Unreleased` above it.
+Releasing needs nothing done to this file: add each change as a bullet under `## Unreleased
 
-## Unreleased
-
-- Play magnet links and .torrent files right inside Arc TV, with buffer and storage settings. Nothing extra to install.
-- Settings has a new Updates tab with your app version and a Check for updates button.
 - Surround sound now reaches all speakers in the VLC player, and the Speakers setting only filters sources.
+- Support for torrent addons, with buffer and storage settings. Nothing extra to install.
+- No sources yet? Scan a QR code for a step-by-step setup guide.
+- Settings has a new Updates tab with your app version and a Check for updates button.
 - New to Plus? Your first monthly or yearly subscription now starts with 5 free days.
 - Plus: Smart source picking plays the best source for you, skipping the list. Switch it in the new Plus settings tab.
 - Plus: Your stats shows your watch time, streaks and busiest days.
-- No sources yet? Scan a QR code for a step-by-step setup guide.
 - Smoother menus: Settings and the episode list no longer shake as you move around.
 - Fixed the Change plan button being cut off on the pay-on-your-phone page.
 
