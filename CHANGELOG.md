@@ -4650,3 +4650,5 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Follow-up 8:** Settings' side panel ends with the app's version (small text) and a "Check for updates" button (`UpdateCheckRow`; `UpdateViewModel.checkNow()`), with the result under it (checking / latest version / `<tag>` available / couldn't check). A newer release brings up the usual update pop-up, even if that release was dismissed before. Works in debug builds too. Compiles; not tried on a device.
 
 **Follow-up 9:** the update check's result line ("v0.2.0 is available.") was cut off at the bottom of Settings' side panel; the version, button and result are now pinned below the scrolling category list instead of inside it.
+
+**Follow-up 11:** follow-up 10 (opening surround-sound sources in the built-in player) was reverted: the goal is for VLC's engine itself to play surround. VLC still gives no rear sound on the tested TV; the cause is not found.
