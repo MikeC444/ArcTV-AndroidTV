@@ -124,7 +124,8 @@ fun VlcPlaybackContent(
     val context = LocalContext.current
     val view = LocalView.current
 
-    val libVlc = remember { LibVLC(context, arrayListOf("-vv", "--aout=audiotrack", "--http-reconnect", "--network-caching=2000", "--no-drop-late-frames", "--no-skip-frames")) }
+    // --aout=audiotrack: without it VLC fell back to its two-channel OpenSL ES output on some Fire TVs, so surround never reached the rear speakers.
+    val libVlc = remember { LibVLC(context, arrayListOf("--aout=audiotrack", "--http-reconnect", "--network-caching=2000", "--no-drop-late-frames", "--no-skip-frames")) }
     val mediaPlayer = remember { MediaPlayer(libVlc) }
 
     var viewReady by remember { mutableStateOf(false) }
