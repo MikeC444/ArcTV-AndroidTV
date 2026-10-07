@@ -50,6 +50,8 @@ fun TorrentSourceHost(
     season: Int?,
     episodeNumber: Int?,
     onChangeSource: () -> Unit,
+    // True while the player itself is waiting for data (frozen or buffering); the torrent's "waiting" note shows only then.
+    playerBuffering: Boolean,
     playing: @Composable (Stream) -> Unit
 ) {
     val context = LocalContext.current
@@ -96,7 +98,7 @@ fun TorrentSourceHost(
                 val local = remember(stream.id, url) { stream.copy(url = url) }
                 Box(modifier = Modifier.fillMaxSize()) {
                     playing(local)
-                    TorrentStallNote(current)
+                    TorrentStallNote(current, playerBuffering)
                 }
             }
         }
@@ -112,9 +114,10 @@ fun TorrentSourceHost(
     }
 }
 
-/** A small note over the picture while playback waits for torrent data; the player's own spinner shows alongside it. */
+/** A small note over the picture only while the player is frozen or buffering and the torrent is the one it is waiting on. */
 @Composable
-private fun TorrentStallNote(playback: TorrentPlayback) {
+private fun TorrentStallNote(playback: TorrentPlayback, playerBuffering: Boolean) {
+    if (!playerBuffering) return
     val state by playback.state.collectAsStateWithLifecycle()
     val note = (state as? TorrentStreamState.Playing)?.let { describeTorrentStall(it.stats) } ?: return
     Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.BottomStart) {

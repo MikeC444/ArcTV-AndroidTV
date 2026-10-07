@@ -117,7 +117,9 @@ fun VlcPlaybackContent(
     onNextEpisode: (season: Int, episode: Int) -> Unit,
     onChangeSource: () -> Unit,
     onBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // True while the picture is waiting for data (a torrent shows its "waiting" note only then).
+    onBufferingChanged: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -128,6 +130,7 @@ fun VlcPlaybackContent(
     var viewReady by remember { mutableStateOf(false) }
     var playing by remember { mutableStateOf(false) }
     var buffering by remember { mutableStateOf(true) }
+    LaunchedEffect(buffering) { onBufferingChanged(buffering) }
     var failure by remember { mutableStateOf<String?>(null) }
     var lengthMs by remember { mutableLongStateOf(0L) }
     var positionMs by remember { mutableLongStateOf(0L) }

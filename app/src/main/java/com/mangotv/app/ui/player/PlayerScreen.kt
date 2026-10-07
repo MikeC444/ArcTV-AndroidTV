@@ -123,13 +123,17 @@ fun PlayerScreen(
                     onSecondaryAction = changeSource
                 )
             }
-            is PlayerScreenUiState.Ready -> TorrentSourceHost(
+            is PlayerScreenUiState.Ready -> {
+            // Whether the VLC screen is waiting for data (the built-in player's own phase is `playbackPhase`).
+            var vlcBuffering by remember { mutableStateOf(false) }
+            TorrentSourceHost(
                 content = state.content,
                 episode = state.episode,
                 stream = state.stream,
                 season = viewModel.currentSeason,
                 episodeNumber = viewModel.currentEpisode,
-                onChangeSource = changeSource
+                onChangeSource = changeSource,
+                playerBuffering = vlcBuffering || playbackPhase is PlaybackPhase.Buffering
             ) { stream ->
                 // `stream` is the source to play: an ordinary link as it is, a torrent with the engine's local address in place of its own.
                 val streamUrl = stream.url
@@ -173,7 +177,8 @@ fun PlayerScreen(
                         },
                         onNextEpisode = viewModel::playEpisode,
                         onChangeSource = changeSource,
-                        onBack = onBack
+                        onBack = onBack,
+                        onBufferingChanged = { vlcBuffering = it }
                     )
                 } else PlaybackContent(
                     content = state.content,
@@ -198,6 +203,7 @@ fun PlayerScreen(
                     vlcAvailable = vlcUsable,
                     onRememberPlayer = rememberPlayer
                 )
+            }
             }
         }
     }
