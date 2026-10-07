@@ -53,6 +53,7 @@ Endpoints:
   set, `POST` returns the slot's authoritative state, `DELETE` clears it
   (`204` if it never existed).
 - `POST /user/player-events/external` (authenticated) — `{ providerId, contentId, contentType, title, releaseTitle?, resolution?, codec?, trigger: "button"|"error", outcome: "opened"|"no_player", errorMessage? }` → `204`. Reported when someone confirms "Play in external player"; read back by admins in `GET /admin/summary` (`externalPlayer`). Never carries the stream address.
+- `POST /user/feature-intros/ack` (authenticated) — `{ feature: "torrent_intro" }` → `204`. Sent by the app when someone clicks a one-off "what's new" pop-up away; the first click is kept. Read back by admins at `GET /admin/feature-intros/torrent_intro?limit=&offset=` → `{ feature, total, users: [{ id, email, displayName, acknowledgedAt, appVersion, platform }] }`, newest first.
 - `GET /user/profiles` / `POST /user/profiles` / `PUT /user/profiles/:id` /
   `DELETE /user/profiles/:id` / `POST /user/profiles/:id/verify-pin`
   (authenticated) — ArcTV Plus profiles: up to 5 per account (any adult /

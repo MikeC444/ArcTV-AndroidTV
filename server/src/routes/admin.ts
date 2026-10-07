@@ -3,6 +3,7 @@ import { z } from "zod";
 import { HttpError } from "../lib/httpError.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
+import { FEATURE_INTROS } from "../schemas/featureIntros.js";
 import * as adminService from "../services/adminService.js";
 
 /**
@@ -52,6 +53,23 @@ adminRouter.get("/users/:id", validate({ params: idParams }), async (req, res, n
     if (!detail) throw new HttpError(404, "Not found");
     console.info(`[admin] ${req.user!.email} viewed ${detail.user.email as string}`);
     res.json(detail);
+  } catch (error) {
+    next(error);
+  }
+});
+
+const introParams = z.object({ feature: z.enum(FEATURE_INTROS) });
+const introQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
+});
+
+// Who has clicked a one-off "what's new" pop-up away, e.g. GET /admin/feature-intros/torrent_intro.
+adminRouter.get("/feature-intros/:feature", validate({ params: introParams, query: introQuery }), async (req, res, next) => {
+  try {
+    const { feature } = req.validated!.params as z.infer<typeof introParams>;
+    const { limit, offset } = req.validated!.query as z.infer<typeof introQuery>;
+    res.json(await adminService.featureIntroAcks(feature, limit, offset));
   } catch (error) {
     next(error);
   }

@@ -162,3 +162,21 @@ export async function userDetail(userId: string) {
     myListCount: watchlist.rows[0]!.n,
   };
 }
+
+/** Who has clicked a one-off pop-up away (newest first), with when and on which app version; `total` is the whole count, `limit`/`offset` page the list. */
+export async function featureIntroAcks(feature: string, limit: number, offset: number) {
+  const [total, rows] = await Promise.all([
+    pool.query<{ n: number }>(`SELECT count(*)::int AS n FROM feature_intro_acks a JOIN users u ON u.id = a.user_id WHERE a.feature = $1 AND u.deleted_at IS NULL`, [feature]),
+    pool.query(
+      `SELECT u.id, u.email, u.display_name AS "displayName", a.acknowledged_at AS "acknowledgedAt", a.app_version AS "appVersion", d.platform
+       FROM feature_intro_acks a
+       JOIN users u ON u.id = a.user_id AND u.deleted_at IS NULL
+       LEFT JOIN devices d ON d.id = a.device_id
+       WHERE a.feature = $1
+       ORDER BY a.acknowledged_at DESC
+       LIMIT $2 OFFSET $3`,
+      [feature, limit, offset]
+    ),
+  ]);
+  return { feature, total: total.rows[0]!.n, users: rows.rows };
+}

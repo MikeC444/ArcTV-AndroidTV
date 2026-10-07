@@ -94,6 +94,9 @@ fun TorrentIntroHost(onOpenChanged: (Boolean) -> Unit = {}) {
     if (sessionLoaded) store.ensureBaseline(userId)
     val due = sessionLoaded && torrentIntroDue(store.isEligible(userId), store.hasSeen(userId), store.shownThisSession)
 
+    // A click that could not be reported yet (offline, signed out meanwhile) is sent now.
+    LaunchedEffect(sessionLoaded, userId) { if (sessionLoaded) store.reportIfPending(userId) }
+
     // Leaving Home before the delay is up cancels this, so it is only used up once it has actually been on screen.
     LaunchedEffect(due, userId) {
         if (due) {
