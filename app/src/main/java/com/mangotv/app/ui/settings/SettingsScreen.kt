@@ -90,7 +90,8 @@ private val SettingsGroups: List<Pair<String, List<SettingsCategory>>> = listOf(
 fun SettingsScreen(
     onNavigate: (String) -> Unit,
     onSignedOut: () -> Unit,
-    onAddAddon: () -> Unit
+    onAddAddon: () -> Unit,
+    updateViewModel: com.mangotv.app.ui.update.UpdateViewModel
 ) {
     val navFocusRequester = remember { FocusRequester() }
     val accountRowFocusRequester = remember { FocusRequester() }
@@ -179,6 +180,9 @@ fun SettingsScreen(
                         }
                     }
                 }
+                // The app's version and the update check, at the foot of the panel.
+                Spacer(Modifier.height(18.dp))
+                UpdateCheckRow(viewModel = updateViewModel, focusRight = paneContentFocusRequester)
             }
 
             // The open category's settings, in a card that takes all the width left.

@@ -372,7 +372,8 @@ fun MangoNavHost() {
                     SettingsScreen(
                         onNavigate = ::navigateTo,
                         onSignedOut = { navigateClearingBackStack(MangoRoutes.AUTH_START) },
-                        onAddAddon = { navController.navigate(MangoRoutes.SETTINGS_ADD_ADDON) }
+                        onAddAddon = { navController.navigate(MangoRoutes.SETTINGS_ADD_ADDON) },
+                        updateViewModel = updateViewModel
                     )
                 }
                 composable(MangoRoutes.MOVIES) {

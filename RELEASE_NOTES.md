@@ -15,6 +15,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 ## Unreleased
 
 - Play magnet links and .torrent files right inside Arc TV, with buffer and storage settings. Nothing extra to install.
+- Settings now shows your app version, with a Check for updates button.
 
 ## 0.2.0
 

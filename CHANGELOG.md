@@ -4646,3 +4646,5 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Follow-up 6:** the Addons screen banner no longer says torrents can't be played (it now reads "Torrent sources play inside Arc TV. A debrid service (Real-Debrid, TorBox) is still faster and needs no downloading."), and the unused `PlaybackErrorType.TORRENT_UNSUPPORTED` is gone (the no-link fallback now uses `UNSUPPORTED_SOURCE`).
 
 **Follow-up 7:** the Addons tab's debrid note has a selectable "Click here for help" that opens a QR code (`DebridHelpDialog`) for https://web.arctv.org/guides/debrid, to scan with a phone.
+
+**Follow-up 8:** Settings' side panel ends with the app's version (small text) and a "Check for updates" button (`UpdateCheckRow`; `UpdateViewModel.checkNow()`), with the result under it (checking / latest version / `<tag>` available / couldn't check). A newer release brings up the usual update pop-up, even if that release was dismissed before. Works in debug builds too. Compiles; not tried on a device.

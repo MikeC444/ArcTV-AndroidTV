@@ -28,6 +28,16 @@ data class UpdateUiState(
     val errorMessage: String? = null
 )
 
+/** The result of the "Check for updates" button in Settings. */
+sealed interface ManualUpdateCheck {
+    data object Idle : ManualUpdateCheck
+    data object Checking : ManualUpdateCheck
+    data object UpToDate : ManualUpdateCheck
+    /** A newer release exists; the update pop-up is shown for it. */
+    data class Available(val tag: String) : ManualUpdateCheck
+    data object Failed : ManualUpdateCheck
+}
+
 /**
  * Checks GitHub's own public releases API for this repo on launch (this
  * repo is public, so no token is needed) and offers to download+install a
@@ -42,6 +52,33 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _uiState = MutableStateFlow(UpdateUiState())
     val uiState: StateFlow<UpdateUiState> = _uiState.asStateFlow()
+
+    private val _manualCheck = MutableStateFlow<ManualUpdateCheck>(ManualUpdateCheck.Idle)
+    val manualCheck: StateFlow<ManualUpdateCheck> = _manualCheck.asStateFlow()
+
+    /**
+     * Settings > "Check for updates": looks now, whatever the build type, and unlike the check at launch it brings the update pop-up up even for a
+     * release the person dismissed before (they asked). Says so when the app is already current or the check could not be made.
+     */
+    fun checkNow() {
+        if (_manualCheck.value == ManualUpdateCheck.Checking) return
+        _manualCheck.value = ManualUpdateCheck.Checking
+        viewModelScope.launch {
+            updateRepository.getLatestUpdate(BuildConfig.VERSION_NAME)
+                .onSuccess { update ->
+                    if (VersionUtils.isRemoteNewer(update.tag, BuildConfig.VERSION_NAME)) {
+                        _uiState.update { it.copy(update = update, showBanner = true, errorMessage = null) }
+                        _manualCheck.value = ManualUpdateCheck.Available(update.tag)
+                    } else {
+                        _manualCheck.value = ManualUpdateCheck.UpToDate
+                    }
+                }
+                .onFailure { error ->
+                    // A release with no APK attached yet means there is nothing to install: the app is as current as it can be.
+                    _manualCheck.value = if (error.javaClass.simpleName == "NoEligibleUpdateException") ManualUpdateCheck.UpToDate else ManualUpdateCheck.Failed
+                }
+        }
+    }
 
     init {
         if (!BuildConfig.DEBUG) {
