@@ -4767,3 +4767,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** the mid-card cut line and unpadded lists.
+
+## Post-Milestone-98 -- Arc TV Plus tab lists the new Plus features correctly
+
+**Status:** Done; not run on a TV.
+
+**Context:** the Plus tab's feature list should describe the new Plus additions (Smart source picking, Your stats) as they work now.
+
+**Changes:** the list already carried both; Smart source picking now says where its switch lives (Settings > Plus settings, no longer "below"), and the free-features note includes Blocked Genres, matching the web app.
+
+**Tests performed:** `:app:compileDebugKotlin` and the unit tests pass. Not run on a TV.
+
+**Issues discovered:** none.
+
+**Issues fixed:** the stale "Turn it on below" wording.

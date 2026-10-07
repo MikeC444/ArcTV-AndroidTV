@@ -28,10 +28,10 @@ val PLUS_PERKS: List<PlusPerk> = listOf(
     PlusPerk("Picked for you", "A Home row chosen from the movies you like, finish and save, with the reason under each poster, plus Like and Not for me on movies.", comingSoon = false),
     PlusPerk("Profiles", "Up to 5 profiles on one account, each with its own My List, Continue Watching, settings and recommendations. Add kids profiles, and lock any profile with a PIN.", comingSoon = false),
     PlusPerk("Parental controls", "Locks on individual genres and titles, built on kids profiles and Blocked Genres."),
-    PlusPerk("Smart source picking", "Skips Select a Source and starts the best source for your device, once every addon has answered. Turn it on below.", comingSoon = false),
+    PlusPerk("Smart source picking", "Skips Select a Source and starts the best source for your device, once every addon has answered. Turn it on under Settings > Plus settings.", comingSoon = false),
     PlusPerk("Your stats", "How much you watch, how this week compares, your streak, a map of your last 13 weeks and your busiest day, under Settings > Your stats.", comingSoon = false)
 )
 
-const val PLUS_FREE_NOTE = "Everything you use today stays free: browsing, playing, My List, Continue Watching and addons."
+const val PLUS_FREE_NOTE = "Everything you use today stays free: browsing, playing, My List, Continue Watching, addons and Blocked Genres."
 
 const val PLUS_PROCEEDS_NOTE = "Every subscription goes straight back into building and running Arc TV: new features, faster servers and keeping the free app free."
