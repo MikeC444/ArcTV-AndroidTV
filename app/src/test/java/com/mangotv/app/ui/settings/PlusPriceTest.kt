@@ -40,4 +40,16 @@ class PlusPriceTest {
         assertNull(billingSuffix("lifetime"))
         assertEquals("One-time payment", billingLabel("lifetime"))
     }
+
+    @Test
+    fun `a free trial is only for monthly and yearly, and only when the backend offers it`() {
+        assertEquals(true, hasTrial("monthly", 5))
+        assertEquals(true, hasTrial("yearly", 5))
+        assertEquals(false, hasTrial("lifetime", 5))
+        assertEquals(false, hasTrial("monthly", 0))
+        assertEquals("Start 5-day free trial", planButtonLabel("yearly", "Yearly", 5))
+        assertEquals("Choose Monthly", planButtonLabel("monthly", "Monthly", 0))
+        assertEquals("Get Lifetime", planButtonLabel("lifetime", "Lifetime", 5))
+        assertEquals(true, trialBillingNote("yearly", 5).contains("5 days"))
+    }
 }

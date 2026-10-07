@@ -174,7 +174,7 @@ fun ColumnScope.PlusSettingsContent(
             item(key = "steps") {
                 Column(modifier = Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(text = "How to subscribe", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
-                    Text(text = "1. Pick a plan below: monthly, yearly, or a one-time Lifetime payment.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                    Text(text = "1. Pick a plan below: monthly, yearly, or a one-time Lifetime payment." + if (status.trialDays > 0) " Monthly and yearly start with ${status.trialDays} days free." else "", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                     Text(text = "2. Scan the QR code with your phone and pay on the secure Stripe page.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                     Text(text = "3. This screen switches Plus on by itself once the payment goes through.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                 }
@@ -187,6 +187,7 @@ fun ColumnScope.PlusSettingsContent(
                     PLUS_PLANS.forEachIndexed { index, plan ->
                         PlanCard(
                             plan = plan,
+                            trialDays = status.trialDays,
                             starting = (checkout as? PlusCheckoutState.Starting)?.plan == plan.id,
                             onChoose = { viewModel.choose(plan.id) },
                             modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -205,7 +206,10 @@ fun ColumnScope.PlusSettingsContent(
 
         item(key = "footer") {
             Text(
-                text = if (sellPlans) "Payments are handled by Stripe's secure checkout page; Arc TV never sees your card." else "Plus features appear on your account by themselves.",
+                text = if (sellPlans) {
+                    (if (status.trialDays > 0) "Free trial: your card is taken at checkout but nothing is charged for ${status.trialDays} days. Cancel before then and you pay nothing. Once per account. " else "") +
+                        "Payments are handled by Stripe's secure checkout page; Arc TV never sees your card."
+                } else "Plus features appear on your account by themselves.",
                 color = TextTertiary,
                 style = MaterialTheme.typography.bodySmall
             )
@@ -353,7 +357,7 @@ private fun PerkRow(perk: PlusPerk, paywall: Boolean, focusRequester: FocusReque
 }
 
 @Composable
-private fun PlanCard(plan: PlusPlan, starting: Boolean, onChoose: () -> Unit, modifier: Modifier, focusLeft: FocusRequester?) {
+private fun PlanCard(plan: PlusPlan, trialDays: Int, starting: Boolean, onChoose: () -> Unit, modifier: Modifier, focusLeft: FocusRequester?) {
     TvFocusSurface(
         onClick = onChoose,
         modifier = modifier,
@@ -365,8 +369,9 @@ private fun PlanCard(plan: PlusPlan, starting: Boolean, onChoose: () -> Unit, mo
         focusLeft = focusLeft
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
-            if (plan.note != null) {
-                Pill(text = plan.note, container = MangoSurfaceHigh, content = ArcAccent)
+            val pillText = if (hasTrial(plan.id, trialDays)) "$trialDays days free" else plan.note
+            if (pillText != null) {
+                Pill(text = pillText, container = MangoSurfaceHigh, content = ArcAccent)
                 Spacer(Modifier.height(6.dp))
             }
             Text(text = plan.label, color = TextPrimary, style = MaterialTheme.typography.titleMedium)
@@ -381,11 +386,7 @@ private fun PlanCard(plan: PlusPlan, starting: Boolean, onChoose: () -> Unit, mo
             Text(text = plan.blurb, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(10.dp))
             Text(
-                text = when {
-                    starting -> "Opening…"
-                    plan.id == "lifetime" -> "Get Lifetime"
-                    else -> "Choose ${plan.label}"
-                },
+                text = if (starting) "Opening…" else planButtonLabel(plan.id, plan.label, trialDays),
                 color = ArcAccent,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold

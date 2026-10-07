@@ -38,7 +38,9 @@ data class PlusStatus(
     /** True once Plus is paid; false while it is free for everyone (early access). */
     val paywall: Boolean = false,
     /** A monthly or yearly subscription that has been cancelled: Plus runs to [validUntil] and then ends. */
-    val cancelAtPeriodEnd: Boolean = false
+    val cancelAtPeriodEnd: Boolean = false,
+    /** Free days a first monthly or yearly subscription starts with, when this account is offered them; 0 otherwise. */
+    val trialDays: Int = 0
 ) {
     /** Paid for (as opposed to free during early access). */
     val owned: Boolean get() = paywall && active
@@ -101,7 +103,7 @@ class PlusRepository(context: Context, private val authRepository: AuthRepositor
         update(apiClient.cancelSubscription(token).toStatus())
     }
 
-    private fun PlusStatusDto.toStatus() = PlusStatus(active = active, plan = plan, validUntil = validUntil, paywall = paywall, cancelAtPeriodEnd = cancelAtPeriodEnd)
+    private fun PlusStatusDto.toStatus() = PlusStatus(active = active, plan = plan, validUntil = validUntil, paywall = paywall, cancelAtPeriodEnd = cancelAtPeriodEnd, trialDays = trialDays.coerceAtLeast(0))
 
     /** Forgets this device's copy (account switching): another account must never inherit this one's Plus. */
     suspend fun clear() = update(PlusStatus())

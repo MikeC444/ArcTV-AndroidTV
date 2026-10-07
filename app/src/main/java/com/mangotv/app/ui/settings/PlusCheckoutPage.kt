@@ -83,7 +83,7 @@ fun PlusCheckoutPage(state: PlusCheckoutState, remainingSeconds: Int, onClose: (
                     Spacer(Modifier.height(18.dp))
                     Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
                         val ready = state as? PlusCheckoutState.ShowingQr
-                        PlanCardPanel(plan = plan, planName = planName, price = ready?.priceLabel, loading = ready == null, onChange = onClose, modifier = Modifier.weight(1f))
+                        PlanCardPanel(plan = plan, planName = planName, price = ready?.priceLabel, trialDays = ready?.trialDays ?: 0, loading = ready == null, onChange = onClose, modifier = Modifier.weight(1f))
                         QrPanel(url = ready?.url, remainingSeconds = remainingSeconds, modifier = Modifier.weight(1f))
                     }
                 }
@@ -127,7 +127,7 @@ private fun Steps(done: Boolean) {
 }
 
 @Composable
-private fun PlanCardPanel(plan: String, planName: String, price: String?, loading: Boolean, onChange: () -> Unit, modifier: Modifier) {
+private fun PlanCardPanel(plan: String, planName: String, price: String?, trialDays: Int, loading: Boolean, onChange: () -> Unit, modifier: Modifier) {
     val changeFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { changeFocus.requestFocus() } }
     Column(
@@ -139,9 +139,10 @@ private fun PlanCardPanel(plan: String, planName: String, price: String?, loadin
         Text(text = "YOUR PLAN", color = TextTertiary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
         Text(text = "Arc TV Plus · $planName", color = TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(text = if (loading) "" else price ?: "Shown on your phone", color = ArcAccent, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            val trial = hasTrial(plan, trialDays)
+            Text(text = if (loading) "" else if (trial) "Free for $trialDays days" else price ?: "Shown on your phone", color = ArcAccent, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             val suffix = billingSuffix(plan)
-            if (price != null && suffix != null) {
+            if (!trial && price != null && suffix != null) {
                 Spacer(Modifier.width(6.dp))
                 Text(text = suffix, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
             }
@@ -155,8 +156,8 @@ private fun PlanCardPanel(plan: String, planName: String, price: String?, loadin
         }
         Spacer(Modifier.height(2.dp))
         InfoRow("Billing", billingLabel(plan))
-        InfoRow("Due today", if (loading) "" else price ?: "-")
-        Text(text = billingNote(plan), color = TextTertiary, style = MaterialTheme.typography.bodySmall)
+        InfoRow("Due today", if (loading) "" else if (hasTrial(plan, trialDays)) "Free" else price ?: "-")
+        Text(text = if (hasTrial(plan, trialDays)) trialBillingNote(plan, trialDays) else billingNote(plan), color = TextTertiary, style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(6.dp))
         MangoButton(text = "Change plan", icon = Icons.Filled.ArrowBack, onClick = onChange, focusRequester = changeFocus, compact = true)
     }

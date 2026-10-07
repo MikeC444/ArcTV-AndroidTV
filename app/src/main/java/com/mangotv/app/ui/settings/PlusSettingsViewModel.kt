@@ -20,7 +20,7 @@ sealed interface PlusCheckoutState {
     data object Idle : PlusCheckoutState
     data class Starting(val plan: String) : PlusCheckoutState
     /** The payment page's URL, shown as a QR code to scan with a phone. */
-    data class ShowingQr(val plan: String, val url: String, val priceLabel: String?) : PlusCheckoutState
+    data class ShowingQr(val plan: String, val url: String, val priceLabel: String?, val trialDays: Int = 0) : PlusCheckoutState
     /** Payment went through; the page shows a thank-you for a moment before closing. */
     data class Done(val plan: String) : PlusCheckoutState
     data class Error(val message: String) : PlusCheckoutState
@@ -93,7 +93,7 @@ class PlusSettingsViewModel(application: Application) : AndroidViewModel(applica
         starting = viewModelScope.launch {
             try {
                 val link = plusRepository.startCheckout(plan)
-                _checkout.value = PlusCheckoutState.ShowingQr(plan, link.url, formatPlusPrice(link.amountTotal, link.currency))
+                _checkout.value = PlusCheckoutState.ShowingQr(plan, link.url, formatPlusPrice(link.amountTotal, link.currency), if (plan == "lifetime") 0 else link.trialDays)
                 startPolling(plan)
             } catch (e: CancellationException) {
                 throw e

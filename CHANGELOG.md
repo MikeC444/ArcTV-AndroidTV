@@ -4671,10 +4671,11 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 - `POST /user/plus/checkout` now adds `subscription_data[trial_period_days]=5` (and `metadata[trial_days]`) for Monthly/Yearly when the account has no `user_plus` row, i.e. has never had Plus. A cancelled trial leaves a row, so the offer is once per account. Lifetime has no trial. Stripe takes the card at checkout and bills when the trial ends.
 - The response gains `trialDays` (0 when not offered), and `GET /user/plus` now carries `trialDays` too (5 only with the paywall on and no Plus ever), so apps can say so before checkout.
 - The checkout webhook gives provisional access of trial + 1 day (was 33/368 days) until Stripe's subscription event brings the real period end; the existing handler already treats `trialing` as active.
-- No release note yet: the trial is going to the web app first.
+- Web app: shows the trial on the Plus plans (separate repo).
+- Firestick: the Plus tab shows "5 days free" on the Monthly and Yearly cards, a "Start 5-day free trial" button, a step-1 line and a footer note; the "Finish payment on your phone" page shows "Free for 5 days", Due today "Free" and a trial billing note instead of Stripe's £0.00 first charge. `trialDays` is read from `GET /user/plus` and the checkout response (older backends: 0). Release note added.
 
-**Tests performed:** full backend suite against a local Postgres: 21 files, 249 tests pass, including a new test for trial offer, once-only rule and provisional access. `tsc --noEmit` clean. NOT tested against real Stripe.
+**Tests performed:** full backend suite against a local Postgres: 21 files, 249 tests pass, including a new test for trial offer, once-only rule and provisional access. `tsc --noEmit` clean. Firestick: `:app:compileDebugKotlin` succeeds and `PlusPriceTest`/`PlusPlansTest` pass (6 tests, including the new trial helpers); the screens were NOT run on a TV. NOT tested against real Stripe.
 
-**Issues discovered:** the web and Android apps do not yet mention the trial (the Stripe page does); the Stripe dashboard's own product text is separate.
+**Issues discovered:** Stripe's checkout `amount_total` is 0 during a trial, so the TV page would have shown £0.00; it now shows the trial instead. The Stripe dashboard's own product text is separate.
 
 **Issues fixed:** none.

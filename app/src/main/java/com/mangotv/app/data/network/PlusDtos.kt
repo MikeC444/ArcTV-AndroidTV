@@ -13,7 +13,9 @@ data class PlusStatusDto(
     /** True once Plus is paid; false while it is free for everyone (early access). */
     val paywall: Boolean = false,
     /** A monthly or yearly subscription that has been cancelled: Plus runs to [validUntil] and then ends. Absent from an older backend. */
-    val cancelAtPeriodEnd: Boolean = false
+    val cancelAtPeriodEnd: Boolean = false,
+    /** Free days a first monthly or yearly subscription starts with, when this account is offered them; 0 otherwise. Absent from an older backend. */
+    val trialDays: Int = 0
 )
 
 @Serializable
@@ -25,8 +27,10 @@ data class PlusCheckoutResponse(
     /** What the checkout will charge, in the currency's smallest unit (pence, cents). Absent from an older backend. */
     val amountTotal: Long? = null,
     /** Lower-case ISO currency code ("gbp"). Absent from an older backend. */
-    val currency: String? = null
+    val currency: String? = null,
+    /** Free days this checkout starts with (0: none). Absent from an older backend. */
+    val trialDays: Int = 0
 )
 
 /** A started checkout: the payment page to open (shown as a QR code) and, when the backend says, what it will charge. */
-data class PlusCheckoutLink(val url: String, val amountTotal: Long?, val currency: String?)
+data class PlusCheckoutLink(val url: String, val amountTotal: Long?, val currency: String?, val trialDays: Int = 0)

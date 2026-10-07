@@ -27,7 +27,7 @@ class PlusApiClient(private val baseUrl: String) {
             .post(body.toRequestBody(JSON_MEDIA_TYPE))
             .build()
         val response = json.decodeFromString(PlusCheckoutResponse.serializer(), execute(request))
-        PlusCheckoutLink(response.url, response.amountTotal, response.currency)
+        PlusCheckoutLink(response.url, response.amountTotal, response.currency, response.trialDays)
     }
 
     /** Cancels a monthly or yearly subscription at the end of the period already paid for (nothing is refunded); returns the new status. */

@@ -42,3 +42,17 @@ fun billingNote(planId: String): String = when (planId) {
     "yearly" -> "Renews yearly. Cancel any time."
     else -> "Pay once, keep Plus forever. No renewals."
 }
+
+/** Whether a plan starts with free days: only a monthly or yearly subscription, and only when the backend offers them. */
+fun hasTrial(planId: String, trialDays: Int): Boolean = trialDays > 0 && (planId == "monthly" || planId == "yearly")
+
+/** The plan card's button: "Start 5-day free trial" when free days are on offer, otherwise the usual wording. */
+fun planButtonLabel(planId: String, planLabel: String, trialDays: Int): String = when {
+    hasTrial(planId, trialDays) -> "Start $trialDays-day free trial"
+    planId == "lifetime" -> "Get Lifetime"
+    else -> "Choose $planLabel"
+}
+
+/** The note under a plan being paid for, when it starts with free days (the card is taken now, nothing is charged until they end). */
+fun trialBillingNote(planId: String, trialDays: Int): String =
+    "Your card is taken now but nothing is charged for $trialDays days. Then it renews ${if (planId == "yearly") "yearly" else "monthly"}; the price is shown on your phone. Cancel before then and you pay nothing."
