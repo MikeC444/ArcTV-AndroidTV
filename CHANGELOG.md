@@ -4823,3 +4823,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the same class of crash is documented in several existing comments (Home rows, Subtitles tab), so it is a known weak spot.
 
 **Issues fixed:** the Settings Right-key crash.
+
+## Post-Milestone-102 -- Black Arc TV logo screen held at cold start
+
+**Status:** Done in code; not run on a TV.
+
+**Context:** at a cold start the app's half-loaded screens showed faintly behind the logo while it loaded; the logo should stay up longer on an all-black screen, hiding the load.
+
+**Changes:** new `StartupSplash` (`ui/components/StartupSplash.kt`), drawn over the whole app by `MainActivity`: a fully black screen with only the Arc TV logo, held for 3 seconds and then faded out over 0.45 s. The app composes and loads behind it. Only a cold start gets it (a process flag), not a rotation or reopened screen. While it is up, the root swallows remote presses and the overlay swallows touches, so nothing reaches the app behind.
+
+**Tests performed:** `:app:compileDebugKotlin` and the unit tests pass. Not run on a TV: how it looks and whether 3 seconds is the right length are unverified (the hold is `STARTUP_SPLASH_HOLD_MS`).
+
+**Issues discovered:** the app had no splash of its own; the screenshot's logo was a fade over the live app.
+
+**Issues fixed:** none.
