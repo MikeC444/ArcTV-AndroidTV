@@ -53,7 +53,6 @@ class StatsScreenshotTest {
                 SettingsLayout(
                     selected = SettingsCategory.STATS, onSelect = {}, plusActive = true, onNavigate = {},
                     navFocusRequester = nav, paneContentFocusRequester = content, rowFocusRequesterFor = { FocusRequester() },
-                    footer = {},
                     pane = { _, sidebar -> StatsPanel(stats, false, content, sidebar, Modifier.fillMaxSize()) }
                 )
             }

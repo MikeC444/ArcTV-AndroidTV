@@ -15,7 +15,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 ## Unreleased
 
 - Play magnet links and .torrent files right inside Arc TV, with buffer and storage settings. Nothing extra to install.
-- Settings now shows your app version, with a Check for updates button.
+- Settings has a new Updates tab with your app version and a Check for updates button.
 - Surround sound now reaches all speakers in the VLC player, and the Speakers setting only filters sources.
 - New to Plus? Your first monthly or yearly subscription now starts with 5 free days.
 - Plus: Smart source picking plays the best source for you, skipping the list. Switch it in the new Plus settings tab.

@@ -37,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -85,14 +86,16 @@ internal enum class SettingsCategory(val icon: ImageVector, val title: String, v
     PLAYER(Icons.Filled.PlayCircle, "Player", "Choose your default video player"),
     SUBTITLES(Icons.Filled.Subtitles, "Subtitles", "Default on/off and preferred language"),
     AUDIO(Icons.Filled.SurroundSound, "Audio", "Surround sound and passthrough"),
-    SOUNDS(Icons.Filled.MusicNote, "Sounds", "Choose your app boot sound")
+    SOUNDS(Icons.Filled.MusicNote, "Sounds", "Choose your app boot sound"),
+    UPDATES(Icons.Filled.SystemUpdate, "Updates", "App version and update check")
 }
 
 /** The side navigation's groups, in the same order and with the same headings as the web app's Settings. */
 private val SettingsGroups: List<Pair<String, List<SettingsCategory>>> = listOf(
     "You" to listOf(SettingsCategory.ACCOUNT, SettingsCategory.PLUS, SettingsCategory.PLUS_SETTINGS, SettingsCategory.STATS),
     "Content" to listOf(SettingsCategory.ADDONS, SettingsCategory.HOME_ROWS, SettingsCategory.BLOCKED_GENRES),
-    "Playback & sound" to listOf(SettingsCategory.PLAYER, SettingsCategory.SUBTITLES, SettingsCategory.AUDIO, SettingsCategory.SOUNDS)
+    "Playback & sound" to listOf(SettingsCategory.PLAYER, SettingsCategory.SUBTITLES, SettingsCategory.AUDIO, SettingsCategory.SOUNDS),
+    "App" to listOf(SettingsCategory.UPDATES)
 )
 
 @Composable
@@ -113,6 +116,7 @@ fun SettingsScreen(
     val playerRowFocusRequester = remember { FocusRequester() }
     val plusRowFocusRequester = remember { FocusRequester() }
     val statsRowFocusRequester = remember { FocusRequester() }
+    val updatesRowFocusRequester = remember { FocusRequester() }
     val plusSettingsRowFocusRequester = remember { FocusRequester() }
     // Your stats is a Plus feature: without Plus its row stays in the list, locked and not clickable.
     val plusStatus by (LocalContext.current.applicationContext as com.mangotv.app.MangoTvApplication).container.plusRepository.status.collectAsStateWithLifecycle()
@@ -138,6 +142,7 @@ fun SettingsScreen(
         SettingsCategory.PLAYER -> playerRowFocusRequester
         SettingsCategory.PLUS -> plusRowFocusRequester
         SettingsCategory.STATS -> statsRowFocusRequester
+        SettingsCategory.UPDATES -> updatesRowFocusRequester
         SettingsCategory.PLUS_SETTINGS -> plusSettingsRowFocusRequester
     }
 
@@ -149,13 +154,13 @@ fun SettingsScreen(
         navFocusRequester = navFocusRequester,
         paneContentFocusRequester = paneContentFocusRequester,
         rowFocusRequesterFor = ::rowFocusRequesterFor,
-        footer = { UpdateCheckRow(viewModel = updateViewModel, focusRight = paneContentFocusRequester) },
         pane = { category, sidebarFocus ->
             SettingsDetailPane(
                 category = category,
                 navFocusRequester = navFocusRequester,
                 contentFocusRequester = paneContentFocusRequester,
                 sidebarFocusRequester = sidebarFocus,
+                updateViewModel = updateViewModel,
                 onSignedOut = onSignedOut,
                 onAddAddon = onAddAddon,
                 onOpenProfiles = { onNavigate(com.mangotv.app.navigation.MangoRoutes.PROFILES) }
@@ -177,7 +182,6 @@ internal fun SettingsLayout(
     navFocusRequester: FocusRequester,
     paneContentFocusRequester: FocusRequester,
     rowFocusRequesterFor: (SettingsCategory) -> FocusRequester,
-    footer: @Composable () -> Unit,
     pane: @Composable (SettingsCategory, FocusRequester) -> Unit
 ) {
     TolerantBringIntoView(slackDp = 16) {
@@ -238,9 +242,6 @@ internal fun SettingsLayout(
                         }
                     }
                   }
-                    // The app's version and the update check, pinned at the foot of the panel.
-                    Spacer(Modifier.height(10.dp))
-                    footer()
                 }
     
                 // The open category's settings, in a card that takes all the width left.
@@ -356,6 +357,7 @@ internal fun SettingsDetailPane(
     navFocusRequester: FocusRequester,
     contentFocusRequester: FocusRequester,
     sidebarFocusRequester: FocusRequester,
+    updateViewModel: com.mangotv.app.ui.update.UpdateViewModel,
     onSignedOut: () -> Unit,
     onAddAddon: () -> Unit,
     onOpenProfiles: () -> Unit
@@ -418,6 +420,11 @@ internal fun SettingsDetailPane(
                 sidebarFocusRequester = sidebarFocusRequester
             )
             SettingsCategory.PLUS_SETTINGS -> PlusFeatureSettingsContent(
+                contentFocusRequester = contentFocusRequester,
+                sidebarFocusRequester = sidebarFocusRequester
+            )
+            SettingsCategory.UPDATES -> UpdatesSettingsContent(
+                viewModel = updateViewModel,
                 contentFocusRequester = contentFocusRequester,
                 sidebarFocusRequester = sidebarFocusRequester
             )

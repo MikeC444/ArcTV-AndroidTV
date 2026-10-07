@@ -1,6 +1,7 @@
 package com.mangotv.app.ui.settings
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,40 +28,40 @@ import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.ArcWarn
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
-import com.mangotv.app.ui.theme.TextTertiary
 import com.mangotv.app.ui.update.ManualUpdateCheck
 import com.mangotv.app.ui.update.UpdateViewModel
 
-/** The foot of Settings' side panel: the app's version in small text, a "Check for updates" button and what the last check found. */
+/** Settings > Updates: the app's version, a "Check for updates" button and what the last check found. */
 @Composable
-fun UpdateCheckRow(viewModel: UpdateViewModel, focusRight: FocusRequester?) {
+fun ColumnScope.UpdatesSettingsContent(viewModel: UpdateViewModel, contentFocusRequester: FocusRequester, sidebarFocusRequester: FocusRequester) {
     val check by viewModel.manualCheck.collectAsStateWithLifecycle()
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(text = "Arc TV ${BuildConfig.VERSION_NAME}", color = TextTertiary, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 10.dp))
-        Spacer(Modifier.height(6.dp))
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)) {
+        Text(text = "Arc TV ${BuildConfig.VERSION_NAME}", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(12.dp))
         TvFocusSurface(
             onClick = viewModel::checkNow,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             focusedScale = 1.02f,
             borderColor = TextPrimary,
-            focusRight = focusRight
+            focusRequester = contentFocusRequester,
+            focusLeft = sidebarFocusRequester
         ) {
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(imageVector = Icons.Filled.SystemUpdate, contentDescription = null, tint = ArcAccent, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(10.dp))
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(imageVector = Icons.Filled.SystemUpdate, contentDescription = null, tint = ArcAccent, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(12.dp))
                 Text(text = "Check for updates", color = TextPrimary, style = MaterialTheme.typography.titleSmall)
             }
         }
         val (text, color) = when (val c = check) {
             ManualUpdateCheck.Idle -> null to TextSecondary
-            ManualUpdateCheck.Checking -> "Checking\u2026" to TextSecondary
+            ManualUpdateCheck.Checking -> "Checking…" to TextSecondary
             ManualUpdateCheck.UpToDate -> "You're on the latest version." to ArcAccent
             is ManualUpdateCheck.Available -> "${c.tag} is available." to ArcAccent
             ManualUpdateCheck.Failed -> "Couldn't check. Check your connection." to ArcWarn
         }
         if (text != null) {
-            Text(text = text, color = color, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 10.dp, top = 6.dp))
+            Text(text = text, color = color, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 4.dp, top = 10.dp))
         }
     }
 }

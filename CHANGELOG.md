@@ -4725,3 +4725,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** the page nudge on focus scale-up in Settings and on the detail page.
+
+## Post-Milestone-95 -- Updates is its own Settings tab
+
+**Status:** Done in code; not run on a TV.
+
+**Context:** the version and "Check for updates" button sat at the foot of Settings' side panel, so scrolling down in any tab ended with the cursor jumping onto it.
+
+**Changes:** removed the side panel footer (`SettingsLayout` no longer takes one); new `UPDATES` category in an "App" group, whose pane (`UpdatesSettingsContent`) shows the version, the Check for updates button and the result.
+
+**Tests performed:** `:app:compileDebugKotlin`, the unit-test sources and the unit tests pass; the Settings page was drawn on the desktop to check the side panel. Not run on a TV, so the focus behaviour while scrolling is unverified on hardware.
+
+**Issues discovered:** none.
+
+**Issues fixed:** focus jumping to Check for updates.
