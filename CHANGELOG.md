@@ -4837,3 +4837,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the app had no splash of its own; the screenshot's logo was a fade over the live app.
 
 **Issues fixed:** none.
+
+## Post-Milestone-103 -- Cancel subscription failures now say why in the server log
+
+**Status:** Done in code; not deployed. The cause of the failure itself is not yet known.
+
+**Context:** cancelling a subscription shows "Couldn't cancel your subscription" on the Firestick and web. The app only gets a generic server error back.
+
+**Changes:** when Stripe refuses the cancel request, the server error now carries Stripe's error type, code and message (for example a key without permission to update subscriptions, a subscription id from the other test/live mode, or one already ended). The key is never logged. `POST /user/plus/cancel` is otherwise unchanged.
+
+**Tests performed:** `tsc --noEmit` clean. The backend test suite was not run (it needs a local Postgres); no new test was added.
+
+**Issues discovered:** the failing call is Stripe's update-subscription request; the HTTP status alone cannot tell the likely causes apart.
+
+**Issues fixed:** none yet; the next occurrence will log the reason.
