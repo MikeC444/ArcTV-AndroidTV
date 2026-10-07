@@ -71,7 +71,7 @@ private data class IntroPoint(val icon: ImageVector, val title: String, val deta
 
 private val Points = listOf(
     IntroPoint(Icons.Filled.Link, "Works with your addons", "Torrent sources from your addons now play, with nothing else to install"),
-    IntroPoint(Icons.Filled.Bolt, "Plays while it downloads", "Only what you're watching is fetched, and seeking just works"),
+    IntroPoint(Icons.Filled.Bolt, "Plays while it downloads", "Only what you're watching is fetched"),
     IntroPoint(Icons.Filled.Tune, "Add your own too", "Tap + Torrent on Select a Source for a magnet link or .torrent file. Tune it in Settings \u2192 Player")
 )
 
