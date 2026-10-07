@@ -36,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -75,6 +76,7 @@ import com.mangotv.app.ui.theme.TextSecondary
 internal enum class SettingsCategory(val icon: ImageVector, val title: String, val subtitle: String) {
     ACCOUNT(Icons.Filled.AccountCircle, "Account", "Manage your Arc TV account"),
     PLUS(Icons.Filled.WorkspacePremium, "Arc TV Plus", "Extra features for supporters"),
+    PLUS_SETTINGS(Icons.Filled.Tune, "Plus settings", "Switches for your Plus features"),
     STATS(Icons.Filled.BarChart, "Your stats", "How much you watch, at a glance"),
     ADDONS(Icons.Filled.Extension, "Addons", "Manage installed content providers"),
     HOME_ROWS(Icons.Filled.GridView, "Home Rows", "Choose which rows show up on Home"),
@@ -87,7 +89,7 @@ internal enum class SettingsCategory(val icon: ImageVector, val title: String, v
 
 /** The side navigation's groups, in the same order and with the same headings as the web app's Settings. */
 private val SettingsGroups: List<Pair<String, List<SettingsCategory>>> = listOf(
-    "You" to listOf(SettingsCategory.ACCOUNT, SettingsCategory.PLUS, SettingsCategory.STATS),
+    "You" to listOf(SettingsCategory.ACCOUNT, SettingsCategory.PLUS, SettingsCategory.PLUS_SETTINGS, SettingsCategory.STATS),
     "Content" to listOf(SettingsCategory.ADDONS, SettingsCategory.HOME_ROWS, SettingsCategory.BLOCKED_GENRES),
     "Playback & sound" to listOf(SettingsCategory.PLAYER, SettingsCategory.SUBTITLES, SettingsCategory.AUDIO, SettingsCategory.SOUNDS)
 )
@@ -110,6 +112,7 @@ fun SettingsScreen(
     val playerRowFocusRequester = remember { FocusRequester() }
     val plusRowFocusRequester = remember { FocusRequester() }
     val statsRowFocusRequester = remember { FocusRequester() }
+    val plusSettingsRowFocusRequester = remember { FocusRequester() }
     // Your stats is a Plus feature: without Plus its row stays in the list, locked and not clickable.
     val plusStatus by (LocalContext.current.applicationContext as com.mangotv.app.MangoTvApplication).container.plusRepository.status.collectAsStateWithLifecycle()
 
@@ -134,6 +137,7 @@ fun SettingsScreen(
         SettingsCategory.PLAYER -> playerRowFocusRequester
         SettingsCategory.PLUS -> plusRowFocusRequester
         SettingsCategory.STATS -> statsRowFocusRequester
+        SettingsCategory.PLUS_SETTINGS -> plusSettingsRowFocusRequester
     }
 
     SettingsLayout(
@@ -220,7 +224,7 @@ internal fun SettingsLayout(
                         SettingsSidebarRow(
                             category = category,
                             selected = category == selected,
-                            locked = category == SettingsCategory.STATS && !plusActive,
+                            locked = (category == SettingsCategory.STATS || category == SettingsCategory.PLUS_SETTINGS) && !plusActive,
                             onClick = { onSelect(category) },
                             focusRequester = rowFocusRequesterFor(category),
                             focusUp = if (groupIndex == 0 && index == 0) navFocusRequester else null,
@@ -407,6 +411,10 @@ internal fun SettingsDetailPane(
             )
             SettingsCategory.AUDIO -> AudioSettingsContent(
                 navFocusRequester = navFocusRequester,
+                contentFocusRequester = contentFocusRequester,
+                sidebarFocusRequester = sidebarFocusRequester
+            )
+            SettingsCategory.PLUS_SETTINGS -> PlusFeatureSettingsContent(
                 contentFocusRequester = contentFocusRequester,
                 sidebarFocusRequester = sidebarFocusRequester
             )
