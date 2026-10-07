@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.mangotv.app.BuildConfig
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mangotv.app.MangoTvApplication
 import com.mangotv.app.data.torrent.torrentIntroDue
 import com.mangotv.app.ui.components.ArcLogo
@@ -76,20 +76,26 @@ private val Points = listOf(
 )
 
 /**
- * A one-off celebration, on Home, the first time the app is opened after an update that brought built-in torrent playback. Never for a fresh
- * install, never twice. [onOpenChanged] tells the caller while it is up so other pop-ups can wait. It is a real dialog window: the remote stays
- * inside it and BACK closes it.
+ * A one-off celebration on Home for people who already had an account when this version arrived: shown until they click it away once, then
+ * never again for that user (kept per account on this device, surviving sign-out and in). Guests and accounts that sign in later never see it.
+ * [onOpenChanged] tells the caller while it is up so other pop-ups can wait. It is a real dialog window: the remote stays inside it and BACK
+ * closes it (which counts as seen).
  */
 @Composable
 fun TorrentIntroHost(onOpenChanged: (Boolean) -> Unit = {}) {
     val context = LocalContext.current
-    val store = remember { (context.applicationContext as MangoTvApplication).container.torrentIntroStore }
+    val container = remember { (context.applicationContext as MangoTvApplication).container }
+    val store = container.torrentIntroStore
+    val session by container.authRepository.session.collectAsStateWithLifecycle()
+    val sessionLoaded by container.authRepository.sessionLoaded.collectAsStateWithLifecycle()
     var open by remember { mutableStateOf(false) }
-    // TESTING: debug builds show it on every launch (once per launch) so it can be looked at; release builds follow the real rule.
-    val due = if (BuildConfig.DEBUG) !store.shownThisSession else torrentIntroDue(store.seen, store.updated(), store.shownThisSession)
+    val userId = session?.user?.id
+    // Not decided until the stored session has been read, so a signed-in user is never taken for a guest.
+    if (sessionLoaded) store.ensureBaseline(userId)
+    val due = sessionLoaded && torrentIntroDue(store.isEligible(userId), store.hasSeen(userId), store.shownThisSession)
 
     // Leaving Home before the delay is up cancels this, so it is only used up once it has actually been on screen.
-    LaunchedEffect(due) {
+    LaunchedEffect(due, userId) {
         if (due) {
             delay(SHOW_AFTER_MS)
             store.markShown()
@@ -99,6 +105,7 @@ fun TorrentIntroHost(onOpenChanged: (Boolean) -> Unit = {}) {
     }
     if (open) {
         TorrentIntroDialog(onClose = {
+            userId?.let { store.markSeen(it) }
             open = false
             onOpenChanged(false)
         })

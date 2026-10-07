@@ -1,35 +1,47 @@
 package com.mangotv.app.data.torrent.platform
 
 import android.content.Context
-import com.mangotv.app.data.torrent.isUpdatedInstall
 
-/** Remembers, on this device, that the "Torrents are here" pop-up has been dealt with. */
+/**
+ * Remembers, on this device, who gets the "Addons now support torrents" pop-up and who has clicked it away. The app has no account-creation
+ * date to compare, so "already has an account" means: signed in the first time this version was opened. That user (and only that one) is
+ * eligible, a guest or an account that signs in later is not, and once they click it away it is never shown to them again, even after signing
+ * out and back in.
+ */
 class TorrentIntroStore(context: Context) {
-    private val appContext = context.applicationContext
-    private val prefs = appContext.getSharedPreferences("arctv_intros", Context.MODE_PRIVATE)
+    private val prefs = context.applicationContext.getSharedPreferences("arctv_intros", Context.MODE_PRIVATE)
 
     @Volatile var shownThisSession = false
         private set
 
-    init {
-        // A fresh install never sees it (nothing changed for them), and a later update must not show it either.
-        if (!prefs.contains(KEY) && !updated()) prefs.edit().putBoolean(KEY, true).apply()
+    /** Call once the stored session has been read. The first call ever fixes who was already signed in; later calls change nothing. */
+    @Synchronized
+    fun ensureBaseline(signedInUserId: String?) {
+        if (prefs.getBoolean(BASELINE_DONE, false)) return
+        prefs.edit()
+            .putBoolean(BASELINE_DONE, true)
+            .putStringSet(ELIGIBLE, setOfNotNull(signedInUserId))
+            .apply()
     }
 
-    val seen: Boolean get() = prefs.getBoolean(KEY, false)
+    fun isEligible(userId: String?): Boolean = userId != null && prefs.getStringSet(ELIGIBLE, emptySet())?.contains(userId) == true
 
-    fun updated(): Boolean = try {
-        val info = appContext.packageManager.getPackageInfo(appContext.packageName, 0)
-        isUpdatedInstall(info.firstInstallTime, info.lastUpdateTime)
-    } catch (_: Exception) {
-        false
-    }
+    fun hasSeen(userId: String?): Boolean = userId != null && prefs.getStringSet(SEEN, emptySet())?.contains(userId) == true
 
-    /** Called when the pop-up goes on screen: whatever the person does with it, it is not shown again. */
+    /** It is on screen: not again this launch, even if it is not clicked away. */
     fun markShown() {
         shownThisSession = true
-        prefs.edit().putBoolean(KEY, true).apply()
     }
 
-    private companion object { const val KEY = "torrent_intro_seen" }
+    /** The person clicked Got it (or pressed Back): never again for this user. */
+    @Synchronized
+    fun markSeen(userId: String) {
+        prefs.edit().putStringSet(SEEN, prefs.getStringSet(SEEN, emptySet()).orEmpty() + userId).apply()
+    }
+
+    private companion object {
+        const val BASELINE_DONE = "torrent_intro_baseline_done"
+        const val ELIGIBLE = "torrent_intro_eligible_users"
+        const val SEEN = "torrent_intro_seen_users"
+    }
 }

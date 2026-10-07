@@ -4635,6 +4635,6 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Follow-up:** a magnet link with no trackers is given five public UDP trackers (`DEFAULT_TRACKERS`) so peers are found quickly; links that list their own are untouched. The loopback server now logs each request (tag ArcTorrent).
 
-**Follow-up 2:** one-off "Torrents are here" pop-up on Home (`TorrentIntroHost`, "Addons now support torrents"), shown once, the first launch after an update (never on a fresh install; the Plus invitation waits while it is up).
+**Follow-up 2:** one-off "Addons now support torrents" pop-up on Home (`TorrentIntroHost`), for accounts that were already signed in when this version was first opened on the device (there is no account-creation date to compare): shown until that user clicks it away once, never again for them, surviving sign-out. Guests and accounts that sign in later never see it. The Plus invitation waits while it is up.
 
 **Follow-up 3:** the "Waiting for the torrent" note over the picture now shows only while the player is itself frozen or buffering (`TorrentSourceHost(playerBuffering)`; VLC reports it through `onBufferingChanged`), not whenever the engine is merely fetching ahead. Compiles; not tried on a device.

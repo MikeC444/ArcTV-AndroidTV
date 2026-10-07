@@ -1,11 +1,8 @@
 package com.mangotv.app.data.torrent
 
-/** Installing over a running copy (an update) leaves the last-update time later than the first-install time; a fresh install has them equal. */
-fun isUpdatedInstall(firstInstallTimeMs: Long, lastUpdateTimeMs: Long): Boolean = lastUpdateTimeMs - firstInstallTimeMs > 60_000L
-
 /**
- * Whether the one-off "Torrents are here" pop-up is due: only for someone who updated (not a fresh install, who has nothing to compare it to),
- * only once ([alreadySeen] is recorded the first time it is on screen, or at once on a fresh install), and once per launch.
+ * The one-off "Addons now support torrents" pop-up is for accounts that already existed when this version was first opened on the device
+ * ([eligible]); it is due until that user has clicked it away once ([alreadySeen]), and at most once per launch.
  */
-fun torrentIntroDue(alreadySeen: Boolean, updatedInstall: Boolean, shownThisSession: Boolean): Boolean =
-    !alreadySeen && updatedInstall && !shownThisSession
+fun torrentIntroDue(eligible: Boolean, alreadySeen: Boolean, shownThisSession: Boolean): Boolean =
+    eligible && !alreadySeen && !shownThisSession
