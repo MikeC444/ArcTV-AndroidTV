@@ -62,6 +62,8 @@ class LoopbackHttpServer(
         synchronized(clients) { clients.toList() }.forEach { closeQuietly(it) }
         clients.clear()
         pool.shutdownNow()
+        // Let in-flight request threads finish before the caller tears the torrent session down underneath them.
+        try { pool.awaitTermination(2, java.util.concurrent.TimeUnit.SECONDS) } catch (_: InterruptedException) { Thread.currentThread().interrupt() }
     }
 
     private fun handle(socket: Socket) {

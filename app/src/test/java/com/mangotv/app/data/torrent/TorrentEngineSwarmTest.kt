@@ -47,6 +47,9 @@ class TorrentEngineSwarmTest {
         files["pack/Show.S01E09.mkv"] = bytes(24_000_000)
         files["pack/Sample/sample.mkv"] = bytes(300_000)
         files["pack/readme.txt"] = "hello".toByteArray()
+        files["pack/Show.S01E02.en.srt"] = "1\n00:00:01,000 --> 00:00:02,000\nHello there\n".repeat(200).toByteArray()
+        files["pack/Subs/Show.S01E02/3_Spanish.srt"] = "1\n00:00:01,000 --> 00:00:02,000\nHola\n".repeat(100).toByteArray()
+        files["pack/Show.S01E01.en.srt"] = "1\n00:00:01,000 --> 00:00:02,000\nWrong episode\n".toByteArray()
         for ((path, data) in files) File(work, path).apply { parentFile.mkdirs() }.writeBytes(data)
         try {
             torrentBytes = TorrentBuilder().path(File(work, "pack")).pieceSize(256 * 1024).generate().entry().bencode()
@@ -133,7 +136,7 @@ class TorrentEngineSwarmTest {
 
         // Only the chosen file's data was ever fetched.
         val onDisk = File(work, "engine-0").walkTopDown().filter { it.isFile }.map { it.name }.toSet()
-        assertTrue("unexpected files: $onDisk", onDisk.all { it == "Show.S01E02.mkv" })
+        assertTrue("unexpected files: $onDisk", onDisk.all { it == "Show.S01E02.mkv" || it == "Show.S01E02.en.srt" || it == "3_Spanish.srt" })
 
         stream.close()
         withTimeout(20_000) { stream.state.first { it is TorrentStreamState.Closed } }
@@ -143,6 +146,20 @@ class TorrentEngineSwarmTest {
         val end = System.currentTimeMillis() + 15_000
         while (e.isRunning && System.currentTimeMillis() < end) Thread.sleep(100)
         assertFalse("engine should stop after the last stream closes", e.isRunning)
+    }
+
+    @Test fun servesTheEpisodesSubtitleFilesBesideTheVideo() = runBlocking {
+        val stream = engine().open(TorrentRequest(magnet(), null, FileHint(season = 1, episode = 2)), fast())
+        val ready = playing(stream)
+        assertEquals(listOf("English", "Spanish"), ready.subtitles.map { it.label })
+        assertEquals(listOf("en", "es"), ready.subtitles.map { it.language })
+        assertTrue(ready.subtitles.all { it.mimeType == "application/x-subrip" && it.url.startsWith("http://127.0.0.1:") })
+        assertArrayEquals(files.getValue("pack/Show.S01E02.en.srt"), request(ready.subtitles[0].url).third)
+        assertArrayEquals(files.getValue("pack/Subs/Show.S01E02/3_Spanish.srt"), request(ready.subtitles[1].url).third)
+        assertEquals(206, request(ready.subtitles[0].url, "bytes=0-9").first)
+        // The video itself is unaffected.
+        assertArrayEquals(files.getValue("pack/Show.S01E02.mkv").copyOfRange(0, 1000), request(ready.url, "bytes=0-999").third)
+        stream.close()
     }
 
     @Test fun streamsFromATorrentFile() = runBlocking {

@@ -50,11 +50,20 @@ data class TorrentStats(
     val stalled: Boolean = false
 )
 
+/** A subtitle file from the torrent, served by the local server beside the video. */
+data class TorrentSubtitle(val url: String, val label: String, val language: String?, val mimeType: String)
+
 sealed interface TorrentStreamState {
     data object Starting : TorrentStreamState
     data class FetchingMetadata(val peers: Int, val elapsedMs: Long) : TorrentStreamState
     data class Buffering(val bufferedBytes: Long, val targetBytes: Long, val fileName: String, val stats: TorrentStats) : TorrentStreamState
-    data class Playing(val url: String, val fileName: String, val fileSize: Long, val stats: TorrentStats) : TorrentStreamState
+    data class Playing(
+        val url: String,
+        val fileName: String,
+        val fileSize: Long,
+        val stats: TorrentStats,
+        val subtitles: List<TorrentSubtitle> = emptyList()
+    ) : TorrentStreamState
     data class Failed(val error: TorrentStreamException) : TorrentStreamState
     data object Closed : TorrentStreamState
 }

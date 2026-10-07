@@ -63,8 +63,9 @@ class TorrentEngine(
     private var server: LoopbackHttpServer? = null
     private var active = 0
     private var stopJob: Job? = null
+    private var sleeping = false
     private val byHash = ConcurrentHashMap<String, StreamSession>()
-    private val byPath = ConcurrentHashMap<String, StreamSession>()
+    private val byPath = ConcurrentHashMap<String, RangedContent>()
 
     private val alertListener = object : AlertListener {
         override fun types(): IntArray = intArrayOf(
@@ -95,17 +96,24 @@ class TorrentEngine(
     }
 
     /** True while the native session (and with it every connection it holds) exists. */
-    val isRunning: Boolean get() = synchronized(lock) { manager != null }
+    val isRunning: Boolean get() = synchronized(lock) { manager != null && !sleeping }
 
     /** Closes everything now (app shutdown); streams still open end as closed. */
     fun shutdown() {
         byHash.values.toList().forEach { it.closeBlocking() }
-        synchronized(lock) { stopNow() }
+        synchronized(lock) { destroySession() }
     }
 
     private fun acquire(config: TorrentStreamConfig): Pair<SessionManager, LoopbackHttpServer> = synchronized(lock) {
         stopJob?.cancel()
         stopJob = null
+        if (manager != null && sleeping) {
+            // Wake the session put to sleep after the last stream.
+            val woken = manager!!
+            woken.listenInterfaces(DEFAULT_LISTEN_INTERFACES)
+            woken.startDht()
+            sleeping = false
+        }
         if (manager == null) {
             deleteTorrentFolder(rootDir)
             rootDir.mkdirs()
@@ -136,7 +144,7 @@ class TorrentEngine(
                 )
             }
         }
-        if (server == null) server = LoopbackHttpServer({ path -> byPath[path]?.content }, log)
+        if (server == null) server = LoopbackHttpServer({ path -> byPath[path] }, log)
         active++
         manager!! to server!!
     }
@@ -153,8 +161,26 @@ class TorrentEngine(
         }
     }
 
+    /**
+     * Nothing is streaming: the server is closed, the temporary data deleted, and the torrent session put to sleep: DHT stopped and no
+     * listening address but loopback, so no peer connection and no network traffic remains. The session object itself is kept for the next
+     * stream: destroying it ([SessionManager.stop]) is slow and has crashed the process in the desktop tests, so it is only done by [shutdown].
+     */
     private fun stopNow() {
         stopJob = null
+        server?.close()
+        server = null
+        manager?.let {
+            try {
+                it.stopDht()
+                it.listenInterfaces(IDLE_LISTEN_INTERFACES)
+                sleeping = true
+            } catch (e: Exception) { log("sleep failed: ${e.message}") }
+        }
+        deleteTorrentFolder(rootDir)
+    }
+
+    private fun destroySession() {
         server?.close()
         server = null
         manager?.let {
@@ -162,6 +188,7 @@ class TorrentEngine(
             try { it.stop() } catch (e: Exception) { log("stop failed: ${e.message}") }
         }
         manager = null
+        sleeping = false
         deleteTorrentFolder(rootDir)
     }
 
@@ -195,7 +222,6 @@ class TorrentEngine(
         @Volatile private var layout: PieceLayout? = null
         @Volatile private var window: ReadAheadWindow? = null
         @Volatile private var file: TorrentFileEntry? = null
-        @Volatile private var filePath: File? = null
         @Volatile private var generation = 0
         @Volatile private var trimming = false
         @Volatile private var paused = false
@@ -211,8 +237,16 @@ class TorrentEngine(
         private val monitor = Object()
         private val activeReads = java.util.concurrent.atomic.AtomicInteger()
 
-        val content: RangedContent? get() = if (state.value is TorrentStreamState.Playing) contentImpl else null
-        private var contentImpl: RangedContent? = null
+        private val ownedPaths = java.util.concurrent.CopyOnWriteArrayList<String>()
+
+        /** A subtitle file in the torrent, served beside the video. */
+        private inner class SubFile(val meta: TorrentSubtitleFile, val view: FileView)
+
+        /** One file of the torrent as the HTTP side reads it: where it sits in the piece grid and where it lives on disk. */
+        private inner class FileView(val layout: PieceLayout, val relativePath: String, val isVideo: Boolean)
+
+        @Volatile private var subs: List<SubFile> = emptyList()
+        @Volatile private var video: FileView? = null
 
         fun start() {
             job = scope.launch {
@@ -263,7 +297,7 @@ class TorrentEngine(
                 if (hash != null) waitUntilGone(mgr, hash, 5_000)
             }
             if (hash != null) byHash.remove(hash, this)
-            byPath.values.remove(this)
+            ownedPaths.forEach { byPath.remove(it) }
             withContext(Dispatchers.IO) { deleteTorrentFolder(dir) }
             handle = null
             _state.value = TorrentStreamState.Closed
@@ -343,7 +377,8 @@ class TorrentEngine(
             val peers = request.peers + (magnet?.peers ?: emptyList())
             if (torrent != null) {
                 val first = chooseFile(torrent) // fails early, before anything is added, when there is nothing to play
-                val priorities = Array(torrent.numFiles()) { if (it == first.index) Priority.DEFAULT else Priority.IGNORE }
+                val wantedFiles = wantedFileIndexes(torrent, first)
+                val priorities = Array(torrent.numFiles()) { if (it in wantedFiles) Priority.DEFAULT else Priority.IGNORE }
                 val endpoints = request.peers.mapNotNull { toEndpoint(it) }
                 mgr.download(torrent, dir, null, priorities, endpoints, flags)
             } else {
@@ -394,7 +429,11 @@ class TorrentEngine(
             val files = ti.files()
             val lay = PieceLayout(ti.pieceLength().toLong(), ti.totalSize(), files.fileOffset(selected.index), selected.size)
             layout = lay
-            filePath = File(dir, files.filePath(selected.index))
+            video = FileView(lay, files.filePath(selected.index), true)
+            // Subtitle files that belong to this video (small, so always wanted) are served beside it.
+            subs = selectSubtitleFiles(entriesOf(ti), selected).map { sub ->
+                SubFile(sub, FileView(PieceLayout(ti.pieceLength().toLong(), ti.totalSize(), files.fileOffset(sub.file.index), sub.file.size), files.filePath(sub.file.index), false))
+            }
 
             // Storage: decided before any data is requested.
             when (val plan = planStorage(selected.size, config, dir.usableSpace)) {
@@ -407,7 +446,8 @@ class TorrentEngine(
 
             val win = ReadAheadWindow(lay, config.readAheadBytes)
             window = win
-            h.prioritizeFiles(Array(ti.numFiles()) { if (it == selected.index) Priority.DEFAULT else Priority.IGNORE })
+            val wantedFiles = wantedFileIndexes(ti, selected)
+            h.prioritizeFiles(Array(ti.numFiles()) { if (it in wantedFiles) Priority.DEFAULT else Priority.IGNORE })
             applyWindow(win.start)
             h.unsetFlags(TorrentFlags.AUTO_MANAGED)
             h.resume()
@@ -437,17 +477,30 @@ class TorrentEngine(
             }
 
             val name = selected.name
-            contentImpl = object : RangedContent {
+            val base = "http://127.0.0.1:${srv.port}"
+            fun register(path: String, content: RangedContent): String {
+                byPath[path] = content
+                ownedPaths += path
+                return "$base$path"
+            }
+            fun encoded(n: String) = URLEncoder.encode(n, "UTF-8").replace("+", "%20")
+            val videoView = video!!
+            val url = register("/$token/${encoded(name)}", object : RangedContent {
                 override val length: Long = selected.size
                 override val mimeType: String = mimeTypeFor(name)
-                override fun open(start: Long, endInclusive: Long): InputStream = PieceInputStream(start, endInclusive)
+                override fun open(start: Long, endInclusive: Long): InputStream = PieceInputStream(videoView, start, endInclusive)
+            })
+            val subtitles = subs.mapIndexed { i, sub ->
+                val subUrl = register("/$token/sub/$i/${encoded(sub.meta.file.name)}", object : RangedContent {
+                    override val length: Long = sub.meta.file.size
+                    override val mimeType: String = sub.meta.mimeType
+                    override fun open(start: Long, endInclusive: Long): InputStream = PieceInputStream(sub.view, start, endInclusive)
+                })
+                TorrentSubtitle(subUrl, sub.meta.label, sub.meta.language, sub.meta.mimeType)
             }
-            val path = "/$token/${URLEncoder.encode(name, "UTF-8").replace("+", "%20")}"
-            byPath[path] = this
             lastReadAt = System.currentTimeMillis()
-            val url = "http://127.0.0.1:${srv.port}$path"
-            _state.value = TorrentStreamState.Playing(url, name, selected.size, stats(h, lay))
-            log("ready: $name, ${selected.size} bytes, pieces ${lay.firstPiece}..${lay.lastPiece}")
+            _state.value = TorrentStreamState.Playing(url, name, selected.size, stats(h, lay), subtitles)
+            log("ready: $name, ${selected.size} bytes, pieces ${lay.firstPiece}..${lay.lastPiece}, ${subtitles.size} subtitle files")
 
             monitorLoop(mgr, lay)
         }
@@ -458,9 +511,17 @@ class TorrentEngine(
             return mgr.find(sha) ?: throw TorrentStreamException(TorrentErrorKind.FAILED, "Couldn't start this torrent.")
         }
 
-        private fun chooseFile(ti: TorrentInfo): TorrentFileEntry {
+        private fun entriesOf(ti: TorrentInfo): List<TorrentFileEntry> {
             val files = ti.files()
-            val entries = (0 until ti.numFiles()).map { TorrentFileEntry(it, files.filePath(it).replace('\\', '/'), files.fileSize(it)) }
+            return (0 until ti.numFiles()).map { TorrentFileEntry(it, files.filePath(it).replace('\\', '/'), files.fileSize(it)) }
+        }
+
+        /** The chosen video and the subtitle files that go with it: the only files of the torrent that are wanted. */
+        private fun wantedFileIndexes(ti: TorrentInfo, selected: TorrentFileEntry): Set<Int> =
+            setOf(selected.index) + selectSubtitleFiles(entriesOf(ti), selected).map { it.file.index }
+
+        private fun chooseFile(ti: TorrentInfo): TorrentFileEntry {
+            val entries = entriesOf(ti)
             return when (val sel = selectVideoFile(entries, request.hint)) {
                 is FileSelection.Found -> sel.file
                 FileSelection.NoVideo -> throw TorrentStreamException(
@@ -558,6 +619,8 @@ class TorrentEngine(
             for (p in win.pieces) wanted[p] = Priority.TOP_PRIORITY
             val tail = maxOf(1, (TAIL_BYTES / lay.pieceLength).toInt())
             for (p in maxOf(lay.firstPiece, lay.lastPiece - tail + 1)..lay.lastPiece) if (wanted[p] == Priority.IGNORE) wanted[p] = Priority.DEFAULT
+            // Subtitle files are tiny: always wanted, so they are there the moment a player asks for them.
+            for (sub in subs) for (p in sub.view.layout.firstPiece..sub.view.layout.lastPiece) wanted[p] = Priority.TOP_PRIORITY
             val previous = applied
             try {
                 if (previous == null) h.prioritizePieces(wanted)
@@ -623,7 +686,8 @@ class TorrentEngine(
                 dir.mkdirs()
                 val fresh = CompletableDeferred<Unit>()
                 pendingAdd = fresh
-                val priorities = Array(ti.numFiles()) { if (it == sel.index) Priority.DEFAULT else Priority.IGNORE }
+                val wantedFiles = wantedFileIndexes(ti, sel)
+                val priorities = Array(ti.numFiles()) { if (it in wantedFiles) Priority.DEFAULT else Priority.IGNORE }
                 mgr.download(ti, dir, null, priorities, knownPeers.mapNotNull { toEndpoint(it) }, torrent_flags_t())
                 val h = awaitAdded(mgr, Sha1Hash.parseHex(hash))
                 if (trackerUrls.isNotEmpty()) try { h.replaceTrackers(trackerUrls.map { AnnounceEntry(it) }) } catch (e: Exception) { log("trackers: ${e.message}") }
@@ -632,7 +696,7 @@ class TorrentEngine(
                     applied = null
                     generation++
                 }
-                h.prioritizeFiles(Array(ti.numFiles()) { if (it == sel.index) Priority.DEFAULT else Priority.IGNORE })
+                h.prioritizeFiles(Array(ti.numFiles()) { if (it in wantedFiles) Priority.DEFAULT else Priority.IGNORE })
                 applyWindow(layout!!.pieceOf(position))
                 h.unsetFlags(TorrentFlags.AUTO_MANAGED)
                 h.resume()
@@ -649,7 +713,7 @@ class TorrentEngine(
         // ---- reading ----
 
         /** Blocks until [piece] has arrived (and passed its hash check, which is what `havePiece` means). */
-        private fun awaitPiece(piece: Int) {
+        private fun awaitPiece(piece: Int, isVideo: Boolean = true) {
             var counted = false
             val waitStart = System.currentTimeMillis()
             try {
@@ -664,6 +728,8 @@ class TorrentEngine(
                         demand(piece)
                     }
                     if (!counted) { counted = true; waiters.incrementAndGet() }
+                    // A subtitle that cannot arrive gives up on its own after a while; it must never end the video's stream.
+                    if (!isVideo && System.currentTimeMillis() - waitStart > SUBTITLE_WAIT_MS) throw IOException("The subtitle file didn't arrive.")
                     if (System.currentTimeMillis() - maxOf(lastProgressAt, waitStart) > config.stallTimeoutMs && !trimming) {
                         val e = TorrentStreamException(
                             TorrentErrorKind.STALLED,
@@ -679,9 +745,9 @@ class TorrentEngine(
             }
         }
 
-        private inner class PieceInputStream(start: Long, private val endInclusive: Long) : InputStream() {
+        private inner class PieceInputStream(private val view: FileView, start: Long, private val endInclusive: Long) : InputStream() {
             private var position = start
-            private val readerId = readerIds.incrementAndGet().also { primaryReader = it }
+            private val readerId = readerIds.incrementAndGet().also { if (view.isVideo) primaryReader = it }
             private var raf: RandomAccessFile? = null
             private var rafGeneration = -1
             private var closedStream = false
@@ -694,12 +760,12 @@ class TorrentEngine(
             override fun read(buffer: ByteArray, off: Int, len: Int): Int {
                 if (closedStream) throw IOException("Stream closed.")
                 if (position > endInclusive) return -1
-                val lay = layout ?: throw IOException("Not ready.")
+                val lay = view.layout
                 val want = minOf(len.toLong(), endInclusive - position + 1)
-                noteRead(readerId, position)
+                if (view.isVideo) noteRead(readerId, position) else lastReadAt = System.currentTimeMillis()
                 while (true) {
                     val first = lay.pieceOf(position)
-                    awaitPiece(first)
+                    awaitPiece(first, view.isVideo)
                     // From here to the end of the disk read the storage must not be trimmed under us (see trim), so this counts as a
                     // read in progress; if a trim started in between, go back and wait for it.
                     activeReads.incrementAndGet()
@@ -733,7 +799,7 @@ class TorrentEngine(
                 val current = raf
                 if (current != null && rafGeneration == generation) return current
                 current?.close()
-                val path = filePath ?: throw IOException("Not ready.")
+                val path = File(dir, view.relativePath)
                 val opened = try { RandomAccessFile(path, "r") } catch (e: IOException) {
                     throw IOException("The downloaded data could not be opened.", e)
                 }
@@ -757,11 +823,14 @@ class TorrentEngine(
         const val METADATA_POLL_MS = 20L
         const val MONITOR_MS = 500L
         const val WAIT_MS = 100L
+        const val SUBTITLE_WAIT_MS = 20_000L
         const val ADD_TIMEOUT_MS = 15_000L
         const val STOP_GRACE_MS = 3_000L
         const val TAIL_BYTES = 2 * 1024 * 1024L
         const val PEER_LIST_LIMIT = 1_000
         const val MIN_RECONNECT_SECONDS = 2
+        const val IDLE_LISTEN_INTERFACES = "127.0.0.1:0"
+        const val DEFAULT_LISTEN_INTERFACES = "0.0.0.0:6881,[::]:6881"
         const val MAX_CARRIED_PEERS = 50
         const val MAX_QUEUED_DISK_BYTES = 4 * 1024 * 1024
 
