@@ -4679,3 +4679,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** Stripe's checkout `amount_total` is 0 during a trial, so the TV page would have shown £0.00; it now shows the trial instead. The Stripe dashboard's own product text is separate.
 
 **Issues fixed:** none.
+
+## Post-Milestone-92 -- Change plan button no longer cut off
+
+**Status:** Done; not run on a TV.
+
+**Context:** on the Firestick's "Finish payment on your phone" page, the Change plan button at the bottom of the plan panel was squeezed to a sliver with its label cut off (user screenshot).
+
+**Changes:** the plan panel (`PlanCardPanel`, `PlusCheckoutPage.kt`) now scrolls (`verticalScroll`), so its content is no longer forced into the height left on screen and the last child keeps its full height; the focused button scrolls into view.
+
+**Tests performed:** `:app:compileDebugKotlin` succeeds. The layout was NOT run on a TV, so whether the button now shows in full is unverified.
+
+**Issues discovered:** none.
+
+**Issues fixed:** the clipped Change plan button.

@@ -2,6 +2,8 @@ package com.mangotv.app.ui.settings
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -133,6 +135,8 @@ private fun PlanCardPanel(plan: String, planName: String, price: String?, trialD
     Column(
         modifier = modifier
             .background(MangoSurface, RoundedCornerShape(MangoDimens.CardCornerRadius))
+            // Scrolls when the plan details don't fit the screen: without it the last child, the Change plan button, was squeezed to a sliver and its label cut off.
+            .verticalScroll(rememberScrollState())
             .padding(22.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
