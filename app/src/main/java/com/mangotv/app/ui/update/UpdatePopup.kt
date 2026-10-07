@@ -123,126 +123,140 @@ internal fun UpdatePopup(
         // the window's own dimming off, so the backdrop alone decides how dark it is.
         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect { dialogWindow?.setDimAmount(0f) }
-        // Home only dims (it stays visible behind the card), and the backdrop and card fade in together instead of the screen going dark first.
-        var visible by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) { visible = true }
-        val backdropAlpha by animateFloatAsState(if (visible) BACKDROP_DIM else 0f, tween(260), label = "backdrop")
-        val cardAlpha by animateFloatAsState(if (visible) 1f else 0f, tween(260), label = "card")
-        Box(
+        UpdatePopupBody(state, update, sizeLine, primaryFocusRequester, onDownload, onInstall, onDismiss)
+    }
+}
+
+/** The dimmed backdrop and the card itself (the dialog's content), so the pop-up can also be drawn on its own. */
+@Composable
+internal fun UpdatePopupBody(
+    state: UpdateUiState,
+    update: AppUpdate,
+    sizeLine: String?,
+    primaryFocusRequester: FocusRequester,
+    onDownload: () -> Unit,
+    onInstall: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    // Home only dims (it stays visible behind the card), and the backdrop and card fade in together instead of the screen going dark first.
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    val backdropAlpha by animateFloatAsState(if (visible) BACKDROP_DIM else 0f, tween(260), label = "backdrop")
+    val cardAlpha by animateFloatAsState(if (visible) 1f else 0f, tween(260), label = "card")
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = backdropAlpha)),
+        contentAlignment = Alignment.Center
+    ) {
+        // A card in the same style as the Arc TV Plus pop-up: about 560 dp wide, with the same soft blue / violet glows in the top corners,
+        // a thin edge, the notes as a short list with accent dots (about six fit before it scrolls), and buttons centred under them.
+        val panelShape = RoundedCornerShape(18.dp)
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = backdropAlpha)),
-            contentAlignment = Alignment.Center
+                .widthIn(max = 560.dp)
+                .graphicsLayer {
+                    alpha = cardAlpha
+                    scaleX = 0.97f + 0.03f * cardAlpha
+                    scaleY = 0.97f + 0.03f * cardAlpha
+                }
+                .clip(panelShape)
+                .background(MangoBackgroundElevated)
+                .drawBehind {
+                    drawRect(Brush.radialGradient(listOf(ArcBlue.copy(alpha = 0.28f), Color.Transparent), center = Offset(0f, 0f), radius = size.width * 0.8f))
+                    drawRect(Brush.radialGradient(listOf(ArcViolet.copy(alpha = 0.22f), Color.Transparent), center = Offset(size.width, 0f), radius = size.width * 0.6f))
+                }
+                .border(1.dp, DividerSubtle, panelShape)
+                .padding(horizontal = 28.dp, vertical = 22.dp)
         ) {
-            // A card in the same style as the Arc TV Plus pop-up: about 560 dp wide, with the same soft blue / violet glows in the top corners,
-            // a thin edge, the notes as a short list with accent dots (about six fit before it scrolls), and buttons centred under them.
-            val panelShape = RoundedCornerShape(18.dp)
-            Column(
-                modifier = Modifier
-                    .widthIn(max = 560.dp)
-                    .graphicsLayer {
-                        alpha = cardAlpha
-                        scaleX = 0.97f + 0.03f * cardAlpha
-                        scaleY = 0.97f + 0.03f * cardAlpha
-                    }
-                    .clip(panelShape)
-                    .background(MangoBackgroundElevated)
-                    .drawBehind {
-                        drawRect(Brush.radialGradient(listOf(ArcBlue.copy(alpha = 0.28f), Color.Transparent), center = Offset(0f, 0f), radius = size.width * 0.8f))
-                        drawRect(Brush.radialGradient(listOf(ArcViolet.copy(alpha = 0.22f), Color.Transparent), center = Offset(size.width, 0f), radius = size.width * 0.6f))
-                    }
-                    .border(1.dp, DividerSubtle, panelShape)
-                    .padding(horizontal = 28.dp, vertical = 22.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(MangoSurface)
-                            .border(1.dp, DividerSubtle, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.CloudDownload,
-                            contentDescription = null,
-                            tint = ArcAccent,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MangoSurface)
+                        .border(1.dp, DividerSubtle, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CloudDownload,
+                        contentDescription = null,
+                        tint = ArcAccent,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Update available",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = TextPrimary
+                    )
+                    if (sizeLine != null) {
                         Text(
-                            text = "Update available",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = TextPrimary
+                            text = sizeLine,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = TextSecondary
                         )
-                        if (sizeLine != null) {
-                            Text(
-                                text = sizeLine,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = TextSecondary
-                            )
-                        }
-                    }
-                    // The version as a pill, so what is on offer reads at a glance.
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(percent = 50))
-                            .background(ArcAccent.copy(alpha = 0.16f))
-                            .border(1.dp, ArcAccent.copy(alpha = 0.55f), RoundedCornerShape(percent = 50))
-                            .padding(horizontal = 12.dp, vertical = 5.dp)
-                    ) {
-                        Text(text = update.tag, style = MaterialTheme.typography.labelLarge, color = ArcAccent, fontWeight = FontWeight.Bold)
                     }
                 }
-
-                UpdateStatus(state)
-
-                Spacer(Modifier.height(16.dp))
-                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(DividerSubtle))
-                Spacer(Modifier.height(14.dp))
-                Text(
-                    text = "What's new in ${update.tag}",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(8.dp))
-                ScrollableNotes(update.notes.ifBlank { NO_NOTES_FALLBACK })
-
-                Spacer(Modifier.height(18.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
+                // The version as a pill, so what is on offer reads at a glance.
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(percent = 50))
+                        .background(ArcAccent.copy(alpha = 0.16f))
+                        .border(1.dp, ArcAccent.copy(alpha = 0.55f), RoundedCornerShape(percent = 50))
+                        .padding(horizontal = 12.dp, vertical = 5.dp)
                 ) {
+                    Text(text = update.tag, style = MaterialTheme.typography.labelLarge, color = ArcAccent, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            UpdateStatus(state)
+
+            Spacer(Modifier.height(16.dp))
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(DividerSubtle))
+            Spacer(Modifier.height(14.dp))
+            Text(
+                text = "What's new in ${update.tag}",
+                style = MaterialTheme.typography.titleSmall,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(8.dp))
+            ScrollableNotes(update.notes.ifBlank { NO_NOTES_FALLBACK })
+
+            Spacer(Modifier.height(18.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
+            ) {
+                MangoButton(
+                    text = when {
+                        state.isDownloading -> "Downloading…"
+                        state.downloadedApkPath != null -> "Install"
+                        state.errorMessage != null -> "Retry"
+                        else -> "Update"
+                    },
+                    icon = Icons.Filled.CloudDownload,
+                    onClick = {
+                        when {
+                            state.isDownloading -> Unit
+                            state.downloadedApkPath != null -> onInstall()
+                            else -> onDownload()
+                        }
+                    },
+                    style = MangoButtonStyle.FILLED,
+                    focusRequester = primaryFocusRequester
+                )
+                if (!state.isDownloading) {
                     MangoButton(
-                        text = when {
-                            state.isDownloading -> "Downloading…"
-                            state.downloadedApkPath != null -> "Install"
-                            state.errorMessage != null -> "Retry"
-                            else -> "Update"
-                        },
-                        icon = Icons.Filled.CloudDownload,
-                        onClick = {
-                            when {
-                                state.isDownloading -> Unit
-                                state.downloadedApkPath != null -> onInstall()
-                                else -> onDownload()
-                            }
-                        },
-                        style = MangoButtonStyle.FILLED,
-                        focusRequester = primaryFocusRequester
+                        text = "Not now",
+                        icon = Icons.Filled.Close,
+                        onClick = onDismiss,
+                        style = MangoButtonStyle.GLASS,
+                        clickSound = ClickSound.BACK
                     )
-                    if (!state.isDownloading) {
-                        MangoButton(
-                            text = "Not now",
-                            icon = Icons.Filled.Close,
-                            onClick = onDismiss,
-                            style = MangoButtonStyle.GLASS,
-                            clickSound = ClickSound.BACK
-                        )
-                    }
                 }
             }
         }
