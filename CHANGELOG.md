@@ -4753,3 +4753,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** the clipped focus outline.
+
+## Post-Milestone-97 -- Settings lists reach the card's edge; rows no longer cut mid-card
+
+**Status:** Done in code; not run on a TV.
+
+**Context:** rows in Settings tabs looked cut off: they were chopped by an invisible line about 20 dp above the card's bottom edge, and Addons, Home Rows and Blocked Genres lists had no room at all for a focused row's outline and scale-up.
+
+**Changes:** the Settings card no longer has bottom padding; every Settings list now uses one shared `SettingsListPadding` (8 dp at the sides and top, 24 dp at the bottom), so lists run to the card's edge and a row is cut by the card itself, never by a line inside it; the three lists that had no padding now have it.
+
+**Tests performed:** `:app:compileDebugKotlin` and the unit tests pass; the Settings page was drawn on the desktop to check the card and lists. Moving focus with the remote could not be driven in that desktop harness (focus never took), so scrolling to the last row is unverified, here and on a TV.
+
+**Issues discovered:** none.
+
+**Issues fixed:** the mid-card cut line and unpadded lists.

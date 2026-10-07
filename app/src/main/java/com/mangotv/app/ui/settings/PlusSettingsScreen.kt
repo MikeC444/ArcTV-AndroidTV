@@ -93,7 +93,7 @@ fun ColumnScope.PlusSettingsContent(
     LazyColumn(
         modifier = Modifier.weight(1f),
         // Room for a focused row's scale-up, same as the other tabs.
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+        contentPadding = SettingsListPadding,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         if (status.owned && (status.plan == "monthly" || status.plan == "yearly")) {

@@ -75,7 +75,7 @@ fun ColumnScope.SoundSettingsContent(
         // last row's bottom edge the same way against the list's bottom
         // edge. Same fix as TopNavBar/SourcesScreen: reserve a little
         // headroom via contentPadding for the scale to grow into.
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+        contentPadding = SettingsListPadding,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         item(key = "volume_header") {

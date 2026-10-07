@@ -111,7 +111,7 @@ fun StatsPanel(stats: WatchStats, truncated: Boolean, contentFocusRequester: Foc
     LazyColumn(
         modifier = modifier,
         // Room for a focused block's scale-up, same as the other tabs.
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+        contentPadding = SettingsListPadding,
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item(key = "hero") { StatBlock(contentFocusRequester, sidebarFocusRequester) { HeroBlock(stats) } }

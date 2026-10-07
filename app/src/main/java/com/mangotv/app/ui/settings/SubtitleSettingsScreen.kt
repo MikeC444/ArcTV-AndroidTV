@@ -113,7 +113,7 @@ fun ColumnScope.SubtitleSettingsContent(
         // clipped flush against the list's left/right edges. Same fix
         // as TopNavBar/SourcesScreen/SoundSettingsScreen: reserve a
         // little headroom via contentPadding for the scale to grow into.
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+        contentPadding = SettingsListPadding,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         item(key = "toggle") {

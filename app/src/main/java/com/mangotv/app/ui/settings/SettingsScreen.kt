@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -252,7 +253,9 @@ internal fun SettingsLayout(
                         .clip(RoundedCornerShape(18.dp))
                         .background(MangoBackgroundElevated)
                         .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
-                        .padding(horizontal = 22.dp, vertical = 16.dp)
+                        // No bottom padding: the lists inside end at the card's own edge (SettingsListPadding leaves the room), so a row that is
+                        // part-way into view is cut by the card, not by an invisible line above it.
+                        .padding(start = 22.dp, end = 22.dp, top = 16.dp)
                 ) {
                     pane(selected, rowFocusRequesterFor(selected))
                 }
@@ -439,6 +442,9 @@ internal fun SettingsDetailPane(
         }
     }
 }
+
+/** Room inside every Settings list for a focused row's outline and scale-up, and (bottom) for the card's former bottom padding. */
+internal val SettingsListPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 24.dp)
 
 /** The small glowing "Plus" tag on a feature only Arc TV Plus has: a brand-gradient rim and glow, same as the web app's. */
 @Composable

@@ -43,7 +43,7 @@ fun ColumnScope.PlayerSettingsContent(
     LazyColumn(
         modifier = Modifier.fillMaxWidth().weight(1f),
         // Headroom for the focused row's scale-up, which the list would otherwise clip (see SubtitleSettingsContent).
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+        contentPadding = SettingsListPadding,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item(key = "title") {

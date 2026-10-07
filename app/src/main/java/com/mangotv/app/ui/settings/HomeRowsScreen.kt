@@ -97,6 +97,7 @@ fun ColumnScope.HomeRowsSettingsContent(
         modifier = Modifier
             .fillMaxWidth()
             .weight(1f),
+        contentPadding = SettingsListPadding,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         item(key = "header") {

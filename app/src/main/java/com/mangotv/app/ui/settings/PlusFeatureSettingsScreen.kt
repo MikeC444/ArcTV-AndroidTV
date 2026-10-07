@@ -47,7 +47,7 @@ fun ColumnScope.PlusFeatureSettingsContent(contentFocusRequester: FocusRequester
     var smartPicking by remember { mutableStateOf(DevicePlayerPrefs.smartSourcePicking(context)) }
     LazyColumn(
         modifier = Modifier.weight(1f),
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+        contentPadding = SettingsListPadding,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item(key = "smart_header") {

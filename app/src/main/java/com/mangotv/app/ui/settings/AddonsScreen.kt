@@ -78,6 +78,7 @@ fun ColumnScope.AddonsSettingsContent(
         modifier = Modifier
             .fillMaxWidth()
             .weight(1f),
+        contentPadding = SettingsListPadding,
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item(key = "header") {
