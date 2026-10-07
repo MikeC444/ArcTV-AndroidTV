@@ -36,6 +36,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -293,17 +295,23 @@ private fun WeekdayBlock(stats: WatchStats) {
             WEEKDAYS.forEachIndexed { i, day ->
                 val isPeak = i == stats.busiestWeekday
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(formatShort(stats.byWeekdayMs[i]).ifEmpty { " " }, color = if (isPeak) ArcCyan else TextTertiary, style = MaterialTheme.typography.labelSmall, fontWeight = if (isPeak) FontWeight.Bold else FontWeight.Normal)
+                    Text(
+                        formatShort(stats.byWeekdayMs[i]).ifEmpty { " " }, color = ArcCyan, fontWeight = if (isPeak) FontWeight.Bold else FontWeight.Normal,
+                        style = MaterialTheme.typography.labelSmall.copy(shadow = Shadow(ArcCyan.copy(alpha = 0.6f), blurRadius = 12f))
+                    )
                     Box(Modifier.height(72.dp).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
                         val fraction = (stats.byWeekdayMs[i].toFloat() / peak).coerceIn(0.05f, 1f)
                         Box(
-                            Modifier.width(26.dp).height((72 * fraction).dp).background(
-                                if (isPeak) Brush.verticalGradient(listOf(ArcCyan, ArcBlue, ArcViolet)) else Brush.verticalGradient(listOf(MangoSurfaceHigh, MangoSurfaceHigh)),
+                            Modifier.width(26.dp).height((72 * fraction).dp).shadow(
+                                elevation = if (isPeak) 14.dp else 8.dp, shape = RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 3.dp, bottomEnd = 3.dp),
+                                ambientColor = ArcCyan, spotColor = ArcCyan
+                            ).background(
+                                Brush.verticalGradient(listOf(ArcCyan.copy(alpha = if (isPeak) 1f else 0.8f), ArcBlue.copy(alpha = if (isPeak) 1f else 0.8f), ArcViolet.copy(alpha = if (isPeak) 1f else 0.8f))),
                                 RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 3.dp, bottomEnd = 3.dp)
                             )
                         )
                     }
-                    Text(day.take(3), color = TextTertiary, style = MaterialTheme.typography.labelSmall)
+                    Text(day.take(3), color = TextSecondary, style = MaterialTheme.typography.labelSmall.copy(shadow = Shadow(ArcCyan.copy(alpha = 0.4f), blurRadius = 12f)))
                 }
             }
         }

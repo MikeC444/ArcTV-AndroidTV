@@ -4702,7 +4702,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Changes:**
 - Smart source picking: a per-device switch ("Your Plus settings" on the Plus tab). When on, the Sources screen waits for the addons (up to a short grace period), then plays the best source that surely plays (`isSurePick`: the recommended one with a "Should play here" verdict); otherwise the list shows with a note (`smartMissed`).
-- Your stats: new Settings tab in the You group after Arc TV Plus (`STATS`), built from `GET /user/history` (up to 25 pages of 200) by `WatchStats.kt`/`WatchStatsRepository`; same maths as the web `stats.ts`. Without Plus the row is shown but locked, with a Plus tag.
+- Your stats: new Settings tab in the You group after Arc TV Plus (`STATS`), built from `GET /user/history` (up to 25 pages of 200) by `WatchStats.kt`/`WatchStatsRepository`; same maths as the web `stats.ts`. Without Plus the row is shown but locked, with a Plus tag. Every weekday bar, its hours and its day name glow in Arc TV colours.
 - No sources found: a "New to this?" guide button opens a dialog with a QR code for https://web.arctv.org/guides/debrid.
 - `SettingsScreen` split into `SettingsLayout` so the screen can be rendered on its own; `StatsScreenshotTest` renders it to a PNG when `-PscreenshotOut=<file>` is given (adds Robolectric and Compose UI-test test dependencies).
 
