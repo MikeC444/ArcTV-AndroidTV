@@ -13,7 +13,10 @@ export const plusRouter = Router();
 /** What this account has: { active, plan, validUntil, paywall }. While the paywall is off (early access) everyone is active. */
 plusRouter.get("/plus", requireAuth, async (req, res, next) => {
   try {
-    res.json(await getEntitlement(req.user!.id));
+    const entitlement = await getEntitlement(req.user!.id);
+    // The free trial on offer for this account (days), so apps can say so before checkout: only with the paywall on and no Plus ever.
+    const trialDays = entitlement.paywall && !(await getPlusRow(req.user!.id)) ? PLUS_TRIAL_DAYS : 0;
+    res.json({ ...entitlement, trialDays });
   } catch (error) {
     next(error);
   }

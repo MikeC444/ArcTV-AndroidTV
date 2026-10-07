@@ -4669,7 +4669,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Changes:**
 - `POST /user/plus/checkout` now adds `subscription_data[trial_period_days]=5` (and `metadata[trial_days]`) for Monthly/Yearly when the account has no `user_plus` row, i.e. has never had Plus. A cancelled trial leaves a row, so the offer is once per account. Lifetime has no trial. Stripe takes the card at checkout and bills when the trial ends.
-- The response gains `trialDays` (0 when not offered) so apps can say so.
+- The response gains `trialDays` (0 when not offered), and `GET /user/plus` now carries `trialDays` too (5 only with the paywall on and no Plus ever), so apps can say so before checkout.
 - The checkout webhook gives provisional access of trial + 1 day (was 33/368 days) until Stripe's subscription event brings the real period end; the existing handler already treats `trialing` as active.
 - No release note yet: the trial is going to the web app first.
 

@@ -91,9 +91,9 @@ describe("GET /user/plus", () => {
   it("is active for everyone while the paywall is off, and inactive without a payment once it is on", async () => {
     const s = await createTestSession();
     paywall(false);
-    expect((await entitlement(s.token)).body).toEqual({ active: true, plan: "early_access", validUntil: null, cancelAtPeriodEnd: false, paywall: false });
+    expect((await entitlement(s.token)).body).toEqual({ active: true, plan: "early_access", validUntil: null, cancelAtPeriodEnd: false, paywall: false, trialDays: 0 });
     paywall(true);
-    expect((await entitlement(s.token)).body).toEqual({ active: false, plan: null, validUntil: null, cancelAtPeriodEnd: false, paywall: true });
+    expect((await entitlement(s.token)).body).toEqual({ active: false, plan: null, validUntil: null, cancelAtPeriodEnd: false, paywall: true, trialDays: 5 });
   });
 });
 
@@ -232,6 +232,8 @@ describe("POST /user/plus/checkout", () => {
     // Having had Plus once (even only a trial) ends the offer.
     const again = await post(s.token, { plan: "monthly" });
     expect(again.body.trialDays).toBe(0);
+    expect((await entitlement(s.token)).body.trialDays).toBe(0);
+    expect((await entitlement((await createTestSession()).token)).body.trialDays).toBe(5);
     expect(form!.get("subscription_data[trial_period_days]")).toBeNull();
   });
 
