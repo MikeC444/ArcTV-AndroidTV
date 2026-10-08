@@ -75,15 +75,16 @@ class AddonSyncRepository(
             val response = apiClient.getAddons(token)
             val items = response.items.mapNotNull { dto -> runCatching { dto.toInstalledAddon() }.getOrNull() }
             val userId = authRepository.getCurrentSession()?.user?.id
-            if (items.isEmpty() && userId != null && !hasBeenSeeded(userId)) {
-                // An account that has never had an addon (or only the guest default that was never uploaded) starts with Cinemeta, saved to the
-                // account, so Home has something to browse. Only once per account: after that an empty list is the person's own choice.
+            val noCatalog = items.none { it.enabled && it.manifest.catalogs.isNotEmpty() }
+            if (noCatalog && userId != null && !hasBeenSeeded(userId)) {
+                // An account whose addons offer no catalogue (none at all, or only stream addons such as Torrentio) has an empty Home, so it
+                // gets Cinemeta, saved to the account. Only once per account: after that the list is the person's own choice.
                 markSeeded(userId)
-                addonRepository.applyRemote(emptyList())
-                addonRepository.bootstrapDefaultForNewProfile()
+                addonRepository.applyRemote(items)
+                addonRepository.addDefaultIfNoCatalog()
                 return
             }
-            if (items.isNotEmpty() && userId != null) markSeeded(userId)
+            if (userId != null && !noCatalog) markSeeded(userId)
             addonRepository.applyRemote(items)
         } catch (e: ApiException) {
             if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()

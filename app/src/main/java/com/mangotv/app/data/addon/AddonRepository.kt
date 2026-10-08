@@ -139,6 +139,17 @@ class AddonRepository(context: Context) {
         onLocalChange?.invoke(AddonChange.Upserted(record, _installedAddons.value.lastIndex))
     }
 
+    /**
+     * Adds the bundled Cinemeta (and pushes it to the account) when none of the installed, enabled addons offers a catalogue, i.e. nothing
+     * would fill Home: a person with only a stream addon such as Torrentio. Does nothing when something already offers catalogues.
+     */
+    suspend fun addDefaultIfNoCatalog() = withContext(Dispatchers.IO) {
+        if (_installedAddons.value.any { it.enabled && it.manifest.catalogs.isNotEmpty() }) return@withContext
+        val bundled = readBundledCinemetaManifest() ?: return@withContext
+        val record = registerAndPersist(CINEMETA_MANIFEST_URL, bundled)
+        onLocalChange?.invoke(AddonChange.Upserted(record, _installedAddons.value.lastIndex))
+    }
+
     suspend fun installAddon(rawUrl: String): Result<InstalledAddon> = withContext(Dispatchers.IO) {
         runCatching {
             require(rawUrl.isNotBlank()) { "Enter an addon URL first." }
