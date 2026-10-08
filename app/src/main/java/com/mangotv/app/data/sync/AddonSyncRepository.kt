@@ -58,6 +58,12 @@ class AddonSyncRepository(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val pendingStore = PendingChangeStore(context, "mango_addons_pending", AddonSyncDto.serializer())
 
+    private val seedPrefs = context.applicationContext.getSharedPreferences("arctv_addon_seed", Context.MODE_PRIVATE)
+    private fun hasBeenSeeded(userId: String): Boolean = seedPrefs.getStringSet("accounts", emptySet())?.contains(userId) == true
+    private fun markSeeded(userId: String) {
+        seedPrefs.edit().putStringSet("accounts", seedPrefs.getStringSet("accounts", emptySet()).orEmpty() + userId).apply()
+    }
+
     init {
         addonRepository.onLocalChange = { change -> pushToServer(change) }
     }
@@ -68,6 +74,16 @@ class AddonSyncRepository(
             val token = freshAccessTokenOrNull() ?: return
             val response = apiClient.getAddons(token)
             val items = response.items.mapNotNull { dto -> runCatching { dto.toInstalledAddon() }.getOrNull() }
+            val userId = authRepository.getCurrentSession()?.user?.id
+            if (items.isEmpty() && userId != null && !hasBeenSeeded(userId)) {
+                // An account that has never had an addon (or only the guest default that was never uploaded) starts with Cinemeta, saved to the
+                // account, so Home has something to browse. Only once per account: after that an empty list is the person's own choice.
+                markSeeded(userId)
+                addonRepository.applyRemote(emptyList())
+                addonRepository.bootstrapDefaultForNewProfile()
+                return
+            }
+            if (items.isNotEmpty() && userId != null) markSeeded(userId)
             addonRepository.applyRemote(items)
         } catch (e: ApiException) {
             if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()

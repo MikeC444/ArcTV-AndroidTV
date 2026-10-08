@@ -4851,3 +4851,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the failing call is Stripe's update-subscription request; the HTTP status alone cannot tell the likely causes apart.
 
 **Issues fixed:** none yet; the next occurrence will log the reason.
+
+## Post-Milestone-104 -- Accounts with no addons get Cinemeta
+
+**Status:** Done in code; not run on a TV or against real accounts.
+
+**Context:** some accounts ended up with no Cinemeta, so Home had no catalogue. The default was installed only once per device, locally; a guest's untouched default counts as "nothing to upload" at first sign-in, so the new account started with an empty addon list and the empty list then replaced the device's.
+
+**Changes:** when the addon list is pulled from the server and is empty, and this account has never been seeded (a per-device record of account ids, set once an account has been seen with addons or has been seeded), the bundled Cinemeta is installed and pushed to the account. After that an empty list is left alone, so someone who removes every addon on purpose does not get Cinemeta back. It also covers existing accounts that have none, the next time they launch the new version.
+
+**Tests performed:** `:app:compileDebugKotlin` and the unit tests pass. Not run against a real account: the "seen once" record is per device, so an account that emptied its list on purpose on another device could get Cinemeta back once on a new one.
+
+**Issues discovered:** none beyond the above.
+
+**Issues fixed:** accounts with no Cinemeta.
