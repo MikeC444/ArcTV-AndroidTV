@@ -291,7 +291,7 @@ internal fun CardActionsMenuPanel(
     ) {
         Column(
             modifier = Modifier
-                .width(640.dp)
+                .width(440.dp)
                 .clip(RoundedCornerShape(22.dp))
                 .background(MangoBackgroundElevated)
         ) {
@@ -391,7 +391,7 @@ internal fun CardActionsMenuPanel(
 @Composable
 private fun MenuBanner(content: Content) {
     var logoFailed by remember(content.id) { mutableStateOf(false) }
-    Box(modifier = Modifier.fillMaxWidth().height(150.dp)) {
+    Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
         AsyncImage(
             model = rememberOpaqueImageRequest(content.backdropUrl),
             contentDescription = null,
@@ -422,7 +422,7 @@ private fun MenuBanner(content: Content) {
                     contentScale = ContentScale.Fit,
                     alignment = Alignment.BottomStart,
                     onError = { logoFailed = true },
-                    modifier = Modifier.heightIn(max = 60.dp).widthIn(max = 340.dp)
+                    modifier = Modifier.heightIn(max = 60.dp).widthIn(max = 260.dp)
                 )
             } else {
                 Text(
