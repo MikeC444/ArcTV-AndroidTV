@@ -276,7 +276,7 @@ private fun DetailContent(
                         isInMyList = isInMyList,
                         // Like / Not for me are a movie-only, Plus-preview feature (they feed "Picked for you").
                         feedback = feedback,
-                        onFeedback = if (hasPlus && content.type == ContentType.MOVIE) onFeedback else null,
+                        onFeedback = if (hasPlus) onFeedback else null,
                         onTrailer = onTrailer,
                         trailerReady = trailerReady,
                         releaseDateState = releaseDateState,

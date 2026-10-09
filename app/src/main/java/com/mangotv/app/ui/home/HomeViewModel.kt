@@ -415,8 +415,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     /** Publishes what a "Picked for you" run would be computed from; unchanged inputs (same key) do nothing. */
     private fun updatePickedInputs() {
         if (!pickedAvailable()) return
-        // Every movie the addons listed on Home (hidden rows included) is a candidate.
-        val movies = rawSections.withoutBlocked(blockedGenres).flatMap { it.items }.filter { it.type == ContentType.MOVIE }.distinctBy { it.id }
+        // Every movie and TV show the addons listed on Home (hidden rows included) is a candidate.
+        val movies = rawSections.withoutBlocked(blockedGenres).flatMap { it.items }.distinctBy { it.id }
         if (movies.isEmpty()) return
         val list = myListRepository.items.value
         val interactions = collectInteractions(interactionInputs(list, feedbackEntries))
@@ -425,8 +425,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         if (key == lastPickedKey) return
         lastPickedKey = key
         val refs = HashMap<String, MovieRef>()
-        for (item in list) refs[item.id] = MovieRef(item.id, item.providerId)
-        for ((id, entry) in feedbackEntries) refs.putIfAbsent(id, MovieRef(id, entry.providerId))
+        for (item in list) refs[item.id] = MovieRef(item.id, item.providerId, item.type)
+        for ((id, entry) in feedbackEntries) refs.putIfAbsent(id, MovieRef(id, entry.providerId, entry.type))
         pickedInputs.value = PickedInputs(key, movies, interactions, excludeIds, refs)
     }
 

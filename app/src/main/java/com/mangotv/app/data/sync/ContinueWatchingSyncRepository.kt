@@ -16,7 +16,17 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import java.io.IOException
+
+/** A removal from Continue Watching that has not reached the account yet (see [ContinueWatchingSyncRepository.removeEntry]). */
+@Serializable
+data class PendingContinueWatchingRemoval(
+    val providerId: String,
+    val contentId: String,
+    val contentType: String,
+    val updatedAt: String
+)
 
 /**
  * The third cloud-sync domain (Milestone 8), and the first driven by
@@ -52,12 +62,20 @@ class ContinueWatchingSyncRepository(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val pendingStore = PendingChangeStore(context, "mango_continue_watching_pending", WatchProgressRequest.serializer())
 
+    // Removals wait in their own outbox: a removal is not a progress report (it must NOT be sent as "completed", which would mark the title
+    // watched), so it has its own request, DELETE /user/continue-watching.
+    private val removalStore = PendingChangeStore(context, "mango_continue_watching_removals", PendingContinueWatchingRemoval.serializer())
+
     /** Pulls this account's active Continue Watching list and replaces the local cache with it. Called by SyncManager on login/launch. Fire-and-forget: must never delay getting the user into the app. */
     suspend fun pullFromServer() {
         try {
             val token = freshAccessTokenOrNull() ?: return
             val response = apiClient.getContinueWatching(token)
-            val items = response.items.mapNotNull { dto -> runCatching { dto.toEntry() }.getOrNull() }
+            // A removal still on its way keeps the title hidden here, so the account's copy cannot bring it back before the removal lands.
+            val removing = runCatching { removalStore.all().keys }.getOrDefault(emptySet())
+            val items = response.items
+                .mapNotNull { dto -> runCatching { dto.toEntry() }.getOrNull() }
+                .filterNot { "${it.providerId}|${it.contentId}|${it.contentType.name}" in removing }
             continueWatchingRepository.applyRemote(items)
         } catch (e: ApiException) {
             if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
@@ -134,10 +152,14 @@ class ContinueWatchingSyncRepository(
     }
 
     /** Drops every pending outbox entry (Milestone 12's account switching) -- see PendingChangeStore.clear()'s own kdoc for why a queued push must never survive into a different account's session. */
-    suspend fun clearPending() = pendingStore.clear()
+    suspend fun clearPending() {
+        pendingStore.clear()
+        removalStore.clear()
+    }
 
     /** Retries every progress report this device has failed to push so far. Called by SyncManager on login/launch (after pullFromServer) and when network connectivity returns. */
     suspend fun retryPending() {
+        retryPendingRemovals()
         val pending = try {
             pendingStore.all()
         } catch (e: CancellationException) {
@@ -167,6 +189,72 @@ class ContinueWatchingSyncRepository(
                 throw e
             } catch (e: Exception) {
                 // Unexpected -- leave this item queued, try the rest of the batch.
+            }
+        }
+    }
+
+    /**
+     * Takes a title out of Continue Watching WITHOUT marking it watched. The local entry goes at once (Home reflects it the moment the menu
+     * closes) and the account is told through DELETE /user/continue-watching, which forgets the saved position, so playing the title again
+     * starts from the beginning. Until that reaches the server the removal waits in its own outbox, and any progress report still queued for
+     * the same title is dropped so it cannot bring the entry back.
+     */
+    fun removeEntry(providerId: String, contentId: String, contentType: ContentType) {
+        val key = "$providerId|$contentId|${contentType.name}"
+        val removal = PendingContinueWatchingRemoval(providerId, contentId, contentType.name, Iso8601.nowString())
+        scope.launch {
+            try {
+                continueWatchingRepository.remove(providerId, contentId, contentType)
+                pendingStore.remove(key)
+                val token = freshAccessTokenOrNull()
+                if (token == null) {
+                    removalStore.put(key, removal)
+                    return@launch
+                }
+                val response = apiClient.removeContinueWatching(token, providerId, contentId, contentType.name, removal.updatedAt)
+                reconcile(providerId, contentId, contentType, response)
+                removalStore.remove(key)
+            } catch (e: ApiException) {
+                removalStore.put(key, removal)
+                if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
+            } catch (e: IOException) {
+                removalStore.put(key, removal)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                removalStore.put(key, removal)
+            }
+        }
+    }
+
+    /** Sends every removal this device has not managed to send yet. Called first by [retryPending]. */
+    private suspend fun retryPendingRemovals() {
+        val pending = try {
+            removalStore.all()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return
+        }
+        if (pending.isEmpty()) return
+        val token = freshAccessTokenOrNull() ?: return
+        for ((key, removal) in pending) {
+            try {
+                val response = apiClient.removeContinueWatching(token, removal.providerId, removal.contentId, removal.contentType, removal.updatedAt)
+                reconcile(removal.providerId, removal.contentId, ContentType.valueOf(removal.contentType), response)
+                removalStore.remove(key)
+            } catch (e: ApiException) {
+                if (e.statusCode == 401) {
+                    authRepository.clearSessionOnConfirmedUnauthorized()
+                    return
+                }
+                // Left queued (a server that does not have the route yet answers 404); try the rest.
+            } catch (e: IOException) {
+                return
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Unexpected -- leave it queued.
             }
         }
     }

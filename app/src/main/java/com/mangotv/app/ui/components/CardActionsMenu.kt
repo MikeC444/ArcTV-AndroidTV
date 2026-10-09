@@ -256,8 +256,8 @@ fun CardActionsMenuOverlay(
                         state.dismiss()
                     }
                 )
-                if (plusStatus.active && content.type == ContentType.MOVIE) {
-                    val target = FeedbackTarget(content.id, content.title, content.providerId)
+                if (plusStatus.active) {
+                    val target = FeedbackTarget(content.id, content.title, content.providerId, content.type, content.posterUrl)
                     CardActionRow(
                         icon = if (feedback == Feedback.LIKE) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                         label = if (feedback == Feedback.LIKE) "Remove like" else "Like",
@@ -300,20 +300,8 @@ fun CardActionsMenuOverlay(
                         label = "Remove from Continue Watching",
                         destructive = true,
                         onClick = {
-                            continueWatchingSyncRepository.reportProgress(
-                                providerId = providerId,
-                                contentId = content.id,
-                                contentType = content.type,
-                                seasonNumber = watchProgress.seasonNumber,
-                                episodeNumber = watchProgress.episodeNumber,
-                                episodeTitle = watchProgress.episodeTitle,
-                                title = content.title,
-                                posterUrl = content.posterUrl,
-                                backdropUrl = content.backdropUrl,
-                                positionMs = watchProgress.positionMs,
-                                durationMs = watchProgress.durationMs,
-                                completed = true
-                            )
+                            // Not "finished": taking a title out of Continue Watching must not mark it watched, and it starts over next time.
+                            continueWatchingSyncRepository.removeEntry(providerId, content.id, content.type)
                             state.dismiss()
                         }
                     )

@@ -133,6 +133,7 @@ android {
             //   ./gradlew :app:testDebugUnitTest -PtorrentNativeDir=/path/to/folder
             all { test ->
                 (project.findProperty("screenshotOut") as String?)?.let { test.systemProperty("screenshot.out", it) }
+                (project.findProperty("posterDir") as String?)?.let { test.systemProperty("poster.dir", it) }
                 (project.findProperty("torrentNativeDir") as String?)?.let { test.jvmArgs("-Djava.library.path=$it") }
             }
         }

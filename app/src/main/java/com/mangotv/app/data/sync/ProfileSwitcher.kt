@@ -2,6 +2,7 @@ package com.mangotv.app.data.sync
 
 import com.mangotv.app.data.addon.AddonRepository
 import com.mangotv.app.data.feedback.FeedbackRepository
+import com.mangotv.app.data.recommend.PickedStateRepository
 import com.mangotv.app.data.history.ContinueWatchingRepository
 import com.mangotv.app.data.player.LastSourceRepository
 import com.mangotv.app.data.player.PlayerPreferencesRepository
@@ -39,6 +40,7 @@ class ProfileSwitcher(
     private val playerPreferencesRepository: PlayerPreferencesRepository,
     private val blockedGenresRepository: BlockedGenresRepository,
     private val feedbackRepository: FeedbackRepository,
+    private val pickedStateRepository: PickedStateRepository,
     private val homeCacheRepository: HomeCacheRepository,
     private val settingsSyncRepository: SettingsSyncRepository,
     private val watchlistSyncRepository: WatchlistSyncRepository,
@@ -71,6 +73,7 @@ class ProfileSwitcher(
                 launch { continueWatchingSyncRepository.retryPending() }
                 launch { addonSyncRepository.retryPending() }
                 launch { feedbackRepository.retryPending() }
+                launch { pickedStateRepository.retryPending() }
             }
         }
     }
@@ -87,6 +90,7 @@ class ProfileSwitcher(
             launch { feedbackRepository.clear() }
             launch { homeCacheRepository.clear() }
             launch { feedbackRepository.clearPending() }
+            launch { pickedStateRepository.clearPending() }
             launch { settingsSyncRepository.clearPending() }
             launch { watchlistSyncRepository.clearPending() }
             launch { continueWatchingSyncRepository.clearPending() }

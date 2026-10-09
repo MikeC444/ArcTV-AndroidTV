@@ -6,6 +6,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import com.mangotv.app.data.feedback.FeedbackRepository
+import com.mangotv.app.data.recommend.PickedStateRepository
 import com.mangotv.app.data.plus.PlusRepository
 import com.mangotv.app.data.profile.ProfileRepository
 import kotlinx.coroutines.CoroutineScope
@@ -78,6 +79,7 @@ class SyncManager(
     private val continueWatchingSyncRepository: ContinueWatchingSyncRepository,
     private val addonSyncRepository: AddonSyncRepository,
     private val feedbackRepository: FeedbackRepository,
+    private val pickedStateRepository: PickedStateRepository,
     private val plusRepository: PlusRepository,
     private val profileRepository: ProfileRepository
 ) {
@@ -151,6 +153,7 @@ class SyncManager(
                 launch { continueWatchingSyncRepository.pullFromServer() }
                 launch { addonSyncRepository.pullFromServer() }
                 launch { feedbackRepository.pullFromServer() }
+                launch { pickedStateRepository.pullFromServer() }
                 launch { plusRepository.pullFromServer() }
             }
             retryPendingAll()
@@ -167,6 +170,7 @@ class SyncManager(
         launch { continueWatchingSyncRepository.retryPending() }
         launch { addonSyncRepository.retryPending() }
         launch { feedbackRepository.retryPending() }
+        launch { pickedStateRepository.retryPending() }
     }
 
     /**

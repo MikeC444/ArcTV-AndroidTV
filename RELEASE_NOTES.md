@@ -15,6 +15,10 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 ## Unreleased
 
 - A fresher Home: Popular, New and Top rated rows, then your best genres, with different titles each day and nothing you've already seen.
+- Picked for you now includes TV shows, and you can Like or dislike shows too.
+- Remove a pick and it stays gone for 5 days on every device.
+- Take a title out of Continue Watching and it starts fresh next time, without being marked watched.
+- A new Recommendations tab in Settings shows what you've liked and how your picks are chosen.
 
 ## 0.3.1
 

@@ -1,5 +1,6 @@
 package com.mangotv.app.data.recommend
 
+import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.recommend.RecommendConfig.CANDIDATE_DETAIL_FETCH_LIMIT
 import com.mangotv.app.data.recommend.RecommendConfig.INTERACTION_DETAIL_FETCH_LIMIT
 import com.mangotv.app.data.recommend.RecommendConfig.MAX_RESULTS
@@ -16,10 +17,13 @@ data class Candidate(
     val title: String,
     val providerId: String? = null,
     val genres: List<String> = emptyList(),
-    val rating: Double? = null
+    val rating: Double? = null,
+    /** Movie or TV show, so its details are looked up the right way. Null means a movie. */
+    val type: ContentType? = null
 )
 
-data class MovieRef(val id: String, val providerId: String? = null)
+/** A title (movie or TV show) whose features are looked up. */
+data class MovieRef(val id: String, val providerId: String? = null, val type: ContentType? = null)
 
 /** Fetches (or reads from cache) the features of up to `limit` movies not yet known. Unknown or failed lookups come back as null. Must never throw. */
 typealias FeatureLoader = suspend (refs: List<MovieRef>, limit: Int) -> Map<String, Features?>
@@ -164,7 +168,7 @@ suspend fun recommend(input: EngineInput): EngineResult {
     preScored.forEach { take(it.candidate) }
 
     // Step 3: full features for the shortlist.
-    val details = input.loadFeatures(shortlist.map { MovieRef(it.id, it.providerId) }, CANDIDATE_DETAIL_FETCH_LIMIT)
+    val details = input.loadFeatures(shortlist.map { MovieRef(it.id, it.providerId, it.type) }, CANDIDATE_DETAIL_FETCH_LIMIT)
 
     // A candidate that is itself one of the profile's movies (saved or liked but not finished) is judged against the
     // profile WITHOUT that movie, so it can neither boost its own score nor be named as its own reason.

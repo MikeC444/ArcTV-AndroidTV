@@ -110,6 +110,7 @@ class AccountSwitchCoordinator(
                 launch { continueWatchingSyncRepository.retryPending() }
                 launch { addonSyncRepository.retryPending() }
                 launch { feedbackRepository.retryPending() }
+                launch { pickedStateRepository.retryPending() }
             }
         }
 
@@ -130,6 +131,7 @@ class AccountSwitchCoordinator(
             launch { searchHistoryRepository.clear() }
             launch { plusPromoRepository.clear() }
             launch { feedbackRepository.clearPending() }
+            launch { pickedStateRepository.clearPending() }
             launch { settingsSyncRepository.clearPending() }
             launch { watchlistSyncRepository.clearPending() }
             launch { continueWatchingSyncRepository.clearPending() }

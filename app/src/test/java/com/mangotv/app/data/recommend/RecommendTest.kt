@@ -343,4 +343,36 @@ class RecommendTest {
         assertEquals(sig, signatureOf(collectInteractions(listOf(input("a", Feedback.LIKE, completed = true), input("b", inWatchlist = true)))))
         assertNotNull(sig)
     }
+
+    // -- TV shows in the same row ---------------------------------------------------------------------------
+
+    @Test
+    fun `a show can be picked from a movie taste, and its details are looked up as a show`() {
+        val shows = mapOf("show1" to f(listOf("crime", "thriller"), emptyList(), listOf("a", "z")), "show2" to f(listOf("romance", "comedy"), emptyList(), listOf("y")))
+        val mixed = pool + listOf(
+            Candidate("show1", "show1", genres = shows.getValue("show1").genres, rating = 8.0, type = com.mangotv.app.data.model.ContentType.TV_SHOW),
+            Candidate("show2", "show2", genres = shows.getValue("show2").genres, rating = 8.0, type = com.mangotv.app.data.model.ContentType.TV_SHOW)
+        )
+        val asked = mutableListOf<MovieRef>()
+        val load: FeatureLoader = { refs, _ ->
+            asked += refs
+            refs.associate { it.id to (meta[it.id] ?: shows[it.id]) }
+        }
+        val result = run(listOf(input("heist1", feedback = Feedback.LIKE), input("heist2", completed = true), input("space1", inWatchlist = true)), candidates = mixed, load = load)
+        assertTrue(result is EngineResult.Personal)
+        assertTrue("show1" in ids(result))
+        assertEquals(com.mangotv.app.data.model.ContentType.TV_SHOW, asked.first { it.id == "show1" }.type)
+    }
+
+    @Test
+    fun `a liked show shapes the taste like a liked movie`() {
+        val shows = mapOf("show1" to f(listOf("crime", "thriller"), emptyList(), listOf("a", "z")))
+        val load: FeatureLoader = { refs, _ -> refs.associate { it.id to (meta[it.id] ?: shows[it.id]) } }
+        val result = run(
+            listOf(input("show1", feedback = Feedback.LIKE), input("heist2", feedback = Feedback.LIKE), input("heist1", completed = true)),
+            excludeIds = setOf("show1", "heist2", "heist1"),
+            load = load
+        )
+        assertEquals("heist3", ids(result).first())
+    }
 }

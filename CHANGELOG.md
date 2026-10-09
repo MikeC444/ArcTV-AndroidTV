@@ -4950,3 +4950,21 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-110 -- Firestick: Picked for you takes TV shows, removed picks and Continue Watching removals sync, and a Recommendations tab
+
+**Status:** Done in code; compiles, and the unit tests below pass; not run on a TV. The first two items need the server changes that are already on `main` (`DELETE /user/continue-watching`, `/user/picked-dismissals`) to be deployed: until then the app keeps working and queues what it could not send.
+
+**Context:** the web app gained four things (docs/PARITY.md in the web repo) that the Firestick lacked. Each is done here in the way the TV works (remote, one scrolling list per Settings tab, the app's own stores and outboxes), not copied screen for screen.
+
+**Changes:**
+- **Remove from Continue Watching no longer marks the title watched.** The card menu used a "finished" progress report, which also recorded the title as finished. `ContinueWatchingSyncRepository.removeEntry` now drops the local entry at once and calls the new `DELETE /user/continue-watching` (`PlaybackProgressApiClient.removeContinueWatching`), so the server forgets the position and playing it again starts from the beginning. A removal that cannot be sent waits in its own outbox (`mango_continue_watching_removals`), drops any queued progress report for the same title, keeps the title hidden through a pull, and is retried with the other queues.
+- **Removed picks are hidden for 5 days, then the algorithm decides again, and they sync.** `PickedStateRepository` keeps a time per removal (`removedAt`; the old plain list of ids is kept, each starting its 5 days when first read), drops expired ones, and saves each removal on the account through `PickedDismissalsApiClient` (`/user/picked-dismissals`): pushed at once, queued in `mango_picked_dismissals_pending`, merged on login/launch (later removal wins, one only this device has is sent up), retried by SyncManager / ProfileSwitcher / AccountSwitchCoordinator like Like / Not for me.
+- **Picked for you takes TV shows.** Shows in My List or rated now count as signals, shows from the Home rows are candidates, and their details are looked up as shows (`MovieRef` and `Candidate` carry the type). Like / Not for me appear for shows in the card menu and on the details page; `FeedbackEntry` keeps the type (and the poster, on this device) and the feedback sync no longer drops show rows.
+- **Settings > Recommendations (Plus).** Two tabs of rated titles (OK on a poster removes its rating), what shapes your picks with the points each kind of title adds (counted the way the engine counts, `RecommendationSummary`), the notes on the 60-title limit and the three-signal minimum, how it works, and Reset preferences with a confirm step. Sidebar widened from 230 to 252 dp so "Recommendations" fits.
+
+**Tests performed:** `RecommendationSummaryTest` (5: counts and points, a rated title counts once, the three-signal and one-positive rule, the 60-title limit, the points wording), `PickedRemovalTest` (3: the 5-day cut-off to the minute, each removal's own time, the old list of ids), two new `RecommendTest` cases (a show can be picked from a movie taste and is looked up as a show; a liked show shapes the taste like a liked movie), `RecommendationsScreenshotTest` (the tab composes with its tabs and point lines, and Reset asks first and then clears all seven ratings, movies and shows alike); the existing recommendation tests still pass. A desktop render of the new tab was looked at. NOT done: no test drives `removeEntry`, the removal outbox, `PickedStateRepository`'s sync or the new API client against a server or fake (they need a Context and an auth session); not run on a Fire TV.
+
+**Issues discovered:** the sidebar row for "Recommendations" wrapped at 230 dp.
+
+**Issues fixed:** that, by widening the sidebar.

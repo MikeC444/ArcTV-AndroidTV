@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.mangotv.app.BuildConfig
 import com.mangotv.app.data.auth.AuthRepository
+import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.profile.ActiveProfile
 import com.mangotv.app.data.network.ApiException
 import com.mangotv.app.data.network.FeedbackApiClient
@@ -44,14 +45,19 @@ data class FeedbackEntry(
     /** When it was given -- the last-write-wins timestamp. */
     val at: String,
     val providerId: String,
+    /** Movie or TV show ([ContentType.name]). Entries saved before TV shows could be rated are movies. */
+    val contentType: String = "MOVIE",
+    /** The poster, kept on this device so the Recommendations screen can show it. Not synced. */
+    val posterUrl: String? = null,
     /** True once the server has acknowledged exactly this entry. Entries without it (given offline) are pushed on the next sync. */
     val synced: Boolean = false
 ) {
     val feedback: Feedback? get() = Feedback.fromWire(value)
+    val type: ContentType get() = runCatching { ContentType.valueOf(contentType) }.getOrDefault(ContentType.MOVIE)
 }
 
 /** What the UI hands over to say which movie feedback is about. */
-data class FeedbackTarget(val id: String, val title: String, val providerId: String?)
+data class FeedbackTarget(val id: String, val title: String, val providerId: String?, val type: ContentType? = null, val posterUrl: String? = null)
 
 @Serializable
 private data class PendingFeedback(val clear: Boolean, val dto: FeedbackDto)
@@ -60,7 +66,7 @@ private data class PendingFeedback(val clear: Boolean, val dto: FeedbackDto)
  * Explicit taste feedback (Like / Not for me), the input to "Picked for you". Kept on this device at once and synced to
  * the account so every device agrees: changes are pushed immediately, queued when offline, and reconciled
  * last-write-wins on their own timestamp -- the same behaviour as the web app's feedback store, against the same backend
- * endpoint. Only movies carry feedback; feedback is kept per profile (the active one, see [ActiveProfile]).
+ * endpoint. Movies and TV shows both carry feedback; feedback is kept per profile (the active one, see [ActiveProfile]).
  */
 class FeedbackRepository(context: Context, private val authRepository: AuthRepository) {
 
@@ -97,7 +103,12 @@ class FeedbackRepository(context: Context, private val authRepository: AuthRepos
                 commit(current - movie.id)
                 existing.toDto(movie.id, updatedAt = at, providerId = existing.providerId) to true
             } else {
-                val entry = FeedbackEntry(value = value.wire, title = movie.title, at = at, providerId = providerId, synced = false)
+                val entry = FeedbackEntry(
+                    value = value.wire, title = movie.title, at = at, providerId = providerId,
+                    contentType = (movie.type ?: existing?.type ?: ContentType.MOVIE).name,
+                    posterUrl = movie.posterUrl ?: existing?.posterUrl,
+                    synced = false
+                )
                 commit(current + (movie.id to entry))
                 entry.toDto(movie.id, updatedAt = at, providerId = providerId) to false
             }
@@ -120,7 +131,7 @@ class FeedbackRepository(context: Context, private val authRepository: AuthRepos
             val token = freshAccessTokenOrNull() ?: return false
             val response = apiClient.list(token, profileId)
             val pending = pendingStore.all()
-            val remote = response.items.filter { it.contentType == MOVIE && it.profileId == profileId }.associateBy { it.contentId }
+            val remote = response.items.filter { it.profileId == profileId }.associateBy { it.contentId }
             lock.withLock {
                 val next = LinkedHashMap<String, FeedbackEntry>()
                 for ((id, local) in _entries.value) {
@@ -140,7 +151,7 @@ class FeedbackRepository(context: Context, private val authRepository: AuthRepos
                 for ((id, server) in remote) {
                     if (id in next) continue
                     if (naturalKey(server.providerId, id) in pending) continue
-                    next[id] = FeedbackEntry(server.feedback, server.title, server.updatedAt, server.providerId, synced = true)
+                    next[id] = FeedbackEntry(server.feedback, server.title, server.updatedAt, server.providerId, server.contentType, _entries.value[id]?.posterUrl, synced = true)
                 }
                 commit(next)
             }
@@ -225,7 +236,7 @@ class FeedbackRepository(context: Context, private val authRepository: AuthRepos
             val current = _entries.value
             commit(
                 if (dto.deletedAt != null) current - dto.contentId
-                else current + (dto.contentId to FeedbackEntry(dto.feedback, dto.title, dto.updatedAt, dto.providerId, synced = true))
+                else current + (dto.contentId to FeedbackEntry(dto.feedback, dto.title, dto.updatedAt, dto.providerId, dto.contentType, current[dto.contentId]?.posterUrl, synced = true))
             )
         }
     }
@@ -248,7 +259,7 @@ class FeedbackRepository(context: Context, private val authRepository: AuthRepos
     }
 
     private fun FeedbackEntry.toDto(id: String, updatedAt: String, providerId: String) = FeedbackDto(
-        profileId = profileId, providerId = providerId, contentId = id, contentType = MOVIE, title = title, feedback = value, updatedAt = updatedAt
+        profileId = profileId, providerId = providerId, contentId = id, contentType = contentType, title = title, feedback = value, updatedAt = updatedAt
     )
 
     /** Strictly later than the previous write for the same movie, so two quick changes can't tie on the server. */
@@ -263,7 +274,6 @@ class FeedbackRepository(context: Context, private val authRepository: AuthRepos
     private fun naturalKey(providerId: String, id: String) = "$profileId|$providerId|$id"
 
     companion object {
-        private const val MOVIE = "MOVIE"
         /** The addon id Cinemeta reports; used when a movie's provider isn't known. */
         const val DEFAULT_PROVIDER_ID = "com.linvo.cinemeta"
         private val KEY = stringPreferencesKey("feedback_json")

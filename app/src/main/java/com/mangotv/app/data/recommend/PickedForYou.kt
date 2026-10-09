@@ -13,7 +13,6 @@ import com.mangotv.app.data.provider.SavedListItem
 fun interactionInputs(list: List<SavedListItem>, feedback: Map<String, FeedbackEntry>): List<InteractionInput> {
     val inputs = LinkedHashMap<String, InteractionInput>()
     for (item in list) {
-        if (item.type != ContentType.MOVIE) continue
         inputs[item.id] = InteractionInput(item.id, item.title, completed = item.watched, inWatchlist = true)
     }
     for ((id, entry) in feedback) {
@@ -42,19 +41,19 @@ fun excludedFromPicks(
     return ids
 }
 
-fun Content.toCandidate(): Candidate = Candidate(id, title, providerId, genres.map { it.name }, rating)
+fun Content.toCandidate(): Candidate = Candidate(id, title, providerId, genres.map { it.name }, rating, type)
 
-/** Looks a movie's features up through the addon that listed it (one bounded, cached request). */
+/** Looks a movie's or TV show's features up through the addon that listed it (one bounded, cached request). */
 suspend fun fetchMovieFeatures(providers: List<CatalogProvider>, ref: MovieRef): Features? {
     val provider = (ref.providerId?.let { id -> providers.firstOrNull { it.id == id } }) ?: providers.firstOrNull() ?: return null
-    return provider.getDetails(ContentType.MOVIE, ref.id)?.let(::featuresFromContent)
+    return provider.getDetails(ref.type ?: ContentType.MOVIE, ref.id)?.let(::featuresFromContent)
 }
 
 /**
  * The "Picked for you" row, ready to place on Home: null when there is nothing to show. Titles rated Like or Not for me, and
  * titles removed by hand, are dropped at once (before any recompute) so they disappear the moment they are marked.
  */
-fun pickedSection(result: EngineResult?, movies: List<Content>, feedback: Map<String, FeedbackEntry>, dismissed: Set<String> = emptySet()): HomeSection? {
+fun pickedSection(result: EngineResult?, movies: List<Content>, /* movies and TV shows */ feedback: Map<String, FeedbackEntry>, dismissed: Set<String> = emptySet()): HomeSection? {
     if (result == null || result.items.isEmpty()) return null
     val byId = movies.associateBy { it.id }
     val personal = result is EngineResult.Personal

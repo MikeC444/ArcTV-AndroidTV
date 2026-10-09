@@ -112,7 +112,7 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
     /** Pressing Like when already liked clears it; pressing it when "Not for me" switches it. A guest is asked to sign in. */
     fun toggleFeedback(value: Feedback) {
         val content = (uiState.value as? DetailUiState.Success)?.content ?: return
-        val target = FeedbackTarget(content.id, content.title, content.providerId)
+        val target = FeedbackTarget(content.id, content.title, content.providerId, content.type, content.posterUrl)
         guestGate.requireAccount { viewModelScope.launch { feedbackRepository.toggle(target, value) } }
     }
 

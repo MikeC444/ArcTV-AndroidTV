@@ -194,7 +194,7 @@ class AppContainer(context: Context) {
     /** What the person said to the Arc TV Plus popup on Home (Close snoozes it, "Don't show me again" ends it). */
     val plusPromoRepository: PlusPromoRepository = PlusPromoRepository(context, authRepository)
     val syncManager: SyncManager = SyncManager(
-        context, settingsSyncRepository, watchlistSyncRepository, continueWatchingSyncRepository, addonSyncRepository, feedbackRepository, plusRepository, profileRepository
+        context, settingsSyncRepository, watchlistSyncRepository, continueWatchingSyncRepository, addonSyncRepository, feedbackRepository, pickedStateRepository, plusRepository, profileRepository
     )
     // Lazy: only the "Who's watching?" screen and a profile that vanished underneath the device ever need it.
     val profileSwitcher: ProfileSwitcher by lazy {
@@ -209,6 +209,7 @@ class AppContainer(context: Context) {
             playerPreferencesRepository = playerPreferencesRepository,
             blockedGenresRepository = blockedGenresRepository,
             feedbackRepository = feedbackRepository,
+            pickedStateRepository = pickedStateRepository,
             homeCacheRepository = homeCacheRepository,
             settingsSyncRepository = settingsSyncRepository,
             watchlistSyncRepository = watchlistSyncRepository,

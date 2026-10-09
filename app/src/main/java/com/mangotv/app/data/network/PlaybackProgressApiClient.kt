@@ -32,6 +32,27 @@ class PlaybackProgressApiClient(private val baseUrl: String) {
         json.decodeFromString(WatchProgressResponse.serializer(), execute(request))
     }
 
+    /**
+     * Takes a title out of Continue Watching WITHOUT marking it watched (DELETE /user/continue-watching): the server forgets the saved
+     * position, so playing it again starts from the beginning. Returns the row's current state (deletedAt set when this removal won, absent
+     * when a later playback on another device beat it), or null when the account never had one (HTTP 204).
+     */
+    suspend fun removeContinueWatching(accessToken: String, providerId: String, contentId: String, contentType: String, updatedAt: String): ContinueWatchingItemDto? = withContext(Dispatchers.IO) {
+        val url = "$baseUrl/user/continue-watching".toHttpUrl().newBuilder()
+            .addQueryParameter("providerId", providerId)
+            .addQueryParameter("contentId", contentId)
+            .addQueryParameter("contentType", contentType)
+            .addQueryParameter("updatedAt", updatedAt)
+            .build()
+        val request = Request.Builder()
+            .url(url)
+            .header("Authorization", "Bearer $accessToken")
+            .delete()
+            .build()
+        val body = execute(request)
+        if (body.isBlank()) null else json.decodeFromString(ContinueWatchingItemDto.serializer(), body)
+    }
+
     suspend fun getContinueWatching(accessToken: String): ContinueWatchingListResponse = withContext(Dispatchers.IO) {
         val request = Request.Builder()
             .url("$baseUrl/user/continue-watching")
