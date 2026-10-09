@@ -9,8 +9,7 @@ description, so there's no need to visit GitHub to see what changed.
 file is only ever end-user-facing release notes.)
 
 Releasing needs nothing done to this file: add each change as a bullet under `## Unreleased` as you make it. When a release is
-p- A fresh look for the poster menu: a big Play button, your My List, Watched, Like and Not for me in a neat grid, then the rest below.
-ublished, the workflow uses what is under `## Unreleased` as that release's notes (what the app's update pop-up shows), then moves it
+published, the workflow uses what is under `## Unreleased` as that release's notes (what the app's update pop-up shows), then moves it
 under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
@@ -20,6 +19,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Remove a pick and it stays gone for 5 days on every device.
 - Take a title out of Continue Watching and it starts fresh next time, without being marked watched.
 - A new Recommendations tab in Settings shows what you've liked and how your picks are chosen.
+- A fresh look for the poster menu: the title's artwork on top, a big Play button, and My List, Watched, Like and Not for me that show what you pressed.
 
 ## 0.3.1
 

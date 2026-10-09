@@ -1,6 +1,8 @@
 package com.mangotv.app.ui.components
 
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -29,10 +31,19 @@ import org.robolectric.annotation.GraphicsMode
 class CardActionsMenuScreenshotTest {
     @get:Rule val rule = createAndroidComposeRule<ComponentActivity>()
 
+    private fun asset(name: String): String? = System.getProperty("poster.dir")?.let { "file://$it/$name" }
+
     private fun movie(progress: WatchProgress? = null, picked: Boolean = false, title: String = "Insidious: Out of the Further") = Content(
         id = "tt32393988", type = ContentType.MOVIE, title = title, description = "", providerId = "com.linvo.cinemeta",
-        posterUrl = System.getProperty("poster.dir")?.let { "file://$it/tt32393988.jpg" }, backdropUrl = null,
+        posterUrl = asset("tt32393988.jpg"), backdropUrl = null,
         watchProgress = progress, pickedForYou = picked
+    )
+
+    /** With the title's wide backdrop, and its logo unless [logo] is false. */
+    private fun withBackdrop(logo: Boolean) = Content(
+        id = "tt0816692", type = ContentType.MOVIE, title = if (logo) "Interstellar" else "Midsomer Murders", description = "", providerId = "com.linvo.cinemeta",
+        posterUrl = asset("tt0118401.jpg"), backdropUrl = asset(if (logo) "tt0816692-bg.jpg" else "tt0118401-bg.jpg"),
+        logoUrl = if (logo) asset("tt0816692-logo.png") else null
     )
 
     private val calls = mutableListOf<String>()
@@ -57,9 +68,20 @@ class CardActionsMenuScreenshotTest {
     private fun save(name: String) {
         System.getProperty("screenshot.out")?.let { base ->
             // The poster loads in the background: give it a moment before drawing.
-            repeat(8) { Thread.sleep(150); rule.waitForIdle() }
+            // Pictures arrive in the background and need frames to be drawn: let time pass and frames run.
+            repeat(30) { Thread.sleep(100); rule.mainClock.advanceTimeBy(100); rule.waitForIdle() }
             val out = base.removeSuffix(".png") + name + ".png"
             val view = rule.activity.window.decorView
+            // A first draw pass makes the views re-record what changed since the pictures arrived; the second one is the picture.
+            // The pictures fade in: move the (paused) main-thread clock on so the fade finishes.
+            org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(2))
+            repeat(3) {
+                rule.runOnUiThread { view.invalidate() }
+                rule.waitForIdle()
+                view.draw(android.graphics.Canvas(android.graphics.Bitmap.createBitmap(view.width, view.height, android.graphics.Bitmap.Config.ARGB_8888)))
+                // the fade starts when a picture is first drawn, so the clock must keep moving between the passes
+                org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(1))
+            }
             val bitmap = android.graphics.Bitmap.createBitmap(view.width, view.height, android.graphics.Bitmap.Config.ARGB_8888)
             view.draw(android.graphics.Canvas(bitmap))
             File(out).outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
@@ -70,11 +92,57 @@ class CardActionsMenuScreenshotTest {
     fun plusMemberOnAPickedTitleWithProgress() {
         draw(movie(WatchProgress(positionMs = 25 * 60_000L, durationMs = 6_000_000L), picked = true), plus = true, inList = true, feedback = Feedback.LIKE, withCw = true)
         rule.onNodeWithText("Resume from 25m").assertExists()
-        rule.onNodeWithText("Remove from My List").assertExists()
-        rule.onNodeWithText("Remove like").assertExists()
+        rule.onNodeWithText("In My List").assertExists()
+        rule.onNodeWithText("Add to My List").assertDoesNotExist()
+        rule.onNodeWithText("Like").assertExists()
         rule.onNodeWithText("Remove from Picked for you").assertExists()
         rule.onNodeWithText("Remove from Continue Watching").assertExists()
         save("-plus")
+    }
+
+    @Test
+    fun backdropWithLogoOverIt() {
+        draw(withBackdrop(logo = true), plus = true)
+        // The logo stands in for the title text (only checkable when the local logo file is supplied).
+        if (asset("tt0816692-logo.png") != null) rule.onNodeWithText("Interstellar").assertDoesNotExist()
+        save("-banner-logo")
+    }
+
+    @Test
+    fun backdropWithoutALogoShowsTheTitleAsText() {
+        draw(withBackdrop(logo = false), plus = true, inList = true, watched = true, feedback = Feedback.DISLIKE)
+        rule.onNodeWithText("Midsomer Murders").assertExists()
+        rule.onNodeWithText("Watched").assertExists()
+        rule.onNodeWithText("In My List").assertExists()
+        save("-banner-text")
+    }
+
+    @Test
+    fun pressedButtonsShowTheirStateAndPressingAgainUndoesIt() {
+        rule.setContent {
+            var inList by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+            var watched by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+            MangoTvTheme {
+                CardActionsMenuPanel(
+                    content = movie(), isInMyList = inList, isWatched = watched, feedback = null, plusActive = false,
+                    firstFocusRequester = FocusRequester(),
+                    onPlay = {}, onToggleMyList = { inList = !inList }, onToggleWatched = { watched = !watched },
+                    onLike = {}, onDislike = {}, onRemoveFromPicked = {}, onViewDetails = {}, onRemoveFromContinueWatching = null, onChooseSource = {}
+                )
+            }
+        }
+        rule.onNodeWithText("Add to My List").performClick()
+        rule.waitForIdle()
+        rule.onNodeWithText("In My List").assertExists()
+        rule.onNodeWithText("Mark as watched").performClick()
+        rule.waitForIdle()
+        rule.onNodeWithText("Watched").assertExists()
+        rule.onNodeWithText("In My List").performClick() // again: undone
+        rule.waitForIdle()
+        rule.onNodeWithText("Add to My List").assertExists()
+        rule.onNodeWithText("Watched").performClick()
+        rule.waitForIdle()
+        rule.onNodeWithText("Mark as watched").assertExists()
     }
 
     @Test

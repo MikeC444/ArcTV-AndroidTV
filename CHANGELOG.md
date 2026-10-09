@@ -4984,3 +4984,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-112 -- Firestick: the poster menu stays open after My List, Watched, Like and Not for me, and has the title's backdrop and logo on top
+
+**Status:** Done in code; compiles, and the unit tests below pass; not run on a TV.
+
+**Context:** the last two open items of the web app's poster menu redesign (docs/PARITY.md in the web repo), after the layout (Post-Milestone-111).
+
+**Changes:**
+- **Stays open.** My List, Watched, Like and Not for me no longer close the menu; the button that was pressed shows it. A set state has a teal fill and outline, a bold label and a tick (or filled thumb): "In My List" / "Add to My List", "Watched" / "Mark as watched", Like, Not for me. Pressing it again undoes it, and Like and Not for me still switch each other over. A guest, who is sent to sign in instead, has the menu closed so it does not sit in front of the sign-in. Everything else (Play, Remove from Picked for you, View Details, Remove from Continue Watching, Choose Source) closes it as before.
+- **Backdrop and logo.** When the title has a backdrop, the top of the menu is that picture across the full width, fading into the card, with the title's logo over it at the bottom left (`MenuBanner`). With no logo, or one that fails to load, the title shows as bold text; with no backdrop it is the small poster with the title beside it, as before.
+
+**Tests performed:** `CardActionsMenuScreenshotTest` now has 6 (the earlier three, now expecting the new labels; a backdrop with its logo; a backdrop with the title as text and every state set; and a test that My List and Watched labels flip when pressed and flip back when pressed again). The full unit suite passes and the debug app builds. A desktop render of each variant was looked at. NOT done: the "stays open" behaviour itself lives in the overlay's own actions (they no longer call dismiss) and is not exercised by a test, because it needs the app's repositories; D-pad navigation was not tested; not run on a Fire TV. In the screenshot test the pictures needed the clock moved on, because they fade in.
+
+**Issues discovered:** none in the app. (The screenshot test needed extra frames and clock time before the pictures showed.)
+
+**Issues fixed:** none.

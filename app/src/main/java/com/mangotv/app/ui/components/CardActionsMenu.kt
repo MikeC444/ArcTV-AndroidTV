@@ -2,6 +2,9 @@ package com.mangotv.app.ui.components
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,6 +54,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -211,23 +215,21 @@ fun CardActionsMenuOverlay(
         firstFocusRequester = firstRowFocusRequester,
         modifier = modifier,
         onPlay = { if (providerId != null) dismissAndNavigate(resolvePlayRoute(content)) },
+        // My List, Watched, Like and Not for me leave the menu open, so the person sees the change and can undo it; a guest, who is sent to
+        // sign in instead, has the menu closed so it does not sit in front of that.
         onToggleMyList = {
-            guestGate.requireAccount { coroutineScope.launch { myListRepository.toggle(content) } }
-            state.dismiss()
+            if (!guestGate.requireAccount { coroutineScope.launch { myListRepository.toggle(content) } }) state.dismiss()
         },
         // Non-suspend: toggleWatched() already fires fire-and-forget on MyListRepository's own long-lived scope, unlike toggle() above.
         // Unlike the player's own one-way markWatched(), this flips watched in either direction on each tap.
         onToggleWatched = {
-            guestGate.requireAccount { myListRepository.toggleWatched(content) }
-            state.dismiss()
+            if (!guestGate.requireAccount { myListRepository.toggleWatched(content) }) state.dismiss()
         },
         onLike = {
-            guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.LIKE) } }
-            state.dismiss()
+            if (!guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.LIKE) } }) state.dismiss()
         },
         onDislike = {
-            guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.DISLIKE) } }
-            state.dismiss()
+            if (!guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.DISLIKE) } }) state.dismiss()
         },
         onRemoveFromPicked = {
             coroutineScope.launch { pickedStateRepository.dismiss(content.id) }
@@ -289,32 +291,37 @@ internal fun CardActionsMenuPanel(
         Column(
             modifier = Modifier
                 .width(560.dp)
-                .background(MangoBackgroundElevated, RoundedCornerShape(22.dp))
-                .padding(horizontal = 22.dp, vertical = 16.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(MangoBackgroundElevated)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                AsyncImage(
-                    model = rememberOpaqueImageRequest(content.posterUrl ?: content.backdropUrl),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .width(80.dp)
-                        .height(120.dp)
-                        .clip(RoundedCornerShape(9.dp))
-                )
-                Spacer(Modifier.width(18.dp))
-                Text(
-                    text = content.title,
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
+            if (content.backdropUrl != null) {
+                // The title's wide backdrop with its logo over it (the title as text when there is no logo).
+                MenuBanner(content)
+            } else {
+                // No backdrop: the small poster with the title beside it.
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 16.dp)) {
+                    AsyncImage(
+                        model = rememberOpaqueImageRequest(content.posterUrl),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .width(80.dp)
+                            .height(120.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                    )
+                    Spacer(Modifier.width(18.dp))
+                    Text(
+                        text = content.title,
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
-            Spacer(Modifier.height(12.dp))
-
+            Column(modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 12.dp, bottom = 16.dp)) {
             PlayButton(
                 label = if (watchProgress != null) "Resume from ${formatElapsed(watchProgress.positionMs)}" else "Play",
                 focusRequester = firstFocusRequester,
@@ -325,14 +332,14 @@ internal fun CardActionsMenuPanel(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 GridAction(
                     icon = if (isInMyList) Icons.Filled.Check else Icons.Filled.Add,
-                    label = if (isInMyList) "Remove from My List" else "Add to My List",
+                    label = if (isInMyList) "In My List" else "Add to My List",
                     on = isInMyList,
                     onClick = onToggleMyList,
                     modifier = Modifier.weight(1f)
                 )
                 GridAction(
-                    icon = if (isWatched) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
-                    label = if (isWatched) "Remove from Watched" else "Mark as watched",
+                    icon = if (isWatched) Icons.Filled.Check else Icons.Outlined.CheckCircle,
+                    label = if (isWatched) "Watched" else "Mark as watched",
                     on = isWatched,
                     onClick = onToggleWatched,
                     modifier = Modifier.weight(1f)
@@ -343,14 +350,14 @@ internal fun CardActionsMenuPanel(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     GridAction(
                         icon = if (feedback == Feedback.LIKE) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
-                        label = if (feedback == Feedback.LIKE) "Remove like" else "Like",
+                        label = "Like",
                         on = feedback == Feedback.LIKE,
                         onClick = onLike,
                         modifier = Modifier.weight(1f)
                     )
                     GridAction(
                         icon = if (feedback == Feedback.DISLIKE) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
-                        label = if (feedback == Feedback.DISLIKE) "Remove \"Not for me\"" else "Not for me",
+                        label = "Not for me",
                         on = feedback == Feedback.DISLIKE,
                         onClick = onDislike,
                         modifier = Modifier.weight(1f)
@@ -370,6 +377,60 @@ internal fun CardActionsMenuPanel(
             }
             if (onChooseSource != null) {
                 CardActionRow(icon = Icons.Filled.List, label = "Choose Source", chevron = true, onClick = onChooseSource)
+            }
+            }
+        }
+    }
+}
+
+/**
+ * The top of the menu when the title has a wide backdrop: the backdrop across the full width, fading into the card, with the title's logo
+ * over it at the bottom left (the title as bold text when it has no logo, or the logo cannot be loaded).
+ */
+@Composable
+private fun MenuBanner(content: Content) {
+    var logoFailed by remember(content.id) { mutableStateOf(false) }
+    Box(modifier = Modifier.fillMaxWidth().height(150.dp)) {
+        AsyncImage(
+            model = rememberOpaqueImageRequest(content.backdropUrl),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.TopCenter,
+            modifier = Modifier.fillMaxSize()
+        )
+        // Fades the backdrop into the card from about a third of the way down (the card colour with no opacity, to the card colour).
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .drawBehind {
+                    drawRect(
+                        Brush.verticalGradient(
+                            colors = listOf(MangoBackgroundElevated.copy(alpha = 0f), MangoBackgroundElevated),
+                            startY = size.height * 0.35f,
+                            endY = size.height
+                        )
+                    )
+                }
+        )
+        Box(modifier = Modifier.align(Alignment.BottomStart).padding(start = 22.dp, end = 22.dp, bottom = 10.dp)) {
+            if (content.logoUrl != null && !logoFailed) {
+                AsyncImage(
+                    model = content.logoUrl,
+                    contentDescription = content.title,
+                    contentScale = ContentScale.Fit,
+                    alignment = Alignment.BottomStart,
+                    onError = { logoFailed = true },
+                    modifier = Modifier.heightIn(max = 64.dp).widthIn(max = 320.dp)
+                )
+            } else {
+                Text(
+                    text = content.title,
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
@@ -400,20 +461,24 @@ private fun PlayButton(label: String, focusRequester: FocusRequester, onClick: (
     }
 }
 
-/** One cell of the two-by-two grid. [on] marks a state that is set (in My List, watched, liked, not for me): a tick-style icon in the accent colour and a lighter fill. */
+/** One cell of the two-by-two grid. [on] marks a state that is set (in My List, watched, liked, not for me): a teal fill and outline, a bold label, and a tick or filled icon. Pressing it again undoes it. */
 @Composable
 private fun GridAction(icon: ImageVector, label: String, on: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     TvFocusSurface(
         onClick = onClick,
         shape = RoundedCornerShape(11.dp),
-        backgroundColor = if (on) MangoSurfaceHigh else MangoSurface,
+        backgroundColor = if (on) lerp(MangoSurface, ArcAccent, 0.22f) else MangoSurface,
         borderColor = TextPrimary,
         focusedScale = 1.03f,
         bringIntoViewOnFocus = false,
         modifier = modifier
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                // A set state keeps a teal outline (the focus outline is the white one), so it reads at a distance.
+                .then(if (on) Modifier.border(1.dp, ArcAccent, RoundedCornerShape(11.dp)) else Modifier)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
