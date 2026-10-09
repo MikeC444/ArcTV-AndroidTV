@@ -179,7 +179,9 @@ private fun HomeContent(
     }
 
     LaunchedEffect(state) {
-        if (!hasRequestedInitialFocus) {
+        // Rows not loaded yet but a poster was remembered: wait for them rather than giving up on the restore.
+        val waitingForRows = restoreSectionId != null && restoreTarget == null && state.sections.isEmpty()
+        if (!hasRequestedInitialFocus && !waitingForRows) {
             hasRequestedInitialFocus = true
             if (restoreRowIndex != null && restoreItemIndex != null) {
                 // Coming back from another screen: bring the remembered row (and the poster within it) on screen if
@@ -193,7 +195,11 @@ private fun HomeContent(
                     restoreRowListState.scrollToItem(restoreItemIndex)
                     withFrameNanos { }
                 }
-                runCatching { restoreFocusRequester.requestFocus() }
+                // The poster may not be placed on the very first frame: try once more before giving up.
+                if (runCatching { restoreFocusRequester.requestFocus() }.isFailure) {
+                    withFrameNanos { }
+                    runCatching { restoreFocusRequester.requestFocus() }
+                }
             } else {
                 // Land on the "Home" nav tab by default, not the Play button —
                 // homeNavFocusRequester targets the nav bar overlay, which is

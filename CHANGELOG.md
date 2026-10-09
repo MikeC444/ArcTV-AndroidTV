@@ -5016,3 +5016,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-114 -- Firestick: the poster menu keeps the D-pad inside it, Home remembers its place better, and the Recommendations tab is easier to move through
+
+**Status:** Done on branch `claude/firestick-menu-focus`, not merged.
+
+**Context:** Pressing Up past the menu's Play button moved focus onto the nav bar and rows behind it; after using the menu and coming back, focus went to the hero's Play button instead of the Picked for you poster; and the Recommendations tab's text sections could not be reached with the remote.
+
+**Changes:**
+- Poster menu: the overlay is now a focus group that cancels any focus move out of it.
+- Home: the restore of the remembered poster now waits for the rows to load if they were not there yet, and tries a second time if the poster was not placed on the first frame.
+- Recommendations tab: each block of reading (what shapes your picks, each how-it-works step, the notes, the reset text) is focusable so Down steps through and scrolls; Left from the first poster, the blocks and the reset buttons goes back to the settings list.
+
+**Tests performed:** The full unit suite passes and the debug app builds (the Recommendations screenshot test now scrolls the lazy list to the reset block first). NOT done: any of this on a Fire TV or the emulator, so the focus trap and the Home restore are untested in practice. The Home restore change is a best guess at the cause: I could not reproduce it here.
+
+**Issues discovered:** none beyond the above.
+
+**Issues fixed:** the three focus problems above, as far as can be said without a device.

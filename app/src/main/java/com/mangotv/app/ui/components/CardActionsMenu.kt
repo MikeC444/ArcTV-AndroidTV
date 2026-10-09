@@ -62,6 +62,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.focusProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.mangotv.app.data.model.Content
@@ -263,6 +265,7 @@ fun CardActionsMenuOverlay(
  * poster with the title beside it, one big Play (or Resume) button, a two-by-two grid of My List / Watched / Like / Not for me, then a
  * short list of the other actions. Kept compact because the screen is only 540 dp tall.
  */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 internal fun CardActionsMenuPanel(
     content: Content,
@@ -286,7 +289,10 @@ internal fun CardActionsMenuPanel(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.7f)),
+            .background(Color.Black.copy(alpha = 0.7f))
+            // Keeps the D-pad inside the menu: Up from Play (or any edge) stops there instead of reaching the nav bar or rows behind it.
+            .focusProperties { exit = { FocusRequester.Cancel } }
+            .focusGroup(),
         contentAlignment = Alignment.Center
     ) {
         Column(

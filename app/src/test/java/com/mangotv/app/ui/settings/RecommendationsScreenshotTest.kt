@@ -3,6 +3,8 @@ package com.mangotv.app.ui.settings
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.performScrollToKey
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -104,6 +106,7 @@ class RecommendationsScreenshotTest {
         val removed = mutableListOf<String>()
         draw(feedback, removed)
         rule.onNodeWithText("Yes, reset").assertDoesNotExist() // asks first
+        rule.onAllNodes(hasScrollAction()).fetchSemanticsNodes().indices.forEach { i -> runCatching { rule.onAllNodes(hasScrollAction())[i].performScrollToKey("reset") } } // the list is lazy: bring the reset block into being
         rule.onAllNodesWithText("Reset preferences")[1].performClick() // [0] is the heading, [1] the button
         rule.waitForIdle()
         rule.onNodeWithText("Yes, reset").assertExists()

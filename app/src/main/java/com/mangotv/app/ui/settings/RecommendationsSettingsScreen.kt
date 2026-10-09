@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
@@ -47,6 +47,7 @@ import com.mangotv.app.data.recommend.Feedback
 import com.mangotv.app.data.recommend.RecommendConfig
 import com.mangotv.app.data.recommend.pointsLabel
 import com.mangotv.app.data.recommend.summarizeRecommendations
+import com.mangotv.app.ui.components.ClickSound
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.components.rememberOpaqueImageRequest
 import com.mangotv.app.ui.theme.ArcAccent
@@ -144,12 +145,13 @@ internal fun RecommendationsPanel(
                     Text("Press OK on a title to remove its rating.", color = TextTertiary, style = MaterialTheme.typography.labelMedium)
                     Spacer(Modifier.height(8.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp, horizontal = 4.dp)) {
-                        items(shown, key = { it.key }) { (id, entry) ->
+                        itemsIndexed(shown, key = { _, e -> e.key }) { index, (id, entry) ->
                             RatedPoster(
                                 id = id,
                                 entry = entry,
                                 posterUrl = entry.posterUrl ?: list.firstOrNull { it.id == id }?.posterUrl ?: metahubPoster(id),
                                 liked = tab == RatingTab.LIKED,
+                                focusLeft = if (index == 0) sidebarFocusRequester else null,
                                 onRemove = { onRemove(id, entry) }
                             )
                         }
@@ -162,33 +164,40 @@ internal fun RecommendationsPanel(
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("What shapes your picks", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
                 ShapeLine(
+                    sidebarFocusRequester,
                     "Titles you like (${summary.likes}): ${pointsLabel(summary.likePoints)}",
                     "${RecommendConfig.WEIGHT_LIKE.toInt()} points each, shared across the title's genres, directors and cast. Pulls in more like it."
                 )
                 ShapeLine(
+                    sidebarFocusRequester,
                     "Titles marked Not for me (${summary.dislikes}): ${pointsLabel(summary.dislikePoints)}",
                     "${RecommendConfig.WEIGHT_DISLIKE.toInt()} points each, shared the same way. The title itself is never picked, and similar titles are pushed down."
                 )
                 ShapeLine(
+                    sidebarFocusRequester,
                     "Your My List and finished titles (${summary.finished} finished, ${summary.saved} saved): ${pointsLabel(summary.listPoints)}",
                     "${RecommendConfig.WEIGHT_COMPLETED.toInt()} points for each finished, ${RecommendConfig.WEIGHT_WATCHLIST.toInt()} for each saved, when you have not rated it. " +
                         "Movies count as finished when you watch them to the end; mark a show as watched yourself."
                 )
-                Text("Points are how much each title counts toward your taste. They are not a score.", color = TextTertiary, style = MaterialTheme.typography.labelMedium)
-                if (summary.overLimit) {
-                    Text(
-                        "Only your ${RecommendConfig.INTERACTION_DETAIL_FETCH_LIMIT} strongest ratings and saves are used for your picks right now.",
-                        color = TextTertiary,
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-                if (!summary.ready) {
-                    Text(
-                        "Not enough yet: your picks start once you have at least ${RecommendConfig.MIN_INTERACTIONS_FOR_PERSONALISATION} titles you like, finished, saved or marked " +
-                            "Not for me, and at least one of them liked, finished or saved. Until then Home shows popular titles.",
-                        color = TextTertiary,
-                        style = MaterialTheme.typography.labelMedium
-                    )
+                ReadBlock(sidebarFocusRequester) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Points are how much each title counts toward your taste. They are not a score.", color = TextTertiary, style = MaterialTheme.typography.labelMedium)
+                    if (summary.overLimit) {
+                        Text(
+                            "Only your ${RecommendConfig.INTERACTION_DETAIL_FETCH_LIMIT} strongest ratings and saves are used for your picks right now.",
+                            color = TextTertiary,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                    if (!summary.ready) {
+                        Text(
+                            "Not enough yet: your picks start once you have at least ${RecommendConfig.MIN_INTERACTIONS_FOR_PERSONALISATION} titles you like, finished, saved or marked " +
+                                "Not for me, and at least one of them liked, finished or saved. Until then Home shows popular titles.",
+                            color = TextTertiary,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                    }
                 }
             }
         }
@@ -196,32 +205,34 @@ internal fun RecommendationsPanel(
         item(key = "how") {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("How it works", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
-                HowStep("1", "It learns your taste.", "Every movie or show you like, finish or save adds points toward the genres, directors and cast you enjoy. A Like counts most, and Not for me counts against.")
-                HowStep("2", "It scores what is on offer.", "Titles from your Home rows are compared with your taste, mostly on genre, then on director and cast. Titles you have already finished, rated or are watching are left out.")
-                HowStep("3", "It shows a spread.", "Your strongest matches stay, and the rest of the row follows your mix of tastes, so a smaller taste still gets its share.")
-                HowStep("4", "It changes when you refresh.", "Most of the row is different next time, and no single title of yours can explain too many picks.")
-                HowStep("5", "It explains itself.", "The line under most picks names the title behind it. A few say \"More from directors you enjoy\" instead, and with no real match no reason is shown.")
+                HowStep(sidebarFocusRequester, "1", "It learns your taste.", "Every movie or show you like, finish or save adds points toward the genres, directors and cast you enjoy. A Like counts most, and Not for me counts against.")
+                HowStep(sidebarFocusRequester, "2", "It scores what is on offer.", "Titles from your Home rows are compared with your taste, mostly on genre, then on director and cast. Titles you have already finished, rated or are watching are left out.")
+                HowStep(sidebarFocusRequester, "3", "It shows a spread.", "Your strongest matches stay, and the rest of the row follows your mix of tastes, so a smaller taste still gets its share.")
+                HowStep(sidebarFocusRequester, "4", "It changes when you refresh.", "Most of the row is different next time, and no single title of yours can explain too many picks.")
+                HowStep(sidebarFocusRequester, "5", "It explains itself.", "The line under most picks names the title behind it. A few say \"More from directors you enjoy\" instead, and with no real match no reason is shown.")
             }
         }
 
         item(key = "reset") {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Reset preferences", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
+                ReadBlock(sidebarFocusRequester) {
                 Text(
                     "Clears every Like and Not for me on this profile ($total now). Your picks still use your My List and finished titles, and a title you removed from the row stays out for ${RecommendConfig.PICKED_DISMISS_DAYS} days.",
                     color = TextSecondary,
                     style = MaterialTheme.typography.bodySmall
                 )
+                }
                 if (confirming) {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         RecsPill("Yes, reset", false, {
                             onReset(liked + disliked)
                             confirming = false
-                        }, null, null)
+                        }, null, sidebarFocusRequester)
                         RecsPill("Cancel", false, { confirming = false }, null, null)
                     }
                 } else if (total > 0) {
-                    RecsPill("Reset preferences", false, { confirming = true }, null, null)
+                    RecsPill("Reset preferences", false, { confirming = true }, null, sidebarFocusRequester)
                 }
             }
         }
@@ -250,7 +261,7 @@ private fun RecsPill(label: String, selected: Boolean, onClick: () -> Unit, focu
 }
 
 @Composable
-private fun RatedPoster(id: String, entry: FeedbackEntry, posterUrl: String?, liked: Boolean, onRemove: () -> Unit) {
+private fun RatedPoster(id: String, entry: FeedbackEntry, posterUrl: String?, liked: Boolean, focusLeft: FocusRequester?, onRemove: () -> Unit) {
     Column(modifier = Modifier.width(112.dp)) {
         TvFocusSurface(
             onClick = onRemove,
@@ -258,7 +269,8 @@ private fun RatedPoster(id: String, entry: FeedbackEntry, posterUrl: String?, li
             shape = RoundedCornerShape(10.dp),
             focusedScale = 1.06f,
             backgroundColor = MangoSurface,
-            borderColor = TextPrimary
+            borderColor = TextPrimary,
+            focusLeft = focusLeft
         ) {
             Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f)) {
                 if (posterUrl != null) {
@@ -289,20 +301,41 @@ private fun RatedPoster(id: String, entry: FeedbackEntry, posterUrl: String?, li
 }
 
 @Composable
-private fun ShapeLine(title: String, detail: String) {
+private fun ShapeLine(sidebarFocusRequester: FocusRequester, title: String, detail: String) {
+    ReadBlock(sidebarFocusRequester) {
     Column {
         Text(title, color = TextPrimary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
         Text(detail, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
     }
+    }
 }
 
 @Composable
-private fun HowStep(number: String, title: String, detail: String) {
+private fun HowStep(sidebarFocusRequester: FocusRequester, number: String, title: String, detail: String) {
+    ReadBlock(sidebarFocusRequester) {
     Row(verticalAlignment = Alignment.Top) {
         Text("$number.", color = ArcAccent, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, modifier = Modifier.width(22.dp))
         Column {
             Text(title, color = TextPrimary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
             Text(detail, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
         }
+    }
+    }
+}
+
+/** Plain text can't take focus, so each block of reading is focusable: the remote steps down it and the list scrolls to keep it in view. */
+@Composable
+private fun ReadBlock(sidebarFocusRequester: FocusRequester, content: @Composable () -> Unit) {
+    TvFocusSurface(
+        onClick = {},
+        clickSound = ClickSound.NONE,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
+        focusedScale = 1.01f,
+        backgroundColor = MangoSurface,
+        borderColor = TextPrimary,
+        focusLeft = sidebarFocusRequester
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) { content() }
     }
 }
