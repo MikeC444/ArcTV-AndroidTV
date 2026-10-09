@@ -13,6 +13,7 @@ import com.mangotv.app.data.auth.GuestGate
 import com.mangotv.app.data.feedback.FeedbackRepository
 import com.mangotv.app.data.history.ContinueWatchingRepository
 import com.mangotv.app.data.plus.PlusPromoRepository
+import com.mangotv.app.data.plus.PlusWelcomeRepository
 import com.mangotv.app.data.plus.PlusRepository
 import com.mangotv.app.data.profile.ProfileRepository
 import com.mangotv.app.data.recommend.PickedStateRepository
@@ -193,6 +194,7 @@ class AppContainer(context: Context) {
     val searchHistoryRepository: SearchHistoryRepository = SearchHistoryRepository(context, authRepository)
     /** What the person said to the Arc TV Plus popup on Home (Close snoozes it, "Don't show me again" ends it). */
     val plusPromoRepository: PlusPromoRepository = PlusPromoRepository(context, authRepository)
+    val plusWelcomeRepository: PlusWelcomeRepository = PlusWelcomeRepository(context, authRepository)
     val syncManager: SyncManager = SyncManager(
         context, settingsSyncRepository, watchlistSyncRepository, continueWatchingSyncRepository, addonSyncRepository, feedbackRepository, pickedStateRepository, plusRepository, profileRepository
     )

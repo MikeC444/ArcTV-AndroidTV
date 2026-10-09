@@ -5047,3 +5047,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none confirmed on a device.
+
+## Post-Milestone-116 -- Firestick: the one-time "Everything in Arc TV Plus" welcome popup
+
+**Status:** Done on branch `claude/firestick-plus-welcome`.
+
+**Context:** The web app greets Plus members once with a tour of what Plus includes. The Firestick had no equivalent (parity row of 2026-10-10).
+
+**Changes:**
+- A new popup on Home for Plus members (signed in, not a kids profile), four short lines (Picked for you, Up to 5 profiles, Smart source picking, Your stats) and "See my Plus settings" / Close. Shown about 4 seconds after landing on Home, once per account on this device (same tour id as web, so a revised tour shows once more); waits while the older "torrents" pop-up is up. "See my Plus settings" opens Settings on the Plus settings tab.
+- On an Android emulator it shows on every launch (still not twice in one launch), so it can be looked at; real devices show it once.
+
+**Tests performed:** New unit tests for when it is due (once, not twice per launch, the emulator rule) and for both buttons reaching their action. The full unit suite passes and the debug app builds. A desktop render of the card was looked at. NOT done: running it on the emulator or a Fire TV, so the 4-second timing, the dialog focus and the emulator detection are untested in practice.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

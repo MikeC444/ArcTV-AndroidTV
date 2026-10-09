@@ -138,7 +138,13 @@ fun SettingsScreen(
     val paneContentFocusRequester = remember { FocusRequester() }
 
     // Opens on Arc TV Plus when the Plus popup sent the person here ("Take me there"), otherwise on Account.
-    var selected by remember { mutableStateOf(if (PendingSettingsTab.takePlus()) SettingsCategory.PLUS else SettingsCategory.ACCOUNT) }
+    var selected by remember { mutableStateOf(
+        when {
+            PendingSettingsTab.takePlus() -> SettingsCategory.PLUS
+            PendingSettingsTab.takePlusSettings() -> SettingsCategory.PLUS_SETTINGS
+            else -> SettingsCategory.ACCOUNT
+        }
+    ) }
 
     fun rowFocusRequesterFor(category: SettingsCategory): FocusRequester = when (category) {
         SettingsCategory.ACCOUNT -> accountRowFocusRequester

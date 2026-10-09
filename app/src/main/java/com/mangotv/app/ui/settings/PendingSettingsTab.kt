@@ -13,4 +13,12 @@ object PendingSettingsTab {
     }
 
     fun takePlus(): Boolean = plus.also { plus = false }
+
+    private var plusSettings = false
+
+    fun openPlusSettings() {
+        plusSettings = true
+    }
+
+    fun takePlusSettings(): Boolean = plusSettings.also { plusSettings = false }
 }
