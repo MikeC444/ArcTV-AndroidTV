@@ -4968,3 +4968,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the sidebar row for "Recommendations" wrapped at 230 dp.
 
 **Issues fixed:** that, by widening the sidebar.
+
+## Post-Milestone-111 -- Firestick: the poster (long-press) menu is laid out like the web app's
+
+**Status:** Done in code; compiles, and the unit tests below pass; not run on a TV.
+
+**Context:** the web app's poster menu was redesigned (docs/PARITY.md in the web repo). The Firestick's was a poster beside a long list of equal rows.
+
+**Changes:**
+- `CardActionsMenuOverlay` keeps the state, focus and actions and hands them to a new stateless `CardActionsMenuPanel`: a small poster with the title beside it, one big Play (or "Resume from 25m") button that takes focus first, a two-by-two grid of My List / Watched / Like / Not for me (the two Plus rows only for Plus members; a set state shows a lighter cell), a divider, then Remove from Picked for you, View Details, Remove from Continue Watching and Choose Source (View Details and Choose Source with a chevron). Every action does what it did before, and the menu still closes after each. Sized to fit the 540 dp screen with every row showing.
+- Not part of this change (still open in docs/PARITY.md): the menu staying open after a press, and the backdrop and logo at the top.
+
+**Tests performed:** `CardActionsMenuScreenshotTest` (3: the full Plus menu with Resume, a set My List and a Like composes with its labels; the free menu has no Like / Not for me / Remove from Picked; every button reaches its own action, nine of them). The existing unit tests still pass. A desktop render of the menu was looked at. NOT done: D-pad navigation between the grid cells and the rows is not tested (it uses the app's normal focus search), and not run on a Fire TV.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

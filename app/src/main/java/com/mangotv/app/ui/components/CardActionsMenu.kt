@@ -12,6 +12,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import com.mangotv.app.ui.theme.TextSecondary
+import com.mangotv.app.ui.theme.MangoSurfaceHigh
+import com.mangotv.app.ui.theme.DividerSubtle
+import com.mangotv.app.ui.theme.ArcCyan
+import com.mangotv.app.ui.theme.ArcAccent
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -62,6 +71,7 @@ import com.mangotv.app.data.provider.MyListRepository
 import com.mangotv.app.data.sync.ContinueWatchingSyncRepository
 import com.mangotv.app.navigation.MangoRoutes
 import com.mangotv.app.ui.theme.FocusBorder
+import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoBackgroundElevated
 import com.mangotv.app.ui.theme.ErrorCoral
 import com.mangotv.app.ui.theme.MangoSurface
@@ -119,6 +129,9 @@ class CardActionsMenuState {
 }
 
 val LocalCardActionsMenu = staticCompositionLocalOf { CardActionsMenuState() }
+
+/** The Play button's fill: the accent cyan, lightened so dark text on it reads at a distance (the web app's same tint). */
+private val PlayFill: Color get() = lerp(ArcCyan, Color.White, 0.38f)
 
 private fun formatElapsed(positionMs: Long): String {
     val totalMinutes = (positionMs / 60_000L).coerceAtLeast(0L)
@@ -185,146 +198,235 @@ fun CardActionsMenuOverlay(
         onNavigate(route)
     }
 
+    val watchProgress = content.watchProgress
+    val providerId = content.providerId
+    val target = FeedbackTarget(content.id, content.title, content.providerId, content.type, content.posterUrl)
+
+    CardActionsMenuPanel(
+        content = content,
+        isInMyList = isInMyList,
+        isWatched = isWatched,
+        feedback = feedback,
+        plusActive = plusStatus.active,
+        firstFocusRequester = firstRowFocusRequester,
+        modifier = modifier,
+        onPlay = { if (providerId != null) dismissAndNavigate(resolvePlayRoute(content)) },
+        onToggleMyList = {
+            guestGate.requireAccount { coroutineScope.launch { myListRepository.toggle(content) } }
+            state.dismiss()
+        },
+        // Non-suspend: toggleWatched() already fires fire-and-forget on MyListRepository's own long-lived scope, unlike toggle() above.
+        // Unlike the player's own one-way markWatched(), this flips watched in either direction on each tap.
+        onToggleWatched = {
+            guestGate.requireAccount { myListRepository.toggleWatched(content) }
+            state.dismiss()
+        },
+        onLike = {
+            guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.LIKE) } }
+            state.dismiss()
+        },
+        onDislike = {
+            guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.DISLIKE) } }
+            state.dismiss()
+        },
+        onRemoveFromPicked = {
+            coroutineScope.launch { pickedStateRepository.dismiss(content.id) }
+            state.dismiss()
+        },
+        onViewDetails = { if (providerId != null) dismissAndNavigate(MangoRoutes.detail(providerId, content.type, content.id)) },
+        // Not "finished": taking a title out of Continue Watching must not mark it watched, and it starts over next time.
+        onRemoveFromContinueWatching = if (watchProgress != null && providerId != null) {
+            {
+                continueWatchingSyncRepository.removeEntry(providerId, content.id, content.type)
+                state.dismiss()
+            }
+        } else {
+            null
+        },
+        onChooseSource = if (providerId != null) {
+            {
+                dismissAndNavigate(
+                    MangoRoutes.sources(providerId, content.type, content.id, watchProgress?.seasonNumber, watchProgress?.episodeNumber, skipAutoSelect = true)
+                )
+            }
+        } else {
+            null
+        }
+    )
+}
+
+/**
+ * The menu itself, with everything it needs handed in (also drawn on its own by the screenshot test). Laid out like the web app's: a small
+ * poster with the title beside it, one big Play (or Resume) button, a two-by-two grid of My List / Watched / Like / Not for me, then a
+ * short list of the other actions. Kept compact because the screen is only 540 dp tall.
+ */
+@Composable
+internal fun CardActionsMenuPanel(
+    content: Content,
+    isInMyList: Boolean,
+    isWatched: Boolean,
+    feedback: Feedback?,
+    plusActive: Boolean,
+    firstFocusRequester: FocusRequester,
+    onPlay: () -> Unit,
+    onToggleMyList: () -> Unit,
+    onToggleWatched: () -> Unit,
+    onLike: () -> Unit,
+    onDislike: () -> Unit,
+    onRemoveFromPicked: () -> Unit,
+    onViewDetails: () -> Unit,
+    onRemoveFromContinueWatching: (() -> Unit)?,
+    onChooseSource: (() -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    val watchProgress = content.watchProgress
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.7f)),
         contentAlignment = Alignment.Center
     ) {
-        Row(
+        Column(
             modifier = Modifier
-                .widthIn(max = 620.dp)
-                .background(MangoBackgroundElevated, RoundedCornerShape(20.dp))
-                .padding(20.dp),
-            verticalAlignment = Alignment.Top
+                .width(560.dp)
+                .background(MangoBackgroundElevated, RoundedCornerShape(22.dp))
+                .padding(horizontal = 22.dp, vertical = 16.dp)
         ) {
-            AsyncImage(
-                model = rememberOpaqueImageRequest(content.posterUrl ?: content.backdropUrl),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .width(120.dp)
-                    .height(180.dp)
-                    .clip(RoundedCornerShape(10.dp))
-            )
-            Spacer(Modifier.width(20.dp))
-            Column(modifier = Modifier.widthIn(min = 260.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                AsyncImage(
+                    model = rememberOpaqueImageRequest(content.posterUrl ?: content.backdropUrl),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .width(80.dp)
+                        .height(120.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                )
+                Spacer(Modifier.width(18.dp))
                 Text(
                     text = content.title,
                     color = TextPrimary,
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(Modifier.height(14.dp))
+            }
+            Spacer(Modifier.height(12.dp))
 
-                val watchProgress = content.watchProgress
-                val providerId = content.providerId
-                if (watchProgress != null) {
-                    CardActionRow(
-                        icon = Icons.Filled.PlayArrow,
-                        label = "Resume from ${formatElapsed(watchProgress.positionMs)}",
-                        focusRequester = firstRowFocusRequester,
-                        onClick = { if (providerId != null) dismissAndNavigate(resolvePlayRoute(content)) }
-                    )
-                } else {
-                    CardActionRow(
-                        icon = Icons.Filled.PlayArrow,
-                        label = "Play",
-                        focusRequester = firstRowFocusRequester,
-                        onClick = { if (providerId != null) dismissAndNavigate(resolvePlayRoute(content)) }
-                    )
-                }
-                CardActionRow(
+            PlayButton(
+                label = if (watchProgress != null) "Resume from ${formatElapsed(watchProgress.positionMs)}" else "Play",
+                focusRequester = firstFocusRequester,
+                onClick = onPlay
+            )
+            Spacer(Modifier.height(8.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                GridAction(
                     icon = if (isInMyList) Icons.Filled.Check else Icons.Filled.Add,
                     label = if (isInMyList) "Remove from My List" else "Add to My List",
-                    onClick = {
-                        guestGate.requireAccount { coroutineScope.launch { myListRepository.toggle(content) } }
-                        state.dismiss()
-                    }
+                    on = isInMyList,
+                    onClick = onToggleMyList,
+                    modifier = Modifier.weight(1f)
                 )
-                CardActionRow(
+                GridAction(
                     icon = if (isWatched) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
                     label = if (isWatched) "Remove from Watched" else "Mark as watched",
-                    onClick = {
-                        // Non-suspend: toggleWatched() already fires
-                        // fire-and-forget on MyListRepository's own
-                        // long-lived scope, unlike toggle() above. Unlike
-                        // the player's own one-way markWatched(), this
-                        // flips watched in either direction on each tap.
-                        guestGate.requireAccount { myListRepository.toggleWatched(content) }
-                        state.dismiss()
-                    }
+                    on = isWatched,
+                    onClick = onToggleWatched,
+                    modifier = Modifier.weight(1f)
                 )
-                if (plusStatus.active) {
-                    val target = FeedbackTarget(content.id, content.title, content.providerId, content.type, content.posterUrl)
-                    CardActionRow(
+            }
+            if (plusActive) {
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    GridAction(
                         icon = if (feedback == Feedback.LIKE) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                         label = if (feedback == Feedback.LIKE) "Remove like" else "Like",
-                        onClick = {
-                            guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.LIKE) } }
-                            state.dismiss()
-                        }
+                        on = feedback == Feedback.LIKE,
+                        onClick = onLike,
+                        modifier = Modifier.weight(1f)
                     )
-                    CardActionRow(
+                    GridAction(
                         icon = if (feedback == Feedback.DISLIKE) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
                         label = if (feedback == Feedback.DISLIKE) "Remove \"Not for me\"" else "Not for me",
-                        onClick = {
-                            guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.DISLIKE) } }
-                            state.dismiss()
-                        }
-                    )
-                }
-                if (plusStatus.active && content.pickedForYou) {
-                    CardActionRow(
-                        icon = Icons.Filled.Close,
-                        label = "Remove from Picked for you",
-                        onClick = {
-                            coroutineScope.launch { pickedStateRepository.dismiss(content.id) }
-                            state.dismiss()
-                        }
-                    )
-                }
-                CardActionRow(
-                    icon = Icons.Filled.Info,
-                    label = "View Details",
-                    onClick = {
-                        if (providerId != null) {
-                            dismissAndNavigate(MangoRoutes.detail(providerId, content.type, content.id))
-                        }
-                    }
-                )
-                if (watchProgress != null && providerId != null) {
-                    CardActionRow(
-                        icon = Icons.Filled.Delete,
-                        label = "Remove from Continue Watching",
-                        destructive = true,
-                        onClick = {
-                            // Not "finished": taking a title out of Continue Watching must not mark it watched, and it starts over next time.
-                            continueWatchingSyncRepository.removeEntry(providerId, content.id, content.type)
-                            state.dismiss()
-                        }
-                    )
-                }
-                if (providerId != null) {
-                    CardActionRow(
-                        icon = Icons.Filled.List,
-                        label = "Choose Source",
-                        onClick = {
-                            dismissAndNavigate(
-                                MangoRoutes.sources(
-                                    providerId,
-                                    content.type,
-                                    content.id,
-                                    watchProgress?.seasonNumber,
-                                    watchProgress?.episodeNumber,
-                                    skipAutoSelect = true
-                                )
-                            )
-                        }
+                        on = feedback == Feedback.DISLIKE,
+                        onClick = onDislike,
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
+
+            Spacer(Modifier.height(10.dp))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(DividerSubtle))
+            Spacer(Modifier.height(4.dp))
+            if (plusActive && content.pickedForYou) {
+                CardActionRow(icon = Icons.Filled.Close, label = "Remove from Picked for you", onClick = onRemoveFromPicked)
+            }
+            CardActionRow(icon = Icons.Filled.Info, label = "View Details", chevron = true, onClick = onViewDetails)
+            if (onRemoveFromContinueWatching != null) {
+                CardActionRow(icon = Icons.Filled.Delete, label = "Remove from Continue Watching", destructive = true, onClick = onRemoveFromContinueWatching)
+            }
+            if (onChooseSource != null) {
+                CardActionRow(icon = Icons.Filled.List, label = "Choose Source", chevron = true, onClick = onChooseSource)
+            }
+        }
+    }
+}
+
+/** The one big button at the top: Play, or Resume from where the person stopped. */
+@Composable
+private fun PlayButton(label: String, focusRequester: FocusRequester, onClick: () -> Unit) {
+    TvFocusSurface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        backgroundColor = PlayFill,
+        focusRequester = focusRequester,
+        borderColor = TextPrimary,
+        focusedScale = 1.02f,
+        bringIntoViewOnFocus = false,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null, tint = MangoBackground, modifier = Modifier.size(28.dp))
+            Spacer(Modifier.width(10.dp))
+            Text(text = label, color = MangoBackground, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+        }
+    }
+}
+
+/** One cell of the two-by-two grid. [on] marks a state that is set (in My List, watched, liked, not for me): a tick-style icon in the accent colour and a lighter fill. */
+@Composable
+private fun GridAction(icon: ImageVector, label: String, on: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    TvFocusSurface(
+        onClick = onClick,
+        shape = RoundedCornerShape(11.dp),
+        backgroundColor = if (on) MangoSurfaceHigh else MangoSurface,
+        borderColor = TextPrimary,
+        focusedScale = 1.03f,
+        bringIntoViewOnFocus = false,
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = ArcAccent, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = label,
+                color = TextPrimary,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -336,23 +438,24 @@ private fun CardActionRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     focusRequester: FocusRequester? = null,
-    destructive: Boolean = false
+    destructive: Boolean = false,
+    chevron: Boolean = false
 ) {
     TvFocusSurface(
         onClick = onClick,
         shape = RoundedCornerShape(10.dp),
-        backgroundColor = MangoSurface,
+        backgroundColor = Color.Transparent,
         focusRequester = focusRequester,
         borderColor = if (destructive) ErrorCoral else FocusBorder,
         bringIntoViewOnFocus = false,
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 3.dp)
+            .padding(vertical = 1.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start
         ) {
@@ -368,8 +471,12 @@ private fun CardActionRow(
                 color = if (destructive) ErrorCoral else TextPrimary,
                 style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
+            if (chevron) {
+                Icon(imageVector = Icons.Filled.ChevronRight, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(22.dp))
+            }
         }
     }
 }
