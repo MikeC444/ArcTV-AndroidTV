@@ -49,3 +49,13 @@ export const historyQuerySchema = z.object({
   before: z.iso.datetime("before must be an ISO-8601 UTC timestamp").optional(),
 });
 export type HistoryQuery = z.infer<typeof historyQuerySchema>;
+
+// Taking a title out of Continue Watching without finishing it: the natural key plus the client's own timestamp (last-write-wins), carried as
+// query params since a DELETE request has no conventional body across every HTTP client. The profile comes from the X-ArcTV-Profile header.
+export const continueWatchingRemoveQuerySchema = z.object({
+  providerId: z.string().min(1).max(200),
+  contentId: z.string().min(1).max(500),
+  contentType: z.enum(["MOVIE", "TV_SHOW"]),
+  updatedAt: z.iso.datetime("updatedAt must be an ISO-8601 UTC timestamp"),
+});
+export type ContinueWatchingRemoveInput = z.infer<typeof continueWatchingRemoveQuerySchema>;

@@ -4,7 +4,7 @@ import { pool } from "../db/pool.js";
 import { requireAuth } from "../middleware/auth.js";
 import { profileOf, resolveProfile } from "../middleware/profile.js";
 import { validate } from "../middleware/validate.js";
-import { historyQuerySchema, watchProgressBodySchema } from "../schemas/watchProgress.js";
+import { continueWatchingRemoveQuerySchema, historyQuerySchema, watchProgressBodySchema } from "../schemas/watchProgress.js";
 import * as continueWatchingService from "../services/continueWatchingService.js";
 import * as playbackProgressService from "../services/playbackProgressService.js";
 
@@ -84,6 +84,21 @@ historyRouter.get("/continue-watching", requireAuth, resolveProfile, async (req,
   try {
     const entries = await continueWatchingService.listActiveContinueWatching(req.user!.id, profileOf(req));
     res.json({ items: entries.map(serializeContinueWatching) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Removing a title from Continue Watching without finishing it: no "watched", and the saved position is forgotten so it starts over.
+historyRouter.delete("/continue-watching", requireAuth, resolveProfile, validate({ query: continueWatchingRemoveQuerySchema }), async (req, res, next) => {
+  try {
+    const input = req.validated!.query as z.infer<typeof continueWatchingRemoveQuerySchema>;
+    const entry = await playbackProgressService.removeFromContinueWatching(req.user!.id, profileOf(req), input);
+    if (!entry) {
+      res.status(204).end();
+      return;
+    }
+    res.json(serializeContinueWatching(entry));
   } catch (error) {
     next(error);
   }

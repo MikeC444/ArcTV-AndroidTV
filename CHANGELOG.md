@@ -4935,3 +4935,18 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-109 -- Removing a title from Continue Watching no longer marks it watched (server)
+
+**Status:** Done in code and backend tests; not deployed. No migration. The web app uses it; the Firestick and phone apps still remove with a "finished" report and are unchanged.
+
+**Context:** the only way the server could take a title out of Continue Watching was a progress report with `completed: true`, which also records the title as finished (it then counts as watched and as a finished title for "Picked for you").
+
+**Changes:**
+- New `DELETE /user/continue-watching` (`playbackProgressService.removeFromContinueWatching`): soft-deletes the Continue Watching row with its position reset to 0 and resets the position of the title's unfinished `watch_history` entries to 0, in one transaction. Finished entries are untouched, so removing never un-watches or watches anything. Last-write-wins on the client's own `updatedAt`; per profile; answers the row's current state, or 204 when there never was one. Watching the title again simply creates a new entry from the new position.
+
+**Tests performed:** `tests/continue-watching-remove.test.ts` (7: sign-in required; removed without being marked watched and position forgotten; a later playback starts fresh; finished episodes kept and only unfinished ones reset; an older removal loses to a newer playback; 204 for a title never watched and an unknown profile is 404; bad requests 400). The full backend suite is run before merging (see the merge note). Not run on a TV or phone.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

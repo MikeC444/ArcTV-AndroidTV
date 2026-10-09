@@ -1,6 +1,6 @@
 import type { PoolClient } from "pg";
 import { pool } from "../db/pool.js";
-import type { HistoryQuery, WatchProgressInput } from "../schemas/watchProgress.js";
+import type { ContinueWatchingRemoveInput, HistoryQuery, WatchProgressInput } from "../schemas/watchProgress.js";
 import { mapContinueWatchingRow, type ContinueWatchingEntry, type ContinueWatchingRow, CONTINUE_WATCHING_COLUMNS } from "./continueWatchingService.js";
 
 export interface WatchHistoryEntry {
@@ -251,4 +251,45 @@ export async function listWatchHistory(userId: string, profileId: string, query:
     params
   );
   return result.rows.map(mapHistoryRow);
+}
+
+/**
+ * Takes a title out of Continue Watching WITHOUT marking it watched, and forgets how far in it was, so playing it again starts from the
+ * beginning. The Continue Watching row is soft-deleted (position reset) and every unfinished watch_history entry of the title has its
+ * position reset to 0; finished episodes / earlier completions are left exactly as they were (removing is not "un-watching"). Last-write-wins
+ * on the client's own timestamp like everything else here. Returns the row's current state, or null when this account never had one.
+ */
+export async function removeFromContinueWatching(userId: string, profileId: string, input: ContinueWatchingRemoveInput): Promise<ContinueWatchingEntry | null> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const at = new Date(input.updatedAt);
+    const removed = await client.query<ContinueWatchingRow>(
+      `UPDATE continue_watching
+       SET deleted_at = $5, updated_at = $5, position_ms = 0
+       WHERE user_id = $1 AND provider_id = $2 AND content_id = $3 AND content_type = $4 AND profile_id = $6
+         AND updated_at < $5
+       RETURNING ${CONTINUE_WATCHING_COLUMNS}`,
+      [userId, input.providerId, input.contentId, input.contentType, at, profileId]
+    );
+    if (removed.rows.length > 0) {
+      await client.query(
+        `UPDATE watch_history
+         SET position_ms = 0, updated_at = $5
+         WHERE user_id = $1 AND provider_id = $2 AND content_id = $3 AND content_type = $4 AND profile_id = $6
+           AND completed = false AND updated_at < $5`,
+        [userId, input.providerId, input.contentId, input.contentType, at, profileId]
+      );
+    }
+    const entry = removed.rows[0]
+      ? mapContinueWatchingRow(removed.rows[0])
+      : await getContinueWatchingEntryForTransaction(client, userId, profileId, input.providerId, input.contentId, input.contentType);
+    await client.query("COMMIT");
+    return entry;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
