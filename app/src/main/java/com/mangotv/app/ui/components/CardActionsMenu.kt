@@ -46,7 +46,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -127,8 +129,23 @@ class CardActionsMenuState {
         originFocusRequester = requester
     }
 
-    fun dismiss() {
-        originFocusRequester?.let { runCatching { it.requestFocus() } }
+    // Bumped by every dismiss() that should hand focus back: the overlay, which stays composed once the menu is gone, reacts by returning
+    // focus to the card (see CardActionsMenuOverlay). Done after the menu has left the screen, not while it is still there, because
+    // asking for focus mid-removal let Compose fall back to the first thing on the page (Home's hero Play button).
+    var restoreTick: Int by mutableIntStateOf(0)
+        private set
+
+    // Where focus goes if the card that opened the menu is gone by then (a rated pick that left the row). Set by the screen showing the
+    // cards (Home), which knows which row and place focus was in.
+    var fallbackFocus: (() -> Unit)? = null
+
+    internal var restoreRequester: FocusRequester? = null
+        private set
+
+    /** Closes the menu. [restoreFocus] is false when the person is leaving the screen anyway (View Details, Play, Choose Source). */
+    fun dismiss(restoreFocus: Boolean = true) {
+        restoreRequester = if (restoreFocus) originFocusRequester else null
+        if (restoreFocus) restoreTick++
         target = null
         canFocusActions = false
         originFocusRequester = null
@@ -175,6 +192,17 @@ fun CardActionsMenuOverlay(
 ) {
     val content = state.target
     BackHandler(enabled = content != null) { state.dismiss() }
+
+    // Focus back onto the card that opened the menu once the menu is gone; if that card no longer exists, onto where it was.
+    val restoreTick = state.restoreTick
+    LaunchedEffect(restoreTick) {
+        if (restoreTick == 0) return@LaunchedEffect
+        withFrameNanos { }
+        withFrameNanos { }
+        val restored = state.restoreRequester?.let { runCatching { it.requestFocus() }.isSuccess } ?: false
+        if (!restored) state.fallbackFocus?.invoke()
+    }
+
     if (content == null) return
 
     val coroutineScope = rememberCoroutineScope()
@@ -201,7 +229,7 @@ fun CardActionsMenuOverlay(
     }
 
     fun dismissAndNavigate(route: String) {
-        state.dismiss()
+        state.dismiss(restoreFocus = false)
         onNavigate(route)
     }
 
@@ -221,18 +249,18 @@ fun CardActionsMenuOverlay(
         // My List, Watched, Like and Not for me leave the menu open, so the person sees the change and can undo it; a guest, who is sent to
         // sign in instead, has the menu closed so it does not sit in front of that.
         onToggleMyList = {
-            if (!guestGate.requireAccount { coroutineScope.launch { myListRepository.toggle(content) } }) state.dismiss()
+            if (!guestGate.requireAccount { coroutineScope.launch { myListRepository.toggle(content) } }) state.dismiss(restoreFocus = false)
         },
         // Non-suspend: toggleWatched() already fires fire-and-forget on MyListRepository's own long-lived scope, unlike toggle() above.
         // Unlike the player's own one-way markWatched(), this flips watched in either direction on each tap.
         onToggleWatched = {
-            if (!guestGate.requireAccount { myListRepository.toggleWatched(content) }) state.dismiss()
+            if (!guestGate.requireAccount { myListRepository.toggleWatched(content) }) state.dismiss(restoreFocus = false)
         },
         onLike = {
-            if (!guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.LIKE) } }) state.dismiss()
+            if (!guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.LIKE) } }) state.dismiss(restoreFocus = false)
         },
         onDislike = {
-            if (!guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.DISLIKE) } }) state.dismiss()
+            if (!guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.DISLIKE) } }) state.dismiss(restoreFocus = false)
         },
         onRemoveFromPicked = {
             coroutineScope.launch { pickedStateRepository.dismiss(content.id) }

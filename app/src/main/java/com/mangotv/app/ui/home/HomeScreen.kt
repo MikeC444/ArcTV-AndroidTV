@@ -14,6 +14,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import com.mangotv.app.ui.components.LocalCardActionsMenu
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.DisposableEffect
 import com.mangotv.app.data.model.RowStyle
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -150,6 +153,37 @@ private fun HomeContent(
     val isRestoring = restoreTarget != null
     val restoreFocusRequester = remember { FocusRequester() }
     val restoreRowListState = rememberLazyListState()
+
+    // When the poster the poster-menu was opened from is gone afterwards (a pick that was rated away), focus goes to the poster now at that
+    // place in the same row instead of falling back to the hero's Play button. Same plumbing as the restore above, aimed at a row on demand.
+    var lastFocusedItemIndex by remember { mutableStateOf(0) }
+    var fallbackTarget by remember { mutableStateOf<FocusRestoreTarget?>(null) }
+    val fallbackFocusRequester = remember { FocusRequester() }
+    val fallbackRowListState = rememberLazyListState()
+    val cardMenu = LocalCardActionsMenu.current
+    val currentSections by rememberUpdatedState(state.sections)
+    DisposableEffect(cardMenu) {
+        cardMenu.fallbackFocus = {
+            val rowIndex = currentSections.indexOfFirst { it.id == lastFocusedSectionId }
+            val count = currentSections.getOrNull(rowIndex)?.items?.size ?: 0
+            if (rowIndex >= 0 && count > 0) fallbackTarget = FocusRestoreTarget(rowIndex, lastFocusedItemIndex.coerceIn(0, count - 1))
+        }
+        onDispose { cardMenu.fallbackFocus = null }
+    }
+    LaunchedEffect(fallbackTarget) {
+        val target = fallbackTarget ?: return@LaunchedEffect
+        val lazyIndex = target.rowIndex + 1
+        if (listState.layoutInfo.visibleItemsInfo.none { it.index == lazyIndex }) {
+            listState.scrollToItem(lazyIndex)
+            withFrameNanos { }
+        }
+        if (fallbackRowListState.layoutInfo.visibleItemsInfo.none { it.index == target.itemIndex }) {
+            fallbackRowListState.scrollToItem(target.itemIndex)
+            withFrameNanos { }
+        }
+        runCatching { fallbackFocusRequester.requestFocus() }
+        fallbackTarget = null
+    }
 
     // Whether focus is currently somewhere in the nav bar / hero region,
     // where the user asked the screen to stay completely static. True by
@@ -336,10 +370,23 @@ private fun HomeContent(
                         modifier = Modifier.padding(bottom = MangoDimens.RowSpacing),
                         posterScale = 0.75f,
                         onFocusChanged = { hasFocus -> if (hasFocus) focusedRowIndex = index },
-                        firstItemFocusRequester = if (isRestoring && index == restoreRowIndex) restoreFocusRequester else null,
-                        targetItemIndex = if (isRestoring && index == restoreRowIndex) restoreItemIndex ?: 0 else 0,
-                        listState = if (isRestoring && index == restoreRowIndex) restoreRowListState else rememberLazyListState(),
+                        firstItemFocusRequester = when {
+                            isRestoring && index == restoreRowIndex -> restoreFocusRequester
+                            fallbackTarget?.rowIndex == index -> fallbackFocusRequester
+                            else -> null
+                        },
+                        targetItemIndex = when {
+                            isRestoring && index == restoreRowIndex -> restoreItemIndex ?: 0
+                            fallbackTarget?.rowIndex == index -> fallbackTarget?.itemIndex ?: 0
+                            else -> 0
+                        },
+                        listState = when {
+                            isRestoring && index == restoreRowIndex -> restoreRowListState
+                            fallbackTarget?.rowIndex == index -> fallbackRowListState
+                            else -> rememberLazyListState()
+                        },
                         onItemFocusChanged = { itemIndex ->
+                            lastFocusedItemIndex = itemIndex
                             lastFocusedSectionId = section.id
                             lastFocusedContentId = section.items.getOrNull(itemIndex)?.id
                         },

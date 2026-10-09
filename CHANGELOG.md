@@ -5033,3 +5033,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none beyond the above.
 
 **Issues fixed:** the three focus problems above, as far as can be said without a device.
+
+## Post-Milestone-115 -- Firestick: closing the poster menu puts the cursor back on the poster, not the hero's Play button
+
+**Status:** Done on branch `claude/firestick-menu-back-focus`, not merged.
+
+**Context:** Pressing Back on the poster menu (or closing it after Like / Not for me) left the cursor on Home's hero Play button instead of the poster it was opened from.
+
+**Changes:** Closing the menu no longer asks the poster for focus while the menu is still on screen; the overlay does it two frames after the menu has gone. If that poster no longer exists (a pick rated away or removed), Home puts focus on the poster now at the same place in the same row. Leaving for View Details, Play, Choose Source or a sign-in prompt skips this.
+
+**Tests performed:** The full unit suite passes and the debug app builds. NOT done: any of this on a Fire TV or the emulator. The cause is inferred (focus requested mid-removal falls back to the first thing on the page), not reproduced, and a poster that only leaves the row after the menu has closed is not covered.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none confirmed on a device.
