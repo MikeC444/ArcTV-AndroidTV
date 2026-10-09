@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+## 0.3.1
+
 - Accounts with no catalogue addon now get Cinemeta, so Home always has something to browse.
 
 ## 0.3.0
