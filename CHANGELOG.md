@@ -5000,3 +5000,5 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none in the app. (The screenshot test needed extra frames and clock time before the pictures showed.)
 
 **Issues fixed:** none.
+
+**Follow-up (same entry):** the backdrop is now 190dp tall, cropped like the web app (centre, a quarter of the way down) with the web's darker fade so the faces and artwork sit centred and the logo or title stays readable. Menu screenshot tests re-run and pass; full suite not re-run after this tweak, not run on a Fire TV.

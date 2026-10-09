@@ -52,6 +52,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -390,12 +391,12 @@ internal fun CardActionsMenuPanel(
 @Composable
 private fun MenuBanner(content: Content) {
     var logoFailed by remember(content.id) { mutableStateOf(false) }
-    Box(modifier = Modifier.fillMaxWidth().height(150.dp)) {
+    Box(modifier = Modifier.fillMaxWidth().height(190.dp)) {
         AsyncImage(
             model = rememberOpaqueImageRequest(content.backdropUrl),
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            alignment = Alignment.TopCenter,
+            alignment = BiasAlignment(0f, -0.5f), // the web app's 'center 25%'
             modifier = Modifier.fillMaxSize()
         )
         // Fades the backdrop into the card from about a third of the way down (the card colour with no opacity, to the card colour).
@@ -405,14 +406,15 @@ private fun MenuBanner(content: Content) {
                 .drawBehind {
                     drawRect(
                         Brush.verticalGradient(
-                            colors = listOf(MangoBackgroundElevated.copy(alpha = 0f), MangoBackgroundElevated),
-                            startY = size.height * 0.35f,
-                            endY = size.height
+                            0f to MangoBackgroundElevated.copy(alpha = 0f),
+                            0.3f to MangoBackgroundElevated.copy(alpha = 0f),
+                            0.62f to MangoBackgroundElevated.copy(alpha = 0.55f),
+                            1f to MangoBackgroundElevated
                         )
                     )
                 }
         )
-        Box(modifier = Modifier.align(Alignment.BottomStart).padding(start = 22.dp, end = 22.dp, bottom = 10.dp)) {
+        Box(modifier = Modifier.align(Alignment.BottomStart).padding(start = 22.dp, end = 22.dp, bottom = 14.dp)) {
             if (content.logoUrl != null && !logoFailed) {
                 AsyncImage(
                     model = content.logoUrl,
@@ -420,7 +422,7 @@ private fun MenuBanner(content: Content) {
                     contentScale = ContentScale.Fit,
                     alignment = Alignment.BottomStart,
                     onError = { logoFailed = true },
-                    modifier = Modifier.heightIn(max = 64.dp).widthIn(max = 320.dp)
+                    modifier = Modifier.heightIn(max = 72.dp).widthIn(max = 340.dp)
                 )
             } else {
                 Text(
