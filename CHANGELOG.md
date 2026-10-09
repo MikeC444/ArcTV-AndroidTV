@@ -4874,7 +4874,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Changes:**
 - `GET /user/addons` (`addonService.listActiveAddons`) now calls `seedDefaultAddon`: when a profile's active addons offer no catalogue (none at all, or only stream addons such as Torrentio) and the profile has not been looked at before, Cinemeta (bundled in `src/data/cinemetaManifest.ts`, a copy of the apps' own) is added to it and returned in the same response. A row in the new `addon_seed_marks` table is written either way (also when the profile already had a catalogue addon), so it happens once per profile and a later removal is respected.
-- Accounts younger than 3 minutes are left alone and not marked, so the first sign-in on a device (which compares the device's addons with the account's) sees the account as it is; they are seeded on a later sync.
+- A brand-new account is seeded at its very first sync too (an earlier version waited 3 minutes so the first sign-in could compare the device's addons with the account's; guests cannot add addons, so that case is rare and at worst shows the one-time "sync or start fresh?" question), so nobody starts with an empty Home.
 - A stale Cinemeta row that was soft-deleted earlier is revived once instead of creating a duplicate.
 - Stripe's cancel failure reason is now written to the server log only (the previous change had put it in the thrown error, which a non-production response echoes as `detail`, and `plus.test.ts` caught that).
 

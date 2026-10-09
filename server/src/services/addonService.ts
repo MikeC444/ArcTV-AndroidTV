@@ -40,9 +40,6 @@ function mapRow(row: AddonRow): UserAddon {
   };
 }
 
-/** An account must be at least this old before the server adds a default addon (see [seedDefaultAddon]). */
-export const SEED_MIN_ACCOUNT_AGE_MS = 3 * 60_000;
-
 /** Does this addon give Home something to show? Its manifest lists at least one catalogue (Cinemeta, TMDB and the like do; Torrentio does not). */
 function offersCatalogues(addon: UserAddon): boolean {
   const catalogs = addon.manifestJson.catalogs;
@@ -54,9 +51,8 @@ function offersCatalogues(addon: UserAddon): boolean {
  * account that first signed in without it (a guest's untouched default is never uploaded; a device that had already run the app) had an empty Home
  * and old versions can never be fixed from the client. When a profile's active addons offer no catalogue (none at all, or only stream addons such as
  * Torrentio) and it has not been looked at before, Cinemeta is added to it. This happens once per profile: the mark is written either way, so
- * removing Cinemeta later (or having another catalogue addon from the start) is respected. Accounts younger than [SEED_MIN_ACCOUNT_AGE_MS] are left
- * alone and not marked: the first sign-in on a device compares what is on the device with what is in the account, and must see the account as it is.
- * Returns the list to send (re-read when Cinemeta was added).
+ * removing Cinemeta later (or having another catalogue addon from the start) is respected. It applies to a brand-new account at its very first sync too,
+ * so nobody starts with an empty Home. Returns the list to send (re-read when Cinemeta was added).
  */
 export async function seedDefaultAddon(userId: string, profileId: string, addons: UserAddon[]): Promise<UserAddon[]> {
   const marked = await pool.query(`SELECT 1 FROM addon_seed_marks WHERE user_id = $1 AND profile_id = $2`, [userId, profileId]);
@@ -66,10 +62,6 @@ export async function seedDefaultAddon(userId: string, profileId: string, addons
     await pool.query(`INSERT INTO addon_seed_marks (user_id, profile_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [userId, profileId]);
     return addons;
   }
-
-  const account = await pool.query<{ created_at: Date }>(`SELECT created_at FROM users WHERE id = $1`, [userId]);
-  const createdAt = account.rows[0]?.created_at;
-  if (!createdAt || Date.now() - createdAt.getTime() < SEED_MIN_ACCOUNT_AGE_MS) return addons;
 
   const client = await pool.connect();
   try {

@@ -285,7 +285,7 @@ describe("X-ArcTV-Profile: every library is per profile", () => {
 
   it("addons", async () => {
     const { s, kid } = await twoProfiles();
-    const addon = (url: string) => ({ manifestUrl: url, addonId: "a", name: "A", manifestJson: { id: "a" }, enabled: true, sortOrder: 0, updatedAt: "2025-01-01T00:00:00.000Z" });
+    const addon = (url: string) => ({ manifestUrl: url, addonId: "a", name: "A", manifestJson: { id: "a", catalogs: [{ type: "movie", id: "top" }] }, enabled: true, sortOrder: 0, updatedAt: "2025-01-01T00:00:00.000Z" });
     await request(app).post("/user/addons").set(as(s)).send(addon("https://a.test/manifest.json"));
     await request(app).post("/user/addons").set(as(s, kid)).send(addon("https://b.test/manifest.json"));
     const urls = async (p?: string) => (await request(app).get("/user/addons").set(as(s, p))).body.items.map((i: { manifestUrl: string }) => i.manifestUrl);
@@ -329,7 +329,7 @@ describe("existing data", () => {
     const s = await createTestSession();
     // a row written the way the pre-profiles code wrote it: no profile_id at all
     await pool.query("INSERT INTO watchlist_items (user_id, provider_id, content_id, content_type, title) VALUES ($1, 'p', 'tt-old', 'MOVIE', 'Old')", [s.userId]);
-    await pool.query("INSERT INTO user_addons (user_id, manifest_url, addon_id, name, manifest_json) VALUES ($1, 'https://old.test/m.json', 'o', 'Old', '{}'::jsonb)", [s.userId]);
+    await pool.query("INSERT INTO user_addons (user_id, manifest_url, addon_id, name, manifest_json) VALUES ($1, 'https://old.test/m.json', 'o', 'Old', '{\"catalogs\":[{\"type\":\"movie\",\"id\":\"top\"}]}'::jsonb)", [s.userId]);
     await pool.query("INSERT INTO user_settings (user_id, autoplay_next_episode) VALUES ($1, false)", [s.userId]);
     expect((await request(app).get("/user/watchlist").set(as(s))).body.items.map((i: { contentId: string }) => i.contentId)).toEqual(["tt-old"]);
     expect((await request(app).get("/user/watchlist").set(as(s, "main"))).body.items).toHaveLength(1);

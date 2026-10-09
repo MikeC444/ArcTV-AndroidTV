@@ -17,7 +17,7 @@ function cinemeta(overrides: Partial<Record<string, unknown>> = {}) {
     manifestUrl: "https://v3-cinemeta.strem.io/manifest.json",
     addonId: "com.linvo.cinemeta",
     name: "Cinemeta",
-    manifestJson: { id: "com.linvo.cinemeta", name: "Cinemeta", version: "3.0.0", types: ["movie", "series"] },
+    manifestJson: { id: "com.linvo.cinemeta", name: "Cinemeta", version: "3.0.0", types: ["movie", "series"], catalogs: [{ type: "movie", id: "top", name: "Popular" }] },
     enabled: true,
     sortOrder: 0,
     updatedAt: "2025-01-01T00:00:00.000Z",
@@ -31,11 +31,11 @@ describe("GET /user/addons", () => {
     expect(response.status).toBe(401);
   });
 
-  it("returns an empty list for an account that has never synced addons", async () => {
+  it("gives an account that has never synced addons Cinemeta, so it has something to browse (see addon-seed.test.ts)", async () => {
     const session = await createTestSession();
     const response = await request(app).get("/user/addons").set("Authorization", `Bearer ${session.token}`);
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ items: [] });
+    expect(response.body.items.map((i: { addonId: string }) => i.addonId)).toEqual(["com.linvo.cinemeta"]);
   });
 });
 
@@ -180,6 +180,7 @@ describe("DELETE /user/addons", () => {
     const auth = { Authorization: `Bearer ${session.token}` };
     await request(app).post("/user/addons").set(auth).send(cinemeta({ updatedAt: "2025-01-01T00:00:00.000Z" }));
 
+    await request(app).get("/user/addons").set(auth); // the app has looked once, so the profile counts as seen
     const response = await request(app)
       .delete("/user/addons")
       .set(auth)
@@ -218,7 +219,7 @@ describe("cross-user isolation", () => {
     await request(app).post("/user/addons").set("Authorization", `Bearer ${alice.token}`).send(aliceAddon);
 
     const bobGet = await request(app).get("/user/addons").set("Authorization", `Bearer ${bob.token}`);
-    expect(bobGet.body).toEqual({ items: [] });
+    expect(bobGet.body.items.map((i: { manifestUrl: string }) => i.manifestUrl)).not.toContain(aliceAddon.manifestUrl); // only the default Cinemeta, never alice's
 
     const bobAddon = cinemeta({ manifestUrl: "https://bob-addon.example/manifest.json" });
     await request(app).post("/user/addons").set("Authorization", `Bearer ${bob.token}`).send(bobAddon);

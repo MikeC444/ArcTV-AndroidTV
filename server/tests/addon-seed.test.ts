@@ -68,15 +68,12 @@ describe("the server gives a profile with nothing to browse Cinemeta", () => {
     expect(await list(s)).toEqual([]);
   });
 
-  it("leaves a brand-new account's list exactly as it is (the first sign-in compares it with the device's)", async () => {
-    const s = await createTestSession();
-    expect(await list(s)).toEqual([]);
-    expect(await list(s)).toEqual([]);
-    const marks = await pool.query("SELECT count(*)::int AS n FROM addon_seed_marks WHERE user_id = $1", [s.userId]);
-    expect(marks.rows[0].n).toBe(0);
-    // once it is old enough it is treated like any other
-    await age(s);
+  it("gives a brand-new account Cinemeta at its very first sync, so Home is never empty", async () => {
+    const s = await createTestSession(); // created just now
     expect((await list(s)).map((a) => a.manifestUrl)).toEqual([CINEMETA_URL]);
+    expect((await list(s)).map((a) => a.manifestUrl)).toEqual([CINEMETA_URL]);
+    const rows = await pool.query("SELECT count(*)::int AS n FROM user_addons WHERE user_id = $1", [s.userId]);
+    expect(rows.rows[0].n).toBe(1);
   });
 
   it("looks at each profile on its own", async () => {
