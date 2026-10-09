@@ -5077,3 +5077,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-118 -- Firestick: the Plus member popup shows once ever; the Plus invitation comes back every 5 days
+
+**Status:** Done on branch `claude/firestick-welcome-no-emulator-force`, not merged.
+
+**Context:** The member popup was remembered per account (and per tour version), and Close on the invitation hid it for a week.
+
+**Changes:** The Plus member popup is now remembered once for the whole device (any account, surviving sign-out): after it has been closed or followed once it never shows again. The invitation's Close / "Take me there" snooze is 5 days instead of 7; "Don't show me again" still ends it for good. A different tour id no longer brings the member popup back. (This differs from web, which snoozes for a week and re-shows a revised tour.)
+
+**Tests performed:** The full unit suite passes and the debug app builds (the rules test now checks the 5-day snooze, the welcome test checks once ever). NOT done: a run on the emulator or a Fire TV. The same account on a second device sees the member popup once there, because nothing is stored on the server.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

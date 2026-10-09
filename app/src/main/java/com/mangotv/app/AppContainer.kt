@@ -194,7 +194,7 @@ class AppContainer(context: Context) {
     val searchHistoryRepository: SearchHistoryRepository = SearchHistoryRepository(context, authRepository)
     /** What the person said to the Arc TV Plus popup on Home (Close snoozes it, "Don't show me again" ends it). */
     val plusPromoRepository: PlusPromoRepository = PlusPromoRepository(context, authRepository)
-    val plusWelcomeRepository: PlusWelcomeRepository = PlusWelcomeRepository(context, authRepository)
+    val plusWelcomeRepository: PlusWelcomeRepository = PlusWelcomeRepository(context)
     val syncManager: SyncManager = SyncManager(
         context, settingsSyncRepository, watchlistSyncRepository, continueWatchingSyncRepository, addonSyncRepository, feedbackRepository, pickedStateRepository, plusRepository, profileRepository
     )

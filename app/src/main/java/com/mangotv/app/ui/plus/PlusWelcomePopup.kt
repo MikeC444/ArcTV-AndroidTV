@@ -83,7 +83,7 @@ private val Items = listOf(
 
 /**
  * A one-time tour of what Arc TV Plus includes, for members, a few seconds after landing on Home (the web app's "Everything in ArcTV Plus"
- * popup). Close or "See my Plus settings" both mean it has been seen, and it does not come back (a revised tour gets a new id). Not for kids
+ * popup). Close or "See my Plus settings" both mean it has been seen, and it never comes back (once ever on this device). Not for kids
  * profiles. [blocked] holds it back while another pop-up is up.
  * [onSeeSettings] opens Settings on the Plus settings tab. A real dialog window: the remote stays inside it and BACK means Close.
  */

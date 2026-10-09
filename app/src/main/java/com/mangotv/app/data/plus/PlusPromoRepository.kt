@@ -28,7 +28,7 @@ import kotlinx.serialization.json.Json
 private val Context.plusPromoDataStore: DataStore<Preferences> by preferencesDataStore(name = "mango_plus_promo")
 
 /** After "Close" the popup stays away this long before it may appear again. */
-const val PROMO_SNOOZE_MS = 7L * 24 * 60 * 60 * 1000
+const val PROMO_SNOOZE_MS = 5L * 24 * 60 * 60 * 1000
 
 /** What the person told the popup (kept per account). */
 @Serializable
@@ -45,7 +45,7 @@ fun promoDue(record: PromoRecord, shownThisSession: Boolean, now: Long): Boolean
 
 /**
  * Remembers what the person told the ArcTV Plus popup, per account on this device (ported from the web app's `plusPromo.ts`): Close snoozes it for
- * a week, "Don't show me again" switches it off for good. Whether it is *eligible* (signed in, no Plus, paywall on, not a kids profile) is decided by
+ * five days, "Don't show me again" switches it off for good. Whether it is *eligible* (signed in, no Plus, paywall on, not a kids profile) is decided by
  * the caller. [shownThisSession] is in memory only, so it never shows twice in one launch. Signing out forgets everything ([clear]).
  */
 class PlusPromoRepository(context: Context, private val authRepository: AuthRepository) {

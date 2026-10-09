@@ -7,7 +7,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import com.mangotv.app.data.plus.WELCOME_ID
 import com.mangotv.app.data.plus.welcomeDue
 import com.mangotv.app.ui.theme.MangoTvTheme
 import java.io.File
@@ -29,11 +28,10 @@ class PlusWelcomeTest {
     @get:Rule val rule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun dueOnceUntilSeen() {
-        assertTrue(welcomeDue(seen = null, shownThisSession = false))
-        assertTrue(welcomeDue(seen = "an-older-tour", shownThisSession = false))
-        assertFalse(welcomeDue(seen = WELCOME_ID, shownThisSession = false))
-        assertFalse(welcomeDue(seen = null, shownThisSession = true)) // never twice in one launch
+    fun dueOnceEverUntilSeen() {
+        assertTrue(welcomeDue(seen = false, shownThisSession = false))
+        assertFalse(welcomeDue(seen = true, shownThisSession = false)) // once ever
+        assertFalse(welcomeDue(seen = false, shownThisSession = true)) // never twice in one launch
     }
 
     @Test

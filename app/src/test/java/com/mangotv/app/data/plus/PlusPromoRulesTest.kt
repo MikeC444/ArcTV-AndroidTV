@@ -17,7 +17,7 @@ class PlusPromoRulesTest {
     }
 
     @Test
-    fun `close snoozes it for a week and then it may come back`() {
+    fun `close snoozes it for five days and then it may come back`() {
         val snoozed = PromoRecord(snoozedUntil = 1_000L + PROMO_SNOOZE_MS)
         assertFalse(promoDue(snoozed, shownThisSession = false, now = 1_000L + PROMO_SNOOZE_MS - 1))
         assertTrue(promoDue(snoozed, shownThisSession = false, now = 1_000L + PROMO_SNOOZE_MS))

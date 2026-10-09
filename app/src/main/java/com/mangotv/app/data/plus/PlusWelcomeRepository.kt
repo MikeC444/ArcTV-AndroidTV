@@ -3,53 +3,35 @@ package com.mangotv.app.data.plus
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.mangotv.app.data.auth.AuthRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.builtins.MapSerializer
-import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.Json
 
-private val Context.plusWelcomeDataStore: DataStore<Preferences> by preferencesDataStore(name = "mango_plus_welcome")
+private val Context.plusWelcomeDataStore: DataStore<Preferences> by preferencesDataStore(name = "mango_plus_welcome_once")
 
-/** Which version of the Plus welcome tour this is. A revised tour later gets a new id and so shows once more (the web app's same id). */
-const val WELCOME_ID = "2026-10-features"
-
-/** Whether the welcome may appear now. Pure, so the rule is testable. */
-fun welcomeDue(seen: String?, shownThisSession: Boolean): Boolean = !shownThisSession && seen != WELCOME_ID
+/** Whether the welcome may appear now. Pure, so the rule is testable. It is shown once ever on a device. */
+fun welcomeDue(seen: Boolean, shownThisSession: Boolean): Boolean = !shownThisSession && !seen
 
 /**
- * Remembers, per account on this device, whether the one-time "Everything in ArcTV Plus" welcome has been seen (ported from the web app's
- * `plusWelcome.ts`). Whether it is *eligible* (signed in, has Plus, not a kids profile, on Home) is decided by the caller. [shownThisSession] is
- * in memory only, so it never shows twice in one launch.
+ * Remembers whether the one-time "Everything in ArcTV Plus" welcome has ever been seen on this device (the same for every account, and it
+ * survives signing out). Whether it is *eligible* (signed in, has Plus, not a kids profile, on Home) is decided by the caller.
+ * [shownThisSession] is in memory only, so it never shows twice in one launch.
  */
-class PlusWelcomeRepository(context: Context, private val authRepository: AuthRepository) {
+class PlusWelcomeRepository(context: Context) {
 
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val json = Json { ignoreUnknownKeys = true }
-    private val serializer = MapSerializer(String.serializer(), String.serializer())
-    private val mutex = Mutex()
 
-    private var seenByUser: Map<String, String> = emptyMap()
-    private var currentUser: String? = null
-
-    /** Whether the signed-in account has been read yet (so the popup never flashes up early) and what it has seen. */
-    data class State(val loaded: Boolean = false, val seen: String? = null)
+    /** Whether the stored answer has been read yet (so the popup never flashes up early) and what it is. */
+    data class State(val loaded: Boolean = false, val seen: Boolean = false)
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
@@ -60,13 +42,8 @@ class PlusWelcomeRepository(context: Context, private val authRepository: AuthRe
 
     init {
         scope.launch {
-            mutex.withLock { seenByUser = readPersisted() }
-            authRepository.session.map { it?.user?.id }.distinctUntilChanged().collect { user ->
-                mutex.withLock {
-                    currentUser = user
-                    _state.value = if (user == null) State() else State(loaded = true, seen = seenByUser[user])
-                }
-            }
+            val seen = appContext.plusWelcomeDataStore.data.first()[KEY] == true
+            _state.value = State(loaded = true, seen = seen)
         }
     }
 
@@ -76,23 +53,11 @@ class PlusWelcomeRepository(context: Context, private val authRepository: AuthRe
 
     /** Close or "See my Plus settings": it will not come back. */
     fun markSeen() {
-        scope.launch {
-            mutex.withLock {
-                val user = currentUser ?: return@withLock
-                seenByUser = seenByUser + (user to WELCOME_ID)
-                _state.value = State(loaded = true, seen = WELCOME_ID)
-                val raw = json.encodeToString(serializer, seenByUser)
-                withContext(Dispatchers.IO) { appContext.plusWelcomeDataStore.edit { it[KEY] = raw } }
-            }
-        }
-    }
-
-    private suspend fun readPersisted(): Map<String, String> {
-        val raw = appContext.plusWelcomeDataStore.data.first()[KEY] ?: return emptyMap()
-        return runCatching { json.decodeFromString(serializer, raw) }.getOrDefault(emptyMap())
+        _state.value = State(loaded = true, seen = true)
+        scope.launch { appContext.plusWelcomeDataStore.edit { it[KEY] = true } }
     }
 
     private companion object {
-        val KEY = stringPreferencesKey("plus_welcome_json")
+        val KEY = booleanPreferencesKey("plus_welcome_seen")
     }
 }

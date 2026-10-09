@@ -83,7 +83,7 @@ private val Benefits = listOf(
 
 /**
  * A gentle Arc TV Plus invitation on Home (same rules as the web app). It only appears for a signed-in adult without Plus once Plus is a paid tier,
- * a few seconds after landing on Home, once per launch. Close hides it for a week; "Don't show me again" ends it for this account. [onTakeMeThere]
+ * a few seconds after landing on Home, once per launch. Close hides it for five days; "Don't show me again" ends it for this account. [onTakeMeThere]
  * opens Settings on the Arc TV Plus tab. It is a real dialog window, so the remote stays inside it and BACK means Close.
  */
 @Composable
