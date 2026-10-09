@@ -137,8 +137,6 @@ private fun PlusPromoDialog(onClose: () -> Unit, onNever: () -> Unit, onGo: () -
     LaunchedEffect(Unit) {
         runCatching { primaryFocusRequester.requestFocus() }
     }
-    val panelShape = RoundedCornerShape(18.dp)
-
     Dialog(
         onDismissRequest = onClose,
         properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = false, usePlatformDefaultWidth = false)
@@ -149,98 +147,105 @@ private fun PlusPromoDialog(onClose: () -> Unit, onNever: () -> Unit, onGo: () -
                 .background(Color.Black.copy(alpha = 0.85f)),
             contentAlignment = Alignment.Center
         ) {
-            // A small card (it was 600 dp wide and nearly the whole height of a 540 dp screen): 340 dp wide and a little over half the height.
-            Column(
+            PlusPromoCard(onGo = onGo, onClose = onClose, onNever = onNever, primaryFocusRequester = primaryFocusRequester)
+        }
+    }
+}
+
+/** The popup's card, with everything handed in (also drawn on its own by the screenshot test). */
+@Composable
+internal fun PlusPromoCard(onGo: () -> Unit, onClose: () -> Unit, onNever: () -> Unit, primaryFocusRequester: FocusRequester) {
+    val panelShape = RoundedCornerShape(18.dp)
+    // A small card (it was 600 dp wide and nearly the whole height of a 540 dp screen): 340 dp wide and a little over half the height.
+    Column(
+        modifier = Modifier
+            .widthIn(max = 340.dp)
+            .clip(panelShape)
+            .background(MangoBackgroundElevated)
+            // Two soft glows in the corners (blue top-left, violet top-right), like the web popup.
+            .drawBehind {
+                drawRect(Brush.radialGradient(listOf(ArcBlue.copy(alpha = 0.28f), Color.Transparent), center = Offset(0f, 0f), radius = size.width * 0.8f))
+                drawRect(Brush.radialGradient(listOf(ArcViolet.copy(alpha = 0.22f), Color.Transparent), center = Offset(size.width, 0f), radius = size.width * 0.6f))
+            }
+            .border(1.dp, DividerSubtle, panelShape)
+            .padding(horizontal = 20.dp, vertical = 14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            ArcLogo(fontSize = 14.sp)
+            Spacer(Modifier.width(8.dp))
+            Box(
                 modifier = Modifier
-                    .widthIn(max = 340.dp)
-                    .clip(panelShape)
-                    .background(MangoBackgroundElevated)
-                    // Two soft glows in the corners (blue top-left, violet top-right), like the web popup.
-                    .drawBehind {
-                        drawRect(Brush.radialGradient(listOf(ArcBlue.copy(alpha = 0.28f), Color.Transparent), center = Offset(0f, 0f), radius = size.width * 0.8f))
-                        drawRect(Brush.radialGradient(listOf(ArcViolet.copy(alpha = 0.22f), Color.Transparent), center = Offset(size.width, 0f), radius = size.width * 0.6f))
-                    }
-                    .border(1.dp, DividerSubtle, panelShape)
-                    .padding(horizontal = 20.dp, vertical = 14.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(Brush.horizontalGradient(listOf(ArcCyan, ArcBlue, ArcViolet)))
+                    .padding(horizontal = 7.dp, vertical = 2.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    ArcLogo(fontSize = 14.sp)
-                    Spacer(Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(5.dp))
-                            .background(Brush.horizontalGradient(listOf(ArcCyan, ArcBlue, ArcViolet)))
-                            .padding(horizontal = 7.dp, vertical = 2.dp)
-                    ) {
-                        Text(text = "PLUS", color = MangoBackground, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp, letterSpacing = 1.sp)
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
+                Text(text = "PLUS", color = MangoBackground, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp, letterSpacing = 1.sp)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "Get more from every movie night.",
+            color = TextPrimary,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.ExtraBold
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            text = "Everything you use today stays free.",
+            color = TextSecondary,
+            style = MaterialTheme.typography.bodySmall,
+            fontSize = 11.sp
+        )
+        Spacer(Modifier.height(10.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Benefits.forEach { benefit -> BenefitRow(benefit) }
+        }
+        Spacer(Modifier.height(12.dp))
+        // Both buttons sit together in the middle of the card.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
+        ) {
+            MangoButton(
+                text = "Take me there",
+                icon = Icons.Filled.ArrowForward,
+                onClick = onGo,
+                style = MangoButtonStyle.FILLED,
+                focusRequester = primaryFocusRequester,
+                compact = true
+            )
+            MangoButton(
+                text = "Close",
+                icon = Icons.Filled.Close,
+                onClick = onClose,
+                style = MangoButtonStyle.GLASS,
+                clickSound = ClickSound.BACK,
+                compact = true
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "Explore plans in Settings → Arc TV Plus",
+            color = TextTertiary,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 11.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            TvFocusSurface(
+                onClick = onNever,
+                shape = RoundedCornerShape(8.dp),
+                focusedScale = 1.04f,
+                clickSound = ClickSound.BACK
+            ) {
                 Text(
-                    text = "Get more from every movie night.",
-                    color = TextPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold
-                )
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    text = "Everything you use today stays free.",
+                    text = "Don't show me again",
                     color = TextSecondary,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontSize = 11.sp
+                    style = MaterialTheme.typography.labelMedium,
+                    textDecoration = TextDecoration.Underline,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                 )
-                Spacer(Modifier.height(10.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Benefits.forEach { benefit -> BenefitRow(benefit) }
-                }
-                Spacer(Modifier.height(12.dp))
-                // Both buttons sit together in the middle of the card.
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
-                ) {
-                    MangoButton(
-                        text = "Take me there",
-                        icon = Icons.Filled.ArrowForward,
-                        onClick = onGo,
-                        style = MangoButtonStyle.FILLED,
-                        focusRequester = primaryFocusRequester,
-                        compact = true
-                    )
-                    MangoButton(
-                        text = "Close",
-                        icon = Icons.Filled.Close,
-                        onClick = onClose,
-                        style = MangoButtonStyle.GLASS,
-                        clickSound = ClickSound.BACK,
-                        compact = true
-                    )
-                }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = "Explore plans in Settings → Arc TV Plus",
-                    color = TextTertiary,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 11.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    TvFocusSurface(
-                        onClick = onNever,
-                        shape = RoundedCornerShape(8.dp),
-                        focusedScale = 1.04f,
-                        clickSound = ClickSound.BACK
-                    ) {
-                        Text(
-                            text = "Don't show me again",
-                            color = TextSecondary,
-                            style = MaterialTheme.typography.labelMedium,
-                            textDecoration = TextDecoration.Underline,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
-                        )
-                    }
-                }
             }
         }
     }
