@@ -37,12 +37,6 @@ class PlusWelcomeTest {
     }
 
     @Test
-    fun emulatorsShowItEveryLaunchButNotTwiceInOne() {
-        assertTrue(welcomeDue(seen = WELCOME_ID, shownThisSession = false, alwaysShow = true))
-        assertFalse(welcomeDue(seen = WELCOME_ID, shownThisSession = true, alwaysShow = true))
-    }
-
-    @Test
     fun theTwoButtonsReachTheirActions() {
         val calls = mutableListOf<String>()
         rule.setContent {

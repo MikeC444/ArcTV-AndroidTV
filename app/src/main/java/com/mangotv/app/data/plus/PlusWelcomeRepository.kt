@@ -1,7 +1,6 @@
 package com.mangotv.app.data.plus
 
 import android.content.Context
-import android.os.Build
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -30,14 +29,8 @@ private val Context.plusWelcomeDataStore: DataStore<Preferences> by preferencesD
 /** Which version of the Plus welcome tour this is. A revised tour later gets a new id and so shows once more (the web app's same id). */
 const val WELCOME_ID = "2026-10-features"
 
-/** Whether the welcome may appear now. Pure, so the rule is testable. [alwaysShow] is for emulators, where it appears on every launch. */
-fun welcomeDue(seen: String?, shownThisSession: Boolean, alwaysShow: Boolean = false): Boolean =
-    !shownThisSession && (alwaysShow || seen != WELCOME_ID)
-
-/** True on an Android emulator, where the welcome is shown on every launch so it can be looked at. */
-fun runningOnEmulator(): Boolean =
-    Build.FINGERPRINT.startsWith("generic") || Build.FINGERPRINT.contains("emulator") || Build.MODEL.contains("Emulator") ||
-        Build.MODEL.contains("Android SDK") || Build.PRODUCT.contains("sdk_gphone") || Build.HARDWARE.contains("ranchu") || Build.HARDWARE.contains("goldfish")
+/** Whether the welcome may appear now. Pure, so the rule is testable. */
+fun welcomeDue(seen: String?, shownThisSession: Boolean): Boolean = !shownThisSession && seen != WELCOME_ID
 
 /**
  * Remembers, per account on this device, whether the one-time "Everything in ArcTV Plus" welcome has been seen (ported from the web app's

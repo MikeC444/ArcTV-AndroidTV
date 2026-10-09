@@ -5056,7 +5056,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Changes:**
 - A new popup on Home for Plus members (signed in, not a kids profile), four short lines (Picked for you, Up to 5 profiles, Smart source picking, Your stats) and "See my Plus settings" / Close. Shown about 4 seconds after landing on Home, once per account on this device (same tour id as web, so a revised tour shows once more); waits while the older "torrents" pop-up is up. "See my Plus settings" opens Settings on the Plus settings tab.
-- On an Android emulator it shows on every launch (still not twice in one launch), so it can be looked at; real devices show it once.
+- (An emulator-only "show on every launch" rule was added with it and removed again at the user's request: it is now once per account everywhere.)
 
 **Tests performed:** New unit tests for when it is due (once, not twice per launch, the emulator rule) and for both buttons reaching their action. The full unit suite passes and the debug app builds. A desktop render of the card was looked at. NOT done: running it on the emulator or a Fire TV, so the 4-second timing, the dialog focus and the emulator detection are untested in practice.
 

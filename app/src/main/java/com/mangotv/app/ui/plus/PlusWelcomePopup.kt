@@ -50,7 +50,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mangotv.app.MangoTvApplication
-import com.mangotv.app.data.plus.runningOnEmulator
 import com.mangotv.app.data.plus.welcomeDue
 import com.mangotv.app.ui.components.ArcLogo
 import com.mangotv.app.ui.components.ClickSound
@@ -85,7 +84,7 @@ private val Items = listOf(
 /**
  * A one-time tour of what Arc TV Plus includes, for members, a few seconds after landing on Home (the web app's "Everything in ArcTV Plus"
  * popup). Close or "See my Plus settings" both mean it has been seen, and it does not come back (a revised tour gets a new id). Not for kids
- * profiles. On an emulator it comes back on every launch so it can be looked at. [blocked] holds it back while another pop-up is up.
+ * profiles. [blocked] holds it back while another pop-up is up.
  * [onSeeSettings] opens Settings on the Plus settings tab. A real dialog window: the remote stays inside it and BACK means Close.
  */
 @Composable
@@ -100,7 +99,7 @@ fun PlusWelcomeHost(onSeeSettings: () -> Unit, blocked: Boolean = false) {
     var open by remember { mutableStateOf(false) }
 
     val eligible = !isGuest && plus.active && profiles.active?.isKids != true
-    val due = eligible && welcome.loaded && !blocked && welcomeDue(welcome.seen, repository.shownThisSession, alwaysShow = remember { runningOnEmulator() })
+    val due = eligible && welcome.loaded && !blocked && welcomeDue(welcome.seen, repository.shownThisSession)
 
     // Leaving Home before the delay is up cancels this, so it is only "used up" once it has actually been on screen.
     LaunchedEffect(due) {
