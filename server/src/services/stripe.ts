@@ -121,6 +121,8 @@ export async function cancelSubscriptionAtPeriodEnd(subscriptionId: string): Pro
     // subscription id from the other mode (test vs live) and an already-ended subscription all look alike from the HTTP status alone.
     const body = (await response.json().catch(() => null)) as { error?: { message?: unknown; code?: unknown; type?: unknown } } | null;
     const detail = [body?.error?.type, body?.error?.code, body?.error?.message].filter((part) => typeof part === "string").join(" / ");
-    throw new Error(`Stripe subscription cancel failed (HTTP ${response.status})${detail ? `: ${detail}` : ""}`);
+    // The reason goes to the server log only: the thrown error (which a non-production response echoes as `detail`) stays generic.
+    console.error(`Stripe subscription cancel refused (HTTP ${response.status})${detail ? `: ${detail}` : ""}`);
+    throw new Error(`Stripe subscription cancel failed (HTTP ${response.status})`);
   }
 }

@@ -1,4 +1,5 @@
 import { pool } from "../db/pool.js";
+import { CINEMETA_ADDON_ID, CINEMETA_MANIFEST, CINEMETA_MANIFEST_URL } from "../data/cinemetaManifest.js";
 import type { AddonDeleteInput, AddonInput } from "../schemas/addons.js";
 
 export interface UserAddon {
@@ -39,8 +40,64 @@ function mapRow(row: AddonRow): UserAddon {
   };
 }
 
-/** This account's currently-installed addons, in display order -- what a fresh sign-in or app launch pulls down to seed/replace ProviderRegistry. Never includes soft-deleted rows. */
-export async function listActiveAddons(userId: string, profileId: string): Promise<UserAddon[]> {
+/** An account must be at least this old before the server adds a default addon (see [seedDefaultAddon]). */
+export const SEED_MIN_ACCOUNT_AGE_MS = 3 * 60_000;
+
+/** Does this addon give Home something to show? Its manifest lists at least one catalogue (Cinemeta, TMDB and the like do; Torrentio does not). */
+function offersCatalogues(addon: UserAddon): boolean {
+  const catalogs = addon.manifestJson.catalogs;
+  return addon.enabled && Array.isArray(catalogs) && catalogs.length > 0;
+}
+
+/**
+ * Makes sure a profile has something to browse, whatever app version asks. The apps used to install Cinemeta only once per device, locally, so an
+ * account that first signed in without it (a guest's untouched default is never uploaded; a device that had already run the app) had an empty Home
+ * and old versions can never be fixed from the client. When a profile's active addons offer no catalogue (none at all, or only stream addons such as
+ * Torrentio) and it has not been looked at before, Cinemeta is added to it. This happens once per profile: the mark is written either way, so
+ * removing Cinemeta later (or having another catalogue addon from the start) is respected. Accounts younger than [SEED_MIN_ACCOUNT_AGE_MS] are left
+ * alone and not marked: the first sign-in on a device compares what is on the device with what is in the account, and must see the account as it is.
+ * Returns the list to send (re-read when Cinemeta was added).
+ */
+export async function seedDefaultAddon(userId: string, profileId: string, addons: UserAddon[]): Promise<UserAddon[]> {
+  const marked = await pool.query(`SELECT 1 FROM addon_seed_marks WHERE user_id = $1 AND profile_id = $2`, [userId, profileId]);
+  if (marked.rows.length > 0) return addons;
+
+  if (addons.some(offersCatalogues)) {
+    await pool.query(`INSERT INTO addon_seed_marks (user_id, profile_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [userId, profileId]);
+    return addons;
+  }
+
+  const account = await pool.query<{ created_at: Date }>(`SELECT created_at FROM users WHERE id = $1`, [userId]);
+  const createdAt = account.rows[0]?.created_at;
+  if (!createdAt || Date.now() - createdAt.getTime() < SEED_MIN_ACCOUNT_AGE_MS) return addons;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    // The first request to write the mark is the one that adds Cinemeta; a concurrent one finds the mark and does nothing.
+    const claimed = await client.query(`INSERT INTO addon_seed_marks (user_id, profile_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING 1`, [userId, profileId]);
+    if (claimed.rows.length > 0) {
+      const next = addons.reduce((max, addon) => Math.max(max, addon.sortOrder), -1) + 1;
+      await client.query(
+        `INSERT INTO user_addons (user_id, manifest_url, addon_id, name, manifest_json, enabled, sort_order, updated_at, deleted_at, profile_id)
+         VALUES ($1, $2, $3, 'Cinemeta', $4::jsonb, true, $5, now(), NULL, $6)
+         ON CONFLICT (user_id, profile_id, manifest_url) DO UPDATE SET
+           enabled = true, deleted_at = NULL, sort_order = EXCLUDED.sort_order, updated_at = now()`,
+        [userId, CINEMETA_MANIFEST_URL, CINEMETA_ADDON_ID, JSON.stringify(CINEMETA_MANIFEST), next, profileId]
+      );
+    }
+    await client.query("COMMIT");
+    if (claimed.rows.length === 0) return addons;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+  return readActiveAddons(userId, profileId);
+}
+
+async function readActiveAddons(userId: string, profileId: string): Promise<UserAddon[]> {
   const result = await pool.query<AddonRow>(
     `SELECT ${ROW_COLUMNS} FROM user_addons
      WHERE user_id = $1 AND profile_id = $2 AND deleted_at IS NULL
@@ -48,6 +105,11 @@ export async function listActiveAddons(userId: string, profileId: string): Promi
     [userId, profileId]
   );
   return result.rows.map(mapRow);
+}
+
+/** This account's currently-installed addons, in display order -- what a fresh sign-in or app launch pulls down to seed/replace ProviderRegistry. Never includes soft-deleted rows. A profile with nothing to browse is given Cinemeta first (see [seedDefaultAddon]). */
+export async function listActiveAddons(userId: string, profileId: string): Promise<UserAddon[]> {
+  return seedDefaultAddon(userId, profileId, await readActiveAddons(userId, profileId));
 }
 
 /**

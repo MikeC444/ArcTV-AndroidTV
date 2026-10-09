@@ -4865,3 +4865,21 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none beyond the above.
 
 **Issues fixed:** accounts with no Cinemeta.
+
+## Post-Milestone-105 -- The server gives a profile with nothing to browse Cinemeta (fixes old app versions)
+
+**Status:** Done in code and backend tests; not deployed. The database migration (`0025_addon_seed_marks.sql`) runs with the normal migration step when the server is deployed.
+
+**Context:** the apps installed Cinemeta only once per device, locally. An account that first signed in without it (a guest's untouched default is never uploaded; a device that had already run the app) had an empty Home, and old app versions (0.1.8 and the like, still being installed) can't be fixed from the client. Those apps do replace their addon list with the account's list from the server on every sync.
+
+**Changes:**
+- `GET /user/addons` (`addonService.listActiveAddons`) now calls `seedDefaultAddon`: when a profile's active addons offer no catalogue (none at all, or only stream addons such as Torrentio) and the profile has not been looked at before, Cinemeta (bundled in `src/data/cinemetaManifest.ts`, a copy of the apps' own) is added to it and returned in the same response. A row in the new `addon_seed_marks` table is written either way (also when the profile already had a catalogue addon), so it happens once per profile and a later removal is respected.
+- Accounts younger than 3 minutes are left alone and not marked, so the first sign-in on a device (which compares the device's addons with the account's) sees the account as it is; they are seeded on a later sync.
+- A stale Cinemeta row that was soft-deleted earlier is revived once instead of creating a duplicate.
+- Stripe's cancel failure reason is now written to the server log only (the previous change had put it in the thrown error, which a non-production response echoes as `detail`, and `plus.test.ts` caught that).
+
+**Tests performed:** `tests/addon-seed.test.ts` (7 new: older account with no addons, stream-only account keeping Torrentio, catalogue addon left alone and never added later, deliberate removal respected, brand-new account untouched then seeded once older, per-profile, revived soft-deleted row without a duplicate); the full backend suite passes against a local Postgres (22 files, 256 tests); `tsc --noEmit` clean. Not tried with a real 0.1.8 device: it relies on that app version replacing its list from `GET /user/addons`, which the 0.1.8 source does.
+
+**Issues discovered:** the Post-Milestone-103 change put Stripe's message into the thrown error, and `plus.test.ts` ("a Stripe failure ... not a leaked message") failed because of it; it had been merged without running the backend suite.
+
+**Issues fixed:** that test, by logging the reason instead.
