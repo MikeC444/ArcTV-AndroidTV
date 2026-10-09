@@ -76,7 +76,72 @@ class StremioAddonProvider(
     // single row per genre. Fetches run in batches of HOME_BATCH_SIZE (see
     // its own doc) rather than all at once, emitting each batch's rows as
     // soon as it resolves -- see buildSectionsFlow.
-    override fun getHomeSections(): Flow<List<HomeSection>> = buildSectionsFlow(supportedCatalogs, rowKeyPrefix = "")
+    override fun getHomeSections(): Flow<List<HomeSection>> =
+        if (isRankedStyle) rankedHomeSections() else buildSectionsFlow(supportedCatalogs, rowKeyPrefix = "")
+
+    /** Cinemeta's shape: a Popular ("top"), a New ("year", filtered by year) and a Top rated ("imdbRating") ranking, for movies and series. */
+    private val isRankedStyle: Boolean
+        get() {
+            val ids = supportedCatalogs.map { it.id }.toSet()
+            return "top" in ids && "year" in ids && "imdbRating" in ids
+        }
+
+    /**
+     * Home for a Cinemeta-style addon (the web app's layout): Popular, then New, then Top rated (each movies and series together, drawn from a
+     * different page each day and gently reshuffled, see HomeVariety.kt), then only the genres with wide appeal. Other addons keep the
+     * one-merged-row-plus-every-genre layout.
+     */
+    private fun rankedHomeSections(): Flow<List<HomeSection>> = flow {
+        fun byId(id: String) = supportedCatalogs.filter { it.id == id }
+        val fetches = mutableListOf<suspend () -> HomeSection?>()
+        val top = byId("top")
+        fetches += { fetchVariedSection(top, top.firstNotNullOfOrNull { it.name } ?: "Popular", emptyMap(), "base", HomeVariety.PAGE_WEIGHTS) }
+        val yearCatalogs = byId("year")
+        val years = yearCatalogs.flatMap { it.extra.firstOrNull { e -> e.name == "genre" }?.options.orEmpty() }.filter(::isYear).distinct()
+        val thisYear = java.time.LocalDate.now().year.toString()
+        val year = if (thisYear in years) thisYear else years.firstOrNull()
+        if (year != null) fetches += { fetchVariedSection(yearCatalogs, "New", mapOf("genre" to year), "new", HomeVariety.NEW_PAGE_WEIGHTS) }
+        fetches += { fetchVariedSection(byId("imdbRating"), "Top rated", emptyMap(), "toprated", HomeVariety.PAGE_WEIGHTS) }
+        for (genre in homeGenresFor(declaredGenres(supportedCatalogs).filterNot(::isYear))) {
+            val catalogs = supportedCatalogs.filter { c -> genre in c.extra.firstOrNull { e -> e.name == "genre" }?.options.orEmpty() }
+            fetches += { fetchVariedSection(catalogs, genre, mapOf("genre" to genre), genre, HomeVariety.PAGE_WEIGHTS) }
+        }
+        fetches.chunked(HOME_BATCH_SIZE).forEach { batch ->
+            val ready = coroutineScope { batch.map { fetchRow -> async { fetchRow() } }.awaitAll() }.filterNotNull()
+            if (ready.isNotEmpty()) emit(ready)
+        }
+    }
+
+    private fun isYear(value: String): Boolean = value.toIntOrNull()?.let { it in 1900..2100 } == true
+
+    /**
+     * A Home row that reads today's page of its ranking (not always the first) and shuffles gently within it. Falls back to the first page if
+     * the chosen one is empty. Pages are only asked of catalogues that declare "skip".
+     */
+    private suspend fun fetchVariedSection(
+        catalogDefs: List<AddonCatalogDef>,
+        title: String,
+        extra: Map<String, String>,
+        rowKey: String,
+        weights: List<Int>
+    ): HomeSection? = coroutineScope {
+        if (catalogDefs.isEmpty()) return@coroutineScope null
+        suspend fun read(page: Int): List<Content> = coroutineScope {
+            catalogDefs.map { catalogDef ->
+                async {
+                    val pageExtra = if (page > 0 && catalogDef.extra.any { it.name == "skip" }) extra + ("skip" to (page * PAGE_SIZE).toString()) else extra
+                    runCatching { client.fetchCatalog(manifestUrl, catalogDef.type, catalogDef.id, pageExtra) }
+                        .getOrNull()?.map { it.toContent(providerId = id) }.orEmpty()
+                }
+            }.awaitAll().let { interleave(it).distinctBy { c -> c.id } }
+        }
+        val key = "${manifest.id}_$rowKey"
+        val page = pickPage(HomeVariety.seed, key, weights)
+        var items = read(page)
+        if (items.isEmpty() && page > 0) items = read(0)
+        if (items.isEmpty()) return@coroutineScope null
+        HomeSection(id = key, title = title, items = varyOrder(items, HomeVariety.seed, key))
+    }
 
     // Movies/TV Shows show one flattened, shuffled row -- no genre
     // breakdown -- so unlike getHomeSections() this deliberately does NOT

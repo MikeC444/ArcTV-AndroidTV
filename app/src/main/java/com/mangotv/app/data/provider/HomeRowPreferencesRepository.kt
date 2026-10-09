@@ -50,7 +50,13 @@ data class HomeRowPreferences(
         val ordered = order.mapNotNull { byId[it] }
         val remaining = sections.filterNot { it.id in order }
             .sortedBy { defaultRank(it) }
-        return ordered + remaining
+        // New and Top rated arrived after some people had already chosen their rows: unless the person has placed them, they go at the top, right
+        // after any lead rows (Popular, New, Top rated) they did place, instead of below everything they chose. Once they move one in Settings
+        // it is part of their order and stays where they put it. Same rule as the web app.
+        val newLeadRows = remaining.filter { isNewLeadRow(it) }
+        if (newLeadRows.isEmpty() || ordered.isEmpty()) return ordered + remaining
+        val at = ordered.takeWhile { isLeadRow(it) }.size
+        return ordered.take(at) + newLeadRows + ordered.drop(at) + remaining.filterNot { isNewLeadRow(it) }
     }
 
     companion object {
@@ -62,8 +68,13 @@ data class HomeRowPreferences(
         // after everything recognized here. Multiple aliases per genre are
         // included since different addons label the same genre differently
         // (Cinemeta's "Science Fiction" vs. the more common "Sci-Fi").
+        private val LEAD_ROW = Regex("_(base|new|toprated)$")
+        private val NEW_LEAD_ROW = Regex("_(new|toprated)$")
+        private fun isLeadRow(section: HomeSection) = LEAD_ROW.containsMatchIn(section.id)
+        private fun isNewLeadRow(section: HomeSection) = NEW_LEAD_ROW.containsMatchIn(section.id)
+
         private val DEFAULT_ROW_PRIORITY = listOf(
-            "featured", "popular", "trending", "trending now", "new releases",
+            "popular", "new", "top rated", "featured", "trending", "trending now", "new releases",
             "top 10 movies", "top 10 tv shows", "recently added",
             "action", "comedy", "horror", "romance", "thriller", "drama",
             "sci-fi", "science fiction", "fantasy", "mystery", "crime",

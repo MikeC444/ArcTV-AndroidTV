@@ -30,6 +30,7 @@ import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.provider.blockedGenreSet
 import com.mangotv.app.data.provider.withoutBlocked
 import com.mangotv.app.data.provider.HomeRowPreferences
+import com.mangotv.app.data.provider.HomeVariety
 import com.mangotv.app.data.provider.ProviderRegistry
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -270,6 +271,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun fetch(providers: List<CatalogProvider>) {
+        // Today's draw for the catalogue rows: the same all day for this account, different tomorrow (see HomeVariety.kt).
+        HomeVariety.seed = HomeVariety.seedFor((getApplication<Application>() as MangoTvApplication).container.authRepository.session.value?.user?.id)
         if (providers.isEmpty()) {
             if (showingCacheOnly) return
             rawSections = emptyList()
@@ -354,8 +357,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
         // Each title shows in only one row (the first one displayed that holds it). Done after hidden rows are
         // removed so a hidden row never uses up a title, and before the hero pool is drawn so the hero follows suit.
+        // Catalogue rows leave out what the person has already dealt with: watched, saved to My List, or rated (Like / Not for me). They stay in
+        // My List and Continue Watching, and still count for Picked for you. Same rule as the web app.
+        val seenIds = watchedIds + myListRepository.items.value.map { it.id } + feedbackEntries.keys
+        val unseenSections = rawSections.withoutBlocked(blockedGenres)
+            .map { section -> section.copy(items = section.items.filterNot { it.id in seenIds }) }
+            .filter { it.items.isNotEmpty() }
         val visibleSections = dedupeSections(
-            rowPreferences.applyOrder(rawSections.withoutBlocked(blockedGenres)).filterNot { it.id in rowPreferences.hiddenRowIds }
+            rowPreferences.applyOrder(unseenSections).filterNot { it.id in rowPreferences.hiddenRowIds }
         ).map { it.withWatchedFlags() }
         // Continue Watching lists every title that was started, even one a catalogue row also shows (hiding those could empty the row).
         val continueWatching = continueWatchingSection

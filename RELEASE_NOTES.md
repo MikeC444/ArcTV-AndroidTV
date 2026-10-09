@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- A fresher Home: Popular, New and Top rated rows, then your best genres, with different titles each day and nothing you've already seen.
+
 ## 0.3.1
 
 - Accounts with no catalogue addon now get Cinemeta, so Home always has something to browse.

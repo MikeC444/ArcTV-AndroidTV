@@ -4883,3 +4883,22 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the Post-Milestone-103 change put Stripe's message into the thrown error, and `plus.test.ts` ("a Stripe failure ... not a leaked message") failed because of it; it had been merged without running the backend suite.
 
 **Issues fixed:** that test, by logging the reason instead.
+
+## Post-Milestone-106 -- Home rows match the web app: Popular, New, Top rated, nine genres, a different mix each day
+
+**Status:** Done in code; compiles and the unit tests pass; not run on a TV.
+
+**Context:** the web app's new Home layout (docs/PARITY.md in the web repo) was missing on the Firestick: one merged top row plus every genre, the same first 100 titles for everyone, and titles you had already dealt with still shown.
+
+**Changes:**
+- For Cinemeta (and any addon with `top`, `year` and `imdbRating` catalogues) Home is now Popular, New (this year's releases) and Top rated, each movies and series together, then only Action, Comedy, Drama, Thriller, Horror, Sci-Fi, Crime, Animation and Documentary (`StremioAddonProvider.rankedHomeSections`). Other addons keep the old layout. The other genres stay on the Movies and TV Shows pages.
+- Each row reads a different page of its ranking (mostly page 1, sometimes 2 or 3; New 1 or 2) chosen by account + day, and is reshuffled gently favouring better ranks (`HomeVariety.kt`: same maths as the web `homeVariety.ts`), so rows are steady all day and differ tomorrow.
+- Titles that are watched, in My List or rated (Like / Not for me) are left out of the catalogue rows (`HomeViewModel.applyPreferences`); they stay in My List and Continue Watching and still feed Picked for you. A title still shows in only one row.
+- Row order (`HomeRowPreferences.applyOrder`): New and Top rated that the person has not placed go above the rows they chose (after any Popular / New / Top rated they placed); once moved in Settings they stay where put. Default priority is now popular, new, top rated.
+- `StremioAddonClient` and its `fetchCatalog` are `open` so tests can use a fake.
+
+**Tests performed:** `HomeVarietyTest` (11): steadiness, day/person change, no title lost, rank favouring, page odds, curated genres, the three row-order cases, Cinemeta's rows through the real manifest and a fake client (titles and order, New asks for a year, one title per row, different page and order on other days, same all day). The full unit suite passes. NOT run on a TV: how Home looks and loads with the new rows is unverified.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

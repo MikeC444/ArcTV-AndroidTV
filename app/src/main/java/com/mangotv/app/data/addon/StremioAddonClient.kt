@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
  * knows about the wire format — everything above it works with normalized
  * models.
  */
-class StremioAddonClient {
+open class StremioAddonClient {
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -46,7 +46,7 @@ class StremioAddonClient {
     // commonly "genre") as a query-string-shaped, URL-encoded path segment:
     // /catalog/movie/top/genre=Action.json. Left empty, the request is
     // identical to the old unfiltered call.
-    suspend fun fetchCatalog(
+    open suspend fun fetchCatalog(
         manifestUrl: String,
         type: String,
         catalogId: String,
