@@ -25,8 +25,40 @@ export function describeAddonUrl(url: string): { host: string; configured: boole
 
 const ACTIVE_PLAN = `CASE WHEN p.status = 'active' AND (p.plan = 'lifetime' OR p.valid_until > now()) THEN p.plan ELSE NULL END`;
 
+/** Someone counts as online when their session made any request within this long (the apps only call the server when they sync, browse or play). */
+export const ONLINE_WINDOW_SECONDS = 5 * 60;
+/** Someone counts as watching when a device saved playback progress within this long (the apps save about every 15 seconds while playing). */
+export const WATCHING_WINDOW_SECONDS = 45;
+
+export interface LiveCount {
+  users: number;
+  byPlatform: Record<string, number>;
+}
+
+const countByPlatform = (rows: Array<{ platform: string; n: number }>, total: number): LiveCount => ({ users: total, byPlatform: Object.fromEntries(rows.map((r) => [r.platform, r.n])) });
+
+/** How many people are online and how many are watching right now: distinct accounts, in total and per platform (a person on two platforms counts once in the total). */
+export async function liveSummary() {
+  const online = `FROM sessions s JOIN devices d ON d.id = s.device_id JOIN users u ON u.id = s.user_id
+                  WHERE s.revoked_at IS NULL AND d.revoked_at IS NULL AND u.deleted_at IS NULL AND s.last_used_at > now() - make_interval(secs => $1)`;
+  const watching = `FROM devices d JOIN users u ON u.id = d.user_id
+                    WHERE d.revoked_at IS NULL AND u.deleted_at IS NULL AND d.last_progress_at > now() - make_interval(secs => $1)`;
+  const [onlineTotal, onlineBy, watchingTotal, watchingBy] = await Promise.all([
+    pool.query<{ n: number }>(`SELECT count(DISTINCT s.user_id)::int AS n ${online}`, [ONLINE_WINDOW_SECONDS]),
+    pool.query<{ platform: string; n: number }>(`SELECT d.platform, count(DISTINCT s.user_id)::int AS n ${online} GROUP BY d.platform ORDER BY n DESC, d.platform`, [ONLINE_WINDOW_SECONDS]),
+    pool.query<{ n: number }>(`SELECT count(DISTINCT d.user_id)::int AS n ${watching}`, [WATCHING_WINDOW_SECONDS]),
+    pool.query<{ platform: string; n: number }>(`SELECT d.platform, count(DISTINCT d.user_id)::int AS n ${watching} GROUP BY d.platform ORDER BY n DESC, d.platform`, [WATCHING_WINDOW_SECONDS]),
+  ]);
+  return {
+    online: countByPlatform(onlineBy.rows, onlineTotal.rows[0]!.n),
+    watching: countByPlatform(watchingBy.rows, watchingTotal.rows[0]!.n),
+    onlineWindowSeconds: ONLINE_WINDOW_SECONDS,
+    watchingWindowSeconds: WATCHING_WINDOW_SECONDS,
+  };
+}
+
 export async function summary() {
-  const [users, active, plans, versions, external] = await Promise.all([
+  const [users, active, plans, versions, external, live] = await Promise.all([
     pool.query<{ total: number; new7d: number }>(`SELECT count(*)::int AS total, count(*) FILTER (WHERE created_at > now() - interval '7 days')::int AS new7d FROM users WHERE deleted_at IS NULL`),
     pool.query<{ n: number }>(`SELECT count(DISTINCT d.user_id)::int AS n FROM devices d JOIN users u ON u.id = d.user_id WHERE d.revoked_at IS NULL AND u.deleted_at IS NULL AND d.last_seen_at > now() - interval '7 days'`),
     pool.query<{ plan: string; n: number }>(`SELECT ${ACTIVE_PLAN} AS plan, count(*)::int AS n FROM user_plus p JOIN users u ON u.id = p.user_id WHERE u.deleted_at IS NULL GROUP BY 1`),
@@ -36,10 +68,11 @@ export async function summary() {
        GROUP BY 1, 2 ORDER BY devices DESC, version DESC`
     ),
     externalPlayerSummary(),
+    liveSummary(),
   ]);
   const plus: Record<string, number> = { monthly: 0, yearly: 0, lifetime: 0 };
   for (const row of plans.rows) if (row.plan) plus[row.plan] = row.n;
-  return { users: users.rows[0]!.total, newLast7Days: users.rows[0]!.new7d, activeLast7Days: active.rows[0]!.n, plus, versions: versions.rows, externalPlayer: external };
+  return { users: users.rows[0]!.total, newLast7Days: users.rows[0]!.new7d, activeLast7Days: active.rows[0]!.n, plus, versions: versions.rows, externalPlayer: external, live };
 }
 
 /** How often people hand a title to another player (another app, or VLC's engine inside the app; `opens7d` counts the apps, `vlc7d` the engine): a lot of "after an error" points at the built-in player, not at taste. */

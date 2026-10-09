@@ -4918,3 +4918,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-108 -- The developer panel can count who is online and who is watching (server)
+
+**Status:** Done in code and backend tests; not deployed. The migration (`0027_devices_last_progress.sql`) runs with the normal migration step when the server is deployed. Nothing changes in the apps.
+
+**Context:** the developer panel showed activity over 7 days but not who is using ArcTV right now.
+
+**Changes:**
+- `GET /admin/summary` now also returns `live`: `online` and `watching`, each `{ users, byPlatform }` (distinct accounts, in total and per platform; an account on two platforms counts once in the total), plus the two windows used (`onlineWindowSeconds` 300, `watchingWindowSeconds` 45).
+- Online = a live session made any request in the last 5 minutes (every signed-in request already stamps `sessions.last_used_at`). It means "active", not "has the app open": an idle app that makes no requests drops out after 5 minutes.
+- Watching = the device saved playback progress in the last 45 seconds. `POST /user/watch-progress` now stamps `devices.last_progress_at` with the server's clock when the report is not the closing "finished" one (the apps report about every 15 seconds while playing), so a device with a wrong clock cannot skew it. Counts only, never titles.
+
+**Tests performed:** four new tests in `tests/admin.test.ts` (online window and per-platform split, one account on two devices counted once, watching = recent progress and not a finished report, a stopped device, or a revoked device, and the server's clock is used rather than the device's); the full backend suite passes against a local Postgres (23 files, 266 tests); `tsc --noEmit` clean. Not run on a TV or phone.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

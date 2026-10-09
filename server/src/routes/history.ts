@@ -1,5 +1,6 @@
 import { Router } from "express";
 import type { z } from "zod";
+import { pool } from "../db/pool.js";
 import { requireAuth } from "../middleware/auth.js";
 import { profileOf, resolveProfile } from "../middleware/profile.js";
 import { validate } from "../middleware/validate.js";
@@ -53,6 +54,12 @@ historyRouter.post(
     try {
       const input = req.validated!.body as z.infer<typeof watchProgressBodySchema>;
       const { historyEntry, continueWatching } = await playbackProgressService.recordProgress(req.user!.id, profileOf(req), input);
+      // "Watching now" for the developer panel: a save while playing (not the closing "finished" one) stamps the device with the server's clock.
+      if (!input.completed && req.session) {
+        void pool
+          .query("UPDATE devices SET last_progress_at = now() WHERE id = $1", [req.session.deviceId])
+          .catch((error: unknown) => console.error("failed to record device progress time", error));
+      }
       res.json({
         historyEntry: serializeHistoryEntry(historyEntry),
         continueWatching: continueWatching ? serializeContinueWatching(continueWatching) : null,

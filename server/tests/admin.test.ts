@@ -137,6 +137,60 @@ describe("the developer panel is for admins only", () => {
   });
 });
 
+describe("who is online and who is watching right now", () => {
+  const progress = (over: Record<string, unknown> = {}) => ({ providerId: "p", contentId: "tt1", contentType: "MOVIE", title: "A", positionMs: 5000, durationMs: 100000, completed: false, watchedAt: "2025-01-01T00:00:00.000Z", ...over });
+  const live = async (admin: TestSession) => (await request(app).get("/admin/summary").set(auth(admin))).body.live;
+  const setPlatform = (s: TestSession, platform: string) => pool.query("UPDATE devices d SET platform = $2 FROM sessions x WHERE x.device_id = d.id AND x.id = $1", [s.sessionId, platform]);
+
+  it("counts people who used the app in the last 5 minutes, in total and per platform", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    const tv = await createTestSession();
+    const phone = await createTestSession();
+    const gone = await createTestSession();
+    await setPlatform(admin, "web");
+    await setPlatform(tv, "fire_tv");
+    await setPlatform(phone, "android_phone");
+    await pool.query("UPDATE sessions SET last_used_at = now() - interval '6 minutes' WHERE id = $1", [gone.sessionId]);
+    const l = await live(admin);
+    expect(l.online).toEqual({ users: 3, byPlatform: { android_phone: 1, fire_tv: 1, web: 1 } }); // the admin looking at the panel is online too; "gone" is not
+    expect(l.onlineWindowSeconds).toBe(300);
+    expect(l.watchingWindowSeconds).toBe(45);
+  });
+
+  it("an account on two devices counts once in the total", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    const a = await createTestSession();
+    const second = await pool.query<{ id: string }>("INSERT INTO devices (user_id, device_identifier, platform) VALUES ($1, gen_random_uuid(), 'web') RETURNING id", [a.userId]);
+    await pool.query("INSERT INTO sessions (user_id, device_id, access_token_hash, access_token_expires_at, refresh_token_hash, refresh_token_expires_at) VALUES ($1, $2, 'x1', now() + interval '1 hour', 'x2', now() + interval '1 day')", [a.userId, second.rows[0]!.id]);
+    expect((await live(admin)).online.users).toBe(2); // the admin and that one account
+  });
+
+  it("someone saving playback progress is watching; finishing, stopping for a minute, or a revoked device is not", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    const playing = await createTestSession();
+    const finished = await createTestSession();
+    const stopped = await createTestSession();
+    await setPlatform(playing, "fire_tv");
+    expect((await live(admin)).watching).toEqual({ users: 0, byPlatform: {} });
+    expect((await request(app).post("/user/watch-progress").set(auth(playing)).send(progress())).status).toBe(200);
+    expect((await request(app).post("/user/watch-progress").set(auth(finished)).send(progress({ completed: true }))).status).toBe(200);
+    await request(app).post("/user/watch-progress").set(auth(stopped)).send(progress());
+    await waitFor(async () => (await pool.query("SELECT 1 FROM devices WHERE last_progress_at IS NOT NULL")).rowCount, (n) => n === 2);
+    await pool.query("UPDATE devices d SET last_progress_at = now() - interval '50 seconds' FROM sessions x WHERE x.device_id = d.id AND x.id = $1", [stopped.sessionId]);
+    expect((await live(admin)).watching).toEqual({ users: 1, byPlatform: { fire_tv: 1 } });
+    await pool.query("UPDATE devices d SET revoked_at = now() FROM sessions x WHERE x.device_id = d.id AND x.id = $1", [playing.sessionId]);
+    expect((await live(admin)).watching.users).toBe(0);
+  });
+
+  it("uses the server's clock, not the time the device claims", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    const s = await createTestSession();
+    await request(app).post("/user/watch-progress").set(auth(s)).send(progress({ watchedAt: "2019-01-01T00:00:00.000Z" })); // a device with a wrong clock
+    await waitFor(async () => (await live(admin)).watching.users, (n) => n === 1);
+    expect((await live(admin)).watching.users).toBe(1);
+  });
+});
+
 describe("app version tracking", () => {
   it("records the version the app reports, and follows an update straight away", async () => {
     const s = await createTestSession();
