@@ -291,7 +291,7 @@ internal fun CardActionsMenuPanel(
     ) {
         Column(
             modifier = Modifier
-                .width(560.dp)
+                .width(640.dp)
                 .clip(RoundedCornerShape(22.dp))
                 .background(MangoBackgroundElevated)
         ) {
@@ -306,8 +306,8 @@ internal fun CardActionsMenuPanel(
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .width(80.dp)
-                            .height(120.dp)
+                            .width(64.dp)
+                            .height(96.dp)
                             .clip(RoundedCornerShape(9.dp))
                     )
                     Spacer(Modifier.width(18.dp))
@@ -322,7 +322,7 @@ internal fun CardActionsMenuPanel(
                     )
                 }
             }
-            Column(modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 12.dp, bottom = 16.dp)) {
+            Column(modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 10.dp, bottom = 14.dp)) {
             PlayButton(
                 label = if (watchProgress != null) "Resume from ${formatElapsed(watchProgress.positionMs)}" else "Play",
                 focusRequester = firstFocusRequester,
@@ -391,7 +391,7 @@ internal fun CardActionsMenuPanel(
 @Composable
 private fun MenuBanner(content: Content) {
     var logoFailed by remember(content.id) { mutableStateOf(false) }
-    Box(modifier = Modifier.fillMaxWidth().height(190.dp)) {
+    Box(modifier = Modifier.fillMaxWidth().height(150.dp)) {
         AsyncImage(
             model = rememberOpaqueImageRequest(content.backdropUrl),
             contentDescription = null,
@@ -422,7 +422,7 @@ private fun MenuBanner(content: Content) {
                     contentScale = ContentScale.Fit,
                     alignment = Alignment.BottomStart,
                     onError = { logoFailed = true },
-                    modifier = Modifier.heightIn(max = 72.dp).widthIn(max = 340.dp)
+                    modifier = Modifier.heightIn(max = 60.dp).widthIn(max = 340.dp)
                 )
             } else {
                 Text(
@@ -452,7 +452,7 @@ private fun PlayButton(label: String, focusRequester: FocusRequester, onClick: (
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -480,7 +480,7 @@ private fun GridAction(icon: ImageVector, label: String, on: Boolean, onClick: (
                 .fillMaxWidth()
                 // A set state keeps a teal outline (the focus outline is the white one), so it reads at a distance.
                 .then(if (on) Modifier.border(1.dp, ArcAccent, RoundedCornerShape(11.dp)) else Modifier)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -522,7 +522,7 @@ private fun CardActionRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 9.dp),
+                .padding(horizontal = 14.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Start
         ) {

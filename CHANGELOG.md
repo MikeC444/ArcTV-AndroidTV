@@ -5002,3 +5002,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues fixed:** none.
 
 **Follow-up (same entry):** the backdrop is now 190dp tall, cropped like the web app (centre, a quarter of the way down) with the web's darker fade so the faces and artwork sit centred and the logo or title stays readable. Menu screenshot tests re-run and pass; full suite not re-run after this tweak, not run on a Fire TV.
+
+## Post-Milestone-113 -- Firestick: the poster menu is wider and shorter
+
+**Status:** Done on branch `claude/firestick-menu-shape`, not merged.
+
+**Context:** The menu was close to square and, with a backdrop and the Picked-for-you rows, filled about nine tenths of the screen's height.
+
+**Changes:** Width 560dp to 640dp, backdrop 190dp to 150dp, smaller logo, smaller Play and button padding, tighter rows, and a smaller poster in the no-backdrop header.
+
+**Tests performed:** The six menu screenshot tests re-run and pass, and desktop renders were looked at (backdrop with logo, and the no-backdrop Picked-for-you menu). NOT done: the full unit suite, a debug build, a run on a Fire TV, D-pad focus checks.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
