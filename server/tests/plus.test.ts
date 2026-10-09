@@ -221,16 +221,22 @@ describe("POST /user/plus/checkout", () => {
       form = new URLSearchParams(init.body);
       return { ok: true, status: 200, json: async () => ({ url: "https://checkout.stripe.test/c/x", amount_total: 999, currency: "gbp" }) };
     });
-    expect((await post(s.token, { plan: "monthly" })).body.trialDays).toBe(5);
+    // Monthly never gets the trial, even for someone who has never had Plus.
+    const monthly = await post(s.token, { plan: "monthly" });
+    expect(monthly.body.trialDays).toBe(0);
+    expect(form!.get("subscription_data[trial_period_days]")).toBeNull();
+    expect(form!.get("metadata[trial_days]")).toBeNull();
+
+    expect((await post(s.token, { plan: "yearly" })).body.trialDays).toBe(5);
     expect(form!.get("metadata[trial_days]")).toBe("5");
 
-    await webhook(completed(s.userId, { metadata: { plan: "monthly", user_id: s.userId, trial_days: "5" } }));
+    await webhook(completed(s.userId, { metadata: { plan: "yearly", user_id: s.userId, trial_days: "5" } }));
     const until = new Date((await entitlement(s.token)).body.validUntil).getTime();
     expect(until).toBeGreaterThan(Date.now() + 5 * 86400_000);
     expect(until).toBeLessThan(Date.now() + 7 * 86400_000);
 
     // Having had Plus once (even only a trial) ends the offer.
-    const again = await post(s.token, { plan: "monthly" });
+    const again = await post(s.token, { plan: "yearly" });
     expect(again.body.trialDays).toBe(0);
     expect((await entitlement(s.token)).body.trialDays).toBe(0);
     expect((await entitlement((await createTestSession()).token)).body.trialDays).toBe(5);

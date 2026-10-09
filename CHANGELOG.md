@@ -5105,3 +5105,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-120 -- The Plus free trial is for new yearly subscribers only (server and Firestick)
+
+**Status:** Done on branch `claude/trial-yearly-only`, not merged or deployed.
+
+**Context:** The 5-day Plus free trial was offered on both the monthly and the yearly plan. It should be for new yearly subscribers only.
+
+**Changes:**
+- Server: `POST /plus/checkout` only sets the trial (and its metadata) for the yearly plan, still only for an account that has never had Plus. Monthly and Lifetime checkouts have no trial. `trialDays` in the status is still the offer on the account (it now applies to the yearly plan only).
+- Firestick: only the yearly plan card shows the trial (button, "5 days free" pill, checkout page); monthly shows its normal wording; the "How to subscribe" and footer text say the trial is for yearly.
+
+**Tests performed:** The whole server suite passes (273 tests, against a local Postgres), including a new check that monthly gets no trial even for a new account and that yearly does. The Firestick unit suite passes and the debug app builds. NOT done: a real Stripe checkout, or the Firestick on a device.
+
+**Issues discovered:** a subscription already started on a monthly trial keeps its trial; nothing here changes existing subscriptions. The server must be redeployed for the change to take effect (older app versions would show "free trial" on monthly until updated, though Stripe will no longer give it).
+
+**Issues fixed:** none.

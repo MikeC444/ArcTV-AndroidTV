@@ -14,7 +14,7 @@ export const plusRouter = Router();
 plusRouter.get("/plus", requireAuth, async (req, res, next) => {
   try {
     const entitlement = await getEntitlement(req.user!.id);
-    // The free trial on offer for this account (days), so apps can say so before checkout: only with the paywall on and no Plus ever.
+    // The free trial on offer for this account (days; it applies to the yearly plan only), so apps can say so before checkout: only with the paywall on and no Plus ever.
     const trialDays = entitlement.paywall && !(await getPlusRow(req.user!.id)) ? PLUS_TRIAL_DAYS : 0;
     res.json({ ...entitlement, trialDays });
   } catch (error) {
@@ -32,8 +32,8 @@ plusRouter.post("/plus/checkout", requireAuth, validate({ body: checkoutBody }),
     const entitlement = await getEntitlement(req.user!.id);
     if (entitlement.active && entitlement.plan === "lifetime") throw new HttpError(409, "You already have Plus for life");
     const row = await getPlusRow(req.user!.id);
-    // A free trial is only for someone who has never had Plus (any past row, even a cancelled trial, means they have), and only on a subscription.
-    const trialDays = !row && plan !== "lifetime" ? PLUS_TRIAL_DAYS : 0;
+    // A free trial is only for someone who has never had Plus (any past row, even a cancelled trial, means they have), and only on the yearly plan.
+    const trialDays = !row && plan === "yearly" ? PLUS_TRIAL_DAYS : 0;
     const session = await createCheckoutSession({ userId: req.user!.id, email: req.user!.email, plan, stripeCustomerId: row?.stripeCustomerId ?? null, trialDays });
     // The page to open, plus what it will charge (after any trial) so a TV can show the price next to the QR code, and the free days.
     res.json({ url: session.url, amountTotal: session.amountTotal, currency: session.currency, trialDays });

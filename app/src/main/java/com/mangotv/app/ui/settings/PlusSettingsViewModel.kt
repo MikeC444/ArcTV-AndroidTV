@@ -93,7 +93,7 @@ class PlusSettingsViewModel(application: Application) : AndroidViewModel(applica
         starting = viewModelScope.launch {
             try {
                 val link = plusRepository.startCheckout(plan)
-                _checkout.value = PlusCheckoutState.ShowingQr(plan, link.url, formatPlusPrice(link.amountTotal, link.currency), if (plan == "lifetime") 0 else link.trialDays)
+                _checkout.value = PlusCheckoutState.ShowingQr(plan, link.url, formatPlusPrice(link.amountTotal, link.currency), if (plan == "yearly") link.trialDays else 0)
                 startPolling(plan)
             } catch (e: CancellationException) {
                 throw e

@@ -43,8 +43,8 @@ fun billingNote(planId: String): String = when (planId) {
     else -> "Pay once, keep Plus forever. No renewals."
 }
 
-/** Whether a plan starts with free days: only a monthly or yearly subscription, and only when the backend offers them. */
-fun hasTrial(planId: String, trialDays: Int): Boolean = trialDays > 0 && (planId == "monthly" || planId == "yearly")
+/** Whether a plan starts with free days: only the yearly subscription (never monthly or Lifetime), and only when the backend offers them. */
+fun hasTrial(planId: String, trialDays: Int): Boolean = trialDays > 0 && planId == "yearly"
 
 /** The plan card's button: "Start 5-day free trial" when free days are on offer, otherwise the usual wording. */
 fun planButtonLabel(planId: String, planLabel: String, trialDays: Int): String = when {

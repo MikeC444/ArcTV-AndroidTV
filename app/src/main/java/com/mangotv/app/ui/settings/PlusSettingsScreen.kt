@@ -178,7 +178,7 @@ fun ColumnScope.PlusSettingsContent(
             item(key = "steps") {
                 Column(modifier = Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(text = "How to subscribe", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
-                    Text(text = "1. Pick a plan below: monthly, yearly, or a one-time Lifetime payment." + if (status.trialDays > 0) " Monthly and yearly start with ${status.trialDays} days free." else "", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                    Text(text = "1. Pick a plan below: monthly, yearly, or a one-time Lifetime payment." + if (status.trialDays > 0) " Yearly starts with ${status.trialDays} days free." else "", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                     Text(text = "2. Scan the QR code with your phone and pay on the secure Stripe page.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                     Text(text = "3. This screen switches Plus on by itself once the payment goes through.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                 }
@@ -211,7 +211,7 @@ fun ColumnScope.PlusSettingsContent(
         item(key = "footer") {
             Text(
                 text = if (sellPlans) {
-                    (if (status.trialDays > 0) "Free trial: your card is taken at checkout but nothing is charged for ${status.trialDays} days. Cancel before then and you pay nothing. Once per account. " else "") +
+                    (if (status.trialDays > 0) "Yearly free trial: your card is taken at checkout but nothing is charged for ${status.trialDays} days. Cancel before then and you pay nothing. Once per account. " else "") +
                         "Payments are handled by Stripe's secure checkout page; Arc TV never sees your card."
                 } else "Plus features appear on your account by themselves.",
                 color = TextTertiary,
