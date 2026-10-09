@@ -21,7 +21,6 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - A new Recommendations tab in Settings shows what you've liked and how your picks are chosen, easy to move through with the remote.
 - Plus members get a quick tour of everything Plus includes the first time they open Home.
 - The Arc TV Plus card in Settings now shows a clear white outline when you select it.
-- The free trial is now for new yearly subscribers only; monthly starts straight away.
 - A fresh look for the poster menu: the title's artwork on top, a big Play button, and My List, Watched, Like and Not for me that show what you pressed.
 
 ## 0.3.1
