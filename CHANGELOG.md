@@ -5063,3 +5063,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-117 -- Firestick: the Plus invitation card matches the Plus member popup's size and spacing
+
+**Status:** Done on branch `claude/firestick-welcome-no-emulator-force`, not merged.
+
+**Context:** The invitation for people without Plus was a smaller card than the Plus member popup.
+
+**Changes:** The invitation card is now the same width (380dp), padding and row spacing as the member popup; its words and buttons are unchanged. The card was pulled out of its dialog so a test can draw it. Also removes the emulator "show on every launch" rule from Post-Milestone-116.
+
+**Tests performed:** The full unit suite passes and the debug app builds; new test for the invitation's three buttons; a desktop render of both cards side by side was looked at. NOT done: a run on the emulator or a Fire TV.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

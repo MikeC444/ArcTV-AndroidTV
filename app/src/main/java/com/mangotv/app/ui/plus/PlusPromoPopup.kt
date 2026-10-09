@@ -156,10 +156,10 @@ private fun PlusPromoDialog(onClose: () -> Unit, onNever: () -> Unit, onGo: () -
 @Composable
 internal fun PlusPromoCard(onGo: () -> Unit, onClose: () -> Unit, onNever: () -> Unit, primaryFocusRequester: FocusRequester) {
     val panelShape = RoundedCornerShape(18.dp)
-    // A small card (it was 600 dp wide and nearly the whole height of a 540 dp screen): 340 dp wide and a little over half the height.
+    // The same card size as the Plus welcome popup (it was once 600 dp wide and nearly the whole height of a 540 dp screen): 380 dp wide and a little over half the height.
     Column(
         modifier = Modifier
-            .widthIn(max = 340.dp)
+            .widthIn(max = 380.dp)
             .clip(panelShape)
             .background(MangoBackgroundElevated)
             // Two soft glows in the corners (blue top-left, violet top-right), like the web popup.
@@ -168,7 +168,7 @@ internal fun PlusPromoCard(onGo: () -> Unit, onClose: () -> Unit, onNever: () ->
                 drawRect(Brush.radialGradient(listOf(ArcViolet.copy(alpha = 0.22f), Color.Transparent), center = Offset(size.width, 0f), radius = size.width * 0.6f))
             }
             .border(1.dp, DividerSubtle, panelShape)
-            .padding(horizontal = 20.dp, vertical = 14.dp)
+            .padding(horizontal = 22.dp, vertical = 16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             ArcLogo(fontSize = 14.sp)
@@ -197,7 +197,7 @@ internal fun PlusPromoCard(onGo: () -> Unit, onClose: () -> Unit, onNever: () ->
             fontSize = 11.sp
         )
         Spacer(Modifier.height(10.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Benefits.forEach { benefit -> BenefitRow(benefit) }
         }
         Spacer(Modifier.height(12.dp))
