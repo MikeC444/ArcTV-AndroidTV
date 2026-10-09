@@ -37,7 +37,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -116,7 +115,7 @@ fun ColumnScope.PlusSettingsContent(
                 focusedScale = 1f,
                 focusedElevation = 0f,
                 backgroundColor = MangoBackground,
-                borderColor = Color.Transparent,
+                borderColor = TextPrimary,
                 focusRequester = contentFocusRequester,
                 focusUp = if (hasCancelButton) cancelFocus else navFocusRequester,
                 focusLeft = sidebarFocusRequester

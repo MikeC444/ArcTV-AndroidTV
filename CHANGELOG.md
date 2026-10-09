@@ -5091,3 +5091,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-119 -- Firestick: the Plus status card in Settings shows a white outline when selected
+
+**Status:** Done on branch `claude/firestick-plus-card-focus`, not merged.
+
+**Context:** The card at the top of Settings > Arc TV Plus ("You have Arc TV Plus ...") takes focus (it is where focus lands and lets the remote step back up) but its outline was transparent, so nothing showed it was selected.
+
+**Changes:** The card's focus border is now the same white as the other rows in that tab.
+
+**Tests performed:** The full unit suite passes and the debug app builds. NOT done: looking at it on the emulator or a Fire TV (no render of this screen was made).
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
