@@ -78,7 +78,7 @@ private val Benefits = listOf(
     // One short line each: on a TV a long paragraph in a pop-up is too much to read from the sofa (the web popup has the longer wording).
     PromoBenefit(Icons.Filled.Favorite, "Picked for you", "A Home row chosen from movies you like"),
     PromoBenefit(Icons.Filled.Groups, "Up to 5 profiles", "Own My List and picks, kids profiles, PINs"),
-    PromoBenefit(Icons.Filled.WorkspacePremium, "More on the way", "Parental controls and smart source picking")
+    PromoBenefit(Icons.Filled.WorkspacePremium, "Smarter viewing", "Smart source picking and your watch stats")
 )
 
 /**
