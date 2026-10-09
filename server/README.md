@@ -45,6 +45,14 @@ Endpoints:
   `POST /user/plus/checkout` `{ plan: "monthly"|"yearly"|"lifetime" }` returns `{ url }`, a Stripe Checkout page tied
   to the account. `POST /stripe/webhook` (Stripe only, signature-verified) is what switches Plus on and off. See
   [`docs/PAYWALL.md`](../docs/PAYWALL.md).
+- `GET /user/picked-dismissals?profileId=` / `POST /user/picked-dismissals`
+  (`{ profileId, contentId, dismissedAt }`): titles a person removed from
+  their "Picked for you" row, so the removal follows them to every device.
+  Not taste feedback. One row per (account, profile, title); `POST` is
+  last-write-wins on `dismissedAt` and returns the slot's current state;
+  `GET` returns the last 30 days (the client decides how long a removal
+  hides a title; the web app uses 5 days). Rows older than 30 days are
+  dropped when a new one is saved.
 - `GET /user/feedback?profileId=` / `POST /user/feedback` /
   `DELETE /user/feedback?profileId=&providerId=&contentId=&contentType=&updatedAt=`
   (authenticated) — Like / Not for me on movies, per profile (`main` by

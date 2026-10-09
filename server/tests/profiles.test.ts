@@ -128,10 +128,11 @@ describe("/user/profiles", () => {
       await request(app).post("/user/watch-progress").set(as(s, p)).send({ providerId: "p", contentId: "tt1", contentType: "MOVIE", title: "A", positionMs: 5000, durationMs: 100000, completed: false, watchedAt: "2025-01-01T00:00:00.000Z" });
       await request(app).put("/user/settings").set(as(s, p)).send({ homeRowOrder: [], hiddenRowIds: [], autoplayNextEpisode: false, skipIntroEnabled: true, subtitlesEnabled: true, defaultSubtitleLanguage: null, updatedAt: "2025-01-01T00:00:00.000Z" });
       await request(app).post("/user/feedback").set(as(s, p)).send({ providerId: "p", contentId: "tt1", contentType: "MOVIE", title: "A", feedback: "like", updatedAt: "2025-01-01T00:00:00.000Z" });
+      await request(app).post("/user/picked-dismissals").set(as(s, p)).send({ contentId: "tt1", dismissedAt: new Date().toISOString() });
     }
     expect(await lib(id)).toEqual({ list: 1, cw: 1 });
     expect((await request(app).delete(`/user/profiles/${id}`).set(auth(s))).status).toBe(204);
-    for (const table of ["watchlist_items", "watch_history", "continue_watching", "user_settings", "movie_feedback"]) {
+    for (const table of ["watchlist_items", "watch_history", "continue_watching", "user_settings", "movie_feedback", "picked_dismissals"]) {
       expect((await pool.query(`SELECT 1 FROM ${table} WHERE user_id = $1 AND profile_id = $2`, [s.userId, id])).rowCount, table).toBe(0);
       expect((await pool.query(`SELECT 1 FROM ${table} WHERE user_id = $1 AND profile_id = 'main'`, [s.userId])).rowCount, `${table} main`).toBe(1);
     }

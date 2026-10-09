@@ -35,7 +35,7 @@ export const PIN_MAX_FAILURES = 5;
 export const PIN_LOCK_SECONDS = 5 * 60;
 
 /** Every library table that carries a profile_id: a removed profile takes its library with it. */
-const LIBRARY_TABLES = ["user_settings", "user_addons", "watchlist_items", "watch_history", "continue_watching", "movie_feedback"] as const;
+const LIBRARY_TABLES = ["user_settings", "user_addons", "watchlist_items", "watch_history", "continue_watching", "movie_feedback", "picked_dismissals"] as const;
 
 /** Profiles beyond the account's own are part of ArcTV Plus. */
 export async function requirePlus(userId: string): Promise<void> {

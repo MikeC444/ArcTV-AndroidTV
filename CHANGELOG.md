@@ -4902,3 +4902,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-107 -- Titles removed from "Picked for you" sync across devices (server)
+
+**Status:** Done in code and backend tests; not deployed. The migration (`0026_picked_dismissals.sql`) runs with the normal migration step when the server is deployed. Nothing changes in the Firestick app: this is for the web app (which hides a removed pick for 5 days) and, later, the phone and Firestick.
+
+**Context:** a title removed from the web app's Picked for you row was remembered in that one browser only, so another device kept showing it. The backend had no place for it: `movie_feedback` is taste (Like / Not for me) and a removal must not count as taste.
+
+**Changes:**
+- New table `picked_dismissals` (account, profile, title, when it was removed) and `GET /user/picked-dismissals?profileId=` / `POST /user/picked-dismissals`, the same shape as `/user/feedback` (`pickedDismissalService`, `routes/pickedDismissals.ts`, `schemas/pickedDismissals.ts`). `POST` is last-write-wins on the client's own timestamp and returns the current state; `GET` returns the last 30 days; older rows are dropped when a new one is saved.
+- A removed profile takes its removals with it (`picked_dismissals` added to the profile library tables).
+
+**Tests performed:** `tests/picked-dismissals.test.ts` (6: sign-in required, stores and returns on another device, later removal wins and an older one gets the current state back, per profile and per account, 30-day cut-off and tidy-up, bad bodies rejected); `tests/profiles.test.ts` extended (removals deleted with a profile, `main` untouched); `tests/feedback.test.ts` and `tests/profiles.test.ts` pass against a local Postgres; `tsc --noEmit` clean. Checked end to end with the web app on this server (a removal made in one browser is gone from Picked for you in a second browser signed in to the same account). The whole backend suite was run (see below). Not run on a TV or phone.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
