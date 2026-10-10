@@ -2,7 +2,7 @@
 
 A read-only view of every account for the developer: who is signed up, their plan, devices and **which app version each device is on**,
 their addons, Continue Watching and recent history. It lives in the web app at **web.arctv.org/admin** (Settings → Account → Developer panel),
-and reads `GET /admin/summary`, `GET /admin/users?q=&plan=&device=&addons=&watching=&seen=&limit=&offset=` (filters: plan `free|monthly|yearly|lifetime`; device `<platform>|<app version>`; addons / watching `with|none`; seen `1h|24h|7d|30d|older|never`; the total follows the filter) and `GET /admin/users/:id` on this backend. `GET /admin/feature-intros/torrent_intro?limit=&offset=` lists who has clicked the "Addons now support torrents" pop-up away (newest first, with when, app version and platform, plus the total). The data is stored by `POST /user/feature-intros/ack` (migration 0024).
+and reads `GET /admin/summary` (which also carries `userGrowth`: one point per day for the last 180 days, UTC, with `date`, `newUsers` and the running `total` of accounts that still exist), `GET /admin/users?q=&plan=&device=&addons=&watching=&seen=&limit=&offset=` (filters: plan `free|monthly|yearly|lifetime`; device `<platform>|<app version>`; addons / watching `with|none`; seen `1h|24h|7d|30d|older|never`; the total follows the filter) and `GET /admin/users/:id` on this backend. `GET /admin/feature-intros/torrent_intro?limit=&offset=` lists who has clicked the "Addons now support torrents" pop-up away (newest first, with when, app version and platform, plus the total). The data is stored by `POST /user/feature-intros/ack` (migration 0024).
 
 ## Who can open it
 

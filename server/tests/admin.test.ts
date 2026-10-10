@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { pool } from "../src/db/pool.js";
 import { cleanAppVersion } from "../src/middleware/auth.js";
-import { describeAddonUrl } from "../src/services/adminService.js";
+import { buildGrowth, describeAddonUrl, GROWTH_DAYS } from "../src/services/adminService.js";
 import { createTestSession, type TestSession } from "./helpers/auth.js";
 import { resetDatabase } from "./helpers/db.js";
 
@@ -220,5 +220,32 @@ describe("describeAddonUrl", () => {
     expect(describeAddonUrl("https://torrentio.strem.fun/torbox=ABC/manifest.json")).toEqual({ host: "torrentio.strem.fun", configured: true, debrid: "torbox" });
     expect(describeAddonUrl("https://host.example/manifest.json?apikey=SECRET")).toMatchObject({ host: "host.example", configured: true, debrid: null });
     expect(describeAddonUrl("not a url")).toMatchObject({ host: "(unreadable)" });
+  });
+});
+
+describe("the user growth series", () => {
+  it("lists every day up to today, with the running total, even days nobody signed up", () => {
+    const points = buildGrowth(10, { "2026-10-08": 2, "2026-10-10": 5 }, new Date("2026-10-10T15:00:00Z"), 4);
+    expect(points).toEqual([
+      { date: "2026-10-07", newUsers: 0, total: 10 },
+      { date: "2026-10-08", newUsers: 2, total: 12 },
+      { date: "2026-10-09", newUsers: 0, total: 12 },
+      { date: "2026-10-10", newUsers: 5, total: 17 },
+    ]);
+  });
+
+  it("the summary carries it, ending on today's total and counting only accounts that still exist", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    const old = await createTestSession();
+    const gone = await createTestSession();
+    await pool.query("UPDATE users SET created_at = now() - interval '400 days' WHERE id = $1", [old.userId]);
+    await pool.query("UPDATE users SET created_at = now() - interval '3 days', deleted_at = now() WHERE id = $1", [gone.userId]);
+    const res = await request(app).get("/admin/summary").set(auth(admin));
+    const growth = res.body.userGrowth as Array<{ date: string; newUsers: number; total: number }>;
+    expect(growth).toHaveLength(GROWTH_DAYS);
+    expect(growth[0]).toMatchObject({ newUsers: 0, total: 1 }); // the account from over a year ago is the baseline
+    expect(growth[growth.length - 1]).toMatchObject({ newUsers: 1, total: res.body.users }); // the admin signed up today; the deleted account is nowhere
+    expect(res.body.users).toBe(2);
+    expect(growth.reduce((sum, p) => sum + p.newUsers, 0)).toBe(1);
   });
 });

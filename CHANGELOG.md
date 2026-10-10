@@ -5121,3 +5121,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** a subscription already started on a monthly trial keeps its trial; nothing here changes existing subscriptions. The server must be redeployed for the change to take effect (older app versions would show "free trial" on monthly until updated, though Stripe will no longer give it).
 
 **Issues fixed:** none.
+
+## Post-Milestone-121 -- Developer panel: the summary carries daily user growth
+
+**Status:** Done on branch `claude/admiring-keller-jxwjw7`, not merged or deployed.
+
+**Context:** The web developer panel is getting a live graph of how the number of users grows. It needs one point per day.
+
+**Changes:** `GET /admin/summary` now also returns `userGrowth`: the last 180 days (`GROWTH_DAYS`), one point per day ending today (UTC), each `{ date, newUsers, total }`, where `total` is the running number of accounts that still exist. Days with no sign-ups are listed too, so the chart has no gaps; accounts older than the window are the starting total; deleted accounts are counted on no day. `buildGrowth` builds the series from a baseline and per-day counts and is pure, so it is tested without a database.
+
+**Tests performed:** The admin suite passes (16 tests, against a local Postgres), including a new check of the series builder and one that the summary's last point equals the user count and leaves out an account over a year old from the daily counts and a deleted one entirely; `tsc --noEmit` is clean. NOT done: the web panel against a deployed backend.
+
+**Issues discovered:** the series is built from `created_at`, so deleting an account removes it from every day's total (the graph shows how many current accounts had signed up by then, not the historic count). The server must be redeployed before the panel can show the graph; until then the panel hides it (the web client treats `userGrowth` as optional).
+
+**Issues fixed:** none.

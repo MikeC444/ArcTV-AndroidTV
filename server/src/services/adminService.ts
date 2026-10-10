@@ -57,8 +57,51 @@ export async function liveSummary() {
   };
 }
 
+/** How many days of growth the panel's chart gets (its range buttons pick 7, 30 or 90 of them, or all of these). */
+export const GROWTH_DAYS = 180;
+
+export interface GrowthPoint {
+  /** The day, UTC, as YYYY-MM-DD. */
+  date: string;
+  /** Accounts created that day. */
+  newUsers: number;
+  /** Accounts that existed by the end of that day (deleted accounts are not counted on any day). */
+  total: number;
+}
+
+/**
+ * A continuous daily series ending today: [baseline] accounts existed before the first day, and [perDay] (YYYY-MM-DD to count) says how many were
+ * created on each day after; days nobody signed up are still listed, so the chart has no gaps. Pure, so it is tested without a database.
+ */
+export function buildGrowth(baseline: number, perDay: Record<string, number>, today: Date, days: number): GrowthPoint[] {
+  const start = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()) - (days - 1) * 86_400_000;
+  const points: GrowthPoint[] = [];
+  let total = baseline;
+  for (let i = 0; i < days; i++) {
+    const date = new Date(start + i * 86_400_000).toISOString().slice(0, 10);
+    const newUsers = perDay[date] ?? 0;
+    total += newUsers;
+    points.push({ date, newUsers, total });
+  }
+  return points;
+}
+
+/** Sign-ups per day for the last [days] days with the running total, for the developer panel's growth chart. */
+export async function userGrowth(days = GROWTH_DAYS): Promise<GrowthPoint[]> {
+  const since = `date_trunc('day', now() AT TIME ZONE 'UTC') - make_interval(days => $1 - 1)`;
+  const [before, daily] = await Promise.all([
+    pool.query<{ n: number }>(`SELECT count(*)::int AS n FROM users WHERE deleted_at IS NULL AND (created_at AT TIME ZONE 'UTC') < ${since}`, [days]),
+    pool.query<{ day: string; n: number }>(
+      `SELECT to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day, count(*)::int AS n FROM users
+       WHERE deleted_at IS NULL AND (created_at AT TIME ZONE 'UTC') >= ${since} GROUP BY 1`,
+      [days]
+    ),
+  ]);
+  return buildGrowth(before.rows[0]!.n, Object.fromEntries(daily.rows.map((r) => [r.day, r.n])), new Date(), days);
+}
+
 export async function summary() {
-  const [users, active, plans, versions, external, live] = await Promise.all([
+  const [users, active, plans, versions, external, live, growth] = await Promise.all([
     pool.query<{ total: number; new7d: number }>(`SELECT count(*)::int AS total, count(*) FILTER (WHERE created_at > now() - interval '7 days')::int AS new7d FROM users WHERE deleted_at IS NULL`),
     pool.query<{ n: number }>(`SELECT count(DISTINCT d.user_id)::int AS n FROM devices d JOIN users u ON u.id = d.user_id WHERE d.revoked_at IS NULL AND u.deleted_at IS NULL AND d.last_seen_at > now() - interval '7 days'`),
     pool.query<{ plan: string; n: number }>(`SELECT ${ACTIVE_PLAN} AS plan, count(*)::int AS n FROM user_plus p JOIN users u ON u.id = p.user_id WHERE u.deleted_at IS NULL GROUP BY 1`),
@@ -69,10 +112,11 @@ export async function summary() {
     ),
     externalPlayerSummary(),
     liveSummary(),
+    userGrowth(),
   ]);
   const plus: Record<string, number> = { monthly: 0, yearly: 0, lifetime: 0 };
   for (const row of plans.rows) if (row.plan) plus[row.plan] = row.n;
-  return { users: users.rows[0]!.total, newLast7Days: users.rows[0]!.new7d, activeLast7Days: active.rows[0]!.n, plus, versions: versions.rows, externalPlayer: external, live };
+  return { users: users.rows[0]!.total, newLast7Days: users.rows[0]!.new7d, activeLast7Days: active.rows[0]!.n, plus, versions: versions.rows, externalPlayer: external, live, userGrowth: growth };
 }
 
 /** How often people hand a title to another player (another app, or VLC's engine inside the app; `opens7d` counts the apps, `vlc7d` the engine): a lot of "after an error" points at the built-in player, not at taste. */
