@@ -2,54 +2,93 @@
   <img src="docs/images/arctv-banner.png" alt="Arc TV" width="420">
 </p>
 
-<h1 align="center">Arc TV Android TV</h1>
+<h1 align="center">Arc TV for Fire TV, Firestick, Android TV and Google TV</h1>
 
-**Your streaming, your way, on the big screen** — a premium, Netflix-inspired streaming app for Amazon Fire TV / Firestick, built with Kotlin and Jetpack Compose.
-
-(Formerly Mango TV. Code identifiers, the package name `com.mangotv.app` and this repository's name are unchanged.)
-
-Arc TV is a modern media center that puts everything you love to watch in one place. Content comes from Stremio-protocol addons (`data/provider`, `data/addon`) rather than a fixed built-in catalog, so you choose the addons you want, the same way Stremio itself works.
+<p align="center"><b>Your streaming, your way, on the big screen.</b><br>
+A Netflix-style streaming app for Stremio-protocol addons, made for the remote.</p>
 
 <p align="center">
-  <img src="docs/images/screenshot-home.webp" alt="Arc TV home screen with the Picked for you and Popular rows">
+  <a href="https://github.com/MikeC444/ArcTV-AndroidTV/releases/latest"><b>Download the latest release</b></a> ·
+  <a href="#-installing-on-your-tv">Install on your TV</a> ·
+  <a href="https://arctv.org">arctv.org</a>
 </p>
+
+<p align="center">
+  <img src="docs/images/screenshot-firetv-home.webp" alt="Arc TV on a TV: the Home screen with a featured title, a Picked for you row and a Popular row">
+</p>
+
+Arc TV is a modern media center for your television. It puts everything you want to watch in one place: content comes from **Stremio addons** rather than a fixed catalog, so you choose the addons you want, the same way Stremio itself works. Arc TV ships with no content of its own.
+
+It is made for **Amazon Fire TV and Firestick**, and for **Android TV and Google TV** devices such as Chromecast with Google TV, Nvidia Shield and Android TV sets and boxes. It is built with Kotlin and Jetpack Compose and designed for a remote, with no mouse or touchscreen needed.
 
 ## ✨ Features
 
-- **Addon-powered** — discover movies and series from whichever Stremio-protocol addons you install
-- **Made for the remote** — every screen is built for D-pad navigation, so you never need a mouse or touchscreen
-- **Sync everywhere** — sign in on one Fire TV and your My List, Continue Watching, settings and addons follow you to any other
-- **Easy sign-in** — scan a QR code and sign in from your phone instead of typing on the TV
-- **Smooth playback** — Media3/ExoPlayer with HLS and DASH, plus in-player menus for quality, audio and subtitle tracks, playback speed and source info
-- **Browse your way** — Home, Movies, TV Shows, Genres and Search, with a Detail page for every title
-- **Picks for you** — a "Picked for you" row that learns your tastes
-- **Stays up to date** — the app tells you when a new version is out and what changed (see `RELEASE_NOTES.md`)
+- **Addon-powered**: discover movies and series from whichever Stremio-protocol addons you install, including torrent addons (no extra app needed)
+- **Made for the remote**: every screen is built for D-pad navigation, with the Back and OK buttons doing what you expect
+- **Easy sign-in**: scan a QR code and sign in from your phone instead of typing on the TV
+- **Sync everywhere**: your My List, Continue Watching, settings and addons follow you between TVs, your [phone](https://github.com/MikeC444/ArcTV-MobileAPK), your [Mac](https://github.com/MikeC444/ArcTV-Mac) and the [web app](https://web.arctv.org)
+- **A player that plays more**: VLC's player is the default, so 4K, HEVC and Dolby Vision files that the built-in player can't decode still play (switch players any time in Settings). Surround sound reaches all your speakers, and quality, audio, subtitle and speed menus are a remote press away
+- **Pick your source**: a source list with quality badges and sizes and a recommended pick, with a setup guide (open it by scanning a QR code) if you have no sources yet
+- **Browse your way**: Home, Movies, TV Shows, Genres and Search, with a detail page for every title and a poster menu with My List, Watched, Like and Not for me
+- **Picked for you**: a Home row chosen from the movies and shows you like, finish and save, with the reason under every poster
+- **Stays up to date**: the app tells you when a new version is out and what changed (see `RELEASE_NOTES.md`), and Settings has an Updates tab with a Check for updates button
+- **ArcTV Plus** (optional; the app stays free): up to 5 profiles with kids profiles and PIN locks, Picked for you, Smart source picking, and your watch stats
 
-## 📺 Installing on a Fire TV / Firestick
+## 📱📺 Arc TV everywhere
 
-### The easy way: Downloader
+Same account, same list, same addons on every device:
+
+| | |
+|---|---|
+| 📺 **Fire TV / Firestick / Android TV / Google TV** | this repository, also home of the account backend (`server/`) |
+| 📱 **Android phones and tablets** | [ArcTV-MobileAPK](https://github.com/MikeC444/ArcTV-MobileAPK) |
+| 🌐 **Web** | [web.arctv.org](https://web.arctv.org) ([ArcTV-Web](https://github.com/MikeC444/ArcTV-Web)) |
+| 💻 **Mac** | [ArcTV-Mac](https://github.com/MikeC444/ArcTV-Mac) |
+
+## 📺 Installing on your TV
+
+Arc TV isn't in an app store yet, so you install it once from outside the store ("sideloading"). It takes about two minutes.
+
+### Fire TV and Firestick: the easy way with Downloader
 
 1. On your Fire TV, install the free **Downloader** app from the Amazon Appstore.
 2. Enable **Settings → My Fire TV → Developer Options → Install unknown apps → Downloader**.
 3. Open Downloader, enter the code **2368012**, and follow the prompts to install Arc TV.
 
-### The ADB way
+### Android TV and Google TV
 
-1. Enable **Settings → My Fire TV → Developer Options → Apps from Unknown Sources** and **ADB Debugging**.
-2. `adb connect <firestick-ip>:5555`
-3. `adb install app-debug.apk`
+1. Open **Settings → Device Preferences → Security & restrictions → Unknown sources** and allow your browser or file manager (or the Downloader app from the Play Store).
+2. Get `app-release.apk` from **[the latest release](https://github.com/MikeC444/ArcTV-AndroidTV/releases/latest)** onto the TV (the Downloader app can fetch the link, or copy the file over from a USB drive) and open it.
 
-That's it — open Arc TV from your apps list, sign in, and start watching.
+(The exact menu names vary a little between TV brands.)
 
-## 🚀 Status
+### The ADB way (any of them)
+
+1. Enable **Apps from Unknown Sources** and **ADB Debugging** in your TV's developer options.
+2. `adb connect <tv-ip>:5555`
+3. `adb install app-release.apk`
+
+That's it: open Arc TV from your apps list, sign in, add an addon, and start watching. After that, the app tells you when an update is ready.
+
+## ❓ Questions
+
+**Where do the movies and shows come from?** From the Stremio addons you add. Arc TV only plays what an addon provides and does not host or supply any content.
+
+**Is it free?** Yes. Browsing, playing, My List, Continue Watching and addons are free. ArcTV Plus adds extras on top.
+
+**Will it work on my TV?** It needs Android 6.0 or newer (Fire OS 6 or newer on Fire TV) and an Android TV, Google TV or Fire TV launcher. If your device runs Android TV apps, it should run Arc TV.
+
+## 🛠️ For developers
+
+### Status
 
 Arc TV is full-featured and actively growing. On top of the screens above, it has a complete **account, authentication, and cloud synchronization system**. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how that system works, [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for running your own backend instance, and [`docs/TESTING.md`](docs/TESTING.md) for how to verify it end-to-end (including reproducing the full multi-device test). `CHANGELOG.md` has the milestone-by-milestone development history.
 
-## 🛠️ How it works
+### How it works
 
 The app is Kotlin and Jetpack Compose on the Fire TV, talking to a small Node/Express/TypeScript backend (`server/`) that keeps your account and library in Neon Postgres. Catalogs and streams come from the addons you install.
 
-## 📂 Project structure
+### Project structure
 
 ```
 app/src/main/java/com/mangotv/app/
@@ -75,7 +114,7 @@ server/                Backend API (Node/Express/TypeScript) sitting between the
                         see docs/ARCHITECTURE.md and server/README.md
 ```
 
-## 🏗️ Building
+### Building
 
 Requires Android Studio (or the command line with an Android SDK installed):
 
