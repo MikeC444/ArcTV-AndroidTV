@@ -43,26 +43,23 @@ Same account, same list, same addons on every device:
 
 ## 📺 Installing on your TV
 
-Arc TV isn't in an app store yet, so you install it once from outside the store ("sideloading"). It takes about two minutes.
+Arc TV isn't in an app store yet, so you install it once from outside the store ("sideloading"). The easiest way on **any** of these TVs is the free **Downloader** app, and it takes about two minutes.
 
-### Fire TV and Firestick: the easy way with Downloader
+### The easy way: Downloader (Fire TV, Firestick, Android TV and Google TV)
 
-1. On your Fire TV, install the free **Downloader** app from the Amazon Appstore.
-2. Enable **Settings → My Fire TV → Developer Options → Install unknown apps → Downloader**.
+1. On your TV, install the free **Downloader** app from the Amazon Appstore (Fire TV) or the Google Play Store (Android TV and Google TV).
+2. Let Downloader install apps. When Android asks, or in your TV's settings, switch on **Install unknown apps** (also called **Unknown sources**) for Downloader.
+   - Fire TV and Firestick: **Settings → My Fire TV → Developer Options → Install unknown apps → Downloader**
+   - Android TV and Google TV: Android will take you to the right screen the first time Downloader tries to install. If you go looking yourself, search your TV's settings for "unknown sources" (the menu names vary between brands).
 3. Open Downloader, enter the code **2368012**, and follow the prompts to install Arc TV.
 
-### Android TV and Google TV
-
-1. Open **Settings → Device Preferences → Security & restrictions → Unknown sources** and allow your browser or file manager (or the Downloader app from the Play Store).
-2. Get `app-release.apk` from **[the latest release](https://github.com/MikeC444/ArcTV-AndroidTV/releases/latest)** onto the TV (the Downloader app can fetch the link, or copy the file over from a USB drive) and open it.
-
-(The exact menu names vary a little between TV brands.)
+No code or no luck? In Downloader, type `github.com/MikeC444/ArcTV-AndroidTV/releases/latest` and download `app-release.apk` from there.
 
 ### The ADB way (any of them)
 
 1. Enable **Apps from Unknown Sources** and **ADB Debugging** in your TV's developer options.
 2. `adb connect <tv-ip>:5555`
-3. `adb install app-release.apk`
+3. `adb install app-release.apk` (get the file from [the latest release](https://github.com/MikeC444/ArcTV-AndroidTV/releases/latest))
 
 That's it: open Arc TV from your apps list, sign in, add an addon, and start watching. After that, the app tells you when an update is ready.
 
