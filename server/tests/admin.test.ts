@@ -249,3 +249,25 @@ describe("the user growth series", () => {
     expect(growth.reduce((sum, p) => sum + p.newUsers, 0)).toBe(1);
   });
 });
+
+describe("web users by system", () => {
+  const setWeb = (s: TestSession, name: string) => pool.query("UPDATE devices d SET platform = 'web', device_name = $2 FROM sessions x WHERE x.device_id = d.id AND x.id = $1", [s.sessionId, name]);
+
+  it("counts people per system for web browsers only, and filters the user list by one", async () => {
+    const admin = await createTestSession({ isAdmin: true, email: "dev@example.com" });
+    const a = await createTestSession({ email: "a@example.com" });
+    const b = await createTestSession({ email: "b@example.com" });
+    const c = await createTestSession({ email: "c@example.com" });
+    const tv = await createTestSession({ email: "tv@example.com" });
+    await setWeb(a, "Chrome on Android (Web)");
+    await setWeb(b, "Safari on iOS (Web)");
+    await setWeb(c, "Browser (Web)");
+    await pool.query("UPDATE devices d SET device_name = 'Chrome on Android (Web)' FROM sessions x WHERE x.device_id = d.id AND x.id = $1", [tv.sessionId]); // not a web device: never counted
+    const systems = (await request(app).get("/admin/summary").set(auth(admin))).body.webSystems as Array<{ system: string; users: number; devices: number }>;
+    expect(Object.fromEntries(systems.map((s) => [s.system, s.users]))).toEqual({ Android: 1, iOS: 1, Other: 1 });
+    const android = await request(app).get("/admin/users?webSystem=Android").set(auth(admin));
+    expect(android.body.users.map((u: { email: string }) => u.email)).toEqual(["a@example.com"]);
+    expect((await request(app).get("/admin/users?webSystem=macOS").set(auth(admin))).body.total).toBe(0);
+    expect((await request(app).get("/admin/users?webSystem=%27%3B--").set(auth(admin))).status).toBe(400);
+  });
+});

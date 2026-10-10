@@ -100,8 +100,25 @@ export async function userGrowth(days = GROWTH_DAYS): Promise<GrowthPoint[]> {
   return buildGrowth(before.rows[0]!.n, Object.fromEntries(daily.rows.map((r) => [r.day, r.n])), new Date(), days);
 }
 
+/**
+ * The operating system of a web browser, read from the device name the web app saves when someone signs in ("Chrome on Android (Web)" gives
+ * "Android"; a name without one gives "Other"). Web devices only.
+ */
+const WEB_SYSTEM = `COALESCE(substring(d.device_name from ' on ([^()]+) \\(Web\\)$'), 'Other')`;
+
+/** How many people use the website on each system (Windows, macOS, Android, iOS...): accounts and signed-in browsers, most people first. */
+export async function webSystems() {
+  const { rows } = await pool.query<{ system: string; users: number; devices: number }>(
+    `SELECT ${WEB_SYSTEM} AS system, count(DISTINCT d.user_id)::int AS users, count(*)::int AS devices
+     FROM devices d JOIN users u ON u.id = d.user_id
+     WHERE d.platform = 'web' AND d.revoked_at IS NULL AND u.deleted_at IS NULL
+     GROUP BY 1 ORDER BY users DESC, system`
+  );
+  return rows;
+}
+
 export async function summary() {
-  const [users, active, plans, versions, external, live, growth] = await Promise.all([
+  const [users, active, plans, versions, external, live, growth, systems] = await Promise.all([
     pool.query<{ total: number; new7d: number }>(`SELECT count(*)::int AS total, count(*) FILTER (WHERE created_at > now() - interval '7 days')::int AS new7d FROM users WHERE deleted_at IS NULL`),
     pool.query<{ n: number }>(`SELECT count(DISTINCT d.user_id)::int AS n FROM devices d JOIN users u ON u.id = d.user_id WHERE d.revoked_at IS NULL AND u.deleted_at IS NULL AND d.last_seen_at > now() - interval '7 days'`),
     pool.query<{ plan: string; n: number }>(`SELECT ${ACTIVE_PLAN} AS plan, count(*)::int AS n FROM user_plus p JOIN users u ON u.id = p.user_id WHERE u.deleted_at IS NULL GROUP BY 1`),
@@ -113,10 +130,11 @@ export async function summary() {
     externalPlayerSummary(),
     liveSummary(),
     userGrowth(),
+    webSystems(),
   ]);
   const plus: Record<string, number> = { monthly: 0, yearly: 0, lifetime: 0 };
   for (const row of plans.rows) if (row.plan) plus[row.plan] = row.n;
-  return { users: users.rows[0]!.total, newLast7Days: users.rows[0]!.new7d, activeLast7Days: active.rows[0]!.n, plus, versions: versions.rows, externalPlayer: external, live, userGrowth: growth };
+  return { users: users.rows[0]!.total, newLast7Days: users.rows[0]!.new7d, activeLast7Days: active.rows[0]!.n, plus, versions: versions.rows, externalPlayer: external, live, userGrowth: growth, webSystems: systems };
 }
 
 /** How often people hand a title to another player (another app, or VLC's engine inside the app; `opens7d` counts the apps, `vlc7d` the engine): a lot of "after an error" points at the built-in player, not at taste. */
@@ -148,6 +166,8 @@ export interface UserListQuery {
   plan?: "free" | "monthly" | "yearly" | "lifetime";
   /** "<platform>|<app version>" of one of the person's devices; the version "unknown" means one that never reported. */
   device?: string;
+  /** A system a web browser of the person's runs on, as `webSystems` names them ("Android", "iOS", "macOS"...). */
+  webSystem?: string;
   addons?: "with" | "none";
   watching?: "with" | "none";
   seen?: "1h" | "24h" | "7d" | "30d" | "older" | "never";
@@ -158,7 +178,7 @@ export interface UserListQuery {
 const LAST_SEEN = `(SELECT max(d.last_seen_at) FROM devices d WHERE d.user_id = u.id)`;
 const SEEN_WITHIN: Record<string, string> = { "1h": "1 hour", "24h": "24 hours", "7d": "7 days", "30d": "30 days" };
 
-export async function listUsers({ q, plan, device, addons, watching, seen, limit, offset }: UserListQuery) {
+export async function listUsers({ q, plan, device, webSystem, addons, watching, seen, limit, offset }: UserListQuery) {
   const like = q && q.trim() ? `%${q.trim().replace(/[\\%_]/g, "\\$&")}%` : null;
   const params: unknown[] = [like];
   const clauses = [`u.deleted_at IS NULL`, `($1::text IS NULL OR u.email ILIKE $1 OR u.display_name ILIKE $1)`];
@@ -169,6 +189,7 @@ export async function listUsers({ q, plan, device, addons, watching, seen, limit
     const [platform, version] = device.split("|", 2);
     clauses.push(`EXISTS (SELECT 1 FROM devices d WHERE d.user_id = u.id AND d.revoked_at IS NULL AND d.platform = ${param(platform ?? "")} AND ${version === "unknown" ? "d.app_version IS NULL" : `d.app_version = ${param(version ?? "")}`})`);
   }
+  if (webSystem) clauses.push(`EXISTS (SELECT 1 FROM devices d WHERE d.user_id = u.id AND d.revoked_at IS NULL AND d.platform = 'web' AND ${WEB_SYSTEM} = ${param(webSystem)})`);
   if (addons) clauses.push(`${addons === "none" ? "NOT " : ""}EXISTS (SELECT 1 FROM user_addons a WHERE a.user_id = u.id AND a.deleted_at IS NULL)`);
   if (watching) clauses.push(`${watching === "none" ? "NOT " : ""}EXISTS (SELECT 1 FROM continue_watching c WHERE c.user_id = u.id AND c.deleted_at IS NULL)`);
   if (seen === "never") clauses.push(`${LAST_SEEN} IS NULL`);

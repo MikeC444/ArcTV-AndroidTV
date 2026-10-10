@@ -29,6 +29,7 @@ const listQuery = z.object({
   q: z.string().trim().max(100).optional(),
   plan: z.enum(["free", "monthly", "yearly", "lifetime"]).optional(),
   device: z.string().trim().max(80).regex(/^[a-z_]+\|[0-9A-Za-z.+_-]+$/, "Not a device filter.").optional(),
+  webSystem: z.string().trim().max(30).regex(/^[A-Za-z0-9 ]+$/, "Not a system.").optional(),
   addons: z.enum(["with", "none"]).optional(),
   watching: z.enum(["with", "none"]).optional(),
   seen: z.enum(["1h", "24h", "7d", "30d", "older", "never"]).optional(),

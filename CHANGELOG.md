@@ -5135,3 +5135,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the series is built from `created_at`, so deleting an account removes it from every day's total (the graph shows how many current accounts had signed up by then, not the historic count). The server must be redeployed before the panel can show the graph; until then the panel hides it (the web client treats `userGrowth` as optional).
 
 **Issues fixed:** none.
+
+## Post-Milestone-122 -- Developer panel: web users counted by system
+
+**Status:** Done on branch `claude/web-systems`, not merged or deployed.
+
+**Context:** The web developer panel is getting a card (and a user-list filter) showing how many web users are on Android, iOS, macOS, Windows and so on. The web app already saves a device name like "Chrome on Android (Web)" when someone signs in, so the system can be read from it.
+
+**Changes:** `GET /admin/summary` also returns `webSystems`: `{ system, users, devices }` per operating system for signed-in web devices only (platform `web`, not signed out, account not deleted), most people first; a name without a system counts as "Other". `GET /admin/users` accepts `webSystem` (letters, digits and spaces, up to 30) and returns only people with a web browser on that system.
+
+**Tests performed:** The admin suite passes (17 tests, against a local Postgres), including a new check that only web devices are counted per system, that the user list filters by one, and that a malformed value is refused with 400. A `tsc` type check is clean. No Android or Gradle build is involved. The server must be redeployed; until then the web panel simply leaves the card out.
+
+**Issues discovered:** the system comes from the cosmetic device name, so a browser that hides its user agent counts as "Other". Phones asking for the desktop site count as the desktop system.
+
+**Issues fixed:** none.
