@@ -69,6 +69,8 @@ That's it: open Arc TV from your apps list, sign in, add an addon, and start wat
 
 **Is it free?** Yes. Browsing, playing, My List, Continue Watching and addons are free. ArcTV Plus adds extras on top.
 
+**Is Arc TV affiliated with Stremio?** No. Arc TV is an independent app that supports the Stremio addon format, so addons made for Stremio work in it. It is not affiliated with or endorsed by Stremio.
+
 **Will it work on my TV?** It needs Android 6.0 or newer (Fire OS 6 or newer on Fire TV) and an Android TV, Google TV or Fire TV launcher. If your device runs Android TV apps, it should run Arc TV.
 
 ## 🛠️ For developers
