@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/images/arctv-banner.png" alt="Arc TV" width="420">
-</p>
-
 <h1 align="center">Arc TV for Fire TV, Firestick, Android TV and Google TV</h1>
 
 <p align="center"><b>Your streaming, your way, on the big screen.</b><br>
