@@ -5234,3 +5234,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** a change takes effect from the next video, not the one playing, because VLC reads these when it starts. The preview picture adds about 80 KB to the app.
 
 **Issues fixed:** none.
+
+## Post-Milestone-128 -- A setting changed on this device is no longer flipped back by an older one on the account
+
+**Status:** Done on branch `claude/tv-subtitle-toggle`, not merged or released.
+
+**Context:** Turning Subtitles on in Settings instantly switched it back off. Settings are sent to the account stamped with the device's own clock, and the account keeps the write with the later timestamp (`WHERE EXCLUDED.updated_at > user_settings.updated_at`). When the account holds a later time than the change was stamped with (this device's clock behind, or another device's clock ahead), the change is refused and the answer carries the old values, which `applyRemote` then wrote straight back over what the person had just pressed.
+
+**Changes:**
+- `SettingsSyncRepository` remembers the latest settings time the account has reported (from a pull or any push answer) and stamps a change with `SettingsStamp.next(now, thatTime)`: now, but never at or before it.
+- When the answer still shows the account kept a later write (`SettingsStamp.refused`), the change is sent once more stamped after the account's time and that answer is applied instead, so a change the person has just made wins. `SettingsStamp.kt` holds the two small rules.
+- The same code is in the phone app, which gets the same change.
+
+**Tests performed:** None run here (no route to `dl.google.com`); the new `SettingsStampTest` unit tests and the compile are left to the Build workflow. Code re-read, braces and parentheses checked. The cause is read from the code and the server query, not reproduced on a device, so it is the likely cause rather than a confirmed one.
+
+**Issues discovered:** the same last-write-wins-by-device-clock rule is used by the other synced lists (My List, Continue Watching, addons, feedback), so a badly wrong clock can affect those too; only Settings is changed here. A change made while offline is queued with its original stamp and is still subject to the rule when it is sent later.
+
+**Issues fixed:** a setting flipping back right after it was changed.

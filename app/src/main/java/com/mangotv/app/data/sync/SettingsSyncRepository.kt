@@ -52,6 +52,15 @@ class SettingsSyncRepository(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val pendingStore = PendingChangeStore(context, "mango_settings_pending", SettingsRequest.serializer())
 
+    // The latest settings time the account has reported (from a pull or a push answer), so a change made now is stamped after it -- see SettingsStamp.
+    @Volatile private var accountUpdatedAtMs: Long = 0L
+
+    private fun noteAccountTime(response: SettingsResponse): Long? {
+        val at = response.updatedAt?.let { runCatching { Iso8601.parseToEpochMillis(it) }.getOrNull() } ?: return null
+        if (at > accountUpdatedAtMs) accountUpdatedAtMs = at
+        return at
+    }
+
     init {
         homeRowPreferencesRepository.onLocalChange = { pushToServer() }
         playerPreferencesRepository.onLocalChange = { pushToServer() }
@@ -69,6 +78,7 @@ class SettingsSyncRepository(
         try {
             val token = freshAccessTokenOrNull() ?: return
             val response = apiClient.getSettings(token)
+            noteAccountTime(response)
             applyRemote(response)
         } catch (e: ApiException) {
             if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
@@ -150,7 +160,7 @@ class SettingsSyncRepository(
             defaultSubtitleLanguage = player.defaultSubtitleLanguage,
             defaultAudioLanguage = player.defaultAudioLanguage,
             blockedGenres = blockedGenresRepository.genres.value,
-            updatedAt = Iso8601.nowString()
+            updatedAt = Iso8601.format(SettingsStamp.next(System.currentTimeMillis(), accountUpdatedAtMs))
         )
         try {
             val token = freshAccessTokenOrNull()
@@ -158,12 +168,18 @@ class SettingsSyncRepository(
                 pendingStore.put(PENDING_KEY, body)
                 return
             }
-            val response = apiClient.putSettings(token, body)
-            // Reconciles the rare case this write lost a last-write-wins
-            // race (e.g. a near-simultaneous change from another
-            // device): applies whatever the server says is
-            // authoritative now, which is just this write's own values
-            // echoed back when it won.
+            var response = apiClient.putSettings(token, body)
+            // The account keeps the later timestamp. When it holds a later one than this change was stamped with (a clock that is behind, or
+            // another device's that is ahead), the change was refused and the answer holds the OLD values: applying them would flip the switch
+            // the person just pressed straight back. The change was made just now by the person, so send it again stamped after the account's.
+            val accountAt = noteAccountTime(response)
+            val sentAt = Iso8601.parseToEpochMillis(body.updatedAt)
+            if (SettingsStamp.refused(sentAt, accountAt)) {
+                response = apiClient.putSettings(token, body.copy(updatedAt = Iso8601.format(SettingsStamp.next(System.currentTimeMillis(), accountUpdatedAtMs))))
+                noteAccountTime(response)
+            }
+            // Reconciles the rare case this write still lost a last-write-wins race: applies whatever the server says is authoritative now,
+            // which is just this write's own values echoed back when it won.
             applyRemote(response)
             pendingStore.remove(PENDING_KEY)
         } catch (e: ApiException) {
