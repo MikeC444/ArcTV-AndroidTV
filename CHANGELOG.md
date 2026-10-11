@@ -5217,3 +5217,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues fixed:** none.
 
 **Subtitle languages:** Serbian, Croatian, Bosnian and Macedonian (sr, hr, bs, mk) are added to the Settings > Subtitles language list, and their three-letter codes (srp, hrv, bos, mkd) are recognised when matching addon subtitles and subtitle file names. Not built or run here.
+
+## Post-Milestone-127 -- Subtitle size and colour (Fire TV / Android TV)
+
+**Status:** Done on branch `claude/tv-subtitle-style`, not merged or released.
+
+**Context:** The apps had no say over how subtitles look: size and colour were whatever the player defaulted to. The phone app gained Settings > Subtitles > Size and Colour with a preview; this ports it (the TV's Subtitles settings screen was the same screen).
+
+**Changes:**
+- `ui/player/SubtitleStyle.kt` (same as the phone app): `SubtitleSize` (small, medium, large, extra large) and `SubtitleColor` (white, yellow, cyan, green) with the numbers each player needs, and `subtitleVlcOptions`. `DevicePlayerPrefs` keeps both on this device (defaults medium and white).
+- Settings > Subtitles: a preview, then Size and Colour lists (focus rows, selected one ticked), above the language list. The preview is a 16:9 frame with a real frame from the open film Tears of Steel (CC-BY, Blender Foundation; credited under it), the sample two-line subtitle sized as the same share of the frame's height the players use, updating as you move through the choices. It is at most 480dp wide so the choices stay on screen on a TV.
+- VLC player: `--freetype-rel-fontsize` and `--freetype-color` are added when VLC is created, so a change applies from the next video started. Built-in player: `PlayerView`'s subtitle view gets the text size (share of the picture's height) and the colour, with a dark outline kept.
+
+**Tests performed:** None run here (no route to `dl.google.com`); the `SubtitleStyleTest` unit tests (copied from the phone app) and the compile are left to the Build workflow. Code re-read. Not run on a TV: the VLC option values are VLC's documented ones and are untested on a device, so the sizes may need adjusting after a look on a TV.
+
+**Issues discovered:** a change takes effect from the next video, not the one playing, because VLC reads these when it starts. The preview picture adds about 80 KB to the app.
+
+**Issues fixed:** none.

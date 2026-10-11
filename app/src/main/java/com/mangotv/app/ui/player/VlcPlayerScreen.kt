@@ -141,7 +141,14 @@ fun VlcPlaybackContent(
     val view = LocalView.current
 
     // --aout=audiotrack: without it VLC fell back to its two-channel OpenSL ES output on some Fire TVs, so surround never reached the rear speakers.
-    val libVlc = remember { LibVLC(context, arrayListOf("--aout=audiotrack", "--http-reconnect", "--network-caching=2000", "--no-drop-late-frames", "--no-skip-frames")) }
+    // Subtitle size and colour (Settings > Subtitles) are read as the player starts: VLC takes them when it is created.
+    val libVlc = remember {
+        LibVLC(
+            context,
+            arrayListOf("--aout=audiotrack", "--http-reconnect", "--network-caching=2000", "--no-drop-late-frames", "--no-skip-frames") +
+                subtitleVlcOptions(DevicePlayerPrefs.subtitleSize(context), DevicePlayerPrefs.subtitleColor(context))
+        )
+    }
     val mediaPlayer = remember { MediaPlayer(libVlc) }
 
     var viewReady by remember { mutableStateOf(false) }

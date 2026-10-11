@@ -1,5 +1,6 @@
 package com.mangotv.app.ui.player
 
+import android.graphics.Color
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -7,6 +8,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 
 /**
@@ -34,6 +36,13 @@ fun PlayerSurface(
                 player = exoPlayer
                 useController = false
                 this.resizeMode = resizeMode
+                // Subtitle size and colour from Settings > Subtitles; the text keeps a dark outline so it stays readable on any picture.
+                val size = DevicePlayerPrefs.subtitleSize(context)
+                val color = DevicePlayerPrefs.subtitleColor(context)
+                subtitleView?.setFractionalTextSize(size.fraction)
+                subtitleView?.setStyle(
+                    CaptionStyleCompat(color.argb, Color.TRANSPARENT, Color.TRANSPARENT, CaptionStyleCompat.EDGE_TYPE_OUTLINE, Color.BLACK, null)
+                )
             }
         }
     )

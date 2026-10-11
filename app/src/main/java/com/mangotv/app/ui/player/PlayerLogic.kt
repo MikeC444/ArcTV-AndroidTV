@@ -61,6 +61,8 @@ object DevicePlayerPrefs {
     private const val TORRENT_BUFFER = "torrent_buffer"
     private const val TORRENT_STORAGE = "torrent_storage"
     private const val SMART_PICKING = "smart_source_picking"
+    private const val SUBTITLE_SIZE = "subtitle_size"
+    private const val SUBTITLE_COLOR = "subtitle_color"
 
     fun speed(context: Context): Float {
         val value = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getFloat(SPEED, 1f)
@@ -120,6 +122,22 @@ object DevicePlayerPrefs {
     /** The most temporary storage one torrent may use (Settings > Player > Torrent storage limit). */
     fun torrentStorageLimit(context: Context): TorrentStorageLimit =
         TorrentStorageLimit.fromWire(context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(TORRENT_STORAGE, null))
+
+    /** How big subtitles are drawn (Settings > Subtitles > Size); kept on this device, since a phone and a TV want different sizes. */
+    fun subtitleSize(context: Context): SubtitleSize =
+        SubtitleSize.fromWire(context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(SUBTITLE_SIZE, null))
+
+    fun setSubtitleSize(context: Context, value: SubtitleSize) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(SUBTITLE_SIZE, value.wire).apply()
+    }
+
+    /** The colour of subtitle text (Settings > Subtitles > Colour); kept on this device. */
+    fun subtitleColor(context: Context): SubtitleColor =
+        SubtitleColor.fromWire(context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(SUBTITLE_COLOR, null))
+
+    fun setSubtitleColor(context: Context, value: SubtitleColor) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putString(SUBTITLE_COLOR, value.wire).apply()
+    }
 
     /** Arc TV Plus: skip Select a Source and play the best source (Settings > Arc TV Plus). Off until turned on; kept on this device. */
     fun smartSourcePicking(context: Context): Boolean =
