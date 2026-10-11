@@ -8,6 +8,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.Tracks
 import com.mangotv.app.MangoTvApplication
+import com.mangotv.app.data.addon.AddonSubtitle
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.model.Episode
 import com.mangotv.app.data.model.PlayerPreferences
@@ -49,6 +50,7 @@ class PlayerViewModel(
     private val lastSourceRepository = (application as MangoTvApplication).container.lastSourceRepository
     private val externalPlayerRepository = (application as MangoTvApplication).container.externalPlayerRepository
     private val playbackOutcomeRepository = (application as MangoTvApplication).container.playbackOutcomeRepository
+    private val subtitleFinder = (application as MangoTvApplication).container.subtitleFinder
     private val myListRepository = (application as MangoTvApplication).container.myListRepository
     private val customTorrentRepository = (application as MangoTvApplication).container.customTorrentRepository
 
@@ -243,6 +245,19 @@ class PlayerViewModel(
                 errorKind = kind,
                 sourcesTried = SourceAttempts.next(titleKey)
             )
+        )
+    }
+
+    /** The subtitle files the person's addons offer for what is playing now (empty when no addon offers any, or none answers in time). */
+    suspend fun findAddonSubtitles(preferredLanguage: String?): List<AddonSubtitle> {
+        val ready = uiState.value as? PlayerScreenUiState.Ready ?: return emptyList()
+        return subtitleFinder.find(
+            type = contentType,
+            id = contentId,
+            season = season,
+            episode = episodeNumber,
+            filename = ready.stream.torrentFilename ?: ready.stream.releaseTitle,
+            preferredLanguage = preferredLanguage
         )
     }
 

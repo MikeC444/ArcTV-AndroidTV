@@ -6,6 +6,7 @@ import com.mangotv.app.data.torrent.platform.TorrentIntroStore
 import com.mangotv.app.data.torrent.platform.TorrentStreamManager
 import android.content.Context
 import com.mangotv.app.data.addon.AddonRepository
+import com.mangotv.app.data.addon.SubtitleFinder
 import com.mangotv.app.data.audio.SoundPreferencesRepository
 import com.mangotv.app.data.audio.UiSoundPlayer
 import com.mangotv.app.data.auth.AuthRepository
@@ -163,6 +164,8 @@ import com.mangotv.app.data.update.UpdateRepository
  */
 class AppContainer(context: Context) {
     val addonRepository: AddonRepository = AddonRepository(context)
+    /** Asks the addons that offer subtitles which files they have for the video being played. */
+    val subtitleFinder: SubtitleFinder = SubtitleFinder(addonRepository)
     val authRepository: AuthRepository = AuthRepository(context)
     val guestGate: GuestGate = GuestGate(authRepository)
     val addonSyncRepository: AddonSyncRepository = AddonSyncRepository(context, addonRepository, authRepository)

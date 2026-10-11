@@ -35,8 +35,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +58,8 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil.compose.AsyncImage
+import com.mangotv.app.data.addon.AddonSubtitle
+import com.mangotv.app.data.addon.languageKey
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.Episode
 import com.mangotv.app.data.model.PlayerPreferences
@@ -69,10 +73,13 @@ import com.mangotv.app.ui.player.overlay.PlayerChoiceOption
 import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
+import org.videolan.libvlc.interfaces.IMedia
 import org.videolan.libvlc.util.VLCVideoLayout
 import java.util.Locale
 
@@ -87,6 +94,9 @@ private val SPEEDS = floatArrayOf(0.75f, 1f, 1.25f, 1.5f, 2f)
 private enum class VlcMenu { AUDIO, SUBTITLES, EPISODES }
 
 private data class VlcTrack(val id: Int, val name: String)
+
+/** Menu ids from here up are the addons' subtitle files (VLC's own track ids are small), so one list can hold both. */
+private const val ONLINE_SUBTITLE_BASE = 100_000
 
 /**
  * Plays [url] with VLC's own engine (LibVLC), the fallback for a source the built-in player cannot decode: it ships FFmpeg's software
@@ -110,6 +120,8 @@ fun VlcPlaybackContent(
     health: PlaybackHealthTracker,
     // Called when the source turns out to be a placeholder (see isPlaceholderVideo): nothing it plays may be saved as progress.
     onPlaceholderVideo: (Boolean) -> Unit,
+    // Subtitle files the person's addons offer for this video (given the preferred language, to put it first); empty when there are none.
+    findAddonSubtitles: suspend (preferredLanguage: String?) -> List<AddonSubtitle>,
     // The Choose player card's other rows: back to the built-in player from the given position, or another app (true when one opened).
     onPlayWithBuiltIn: (positionMs: Long) -> Unit,
     onOpenExternal: () -> Boolean,
@@ -161,6 +173,11 @@ fun VlcPlaybackContent(
     var selectedAudio by remember { mutableIntStateOf(-1) }
     var selectedSubtitle by remember { mutableIntStateOf(-1) }
     var preferencesApplied by remember { mutableStateOf(false) }
+    // Subtitle files from the person's addons, and the VLC track each one became once it was loaded (so choosing it again just switches to it).
+    var onlineSubtitles by remember { mutableStateOf<List<AddonSubtitle>>(emptyList()) }
+    val onlineTrackIds = remember { mutableStateMapOf<String, Int>() }
+    var onlineAutoPicked by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     var speedIndex by remember { mutableIntStateOf(1) }
     var seekText by remember { mutableStateOf<String?>(null) }
@@ -175,6 +192,23 @@ fun VlcPlaybackContent(
         subtitleTracks = mediaPlayer.spuTracks?.map { VlcTrack(it.id, it.name) }.orEmpty()
         selectedAudio = mediaPlayer.audioTrack
         selectedSubtitle = mediaPlayer.spuTrack
+    }
+    /** Loads an addon's subtitle file next to the video and shows it (or, if it was loaded before, just switches back to it). */
+    fun showOnlineSubtitle(subtitle: AddonSubtitle) {
+        val known = onlineTrackIds[subtitle.url]
+        if (known != null) {
+            mediaPlayer.setSpuTrack(known)
+            refreshTracks()
+            return
+        }
+        if (!mediaPlayer.addSlave(IMedia.Slave.Type.Subtitle, Uri.parse(subtitle.url), true)) return
+        scope.launch {
+            // VLC attaches the file in the background; once it has, it is the selected subtitle track.
+            delay(800)
+            val id = mediaPlayer.spuTrack
+            if (id >= 0) onlineTrackIds[subtitle.url] = id
+            refreshTracks()
+        }
     }
     fun togglePlay() {
         if (mediaPlayer.isPlaying) mediaPlayer.pause() else mediaPlayer.play()
@@ -295,6 +329,26 @@ fun VlcPlaybackContent(
             matching(subtitleTracks, preferences.defaultSubtitleLanguage)?.let { mediaPlayer.setSpuTrack(it.id) }
         }
         refreshTracks()
+    }
+
+    // Ask the addons for subtitle files once per video; the list is ready (or empty) well before anyone opens the menu.
+    LaunchedEffect(url) {
+        onlineSubtitles = try {
+            findAddonSubtitles(preferences.defaultSubtitleLanguage)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    // The preferred subtitle language is wanted but the file has none of its own in it: use the addons' file in that language, once.
+    LaunchedEffect(onlineSubtitles, preferencesApplied, started) {
+        if (onlineAutoPicked || !preferencesApplied || !started || onlineSubtitles.isEmpty()) return@LaunchedEffect
+        if (!preferences.subtitlesEnabled || mediaPlayer.spuTrack >= 0) return@LaunchedEffect
+        val wanted = languageKey(preferences.defaultSubtitleLanguage) ?: return@LaunchedEffect
+        onlineAutoPicked = true
+        onlineSubtitles.firstOrNull { languageKey(it.languageCode) == wanted }?.let { showOnlineSubtitle(it) }
     }
 
     // The one real seek, SEEK_APPLY_DELAY_MS after the last press (the effect restarts on every new target).
@@ -489,7 +543,7 @@ fun VlcPlaybackContent(
                 lengthMs = lengthMs,
                 speedLabel = SPEEDS[speedIndex].toString().removeSuffix(".0") + "x",
                 showAudio = audioTracks.size > 1,
-                showSubtitles = subtitleTracks.size > 1,
+                showSubtitles = subtitleTracks.size > 1 || onlineSubtitles.isNotEmpty(),
                 hasNextEpisode = next != null,
                 hasEpisodes = episode != null && content.seasons.any { it.episodes.isNotEmpty() },
                 onPlayPause = ::togglePlay,
@@ -562,10 +616,18 @@ fun VlcPlaybackContent(
                     onNextEpisode(pickedSeason, pickedEpisode)
                 }
             )
-            VlcMenu.SUBTITLES -> VlcTrackMenu("Subtitles", subtitleTracks, selectedSubtitle) { track ->
-                mediaPlayer.setSpuTrack(track.id)
-                refreshTracks()
-                menu = null
+            VlcMenu.SUBTITLES -> {
+                // Off and the file's own tracks first, then the addons' files (their language and addon; a file already loaded counts as its VLC track).
+                val embedded = subtitleTracks.filter { it.id !in onlineTrackIds.values }
+                val online = onlineSubtitles.mapIndexed { index, s -> VlcTrack(ONLINE_SUBTITLE_BASE + index, "${s.languageName} · ${s.addonName}") }
+                val shownSelected = onlineTrackIds.entries.firstOrNull { it.value == selectedSubtitle }
+                    ?.let { entry -> onlineSubtitles.indexOfFirst { it.url == entry.key }.takeIf { it >= 0 }?.let { ONLINE_SUBTITLE_BASE + it } }
+                    ?: selectedSubtitle
+                VlcTrackMenu("Subtitles", embedded + online, shownSelected) { track ->
+                    if (track.id >= ONLINE_SUBTITLE_BASE) onlineSubtitles.getOrNull(track.id - ONLINE_SUBTITLE_BASE)?.let { showOnlineSubtitle(it) }
+                    else { mediaPlayer.setSpuTrack(track.id); refreshTracks() }
+                    menu = null
+                }
             }
             null -> Unit
         }

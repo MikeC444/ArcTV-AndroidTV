@@ -5195,3 +5195,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** Some addons' own names for uncached sources are not read (only the `[RD+]`-style tag is), so such sources still show no "not cached" warning and Smart source picking can still choose one; it needs a sample of the addon's source names.
 
 **Issues fixed:** the slate playing as the title, and a possible false "watched".
+
+## Post-Milestone-126 -- Subtitles from addons in the VLC player
+
+**Status:** Done on branch `claude/project-thread-9iakkh`, not merged or released.
+
+**Context:** The player only offered the subtitle tracks inside the video file. Addons that offer subtitles (the Stremio protocol's "subtitles" resource) were never asked. The phone app already had this; this ports it.
+
+**Changes:**
+- `AddonSubtitles.kt` / `SubtitleFinder.kt` / `StremioAddonClient.fetchSubtitles` (same as the phone app): every enabled addon whose manifest lists a "subtitles" resource (honouring its types and id prefixes) is asked `/subtitles/{type}/{id}.json`, with the release or file name as a `filename` extra. Answers are reduced to files with a web address, one per address, preferred language first.
+- VLC player: the Subtitles menu lists the file's own tracks then the addons' files ("English · Addon name"); choosing one loads it next to the video (`MediaPlayer.addSlave`). With subtitles on and a preferred language, when the file has no subtitle of its own selected, the addons' file in that language is loaded once. The Subtitles control also shows when only addon files exist.
+
+**Tests performed:** Not built here (no route to `dl.google.com`). The ported `AddonSubtitlesTest` and the compile are left to the Build workflow. Code re-read; not run on a device.
+
+**Issues discovered:** the built-in (Media3) player does not use addon subtitles yet (its list is fixed when playback starts); only the VLC player does, as on the phone app.
+
+**Issues fixed:** none.

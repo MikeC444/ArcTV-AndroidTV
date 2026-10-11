@@ -78,6 +78,19 @@ open class StremioAddonClient {
             json.decodeFromString(StremioStreamResponse.serializer(), body).streams
         }
 
+    /**
+     * The subtitles an addon offers for a video: `/subtitles/{type}/{id}.json`, with the file name as an extra
+     * (`/subtitles/{type}/{id}/filename=....json`) when it is known, which addons use to match a release.
+     */
+    suspend fun fetchSubtitles(manifestUrl: String, type: String, id: String, filename: String? = null): List<StremioSubtitle> =
+        withContext(Dispatchers.IO) {
+            val base = AddonUrl.resourceBase(manifestUrl)
+            val encodedId = id.split(":").joinToString(":") { encode(it) }
+            val extra = filename?.takeIf { it.isNotBlank() }?.let { "/filename=${encode(it)}" }.orEmpty()
+            val url = "$base/subtitles/$type/$encodedId$extra.json"
+            json.decodeFromString(StremioSubtitlesResponse.serializer(), get(url)).subtitles
+        }
+
     suspend fun fetchMeta(manifestUrl: String, type: String, id: String): StremioMeta? =
         withContext(Dispatchers.IO) {
             val base = AddonUrl.resourceBase(manifestUrl)

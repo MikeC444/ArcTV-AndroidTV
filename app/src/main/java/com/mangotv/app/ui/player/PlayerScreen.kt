@@ -168,6 +168,7 @@ fun PlayerScreen(
                         onReportProgress = viewModel::reportProgress,
                         health = health,
                         onPlaceholderVideo = viewModel::onPlaceholderVideo,
+                        findAddonSubtitles = viewModel::findAddonSubtitles,
                         onPlayWithBuiltIn = { positionMs ->
                             builtInStart = positionMs.takeIf { it > 0 } ?: builtInStart
                             vlcStart = null
