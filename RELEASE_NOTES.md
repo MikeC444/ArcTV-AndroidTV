@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+## 0.4.1
+
 - Fixed a player issue.
 
 ## 0.4.0
