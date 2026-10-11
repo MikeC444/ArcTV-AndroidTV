@@ -15,6 +15,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 ## Unreleased
 
 - Sources from some addons no longer fail with "no longer available": what you pick is what plays.
+- Sources still being prepared now say "not ready yet" instead of playing a short clip.
 
 ## 0.4.0
 

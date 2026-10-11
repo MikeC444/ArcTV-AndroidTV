@@ -5181,3 +5181,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the id of a source is a hash of its address, so any addon that changes addresses between requests breaks anything that finds a source again by id. Resume from the details page (and the next episode's own pick) still match by remembered id, then by release name, so they are better but not immune.
 
 **Issues fixed:** the failure above.
+
+## Post-Milestone-125 -- A "not ready yet" slate from a debrid addon is recognised, not played as the title
+
+**Status:** Done on branch `claude/source-handoff` (with Post-Milestone-124), not merged, released or deployed.
+
+**Context:** Picking a source that isn't cached on the person's debrid service made AIOStreams (ElfHosted) answer with a short video saying "Not ready yet ... MEDIA_NOT_CACHED_YET". The player treated it as the title: it played for a few seconds, left a short Continue Watching entry and, when it ended, counted as finishing the title.
+
+**Changes:** `isPlaceholderVideo` (`ui/player/PlaceholderVideo.kt`): a source whose length is under two minutes and under a tenth of the title's known runtime (runtime at least 10 minutes) is a placeholder. Both players check it as soon as the length is known (VLC's length event, the built-in player's ready state): playback pauses, the error screen says the source isn't ready yet and to try again or choose another, nothing is saved as progress and its end doesn't count as finished (`PlayerViewModel.onPlaceholderVideo` guards `reportProgress`; Try Again judges the source afresh, so once the file is ready it plays and saves normally). The playback health card counts it as an error ("placeholder video"). Without a known runtime nothing is assumed.
+
+**Tests performed:** Not built here (no route to `dl.google.com`); the new `PlaceholderVideoTest` and the compile are left to the Build workflow. Code re-read, braces and parentheses checked. Not run on a device or against AIOStreams.
+
+**Issues discovered:** AIOStreams' own names for uncached sources are not read (only the `[RD+]`-style tag is), so such sources still show no "not cached" warning and Smart source picking can still choose one; it needs a sample of the addon's source names.
+
+**Issues fixed:** the slate playing as the title, and a possible false "watched".

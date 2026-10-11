@@ -151,6 +151,7 @@ class PlayerViewModel(
     private var activeEpisodeNumber: Int? = null
 
     private fun setReady(ready: PlayerScreenUiState.Ready) {
+        placeholderSource = false
         activeReady = ready
         activeSeason = season
         activeEpisodeNumber = episodeNumber
@@ -286,8 +287,19 @@ class PlayerViewModel(
      * ContinueWatchingSyncRepository.reportProgress's own kdoc for why
      * this whole chain stays non-suspend down to the actual network call.
      */
+    /**
+     * Set when the source turned out to be a placeholder (a "not ready yet" slate, see [isPlaceholderVideo]): nothing it plays may be saved
+     * as progress, and its end must never mark the title as watched. Cleared when a different source starts.
+     */
+    private var placeholderSource = false
+
+    /** Whether the source now playing is a placeholder slate: while it is, no progress is saved for it. */
+    fun onPlaceholderVideo(isPlaceholder: Boolean) {
+        placeholderSource = isPlaceholder
+    }
+
     fun reportProgress(positionMs: Long, durationMs: Long, completed: Boolean) {
-        if (durationMs <= 0) return
+        if (durationMs <= 0 || placeholderSource) return
         // Ignore a report from before anything has played (the first second): any real watching is worth remembering, but a source
         // that never played must not leave a Continue Watching entry behind.
         if (!completed && positionMs < MIN_REPORTABLE_POSITION_MS) return

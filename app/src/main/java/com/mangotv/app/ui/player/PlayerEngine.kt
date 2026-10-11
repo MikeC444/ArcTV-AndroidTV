@@ -153,8 +153,14 @@ class PlayerListenerBridge(
     private val onTracksChangedCallback: (Tracks) -> Unit = {},
     private val player: Player? = null,
     // Shared with the player's Dolby Vision switch: turned off by the retry below when a Dolby Vision file fails to decode.
-    private val dolbyVision: DolbyVisionSwitch? = null
+    private val dolbyVision: DolbyVisionSwitch? = null,
+    // The title's runtime, to recognise a "not ready yet" slate (see isPlaceholderVideo), and what to do when one turns up.
+    private val runtimeMinutes: Int? = null,
+    private val onPlaceholder: (Boolean) -> Unit = {}
 ) : Player.Listener {
+
+    // True once the source turned out to be a placeholder slate: its end must not count as finishing the title.
+    private var sawPlaceholder = false
 
     // Audio tracks that already failed to decode in this session, so the automatic switch below can't loop.
     private val failedAudioGroups = mutableSetOf<TrackGroup>()
@@ -162,7 +168,17 @@ class PlayerListenerBridge(
     override fun onPlaybackStateChanged(playbackState: Int) {
         when (playbackState) {
             Player.STATE_BUFFERING -> onPhaseChanged(PlaybackPhase.Buffering)
-            Player.STATE_ENDED -> onPhaseChanged(PlaybackPhase.Ended)
+            Player.STATE_READY -> {
+                val p = player
+                // Judged on every start, so Try Again once the file is ready plays it normally and saves progress again.
+                sawPlaceholder = p != null && isPlaceholderVideo(p.duration.takeIf { it != C.TIME_UNSET } ?: 0L, runtimeMinutes)
+                onPlaceholder(sawPlaceholder)
+                if (sawPlaceholder) {
+                    p?.pause()
+                    onPhaseChanged(PlaybackPhase.Error(PlaybackErrorType.UNKNOWN, PLACEHOLDER_MESSAGE))
+                }
+            }
+            Player.STATE_ENDED -> if (!sawPlaceholder) onPhaseChanged(PlaybackPhase.Ended)
             else -> Unit // STATE_READY/STATE_IDLE handled via onIsPlayingChanged/onPlayWhenReadyChanged below
         }
     }

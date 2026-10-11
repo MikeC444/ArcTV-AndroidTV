@@ -108,6 +108,8 @@ fun VlcPlaybackContent(
     onReportProgress: (positionMs: Long, durationMs: Long, completed: Boolean) -> Unit,
     // Reports once, when the viewing ends, how it went (played, left early, error).
     health: PlaybackHealthTracker,
+    // Called when the source turns out to be a placeholder (see isPlaceholderVideo): nothing it plays may be saved as progress.
+    onPlaceholderVideo: (Boolean) -> Unit,
     // The Choose player card's other rows: back to the built-in player from the given position, or another app (true when one opened).
     onPlayWithBuiltIn: (positionMs: Long) -> Unit,
     onOpenExternal: () -> Boolean,
@@ -216,7 +218,17 @@ fun VlcPlaybackContent(
                     onReportProgress(mediaPlayer.time, mediaPlayer.length, false)
                 }
                 MediaPlayer.Event.Buffering -> buffering = event.buffering < 100f
-                MediaPlayer.Event.LengthChanged -> lengthMs = event.lengthChanged
+                MediaPlayer.Event.LengthChanged -> {
+                    lengthMs = event.lengthChanged
+                    // A "not ready yet" slate from a debrid addon: say so instead of playing it, and keep it out of Continue Watching.
+                    if (failure == null && isPlaceholderVideo(event.lengthChanged, episode?.runtimeMinutes ?: content.runtimeMinutes)) {
+                        onPlaceholderVideo(true)
+                        playing = false
+                        mediaPlayer.pause()
+                        failure = PLACEHOLDER_MESSAGE
+                        health.onError("placeholder video (source not ready)")
+                    }
+                }
                 MediaPlayer.Event.ESAdded, MediaPlayer.Event.ESSelected -> refreshTracks()
                 MediaPlayer.Event.EndReached -> {
                     playing = false
