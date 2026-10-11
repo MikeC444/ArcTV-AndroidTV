@@ -14,11 +14,11 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
-- Addon subtitles are here! Pick them in the player, your language first, with OpenSubtitles added for you.
-- Serbian, Croatian, Bosnian and Macedonian join the subtitle languages, now listed A to Z.
-- Customise your subtitles! Pick a size and colour, and preview them before you press play.
-- See which episodes you've finished, hold OK on any episode to mark it or its season watched, and Play jumps to what's next.
-- Show pages scroll better: seasons, episodes and cast now fill the screen together, and Up takes you back to Play.
+- Subtitles from your addons are here! Pick them in the player, your language first, with OpenSubtitles ready to go.
+- Serbian, Croatian, Bosnian and Macedonian subtitles have arrived, and every language list is now A to Z.
+- Make subtitles yours! Choose a size and colour and see a live preview before you press play.
+- Never lose your place in a series: finished episodes get a tick, hold OK to mark any episode or season, and Play jumps to what's next.
+- Show pages feel smoother: seasons, episodes and cast fill the screen together, and Up takes you straight back to Play.
 
 ## 0.4.1
 
