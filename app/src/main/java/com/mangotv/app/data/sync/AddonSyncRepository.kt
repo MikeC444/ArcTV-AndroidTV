@@ -64,20 +64,6 @@ class AddonSyncRepository(
         seedPrefs.edit().putStringSet("accounts", seedPrefs.getStringSet("accounts", emptySet()).orEmpty() + userId).apply()
     }
 
-    private fun subtitlesOffered(userId: String): Boolean = seedPrefs.getStringSet("subtitles_offered", emptySet())?.contains(userId) == true
-
-    /**
-     * Every account gets the OpenSubtitles addon once, new and existing, so the player has subtitle files to offer. Only once per account:
-     * after that the list is the person's own choice, so removing it sticks (on this device). Not marked when the install failed, so the
-     * next pull tries again.
-     */
-    private suspend fun offerSubtitlesAddon(userId: String?) {
-        if (userId == null || subtitlesOffered(userId)) return
-        if (addonRepository.ensureSubtitlesAddon()) {
-            seedPrefs.edit().putStringSet("subtitles_offered", seedPrefs.getStringSet("subtitles_offered", emptySet()).orEmpty() + userId).apply()
-        }
-    }
-
     init {
         addonRepository.onLocalChange = { change -> pushToServer(change) }
     }
@@ -96,12 +82,10 @@ class AddonSyncRepository(
                 markSeeded(userId)
                 addonRepository.applyRemote(items)
                 addonRepository.addDefaultIfNoCatalog()
-                offerSubtitlesAddon(userId)
                 return
             }
             if (userId != null && !noCatalog) markSeeded(userId)
             addonRepository.applyRemote(items)
-            offerSubtitlesAddon(userId)
         } catch (e: ApiException) {
             if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
         } catch (e: IOException) {

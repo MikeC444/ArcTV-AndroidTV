@@ -1,4 +1,5 @@
 import { pool } from "../db/pool.js";
+import { OPENSUBTITLES_ADDON_ID, OPENSUBTITLES_MANIFEST, OPENSUBTITLES_MANIFEST_URL } from "../data/openSubtitlesManifest.js";
 import { CINEMETA_ADDON_ID, CINEMETA_MANIFEST, CINEMETA_MANIFEST_URL } from "../data/cinemetaManifest.js";
 import type { AddonDeleteInput, AddonInput } from "../schemas/addons.js";
 
@@ -89,6 +90,49 @@ export async function seedDefaultAddon(userId: string, profileId: string, addons
   return readActiveAddons(userId, profileId);
 }
 
+/**
+ * Gives every profile the OpenSubtitles addon once, new and existing, so the players have subtitle files to offer. Like Cinemeta it is decided on the
+ * server, once per profile, so every app version and every device agrees: the mark is written either way, so a person who removes it (now, or before
+ * this existed: a removed row counts) is not given it back, on this or any other device. Returns the list to send (re-read when it was added).
+ */
+export async function seedSubtitlesAddon(userId: string, profileId: string, addons: UserAddon[]): Promise<UserAddon[]> {
+  const marked = await pool.query(`SELECT 1 FROM subtitles_addon_marks WHERE user_id = $1 AND profile_id = $2`, [userId, profileId]);
+  if (marked.rows.length > 0) return addons;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    // The first request to write the mark decides; a concurrent one finds the mark and does nothing.
+    const claimed = await client.query(`INSERT INTO subtitles_addon_marks (user_id, profile_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING 1`, [userId, profileId]);
+    let added = false;
+    if (claimed.rows.length > 0) {
+      // Any row for it, removed or not, means the person has already decided.
+      const known = await client.query(
+        `SELECT 1 FROM user_addons WHERE user_id = $1 AND profile_id = $2 AND (manifest_url = $3 OR addon_id = $4)`,
+        [userId, profileId, OPENSUBTITLES_MANIFEST_URL, OPENSUBTITLES_ADDON_ID]
+      );
+      if (known.rows.length === 0) {
+        const next = addons.reduce((max, addon) => Math.max(max, addon.sortOrder), -1) + 1;
+        await client.query(
+          `INSERT INTO user_addons (user_id, manifest_url, addon_id, name, manifest_json, enabled, sort_order, updated_at, deleted_at, profile_id)
+           VALUES ($1, $2, $3, 'OpenSubtitles v3', $4::jsonb, true, $5, now(), NULL, $6)
+           ON CONFLICT (user_id, profile_id, manifest_url) DO NOTHING`,
+          [userId, OPENSUBTITLES_MANIFEST_URL, OPENSUBTITLES_ADDON_ID, JSON.stringify(OPENSUBTITLES_MANIFEST), next, profileId]
+        );
+        added = true;
+      }
+    }
+    await client.query("COMMIT");
+    if (!added) return addons;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+  return readActiveAddons(userId, profileId);
+}
+
 async function readActiveAddons(userId: string, profileId: string): Promise<UserAddon[]> {
   const result = await pool.query<AddonRow>(
     `SELECT ${ROW_COLUMNS} FROM user_addons
@@ -99,9 +143,9 @@ async function readActiveAddons(userId: string, profileId: string): Promise<User
   return result.rows.map(mapRow);
 }
 
-/** This account's currently-installed addons, in display order -- what a fresh sign-in or app launch pulls down to seed/replace ProviderRegistry. Never includes soft-deleted rows. A profile with nothing to browse is given Cinemeta first (see [seedDefaultAddon]). */
+/** This account's currently-installed addons, in display order -- what a fresh sign-in or app launch pulls down to seed/replace ProviderRegistry. Never includes soft-deleted rows. A profile with nothing to browse is given Cinemeta first (see [seedDefaultAddon]), and every profile is given OpenSubtitles once (see [seedSubtitlesAddon]). */
 export async function listActiveAddons(userId: string, profileId: string): Promise<UserAddon[]> {
-  return seedDefaultAddon(userId, profileId, await readActiveAddons(userId, profileId));
+  return seedSubtitlesAddon(userId, profileId, await seedDefaultAddon(userId, profileId, await readActiveAddons(userId, profileId)));
 }
 
 /**

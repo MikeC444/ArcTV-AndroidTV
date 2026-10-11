@@ -289,7 +289,9 @@ describe("X-ArcTV-Profile: every library is per profile", () => {
     const addon = (url: string) => ({ manifestUrl: url, addonId: "a", name: "A", manifestJson: { id: "a", catalogs: [{ type: "movie", id: "top" }] }, enabled: true, sortOrder: 0, updatedAt: "2025-01-01T00:00:00.000Z" });
     await request(app).post("/user/addons").set(as(s)).send(addon("https://a.test/manifest.json"));
     await request(app).post("/user/addons").set(as(s, kid)).send(addon("https://b.test/manifest.json"));
-    const urls = async (p?: string) => (await request(app).get("/user/addons").set(as(s, p))).body.items.map((i: { manifestUrl: string }) => i.manifestUrl);
+    // OpenSubtitles is given to every profile once (see addon-subtitles-seed.test.ts), so it is left out of what this test compares.
+    const urls = async (p?: string) =>
+      (await request(app).get("/user/addons").set(as(s, p))).body.items.map((i: { manifestUrl: string }) => i.manifestUrl).filter((u: string) => !u.includes("opensubtitles"));
     expect(await urls()).toEqual(["https://a.test/manifest.json"]);
     expect(await urls(kid)).toEqual(["https://b.test/manifest.json"]);
     await request(app).post("/user/addons").set(as(s, kid)).send(addon("https://a.test/manifest.json")); // the same addon in both
@@ -334,7 +336,7 @@ describe("existing data", () => {
     await pool.query("INSERT INTO user_settings (user_id, autoplay_next_episode) VALUES ($1, false)", [s.userId]);
     expect((await request(app).get("/user/watchlist").set(as(s))).body.items.map((i: { contentId: string }) => i.contentId)).toEqual(["tt-old"]);
     expect((await request(app).get("/user/watchlist").set(as(s, "main"))).body.items).toHaveLength(1);
-    expect((await request(app).get("/user/addons").set(as(s))).body.items).toHaveLength(1);
+    expect((await request(app).get("/user/addons").set(as(s))).body.items.filter((i: { manifestUrl: string }) => !i.manifestUrl.includes("opensubtitles"))).toHaveLength(1);
     expect((await request(app).get("/user/settings").set(as(s))).body.autoplayNextEpisode).toBe(false);
   });
 

@@ -3,7 +3,16 @@ import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { resetDatabase } from "./helpers/db.js";
-import { createTestSession } from "./helpers/auth.js";
+import { createTestSession as createBaseSession } from "./helpers/auth.js";
+import { pool } from "../src/db/pool.js";
+
+// These tests are about installing, listing and removing addons, so each account starts with OpenSubtitles' one-time add already decided
+// (see addon-subtitles-seed.test.ts for that).
+const createTestSession: typeof createBaseSession = async (options) => {
+  const session = await createBaseSession(options);
+  await pool.query("INSERT INTO subtitles_addon_marks (user_id) VALUES ($1)", [session.userId]);
+  return session;
+};
 
 let app: Express;
 

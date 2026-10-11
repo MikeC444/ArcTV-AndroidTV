@@ -13,7 +13,10 @@ beforeEach(async () => {
 });
 
 const auth = (s: TestSession) => ({ Authorization: `Bearer ${s.token}` });
-const list = async (s: TestSession, profile?: string) => (await request(app).get("/user/addons").set(profile ? { ...auth(s), "X-ArcTV-Profile": profile } : auth(s))).body.items as Array<{ manifestUrl: string; name: string; sortOrder: number }>;
+// OpenSubtitles is added to every profile too (see addon-subtitles-seed.test.ts); these tests are about Cinemeta, so that row is left out.
+const OPENSUBTITLES_URL = "https://opensubtitles-v3.strem.io/manifest.json";
+const list = async (s: TestSession, profile?: string) =>
+  ((await request(app).get("/user/addons").set(profile ? { ...auth(s), "X-ArcTV-Profile": profile } : auth(s))).body.items as Array<{ manifestUrl: string; name: string; sortOrder: number }>).filter((a) => a.manifestUrl !== OPENSUBTITLES_URL);
 const age = (s: TestSession, minutes = 60) => pool.query("UPDATE users SET created_at = now() - make_interval(mins => $2) WHERE id = $1", [s.userId, minutes]);
 
 const CINEMETA_URL = "https://v3-cinemeta.strem.io/manifest.json";
@@ -37,7 +40,7 @@ describe("the server gives a profile with nothing to browse Cinemeta", () => {
     const manifest = (await request(app).get("/user/addons").set(auth(s))).body.items[0].manifestJson;
     expect(manifest.catalogs.length).toBeGreaterThan(3);
     expect((await list(s)).map((a) => a.manifestUrl)).toEqual([CINEMETA_URL]);
-    const rows = await pool.query("SELECT count(*)::int AS n FROM user_addons WHERE user_id = $1", [s.userId]);
+    const rows = await pool.query("SELECT count(*)::int AS n FROM user_addons WHERE user_id = $1 AND manifest_url <> $2", [s.userId, OPENSUBTITLES_URL]);
     expect(rows.rows[0].n).toBe(1);
   });
 
@@ -72,7 +75,7 @@ describe("the server gives a profile with nothing to browse Cinemeta", () => {
     const s = await createTestSession(); // created just now
     expect((await list(s)).map((a) => a.manifestUrl)).toEqual([CINEMETA_URL]);
     expect((await list(s)).map((a) => a.manifestUrl)).toEqual([CINEMETA_URL]);
-    const rows = await pool.query("SELECT count(*)::int AS n FROM user_addons WHERE user_id = $1", [s.userId]);
+    const rows = await pool.query("SELECT count(*)::int AS n FROM user_addons WHERE user_id = $1 AND manifest_url <> $2", [s.userId, OPENSUBTITLES_URL]);
     expect(rows.rows[0].n).toBe(1);
   });
 
@@ -93,7 +96,7 @@ describe("the server gives a profile with nothing to browse Cinemeta", () => {
     await request(app).delete("/user/addons").set(auth(s)).query({ manifestUrl: CINEMETA_URL, updatedAt: "2030-01-01T00:00:00.000Z" });
     await age(s);
     expect((await list(s)).map((a) => a.manifestUrl)).toEqual([CINEMETA_URL]);
-    const rows = await pool.query("SELECT count(*)::int AS n FROM user_addons WHERE user_id = $1", [s.userId]);
+    const rows = await pool.query("SELECT count(*)::int AS n FROM user_addons WHERE user_id = $1 AND manifest_url <> $2", [s.userId, OPENSUBTITLES_URL]);
     expect(rows.rows[0].n).toBe(1);
   });
 });
