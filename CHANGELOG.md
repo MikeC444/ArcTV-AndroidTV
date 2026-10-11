@@ -5206,6 +5206,8 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 - `AddonSubtitles.kt` / `SubtitleFinder.kt` / `StremioAddonClient.fetchSubtitles` (same as the phone app): every enabled addon whose manifest lists a "subtitles" resource (honouring its types and id prefixes) is asked `/subtitles/{type}/{id}.json`, with the release or file name as a `filename` extra. Answers are reduced to files with a web address, one per address, preferred language first.
 - VLC player: the Subtitles menu lists the file's own tracks then the addons' files ("English · Addon name"); choosing one loads it next to the video (`MediaPlayer.addSlave`). With subtitles on and a preferred language, when the file has no subtitle of its own selected, the addons' file in that language is loaded once. The Subtitles control also shows when only addon files exist.
 
+- `AddonRepository.ensureSubtitlesAddon` / `AddonSyncRepository.offerSubtitlesAddon`: after each pull of the account's addons, the official OpenSubtitles addon (`opensubtitles-v3.strem.io`) is installed (and pushed to the account) once per account, new and existing, unless already there. The once-per-account flag is only set when the install worked, so a failed attempt is retried and a later removal sticks on this device. `isJustDefaultAddon` ignores it.
+
 **Tests performed:** Not built here (no route to `dl.google.com`). The ported `AddonSubtitlesTest` and the compile are left to the Build workflow. Code re-read; not run on a device.
 
 **Issues discovered:** the built-in (Media3) player does not use addon subtitles yet (its list is fixed when playback starts); only the VLC player does, as on the phone app.

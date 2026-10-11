@@ -53,7 +53,8 @@ class AddonRepository(context: Context) {
 
     /** True only when the installed list is exactly the untouched first-launch default (just Cinemeta, enabled) -- used by Milestone 11's FirstLoginMigrationCoordinator to tell "genuinely customized" apart from "never touched since install," without leaking the Cinemeta URL constant itself outside this class. */
     fun isJustDefaultAddon(): Boolean {
-        val current = _installedAddons.value
+        // The OpenSubtitles addon every account is given once does not make the list "customized".
+        val current = _installedAddons.value.filterNot { it.manifestUrl == OPENSUBTITLES_MANIFEST_URL }
         return current.size == 1 && current[0].manifestUrl == CINEMETA_MANIFEST_URL && current[0].enabled
     }
 
@@ -148,6 +149,16 @@ class AddonRepository(context: Context) {
         val bundled = readBundledCinemetaManifest() ?: return@withContext
         val record = registerAndPersist(CINEMETA_MANIFEST_URL, bundled)
         onLocalChange?.invoke(AddonChange.Upserted(record, _installedAddons.value.lastIndex))
+    }
+
+    /**
+     * Installs the official OpenSubtitles addon (and pushes it to the account) unless it is already installed, so the player's Subtitles menu has
+     * files to offer. True when it is installed afterwards; false when it could not be fetched (no network, or the addon is down), so the caller
+     * can try again next time.
+     */
+    suspend fun ensureSubtitlesAddon(): Boolean = withContext(Dispatchers.IO) {
+        if (_installedAddons.value.any { it.manifestUrl == OPENSUBTITLES_MANIFEST_URL || it.manifest.id == OPENSUBTITLES_ADDON_ID }) return@withContext true
+        installAddon(OPENSUBTITLES_MANIFEST_URL).isSuccess
     }
 
     suspend fun installAddon(rawUrl: String): Result<InstalledAddon> = withContext(Dispatchers.IO) {
@@ -255,6 +266,10 @@ class AddonRepository(context: Context) {
         // showing the empty-library state until a user manually finds and
         // adds an addon of their own.
         private const val CINEMETA_MANIFEST_URL = "https://v3-cinemeta.strem.io/manifest.json"
+
+        // Stremio's official OpenSubtitles addon: every account gets it once (see AddonSyncRepository) so subtitles can be found.
+        private const val OPENSUBTITLES_MANIFEST_URL = "https://opensubtitles-v3.strem.io/manifest.json"
+        private const val OPENSUBTITLES_ADDON_ID = "org.stremio.opensubtitlesv3"
 
         // A verbatim copy of CINEMETA_MANIFEST_URL's response (see
         // readBundledCinemetaManifest) -- lets first-launch bootstrap skip
