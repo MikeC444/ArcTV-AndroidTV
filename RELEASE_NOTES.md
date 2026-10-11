@@ -15,6 +15,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 ## Unreleased
 
 - Subtitles from your addons now show up in the player's Subtitles menu, your language first, and OpenSubtitles is added to every account for you.
+- Serbian, Croatian, Bosnian and Macedonian are now subtitle languages you can pick.
 
 ## 0.4.1
 

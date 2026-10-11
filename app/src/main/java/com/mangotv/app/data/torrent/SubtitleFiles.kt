@@ -20,7 +20,8 @@ private val LANGUAGES: Map<String, String> = mapOf(
     "sv" to "Swedish", "da" to "Danish", "no" to "Norwegian", "fi" to "Finnish", "pl" to "Polish", "cs" to "Czech", "hu" to "Hungarian",
     "ro" to "Romanian", "ru" to "Russian", "uk" to "Ukrainian", "tr" to "Turkish", "el" to "Greek", "he" to "Hebrew", "ar" to "Arabic",
     "fa" to "Persian", "hi" to "Hindi", "th" to "Thai", "vi" to "Vietnamese", "id" to "Indonesian", "ms" to "Malay", "ko" to "Korean",
-    "ja" to "Japanese", "zh" to "Chinese", "bg" to "Bulgarian", "hr" to "Croatian", "sr" to "Serbian", "sk" to "Slovak", "sl" to "Slovenian"
+    "ja" to "Japanese", "zh" to "Chinese", "bg" to "Bulgarian", "hr" to "Croatian", "sr" to "Serbian", "sk" to "Slovak", "sl" to "Slovenian",
+    "bs" to "Bosnian", "mk" to "Macedonian"
 )
 // Names and three-letter codes as they appear in subtitle file names.
 private val LANGUAGE_WORDS: Map<String, String> = buildMap {
@@ -30,7 +31,7 @@ private val LANGUAGE_WORDS: Map<String, String> = buildMap {
         "nld" to "nl", "swe" to "sv", "dan" to "da", "nor" to "no", "fin" to "fi", "pol" to "pl", "cze" to "cs", "ces" to "cs", "hun" to "hu",
         "rum" to "ro", "ron" to "ro", "rus" to "ru", "ukr" to "uk", "tur" to "tr", "gre" to "el", "ell" to "el", "heb" to "he", "ara" to "ar",
         "per" to "fa", "fas" to "fa", "hin" to "hi", "tha" to "th", "vie" to "vi", "ind" to "id", "may" to "ms", "msa" to "ms", "kor" to "ko",
-        "jpn" to "ja", "chi" to "zh", "zho" to "zh", "bul" to "bg", "hrv" to "hr", "srp" to "sr", "slo" to "sk", "slk" to "sk", "slv" to "sl",
+        "jpn" to "ja", "chi" to "zh", "zho" to "zh", "bul" to "bg", "hrv" to "hr", "srp" to "sr", "slo" to "sk", "slk" to "sk", "slv" to "sl", "bos" to "bs", "mkd" to "mk",
         "brazilian" to "pt", "latino" to "es"
     ))
 }

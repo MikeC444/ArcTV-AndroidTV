@@ -5213,3 +5213,5 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the built-in (Media3) player does not use addon subtitles yet (its list is fixed when playback starts); only the VLC player does, as on the phone app.
 
 **Issues fixed:** none.
+
+**Subtitle languages:** Serbian, Croatian, Bosnian and Macedonian (sr, hr, bs, mk) are added to the Settings > Subtitles language list, and their three-letter codes (srp, hrv, bos, mkd) are recognised when matching addon subtitles and subtitle file names. Not built or run here.
