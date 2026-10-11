@@ -343,15 +343,39 @@ private fun EpisodeActionsDialog(
     onDismiss: () -> Unit
 ) {
     val firstFocus = remember { FocusRequester() }
+    // The OK key that opened this menu is usually still held when the window appears, and its key-repeat (then its release) would press
+    // the focused Play row and jump to the source picker. Swallow OK/Enter until that key has been let go: either its release arrives
+    // here, or no OK event has been seen for a moment (the release went to the card underneath before this window took focus).
+    var armed by remember { mutableStateOf(false) }
+    var lastKeyMs by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         delay(450)
         runCatching { firstFocus.requestFocus() }
+        while (!armed) {
+            delay(150)
+            if (System.currentTimeMillis() - lastKeyMs > 300) armed = true
+        }
     }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true, usePlatformDefaultWidth = false)
     ) {
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.8f)), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.8f))
+                .onPreviewKeyEvent { event ->
+                    val isOk = event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter
+                    if (!isOk || armed) {
+                        false
+                    } else {
+                        lastKeyMs = System.currentTimeMillis()
+                        if (event.type == KeyEventType.KeyUp) armed = true
+                        true
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
             Column(
                 modifier = Modifier
                     .widthIn(max = 380.dp)
