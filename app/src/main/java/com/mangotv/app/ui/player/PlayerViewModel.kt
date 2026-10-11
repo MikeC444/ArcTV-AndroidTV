@@ -1,6 +1,7 @@
 package com.mangotv.app.ui.player
 
 import android.app.Application
+import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import com.mangotv.app.data.player.matchLastSource
 import androidx.lifecycle.SavedStateHandle
@@ -10,6 +11,7 @@ import com.mangotv.app.MangoTvApplication
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.model.Episode
 import com.mangotv.app.data.model.PlayerPreferences
+import com.mangotv.app.data.model.Stream
 import com.mangotv.app.data.network.ExternalPlayerEventDto
 import com.mangotv.app.data.provider.ProviderRegistry
 import com.mangotv.app.ui.sources.pickByAudio
@@ -44,6 +46,7 @@ class PlayerViewModel(
     private val continueWatchingSyncRepository = (application as MangoTvApplication).container.continueWatchingSyncRepository
     private val lastSourceRepository = (application as MangoTvApplication).container.lastSourceRepository
     private val externalPlayerRepository = (application as MangoTvApplication).container.externalPlayerRepository
+    private val playbackOutcomeRepository = (application as MangoTvApplication).container.playbackOutcomeRepository
     private val myListRepository = (application as MangoTvApplication).container.myListRepository
     private val customTorrentRepository = (application as MangoTvApplication).container.customTorrentRepository
 
@@ -204,6 +207,20 @@ class PlayerViewModel(
             )
         )
     }
+
+    /**
+     * A tracker for one viewing of [stream] in the given player ("vlc" or "builtin"): it reports once, as the viewing ends, how it went
+     * (see [PlaybackHealthTracker]). [sourcesTried] is how many sources were opened for this title in this sitting.
+     */
+    fun newHealthTracker(stream: Stream, engine: String, sourcesTried: Int) = PlaybackHealthTracker(
+        engine = engine,
+        deviceModel = Build.MODEL?.take(80),
+        resolution = stream.qualityBadge,
+        codec = stream.codec,
+        hdr = hdrLabelOf(stream.releaseTitle),
+        sourcesTried = sourcesTried,
+        report = playbackOutcomeRepository::record
+    )
 
     fun onPlaybackPhaseChanged(phase: PlaybackPhase) {
         _playbackPhase.value = phase

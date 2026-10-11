@@ -28,6 +28,21 @@ class PlayerEventsApiClient(private val baseUrl: String) {
         }
     }
 
+    suspend fun postPlaybackOutcome(accessToken: String, dto: PlaybackOutcomeDto) = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("$baseUrl/user/player-events/playback")
+            .header("Authorization", "Bearer $accessToken")
+            .post(json.encodeToString(PlaybackOutcomeDto.serializer(), dto).toRequestBody(JSON_MEDIA_TYPE))
+            .build()
+        httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val body = response.body?.string().orEmpty()
+                val message = runCatching { json.decodeFromString(ErrorResponse.serializer(), body).error }.getOrNull()
+                throw ApiException(response.code, message ?: "Request failed with HTTP ${response.code}")
+            }
+        }
+    }
+
     companion object {
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
     }

@@ -1,4 +1,5 @@
 import { pool } from "../db/pool.js";
+import { playbackSummary } from "./playbackOutcomeService.js";
 
 /**
  * Read-only views for the developer panel. Deliberately returns only what a developer needs: never password hashes, tokens, PIN hashes
@@ -118,7 +119,7 @@ export async function webSystems() {
 }
 
 export async function summary() {
-  const [users, active, plans, versions, external, live, growth, systems] = await Promise.all([
+  const [users, active, plans, versions, external, live, growth, systems, playback] = await Promise.all([
     pool.query<{ total: number; new7d: number }>(`SELECT count(*)::int AS total, count(*) FILTER (WHERE created_at > now() - interval '7 days')::int AS new7d FROM users WHERE deleted_at IS NULL`),
     pool.query<{ n: number }>(`SELECT count(DISTINCT d.user_id)::int AS n FROM devices d JOIN users u ON u.id = d.user_id WHERE d.revoked_at IS NULL AND u.deleted_at IS NULL AND d.last_seen_at > now() - interval '7 days'`),
     pool.query<{ plan: string; n: number }>(`SELECT ${ACTIVE_PLAN} AS plan, count(*)::int AS n FROM user_plus p JOIN users u ON u.id = p.user_id WHERE u.deleted_at IS NULL GROUP BY 1`),
@@ -131,10 +132,11 @@ export async function summary() {
     liveSummary(),
     userGrowth(),
     webSystems(),
+    playbackSummary(),
   ]);
   const plus: Record<string, number> = { monthly: 0, yearly: 0, lifetime: 0 };
   for (const row of plans.rows) if (row.plan) plus[row.plan] = row.n;
-  return { users: users.rows[0]!.total, newLast7Days: users.rows[0]!.new7d, activeLast7Days: active.rows[0]!.n, plus, versions: versions.rows, externalPlayer: external, live, userGrowth: growth, webSystems: systems };
+  return { users: users.rows[0]!.total, newLast7Days: users.rows[0]!.new7d, activeLast7Days: active.rows[0]!.n, plus, versions: versions.rows, externalPlayer: external, live, userGrowth: growth, webSystems: systems, playback };
 }
 
 /** How often people hand a title to another player (another app, or VLC's engine inside the app; `opens7d` counts the apps, `vlc7d` the engine): a lot of "after an error" points at the built-in player, not at taste. */

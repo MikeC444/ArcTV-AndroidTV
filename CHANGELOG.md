@@ -5149,3 +5149,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the system comes from the cosmetic device name, so a browser that hides its user agent counts as "Other". Phones asking for the desktop site count as the desktop system.
 
 **Issues fixed:** none.
+
+## Post-Milestone-123 -- Playback health: how each viewing ended, reported to the developer panel
+
+**Status:** Done on branch `claude/playback-health`, not merged, released or deployed.
+
+**Context:** Many users' Continue Watching showed titles stopped a few seconds in. It couldn't be told whether people were leaving because playback failed (a device that can't decode a source, a black screen, no audio, constant buffering) or for other reasons (trying several sources, sampling). The panel only counted hand-offs to another player, not how ordinary viewings ended.
+
+**Changes:**
+- Server: `migrations/0028_playback_outcomes.sql` adds `playback_outcomes` (device model, player, resolution, codec, HDR, time to first picture, time actually played, outcome, error text, how many sources were tried; no title, content id or stream address). `POST /user/player-events/playback` stores one row per viewing (any signed-in user; fire and forget). `GET /admin/summary` now returns `playback`: viewings, people, early exits (short / error / never started), the median time to the first picture, viewings that were not the first source tried, and the same split by device model, player and quality. Rows older than 90 days are cleared now and then by the report endpoint.
+- App: `PlaybackHealthTracker` (`ui/player/PlaybackHealth.kt`) is created for each viewing, fed from VLC's events and the built-in player's phases, and reports once as the player closes: "ok" (played 30 s or more, or to the end), "short" (left sooner after the picture appeared), "error" (the player failed first) or "never_started". `SourceAttempts` counts sources opened for the same title in a sitting. Reports are best-effort and never get in the way of playing.
+
+**Tests performed:** The whole server suite passes (280 tests, against a local Postgres), including new checks that the endpoint refuses nonsense, stores nothing about what was watched, and that the summary splits by device, player and quality and is hidden from non-admins; `tsc` is clean. The app change could not be built here (no route to `dl.google.com`, and Maven Central rate-limited the Kotlin build); the new `PlaybackHealthTest` unit tests (outcome rules, pause handling, double finish, HDR label, sources tried) and the compile are left to the Build workflow. The app code was re-read and its braces and parentheses checked. Not run on a device. The reports only appear once an app release containing this is installed, and the server needs redeploying and migrating first.
+
+**Issues discovered:** a viewing is only reported when the player screen closes, so if the app is killed mid-playback (the Home button followed by Android reclaiming it) that viewing is not reported. Time played counts playing time and ignores buffering pauses inside VLC.
+
+**Issues fixed:** none.

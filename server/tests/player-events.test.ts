@@ -59,3 +59,49 @@ describe("POST /user/player-events/external", () => {
     expect((await request(app).post("/user/player-events/external").set("Authorization", `Bearer ${s.token}`).send(event({ trigger: "x" }))).status).toBe(400);
   });
 });
+
+describe("POST /user/player-events/playback", () => {
+  const outcome = (over: Record<string, unknown> = {}) => ({ engine: "vlc", deviceModel: "AFTMM", resolution: "4K", codec: "HEVC", hdr: "Dolby Vision", startMs: 2400, watchedMs: 9000, outcome: "short", sourcesTried: 2, ...over });
+  const post = (token: string, body: unknown) => request(app).post("/user/player-events/playback").set("Authorization", `Bearer ${token}`).set("X-ArcTV-App-Version", "0.5.0").send(body as object);
+
+  it("requires sign-in and refuses nonsense", async () => {
+    expect((await request(app).post("/user/player-events/playback").send(outcome())).status).toBe(401);
+    const admin = await createTestSession({ isAdmin: true });
+    expect((await post(admin.token, outcome({ outcome: "great" }))).status).toBe(400);
+    expect((await post(admin.token, outcome({ engine: "other" }))).status).toBe(400);
+    expect((await post(admin.token, outcome({ watchedMs: -1 }))).status).toBe(400);
+  });
+
+  it("stores how a viewing ended, with nothing about what was watched", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    expect((await post(admin.token, outcome())).status).toBe(204);
+    const row = (await pool.query("SELECT * FROM playback_outcomes")).rows[0];
+    expect(row).toMatchObject({ engine: "vlc", device_model: "AFTMM", resolution: "4K", outcome: "short", sources_tried: 2, app_version: "0.5.0", watched_ms: 9000, start_ms: 2400 });
+    expect(Object.keys(row)).not.toContain("title");
+    expect(Object.keys(row)).not.toContain("content_id");
+  });
+
+  it("is summarised for admins by device, player and quality, as early exits, errors and failed starts", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    for (const o of [
+      outcome({ outcome: "ok", watchedMs: 600000, sourcesTried: 1 }),
+      outcome({ outcome: "short" }),
+      outcome({ outcome: "error", errorKind: "decoder", startMs: null, watchedMs: 0 }),
+      outcome({ outcome: "never_started", startMs: null, watchedMs: 0, deviceModel: "Pixel 8", engine: "builtin", resolution: "1080p" }),
+    ]) await post(admin.token, o);
+    const res = await request(app).get("/admin/summary").set("Authorization", `Bearer ${admin.token}`);
+    const p = res.body.playback;
+    expect(p).toMatchObject({ plays7d: 4, users7d: 1, short7d: 1, errors7d: 1, neverStarted7d: 1, multiSource7d: 3 });
+    expect(p.medianStartMs).toBe(2400);
+    expect(p.byDevice[0]).toMatchObject({ label: "AFTMM", plays: 3, short: 1, errors: 1 });
+    expect(p.byDevice[1]).toMatchObject({ label: "Pixel 8", plays: 1, neverStarted: 1 });
+    expect(p.byEngine.map((g: { label: string }) => g.label).sort()).toEqual(["builtin", "vlc"]);
+    expect(p.byResolution.map((g: { label: string }) => g.label)).toEqual(["4K", "1080p"]);
+  });
+
+  it("is invisible to people who aren't admins", async () => {
+    const plain = await createTestSession();
+    expect((await post(plain.token, outcome())).status).toBe(204); // anyone signed in may report
+    expect((await request(app).get("/admin/summary").set("Authorization", `Bearer ${plain.token}`)).status).toBe(404);
+  });
+});
