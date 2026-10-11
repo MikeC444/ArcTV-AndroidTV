@@ -18,6 +18,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Serbian, Croatian, Bosnian and Macedonian are now subtitle languages you can pick.
 - Customise your subtitles! Pick a size and colour, and preview them before you press play.
 - Fixed a setting, like Subtitles on or off, flipping itself back right after you changed it.
+- Subtitle languages are now listed A to Z, with English right under System Default.
 
 ## 0.4.1
 
