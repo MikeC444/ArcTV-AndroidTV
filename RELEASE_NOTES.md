@@ -18,6 +18,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Serbian, Croatian, Bosnian and Macedonian join the subtitle languages, now listed A to Z.
 - Customise your subtitles! Pick a size and colour, and preview them before you press play.
 - See which episodes you've finished, hold OK on any episode to mark it or its season watched, and Play jumps to what's next.
+- Show pages scroll better: seasons, episodes and cast now fill the screen together, and Up takes you back to Play.
 
 ## 0.4.1
 

@@ -5283,3 +5283,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the account has no "forget this episode" call, so marking not watched stores the episode as not finished at the start (it still counts as an episode at 0 minutes in Your stats). A mark made while the TV is offline can be lost (one retry slot per show). An episode without a listed length is recorded as 45 minutes.
 
 **Issues fixed:** none.
+
+## Post-Milestone-131 -- The show page scrolls to the seasons, episodes and cast as one screen
+
+**Status:** Done, on main. Not compiled here (see below).
+
+**Context:** Pressing Down off the Play button scrolled the show page just far enough to reveal the focused item, which cut the episode row off at the bottom, and Down again to the cast cut the cast off.
+
+**Changes:**
+- The seasons / episodes / cast block of a TV show's page (`DetailScreen`) is now exactly one screen tall (`fillParentMaxHeight`, with the nav bar's height as top padding). As soon as focus moves into it the list scrolls that block to the top (`animateScrollToItem(1)`), so the season pills, the episode row and the cast are all in view at once; Up from the seasons returns to the Play screen as before (`returnToHero`).
+- To fit three rows in the screen under the nav bar (about 468 dp on a 540 dp-high TV screen) `SeasonsSection` and `CastRow` take a compact layout here: smaller season pills (44 dp), tighter spacing and headings, 224 dp-wide episode pictures (16:9) with smaller title and description text, and the cast's existing compact avatars. The Play screen's own look is unchanged.
+
+**Tests performed:** None run here (no route to `dl.google.com`). Code re-read, braces and parentheses checked. Not run on a TV: the heights were worked out from the layout code (about 440 dp of content in 468 dp), so on a screen shorter than that the last row could still be cut off, and the scroll animation was not seen.
+
+**Issues discovered:** a show with a very long episode description or many rows of text can still push the cast down; the three rows are sized for the usual 540 dp-high TV screen.
+
+**Issues fixed:** the episodes and cast being cut off when scrolling down the show page.

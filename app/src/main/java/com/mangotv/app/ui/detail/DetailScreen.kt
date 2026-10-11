@@ -1,5 +1,8 @@
 package com.mangotv.app.ui.detail
 
+import com.mangotv.app.ui.theme.MangoDimens
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.runtime.DisposableEffect
 import com.mangotv.app.data.model.Season
 import com.mangotv.app.data.model.Episode
@@ -333,8 +336,22 @@ private fun DetailContent(
                     // central to actually watching the show) to show. The cast
                     // still sits under the episodes.
                     if (content.type == ContentType.TV_SHOW && content.seasons.isNotEmpty()) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
+                        // This block is exactly one screen tall and the page scrolls so it fills the screen (under the nav bar) as soon as focus
+                        // moves down into it: the seasons, the episodes and the cast are all in view together, not cut off by a partial scroll.
+                        // Going UP from the seasons returns to the Play screen. Its sizes are the compact ones so all three fit.
+                        Column(
+                            modifier = Modifier
+                                .fillParentMaxHeight()
+                                .fillMaxWidth()
+                                .onFocusChanged { state ->
+                                    if (state.hasFocus) {
+                                        coroutineScope.launch { listState.animateScrollToItem(1) }
+                                    }
+                                }
+                                .padding(top = MangoDimens.NavBarHeight + 4.dp)
+                        ) {
                             SeasonsSection(
+                                compact = true,
                                 seasons = content.seasons,
                                 modifier = Modifier.fillMaxWidth(),
                                 onNavigateUpPastRow = { returnToHero() },
@@ -351,8 +368,8 @@ private fun DetailContent(
                             // The cast sits under the episodes, as on the web. Nothing is drawn for a show with no
                             // cast; UP from here falls through to the episode list above rather than the hero.
                             if (content.cast.isNotEmpty()) {
-                                Spacer(Modifier.height(24.dp))
-                                CastRow(cast = content.cast, modifier = Modifier.fillMaxWidth())
+                                Spacer(Modifier.height(12.dp))
+                                CastRow(cast = content.cast, modifier = Modifier.fillMaxWidth(), compact = true)
                             }
                         }
                     } else {

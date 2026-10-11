@@ -68,6 +68,9 @@ import com.mangotv.app.ui.theme.TextTertiary
 
 private val EpisodeThumbWidth = MangoDimens.ContinueWatchingWidth
 
+/** The episode picture when the page is squeezed to fit seasons, episodes and cast on one screen. */
+private val CompactThumbWidth = 224.dp
+
 /**
  * Replaces Cast/"You May Also Like" for TV shows: a season selector followed
  * by that season's episodes. Tapping an episode navigates to the source
@@ -84,7 +87,9 @@ fun SeasonsSection(
     // The season Play will start in: the list opens on it until the person picks another.
     startSeason: Int? = null,
     onSetEpisodeWatched: (Episode, Boolean) -> Unit = { _, _ -> },
-    onSetSeasonWatched: (Season, Boolean) -> Unit = { _, _ -> }
+    onSetSeasonWatched: (Season, Boolean) -> Unit = { _, _ -> },
+    // Tighter spacing and smaller pictures so the seasons, the episodes and the cast fit one TV screen together (the page scrolls down to them).
+    compact: Boolean = false
 ) {
     if (seasons.isEmpty()) return
 
@@ -98,10 +103,10 @@ fun SeasonsSection(
         Text(
             text = "Seasons",
             color = TextPrimary,
-            style = MaterialTheme.typography.headlineSmall,
+            style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
             modifier = Modifier.padding(
                 horizontal = MangoDimens.ScreenPaddingHorizontal,
-                vertical = 12.dp
+                vertical = if (compact) 6.dp else 12.dp
             )
         )
         LazyRow(
@@ -126,12 +131,13 @@ fun SeasonsSection(
                 SeasonPill(
                     seasonNumber = season.seasonNumber,
                     selected = season.seasonNumber == selectedSeason.seasonNumber,
-                    onClick = { picked = seasons.indexOf(season) }
+                    onClick = { picked = seasons.indexOf(season) },
+                    size = if (compact) 44.dp else 52.dp
                 )
             }
         }
 
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(if (compact) 12.dp else 28.dp))
 
         Row(
             modifier = Modifier.padding(horizontal = MangoDimens.ScreenPaddingHorizontal),
@@ -140,7 +146,7 @@ fun SeasonsSection(
             Text(
                 text = selectedSeason.name,
                 color = TextPrimary,
-                style = MaterialTheme.typography.headlineSmall
+                style = if (compact) MaterialTheme.typography.titleMedium else MaterialTheme.typography.headlineSmall
             )
             Spacer(Modifier.width(12.dp))
             Text(
@@ -150,7 +156,7 @@ fun SeasonsSection(
             )
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(if (compact) 8.dp else 16.dp))
 
         EdgeSafeBringIntoView {
             LazyRow(
@@ -159,11 +165,12 @@ fun SeasonsSection(
             ) {
                 items(selectedSeason.episodes, key = { it.id }) { episode ->
                     EpisodeCard(
-                    episode = episode,
-                    status = statuses[episodeKey(episode.seasonNumber, episode.episodeNumber)],
-                    onClick = { onEpisodeClick(episode) },
-                    onLongClick = { menuEpisode = episode }
-                )
+                        episode = episode,
+                        status = statuses[episodeKey(episode.seasonNumber, episode.episodeNumber)],
+                        compact = compact,
+                        onClick = { onEpisodeClick(episode) },
+                        onLongClick = { menuEpisode = episode }
+                    )
                 }
             }
         }
@@ -198,6 +205,7 @@ fun SeasonsSection(
 private fun SeasonPill(
     seasonNumber: Int,
     selected: Boolean,
+    size: androidx.compose.ui.unit.Dp = 52.dp,
     onClick: () -> Unit
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -207,7 +215,7 @@ private fun SeasonPill(
         backgroundColor = if (selected) Color.White else Color.White.copy(alpha = 0.12f),
         onFocusChanged = { focused = it },
         bringIntoViewOnFocus = false,
-        modifier = Modifier.size(52.dp)
+        modifier = Modifier.size(size)
     ) {
         Text(
             text = seasonNumber.toString(),
@@ -224,8 +232,10 @@ private fun SeasonPill(
 }
 
 @Composable
-private fun EpisodeCard(episode: Episode, status: EpisodeStatus?, onClick: () -> Unit, onLongClick: () -> Unit) {
-    Column(modifier = Modifier.width(EpisodeThumbWidth)) {
+private fun EpisodeCard(episode: Episode, status: EpisodeStatus?, compact: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
+    val thumbWidth = if (compact) CompactThumbWidth else EpisodeThumbWidth
+    val thumbHeight = if (compact) CompactThumbWidth * 9 / 16 else MangoDimens.ContinueWatchingHeight
+    Column(modifier = Modifier.width(thumbWidth)) {
         TvFocusSurface(
             onClick = onClick,
             // Holding OK opens the episode's menu (Play, mark watched, mark season watched), as it does on a poster.
@@ -233,8 +243,8 @@ private fun EpisodeCard(episode: Episode, status: EpisodeStatus?, onClick: () ->
             shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
             backgroundColor = MangoSurfaceHigh,
             modifier = Modifier
-                .width(EpisodeThumbWidth)
-                .height(MangoDimens.ContinueWatchingHeight),
+                .width(thumbWidth)
+                .height(thumbHeight),
             bringIntoViewOnFocus = false
         ) {
             if (episode.thumbnailUrl != null) {
@@ -283,13 +293,13 @@ private fun EpisodeCard(episode: Episode, status: EpisodeStatus?, onClick: () ->
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(if (compact) 6.dp else 8.dp))
 
         Row(verticalAlignment = Alignment.Top) {
             Text(
                 text = "${episode.episodeNumber}. ${episode.title}",
                 color = TextPrimary,
-                style = MaterialTheme.typography.titleMedium,
+                style = if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
@@ -305,11 +315,11 @@ private fun EpisodeCard(episode: Episode, status: EpisodeStatus?, onClick: () ->
         }
 
         if (episode.description.isNotBlank()) {
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(if (compact) 2.dp else 4.dp))
             Text(
                 text = episode.description,
                 color = TextSecondary,
-                style = MaterialTheme.typography.bodyMedium,
+                style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
