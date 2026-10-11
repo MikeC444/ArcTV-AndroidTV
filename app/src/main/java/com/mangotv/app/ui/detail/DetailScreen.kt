@@ -1,5 +1,10 @@
 package com.mangotv.app.ui.detail
 
+import androidx.compose.runtime.DisposableEffect
+import com.mangotv.app.data.model.Season
+import com.mangotv.app.data.model.Episode
+import com.mangotv.app.data.history.nextEpisodeAfterWatched
+import com.mangotv.app.data.history.EpisodeStatus
 import com.mangotv.app.ui.theme.TolerantBringIntoView
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -61,6 +66,15 @@ fun DetailScreen(
     viewModel: DetailViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // The episode ticks and bars are read again whenever this page comes back into view (an episode may have just finished playing).
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) viewModel.refreshEpisodeStatuses()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val context = LocalContext.current
 
     Box(
@@ -79,6 +93,7 @@ fun DetailScreen(
                 val feedback by viewModel.feedback.collectAsStateWithLifecycle()
                 val hasPlus by viewModel.hasPlus.collectAsStateWithLifecycle()
                 val resumeEntry by viewModel.resumeEntry.collectAsStateWithLifecycle()
+                val episodeStatuses by viewModel.episodeStatuses.collectAsStateWithLifecycle()
                 val trailerState by viewModel.trailerState.collectAsStateWithLifecycle()
                 val foundTrailer = trailerState as? TrailerState.Found
                 val releaseDateState by viewModel.releaseDateState.collectAsStateWithLifecycle()
@@ -93,6 +108,9 @@ fun DetailScreen(
                     hasPlus = hasPlus,
                     onFeedback = viewModel::toggleFeedback,
                     resumeEntry = resumeEntry,
+                    episodeStatuses = episodeStatuses,
+                    onSetEpisodeWatched = viewModel::setEpisodeWatched,
+                    onSetSeasonWatched = viewModel::setSeasonWatched,
                     lastStreamIdFor = viewModel::lastStreamIdFor,
                     releaseDateState = releaseDateState,
                     // The button is always there, dimmed until a lookup has found a trailer (trailerReady).
@@ -125,12 +143,19 @@ private fun DetailContent(
     hasPlus: Boolean,
     onFeedback: (Feedback) -> Unit,
     resumeEntry: ContinueWatchingEntry?,
+    episodeStatuses: Map<String, EpisodeStatus>,
+    onSetEpisodeWatched: (Episode, Boolean) -> Unit,
+    onSetSeasonWatched: (Season, Boolean) -> Unit,
     lastStreamIdFor: (season: Int?, episode: Int?) -> String?,
     onTrailer: (() -> Unit)?,
     trailerReady: Boolean,
     releaseDateState: ReleaseDateState,
     modifier: Modifier = Modifier
 ) {
+    // The episode Play will start (Continue Watching first, else the one after the furthest watched): the season list opens on its season.
+    val startEpisode = resumeEntry?.takeIf { it.seasonNumber != null && it.episodeNumber != null }?.let { entry ->
+        content.seasons.find { it.seasonNumber == entry.seasonNumber }?.episodes?.find { it.episodeNumber == entry.episodeNumber }
+    } ?: nextEpisodeAfterWatched(content.seasons, episodeStatuses)
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val playFocusRequester = remember { FocusRequester() }
@@ -297,7 +322,8 @@ private fun DetailContent(
                         },
                         onNavigateDownFromHero = { heroRegionFocused = false },
                         compact = compact,
-                        resumeEntry = resumeEntry
+                        resumeEntry = resumeEntry,
+                        episodeStatuses = episodeStatuses
                     )
                 }
                 item(key = "seasons_or_cast_and_similar") {
@@ -312,6 +338,10 @@ private fun DetailContent(
                                 seasons = content.seasons,
                                 modifier = Modifier.fillMaxWidth(),
                                 onNavigateUpPastRow = { returnToHero() },
+                                statuses = episodeStatuses,
+                                startSeason = startEpisode?.seasonNumber,
+                                onSetEpisodeWatched = onSetEpisodeWatched,
+                                onSetSeasonWatched = onSetSeasonWatched,
                                 onEpisodeClick = { episode ->
                                     content.providerId?.let { pid ->
                                         navigateToPlayback(pid, episode.seasonNumber, episode.episodeNumber)

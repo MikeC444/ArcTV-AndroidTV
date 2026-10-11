@@ -17,6 +17,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Addon subtitles are here! Pick them in the player, your language first, with OpenSubtitles added for you.
 - Serbian, Croatian, Bosnian and Macedonian join the subtitle languages, now listed A to Z.
 - Customise your subtitles! Pick a size and colour, and preview them before you press play.
+- See which episodes you've finished, hold OK on any episode to mark it or its season watched, and Play jumps to what's next.
 
 ## 0.4.1
 

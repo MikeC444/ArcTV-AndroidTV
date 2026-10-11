@@ -183,6 +183,8 @@ class AppContainer(context: Context) {
     )
     val continueWatchingRepository: ContinueWatchingRepository = ContinueWatchingRepository(context)
     val lastSourceRepository: LastSourceRepository = LastSourceRepository(context)
+    /** Which episodes of a show the account has finished or part-watched (read when a show's page opens). */
+    val episodeHistoryRepository: com.mangotv.app.data.history.EpisodeHistoryRepository = com.mangotv.app.data.history.EpisodeHistoryRepository(authRepository)
     /** Reports each confirmed "Play in external player" to the developer panel. */
     val externalPlayerRepository: ExternalPlayerRepository = ExternalPlayerRepository(authRepository)
     /** Reports how each viewing ended (played, left early, error) to the developer panel's playback health. */

@@ -1,6 +1,21 @@
 package com.mangotv.app.ui.detail
 
 import androidx.compose.foundation.background
+import kotlinx.coroutines.delay
+import com.mangotv.app.ui.theme.WatchedGreen
+import com.mangotv.app.ui.theme.ProgressTrack
+import com.mangotv.app.ui.theme.ProgressFill
+import com.mangotv.app.ui.components.MangoButtonStyle
+import com.mangotv.app.ui.components.MangoButton
+import com.mangotv.app.data.history.episodeKey
+import com.mangotv.app.data.history.EpisodeStatus
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,12 +78,21 @@ fun SeasonsSection(
     seasons: List<Season>,
     modifier: Modifier = Modifier,
     onNavigateUpPastRow: (() -> Unit)? = null,
-    onEpisodeClick: (Episode) -> Unit = {}
+    onEpisodeClick: (Episode) -> Unit = {},
+    // What the account's history says about each episode ("season:episode" -> finished, or how far in); drives the tick and progress bar.
+    statuses: Map<String, EpisodeStatus> = emptyMap(),
+    // The season Play will start in: the list opens on it until the person picks another.
+    startSeason: Int? = null,
+    onSetEpisodeWatched: (Episode, Boolean) -> Unit = { _, _ -> },
+    onSetSeasonWatched: (Season, Boolean) -> Unit = { _, _ -> }
 ) {
     if (seasons.isEmpty()) return
 
-    var selectedIndex by remember { mutableIntStateOf(0) }
+    var picked by remember { mutableStateOf<Int?>(null) }
+    val selectedIndex = picked ?: seasons.indexOfFirst { it.seasonNumber == startSeason }.coerceAtLeast(0)
     val selectedSeason = seasons.getOrNull(selectedIndex) ?: return
+    // The episode whose hold-OK menu is open.
+    var menuEpisode by remember { mutableStateOf<Episode?>(null) }
 
     Column(modifier = modifier) {
         Text(
@@ -102,7 +126,7 @@ fun SeasonsSection(
                 SeasonPill(
                     seasonNumber = season.seasonNumber,
                     selected = season.seasonNumber == selectedSeason.seasonNumber,
-                    onClick = { selectedIndex = seasons.indexOf(season) }
+                    onClick = { picked = seasons.indexOf(season) }
                 )
             }
         }
@@ -134,10 +158,30 @@ fun SeasonsSection(
                 horizontalArrangement = Arrangement.spacedBy(MangoDimens.CardSpacing)
             ) {
                 items(selectedSeason.episodes, key = { it.id }) { episode ->
-                    EpisodeCard(episode = episode, onClick = { onEpisodeClick(episode) })
+                    EpisodeCard(
+                    episode = episode,
+                    status = statuses[episodeKey(episode.seasonNumber, episode.episodeNumber)],
+                    onClick = { onEpisodeClick(episode) },
+                    onLongClick = { menuEpisode = episode }
+                )
                 }
             }
         }
+    }
+
+    menuEpisode?.let { episode ->
+        val status = statuses[episodeKey(episode.seasonNumber, episode.episodeNumber)]
+        val seasonWatched = selectedSeason.episodes.isNotEmpty() &&
+            selectedSeason.episodes.all { statuses[episodeKey(it.seasonNumber, it.episodeNumber)]?.watched == true }
+        EpisodeActionsDialog(
+            episode = episode,
+            watched = status?.watched == true,
+            seasonWatched = seasonWatched,
+            onPlay = { menuEpisode = null; onEpisodeClick(episode) },
+            onToggleWatched = { menuEpisode = null; onSetEpisodeWatched(episode, status?.watched != true) },
+            onToggleSeason = { menuEpisode = null; onSetSeasonWatched(selectedSeason, !seasonWatched) },
+            onDismiss = { menuEpisode = null }
+        )
     }
 }
 
@@ -180,10 +224,12 @@ private fun SeasonPill(
 }
 
 @Composable
-private fun EpisodeCard(episode: Episode, onClick: () -> Unit) {
+private fun EpisodeCard(episode: Episode, status: EpisodeStatus?, onClick: () -> Unit, onLongClick: () -> Unit) {
     Column(modifier = Modifier.width(EpisodeThumbWidth)) {
         TvFocusSurface(
             onClick = onClick,
+            // Holding OK opens the episode's menu (Play, mark watched, mark season watched), as it does on a poster.
+            onLongClick = onLongClick,
             shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
             backgroundColor = MangoSurfaceHigh,
             modifier = Modifier
@@ -213,6 +259,27 @@ private fun EpisodeCard(episode: Episode, onClick: () -> Unit) {
                         .align(Alignment.Center)
                         .size(24.dp)
                 )
+            }
+            // Finished episodes get a tick in the corner; one part-way gets a bar along the bottom showing how far in.
+            if (status?.watched == true) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp)
+                        .size(26.dp)
+                        .background(WatchedGreen, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = "Watched",
+                        tint = Color.Black,
+                        modifier = Modifier.align(Alignment.Center).size(16.dp)
+                    )
+                }
+            } else if (status != null && status.fraction > 0f) {
+                Box(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().height(4.dp).background(ProgressTrack)) {
+                    Box(modifier = Modifier.fillMaxWidth(status.fraction).height(4.dp).background(ProgressFill))
+                }
             }
         }
 
@@ -246,6 +313,72 @@ private fun EpisodeCard(episode: Episode, onClick: () -> Unit) {
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+    }
+}
+
+/**
+ * The menu that opens when OK is held on an episode: Play, mark that episode watched or not watched, and mark the whole season. It is a dialog
+ * window, so the remote stays inside it and BACK closes it. Focus moves into it only once the held key has been let go (the key that opened it
+ * would otherwise press the first row as it is released); with a touch long-press, which has no release, a short delay does the same.
+ */
+@Composable
+private fun EpisodeActionsDialog(
+    episode: Episode,
+    watched: Boolean,
+    seasonWatched: Boolean,
+    onPlay: () -> Unit,
+    onToggleWatched: () -> Unit,
+    onToggleSeason: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        delay(450)
+        runCatching { firstFocus.requestFocus() }
+    }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true, usePlatformDefaultWidth = false)
+    ) {
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.8f)), contentAlignment = Alignment.Center) {
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 380.dp)
+                    .padding(horizontal = 16.dp)
+                    .background(MangoSurfaceHigh, RoundedCornerShape(18.dp))
+                    .padding(horizontal = 22.dp, vertical = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "S${episode.seasonNumber} \u00B7 E${episode.episodeNumber}",
+                    color = TextTertiary,
+                    style = MaterialTheme.typography.labelMedium
+                )
+                Text(
+                    text = episode.title,
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                MangoButton(text = "Play", icon = Icons.Filled.PlayArrow, onClick = onPlay, style = MangoButtonStyle.FILLED, focusRequester = firstFocus, compact = true)
+                MangoButton(
+                    text = if (watched) "Mark as not watched" else "Mark as watched",
+                    icon = Icons.Filled.Check,
+                    onClick = onToggleWatched,
+                    style = MangoButtonStyle.GLASS,
+                    compact = true
+                )
+                MangoButton(
+                    text = if (seasonWatched) "Mark season as not watched" else "Mark season as watched",
+                    icon = Icons.Filled.Check,
+                    onClick = onToggleSeason,
+                    style = MangoButtonStyle.GLASS,
+                    compact = true
+                )
+            }
         }
     }
 }

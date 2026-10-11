@@ -200,30 +200,32 @@ class ContinueWatchingSyncRepository(
      * the same title is dropped so it cannot bring the entry back.
      */
     fun removeEntry(providerId: String, contentId: String, contentType: ContentType) {
+        scope.launch { removeNow(providerId, contentId, contentType, Iso8601.nowString()) }
+    }
+
+    private suspend fun removeNow(providerId: String, contentId: String, contentType: ContentType, updatedAt: String) {
         val key = "$providerId|$contentId|${contentType.name}"
-        val removal = PendingContinueWatchingRemoval(providerId, contentId, contentType.name, Iso8601.nowString())
-        scope.launch {
-            try {
-                continueWatchingRepository.remove(providerId, contentId, contentType)
-                pendingStore.remove(key)
-                val token = freshAccessTokenOrNull()
-                if (token == null) {
-                    removalStore.put(key, removal)
-                    return@launch
-                }
-                val response = apiClient.removeContinueWatching(token, providerId, contentId, contentType.name, removal.updatedAt)
-                reconcile(providerId, contentId, contentType, response)
-                removalStore.remove(key)
-            } catch (e: ApiException) {
+        val removal = PendingContinueWatchingRemoval(providerId, contentId, contentType.name, updatedAt)
+        try {
+            continueWatchingRepository.remove(providerId, contentId, contentType)
+            pendingStore.remove(key)
+            val token = freshAccessTokenOrNull()
+            if (token == null) {
                 removalStore.put(key, removal)
-                if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
-            } catch (e: IOException) {
-                removalStore.put(key, removal)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                removalStore.put(key, removal)
+                return
             }
+            val response = apiClient.removeContinueWatching(token, providerId, contentId, contentType.name, removal.updatedAt)
+            reconcile(providerId, contentId, contentType, response)
+            removalStore.remove(key)
+        } catch (e: ApiException) {
+            removalStore.put(key, removal)
+            if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
+        } catch (e: IOException) {
+            removalStore.put(key, removal)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            removalStore.put(key, removal)
         }
     }
 
@@ -282,7 +284,6 @@ class ContinueWatchingSyncRepository(
         completed: Boolean
     ) {
         val watchedAt = Iso8601.nowString()
-        val key = "$providerId|$contentId|${contentType.name}"
         val request = WatchProgressRequest(
             providerId = providerId,
             contentId = contentId,
@@ -298,56 +299,125 @@ class ContinueWatchingSyncRepository(
             completed = completed,
             watchedAt = watchedAt
         )
-        scope.launch {
-            // Local write and network push share one try/catch: a
-            // DataStore write failure surfaces as IOException just like a
-            // network one (see ContinueWatchingRepository/DataStore's own
-            // documented behavior), so the same "transient -- queue it and
-            // move on" handling below already covers both -- and either
-            // way, an uncaught exception here would otherwise propagate
-            // out of this launch{} and crash the app, which a rare disk
-            // hiccup during a routine progress report should never do.
-            try {
-                if (completed) {
-                    continueWatchingRepository.remove(providerId, contentId, contentType)
-                } else {
-                    continueWatchingRepository.upsert(
-                        ContinueWatchingEntry(
-                            providerId = providerId,
-                            contentId = contentId,
-                            contentType = contentType,
-                            seasonNumber = seasonNumber,
-                            episodeNumber = episodeNumber,
-                            episodeTitle = episodeTitle,
-                            title = title,
-                            posterUrl = posterUrl,
-                            backdropUrl = backdropUrl,
-                            positionMs = positionMs,
-                            durationMs = durationMs,
-                            lastWatchedAt = watchedAt
-                        )
-                    )
-                }
+        scope.launch { deliver(request) }
+    }
 
-                val token = freshAccessTokenOrNull()
-                if (token == null) {
-                    pendingStore.put(key, request)
-                    return@launch
-                }
-                val response = apiClient.postProgress(token, request)
-                reconcile(providerId, contentId, contentType, response.continueWatching)
-                pendingStore.remove(key)
-            } catch (e: ApiException) {
-                pendingStore.put(key, request)
-                if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
-            } catch (e: IOException) {
-                pendingStore.put(key, request)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Unexpected -- queue for retry, same as a network failure.
-                pendingStore.put(key, request)
+    /**
+     * Marks one episode of a show watched (or not watched) on this device and the account, from the episode list rather than by playing it.
+     * Watched is a finished report for that episode (it lands in the watch history as completed). The account keeps one Continue Watching
+     * pointer per show and a finished report clears it, so [restore] (the episode the person is actually partway through, when it is a
+     * different one) is put back straight afterwards. Not watched writes the episode back to the start, then clears the pointer when there is
+     * nothing to [restore]. The steps run in order in one coroutine, each stamped a millisecond after the last, so the account applies them
+     * in that order whatever the network does.
+     */
+    fun setEpisodeWatched(
+        providerId: String,
+        contentId: String,
+        seasonNumber: Int,
+        episodeNumber: Int,
+        episodeTitle: String?,
+        title: String,
+        posterUrl: String?,
+        backdropUrl: String?,
+        durationMs: Long,
+        watched: Boolean,
+        restore: ContinueWatchingEntry?
+    ) {
+        scope.launch {
+            val at = System.currentTimeMillis()
+            deliver(
+                WatchProgressRequest(
+                    providerId = providerId,
+                    contentId = contentId,
+                    contentType = ContentType.TV_SHOW.name,
+                    seasonNumber = seasonNumber,
+                    episodeNumber = episodeNumber,
+                    episodeTitle = episodeTitle,
+                    title = title,
+                    posterUrl = posterUrl,
+                    backdropUrl = backdropUrl,
+                    positionMs = if (watched) durationMs else 0L,
+                    durationMs = durationMs,
+                    completed = watched,
+                    watchedAt = Iso8601.format(at)
+                )
+            )
+            if (restore != null) {
+                deliver(
+                    WatchProgressRequest(
+                        providerId = restore.providerId,
+                        contentId = restore.contentId,
+                        contentType = restore.contentType.name,
+                        seasonNumber = restore.seasonNumber,
+                        episodeNumber = restore.episodeNumber,
+                        episodeTitle = restore.episodeTitle,
+                        title = restore.title,
+                        posterUrl = restore.posterUrl,
+                        backdropUrl = restore.backdropUrl,
+                        positionMs = restore.positionMs,
+                        durationMs = restore.durationMs,
+                        completed = false,
+                        watchedAt = Iso8601.format(at + 1)
+                    )
+                )
+            } else if (!watched) {
+                removeNow(providerId, contentId, ContentType.TV_SHOW, Iso8601.format(at + 1))
             }
+        }
+    }
+
+    /**
+     * One progress report: the local cache first, then the account, queued for a retry when it cannot be sent. Local write and network push
+     * share one try/catch: a DataStore write failure surfaces as IOException just like a network one, so the same "transient -- queue it and
+     * move on" handling covers both, and nothing here can crash the app.
+     */
+    private suspend fun deliver(request: WatchProgressRequest) {
+        val providerId = request.providerId
+        val contentId = request.contentId
+        val contentType = ContentType.valueOf(request.contentType)
+        val completed = request.completed
+        val watchedAt = request.watchedAt
+        val key = "$providerId|$contentId|${contentType.name}"
+        try {
+            if (completed) {
+                continueWatchingRepository.remove(providerId, contentId, contentType)
+            } else {
+                continueWatchingRepository.upsert(
+                    ContinueWatchingEntry(
+                        providerId = providerId,
+                        contentId = contentId,
+                        contentType = contentType,
+                        seasonNumber = request.seasonNumber,
+                        episodeNumber = request.episodeNumber,
+                        episodeTitle = request.episodeTitle,
+                        title = request.title,
+                        posterUrl = request.posterUrl,
+                        backdropUrl = request.backdropUrl,
+                        positionMs = request.positionMs,
+                        durationMs = request.durationMs,
+                        lastWatchedAt = watchedAt
+                    )
+                )
+            }
+
+            val token = freshAccessTokenOrNull()
+            if (token == null) {
+                pendingStore.put(key, request)
+                return
+            }
+            val response = apiClient.postProgress(token, request)
+            reconcile(providerId, contentId, contentType, response.continueWatching)
+            pendingStore.remove(key)
+        } catch (e: ApiException) {
+            pendingStore.put(key, request)
+            if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
+        } catch (e: IOException) {
+            pendingStore.put(key, request)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Unexpected -- queue for retry, same as a network failure.
+            pendingStore.put(key, request)
         }
     }
 

@@ -5265,3 +5265,21 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-130 -- Watched ticks, progress bars and "Mark watched" on episodes (Fire TV / Android TV)
+
+**Status:** Done, on main. Not compiled here (see below).
+
+**Context:** The show page's episode cards said nothing about what had been watched, and there was no way to mark an episode or a season watched; the web, phone and Mac apps have both, and Play there starts the next unwatched episode.
+
+**Changes:**
+- `EpisodeHistoryRepository` (`data/history`): `episodeStatuses` turns watch-history rows into one `EpisodeStatus` per episode (finished, or how far in; an episode never started has none), `nextEpisodeAfterWatched` finds the episode after the furthest one watched (a caught-up season moves on to the next; none when nothing is watched), and `statuses()` reads the profile's history (`GET /user/history`, up to 25 pages of 200). `DetailViewModel` holds the result as `episodeStatuses`, reads it when the page opens and again whenever the page comes back into view (an episode may have just finished), and keeps the page's own marks on top.
+- Episode cards: a green tick on a finished episode's picture, a progress bar along the bottom of one part-way. Holding OK on an episode opens a small menu (`EpisodeActionsDialog`): Play, Mark as (not) watched, Mark season as (not) watched. Focus moves into the menu a moment after it opens, so the held key is not pressed on the first row as it is let go.
+- `ContinueWatchingSyncRepository.setEpisodeWatched` (the same as the phone app): watched is a finished report for the episode (a completed row in the watch history); not watched writes it back to the start. The account has one Continue Watching pointer per show and a finished report clears it, so the episode the person is partway through is put back afterwards (or, when un-marking with nothing to put back, the pointer is cleared). The steps run in order in one coroutine, each stamped a millisecond after the last. `reportProgress` and `removeEntry` were split into suspend helpers (`deliver`, `removeNow`); their behaviour is unchanged.
+- Play (and the season list's opening season) uses the episode after the furthest one watched, with Continue Watching still first and the first episode when nothing is watched.
+
+**Tests performed:** None run here (no route to `dl.google.com`); the new `EpisodeStatusesTest` and the compile are left to the Build workflow. Code re-read, braces and parentheses checked. Not run on a TV: how the hold-OK menu feels with a remote, and whether the marks reach the account, were not tried.
+
+**Issues discovered:** the account has no "forget this episode" call, so marking not watched stores the episode as not finished at the start (it still counts as an episode at 0 minutes in Your stats). A mark made while the TV is offline can be lost (one retry slot per show). An episode without a listed length is recorded as 45 minutes.
+
+**Issues fixed:** none.

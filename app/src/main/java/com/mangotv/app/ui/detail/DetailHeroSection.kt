@@ -1,5 +1,7 @@
 package com.mangotv.app.ui.detail
 
+import com.mangotv.app.data.history.nextEpisodeAfterWatched
+import com.mangotv.app.data.history.EpisodeStatus
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
@@ -138,7 +140,9 @@ fun DetailHeroSection(
     // Swaps "Play" for "Resume" and, for a TV show, retargets which
     // episode the button plays. See its own doc further down for why the
     // TV show episode target matters beyond just the button label.
-    resumeEntry: ContinueWatchingEntry? = null
+    resumeEntry: ContinueWatchingEntry? = null,
+    // What the account's history says about each episode; Play starts the one after the furthest watched when nothing is being resumed.
+    episodeStatuses: Map<String, EpisodeStatus> = emptyMap()
 ) {
     val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
     val heroMinHeight = if (compact) {
@@ -185,7 +189,7 @@ fun DetailHeroSection(
             ?.episodes?.find { it.episodeNumber == entry.episodeNumber }
     }
     val firstEpisode = if (content.type == ContentType.TV_SHOW) {
-        resumeEpisode ?: content.seasons.firstOrNull()?.episodes?.firstOrNull()
+        resumeEpisode ?: nextEpisodeAfterWatched(content.seasons, episodeStatuses) ?: content.seasons.firstOrNull()?.episodes?.firstOrNull()
     } else {
         null
     }

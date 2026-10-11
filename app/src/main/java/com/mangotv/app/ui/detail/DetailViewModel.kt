@@ -6,6 +6,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.mangotv.app.MangoTvApplication
 import com.mangotv.app.data.history.ContinueWatchingEntry
+import com.mangotv.app.data.history.EpisodeStatus
+import com.mangotv.app.data.history.episodeKey
+import com.mangotv.app.data.model.Episode
+import com.mangotv.app.data.model.Season
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.feedback.FeedbackTarget
@@ -67,6 +71,8 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
     private val blockedGenresRepository = (application as MangoTvApplication).container.blockedGenresRepository
     private val feedbackRepository = (application as MangoTvApplication).container.feedbackRepository
     private val plusRepository = (application as MangoTvApplication).container.plusRepository
+    private val episodeHistoryRepository = (application as MangoTvApplication).container.episodeHistoryRepository
+    private val continueWatchingSyncRepository = (application as MangoTvApplication).container.continueWatchingSyncRepository
 
     private val providerId: String =
         URLDecoder.decode(savedStateHandle.get<String>("providerId").orEmpty(), "UTF-8")
@@ -193,8 +199,66 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
         guestGate.requireAccount { myListRepository.toggleWatched(content) }
     }
 
+
+    // What the account's history says about this show's episodes ("season:episode" keys): finished, or how far in. Read when the page opens and
+    // again whenever it comes back into view, with this page's own marks on top. Empty for a guest, or when the history can't be read.
+    private val _episodeStatuses = MutableStateFlow<Map<String, EpisodeStatus>>(emptyMap())
+    val episodeStatuses: StateFlow<Map<String, EpisodeStatus>> = _episodeStatuses.asStateFlow()
+
+    /** Reads the history again (the page came back into view, e.g. after an episode finished playing). */
+    fun refreshEpisodeStatuses() {
+        if (contentType != ContentType.TV_SHOW) return
+        viewModelScope.launch {
+            val fromHistory = runCatching { episodeHistoryRepository.statuses(providerId, contentId) }.getOrNull() ?: return@launch
+            _episodeStatuses.value = fromHistory
+        }
+    }
+
+    /**
+     * Marks one episode watched or not watched from the episode list. A guest is asked to sign in. The tick changes at once; the account is
+     * told through [ContinueWatchingSyncRepository.setEpisodeWatched], which also keeps the episode the person is partway through in
+     * Continue Watching.
+     */
+    fun setEpisodeWatched(episode: Episode, watched: Boolean) = setEpisodesWatched(listOf(episode), watched)
+
+    /** Marks a whole season's episodes watched or not watched in one go. */
+    fun setSeasonWatched(season: Season, watched: Boolean) = setEpisodesWatched(season.episodes, watched)
+
+    private fun setEpisodesWatched(episodes: List<Episode>, watched: Boolean) {
+        val content = (uiState.value as? DetailUiState.Success)?.content ?: return
+        val changing = episodes.filter { (_episodeStatuses.value[episodeKey(it.seasonNumber, it.episodeNumber)]?.watched == true) != watched }
+        if (changing.isEmpty()) return
+        guestGate.requireAccount {
+            val keys = changing.map { episodeKey(it.seasonNumber, it.episodeNumber) }
+            _episodeStatuses.value = if (watched) {
+                _episodeStatuses.value + keys.associateWith { EpisodeStatus(watched = true, fraction = 1f) }
+            } else {
+                _episodeStatuses.value - keys.toSet()
+            }
+            // The show's Continue Watching pointer, read once up front, goes back afterwards unless the person is un-marking that very episode.
+            val resume = resumeEntry.value
+            changing.forEach { episode ->
+                val keep = resume?.takeUnless { it.seasonNumber == episode.seasonNumber && it.episodeNumber == episode.episodeNumber }
+                continueWatchingSyncRepository.setEpisodeWatched(
+                    providerId = providerId,
+                    contentId = contentId,
+                    seasonNumber = episode.seasonNumber,
+                    episodeNumber = episode.episodeNumber,
+                    episodeTitle = episode.title,
+                    title = content.title,
+                    posterUrl = content.posterUrl,
+                    backdropUrl = content.backdropUrl,
+                    durationMs = (episode.runtimeMinutes ?: DEFAULT_EPISODE_MINUTES) * 60_000L,
+                    watched = watched,
+                    restore = keep
+                )
+            }
+        }
+    }
+
     init {
         load()
+        refreshEpisodeStatuses()
         // Re-publishes the current content/similar whenever watched status
         // changes, so a title crossing the completion threshold (or being
         // removed from My List) ticks/unticks on the Similar row immediately
@@ -325,3 +389,6 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
         return genreMatches.ifEmpty { allItems }.take(15)
     }
 }
+
+/** The length used for an episode with no listed runtime when it is marked watched (the history wants a duration). */
+private const val DEFAULT_EPISODE_MINUTES = 45
