@@ -8,9 +8,9 @@ description, so there's no need to visit GitHub to see what changed.
 (For the backend/engineering build log, see CHANGELOG.md instead -- this
 file is only ever end-user-facing release notes.)
 
-Releasing needs nothing done to this file: add each change as a bullet under `## Unreleased` as you make it. When a release is
-published, the workflow uses what is under `## Unreleased` as that release's notes (what the app's update pop-up shows), then moves it
-under the new version heading and leaves a fresh empty `## Unreleased` above it.
+Releasing needs nothing done to this file: add each change as a bullet under `## Unreleased
+
+- Fixed a player issue.
 
 ## Unreleased
 
