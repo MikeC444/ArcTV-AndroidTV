@@ -114,7 +114,7 @@ class PlayerViewModel(
             // Sources screen — run in parallel since the player route pays
             // this cost a second time on top of the one Sources already paid.
             // The source the person just picked comes straight from the source list: nothing to look up again, so an addon whose ids change
-            // between two requests (AIOStreams) can't make it vanish. Only a resume from Detail, which has just the remembered id, asks again.
+            // between two requests (as some addons do) can't make it vanish. Only a resume from Detail, which has just the remembered id, asks again.
             val handedOver = StreamHandoff.get(streamId)
             val streams = if (handedOver != null) emptyList() else coroutineScope {
                 providers.map { provider ->
