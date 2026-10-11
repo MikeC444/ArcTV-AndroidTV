@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+## 0.5.0
+
 - Subtitles from your addons are here! Pick them in the player, with OpenSubtitles ready to go.
 - Serbian, Croatian, Bosnian and Macedonian subtitles have arrived, and languages are now A to Z.
 - Make subtitles yours! Pick a size and colour and preview them before you press play.
