@@ -231,44 +231,6 @@ fun ColumnScope.SubtitleSettingsContent(
                 )
             }
         }
-    }
-
-    /** A line of sample subtitle text on a dark picture, at the chosen size and colour, so the choice can be judged before playing something. */
-    @Composable
-    private fun SubtitlePreview(size: SubtitleSize, color: SubtitleColor) {
-        // A mock 16:9 video frame. The text is sized as a fraction of the frame's
-        // height -- the same proportion the real player uses -- so what you see
-        // here matches playback, over a real film frame to judge it against.
-        BoxWithConstraints(
-            modifier = Modifier
-                // On a TV the settings pane is very wide: a full-width 16:9 picture would fill the screen and push the choices below it out of view.
-                .widthIn(max = 480.dp)
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(MangoDimens.CardCornerRadius))
-                .background(Color(0xFF05060A))
-        ) {
-            val density = LocalDensity.current
-            val textSize = with(density) { (constraints.maxHeight * size.fraction).toSp() }
-            // A frame from the open film Tears of Steel (CC-BY, Blender Foundation), as a
-            // real picture to judge subtitle size and colour against.
-            Image(
-                painter = painterResource(R.drawable.subtitle_preview_scene),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-            Text(
-                text = "I told you we'd make it\nbefore the sun goes down.",
-                color = Color(color.argb),
-                fontSize = textSize,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                style = TextStyle(shadow = Shadow(Color.Black, Offset(2f, 2f), 4f))
-            )
-        }
         Column(
             modifier = Modifier
                 .width(320.dp)
@@ -282,6 +244,44 @@ fun ColumnScope.SubtitleSettingsContent(
                 style = MaterialTheme.typography.labelSmall
             )
         }
+    }
+}
+
+/** A line of sample subtitle text on a dark picture, at the chosen size and colour, so the choice can be judged before playing something. */
+@Composable
+private fun SubtitlePreview(size: SubtitleSize, color: SubtitleColor) {
+    // A mock 16:9 video frame. The text is sized as a fraction of the frame's
+    // height -- the same proportion the real player uses -- so what you see
+    // here matches playback, over a real film frame to judge it against.
+    BoxWithConstraints(
+        modifier = Modifier
+            // On a TV the settings pane is very wide: a full-width 16:9 picture would fill the screen and push the choices below it out of view.
+            .widthIn(max = 480.dp)
+            .fillMaxWidth()
+            .aspectRatio(16f / 9f)
+            .clip(RoundedCornerShape(MangoDimens.CardCornerRadius))
+            .background(Color(0xFF05060A))
+    ) {
+        val density = LocalDensity.current
+        val textSize = with(density) { (constraints.maxHeight * size.fraction).toSp() }
+        // A frame from the open film Tears of Steel (CC-BY, Blender Foundation), as a
+        // real picture to judge subtitle size and colour against.
+        Image(
+            painter = painterResource(R.drawable.subtitle_preview_scene),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        Text(
+            text = "I told you we'd make it\nbefore the sun goes down.",
+            color = Color(color.argb),
+            fontSize = textSize,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            style = TextStyle(shadow = Shadow(Color.Black, Offset(2f, 2f), 4f))
+        )
     }
 }
 
