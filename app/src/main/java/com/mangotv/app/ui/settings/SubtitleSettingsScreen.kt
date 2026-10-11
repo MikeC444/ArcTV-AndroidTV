@@ -29,6 +29,7 @@ import com.mangotv.app.ui.player.SubtitleSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -139,141 +140,148 @@ fun ColumnScope.SubtitleSettingsContent(
     // header scrolls away with everything else instead of permanently
     // reserving space at the top, leaving more of the screen for language
     // rows once scrolled.
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxWidth()
-            .weight(1f),
-        // LazyColumn clips to its own bounds, and each row below fills
-        // its full width with no margin of its own -- so a row's focus
-        // scale-up (TvFocusSurface) had nowhere to grow into and got
-        // clipped flush against the list's left/right edges. Same fix
-        // as TopNavBar/SourcesScreen/SoundSettingsScreen: reserve a
-        // little headroom via contentPadding for the scale to grow into.
-        contentPadding = SettingsListPadding,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        item(key = "toggle") {
-            SubtitlesToggleRow(
-                enabled = preferences.subtitlesEnabled,
-                onToggle = viewModel::setSubtitlesEnabled,
-                focusRequester = contentFocusRequester,
-                focusUp = navFocusRequester,
-                focusLeft = sidebarFocusRequester
-            )
-        }
-        item(key = "style_preview") {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                SubtitlePreview(size = size, color = color)
+    // The preview sits beside the choices, not in the list: scrolling down to Size and Colour used to scroll it out of sight, so the effect of
+    // a choice could not be seen as it was made. Here it stays in view while the focus moves through the rows.
+    Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            // LazyColumn clips to its own bounds, and each row below fills
+            // its full width with no margin of its own -- so a row's focus
+            // scale-up (TvFocusSurface) had nowhere to grow into and got
+            // clipped flush against the list's left/right edges. Same fix
+            // as TopNavBar/SourcesScreen/SoundSettingsScreen: reserve a
+            // little headroom via contentPadding for the scale to grow into.
+            contentPadding = SettingsListPadding,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            item(key = "toggle") {
+                SubtitlesToggleRow(
+                    enabled = preferences.subtitlesEnabled,
+                    onToggle = viewModel::setSubtitlesEnabled,
+                    focusRequester = contentFocusRequester,
+                    focusUp = navFocusRequester,
+                    focusLeft = sidebarFocusRequester
+                )
+            }
+            item(key = "size_title") {
                 Text(
-                    text = "Frame from Tears of Steel, (CC) Blender Foundation | mango.blender.org",
+                    text = "Size",
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            }
+            items(SubtitleSize.entries, key = { "size_${it.wire}" }) { option ->
+                LanguageOptionRow(
+                    label = option.label,
+                    selected = option == size,
+                    onClick = {
+                        size = option
+                        DevicePlayerPrefs.setSubtitleSize(context, option)
+                    }
+                )
+            }
+            item(key = "color_title") {
+                Text(
+                    text = "Colour",
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            }
+            item(key = "color_description") {
+                Text(
+                    text = "Applies from the next video you start, on this device.",
                     color = TextSecondary,
-                    style = MaterialTheme.typography.labelSmall
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            items(SubtitleColor.entries, key = { "color_${it.wire}" }) { option ->
+                LanguageOptionRow(
+                    label = option.label,
+                    selected = option == color,
+                    onClick = {
+                        color = option
+                        DevicePlayerPrefs.setSubtitleColor(context, option)
+                    }
+                )
+            }
+            item(key = "language_title") {
+                Text(
+                    text = "Default Language",
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            }
+            item(key = "language_description") {
+                Text(
+                    text = "Used to automatically pick a matching subtitle track when Subtitles is on.",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            items(SubtitleLanguageOptions, key = { it.code ?: "system_default" }) { option ->
+                LanguageOptionRow(
+                    label = option.label,
+                    selected = option.code == preferences.defaultSubtitleLanguage,
+                    onClick = { viewModel.setDefaultSubtitleLanguage(option.code) }
                 )
             }
         }
-        item(key = "size_title") {
-            Text(
-                text = "Size",
-                color = TextPrimary,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 12.dp)
-            )
-        }
-        items(SubtitleSize.entries, key = { "size_${it.wire}" }) { option ->
-            LanguageOptionRow(
-                label = option.label,
-                selected = option == size,
-                onClick = {
-                    size = option
-                    DevicePlayerPrefs.setSubtitleSize(context, option)
-                }
-            )
-        }
-        item(key = "color_title") {
-            Text(
-                text = "Colour",
-                color = TextPrimary,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 12.dp)
-            )
-        }
-        item(key = "color_description") {
-            Text(
-                text = "Applies from the next video you start, on this device.",
-                color = TextSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-        items(SubtitleColor.entries, key = { "color_${it.wire}" }) { option ->
-            LanguageOptionRow(
-                label = option.label,
-                selected = option == color,
-                onClick = {
-                    color = option
-                    DevicePlayerPrefs.setSubtitleColor(context, option)
-                }
-            )
-        }
-        item(key = "language_title") {
-            Text(
-                text = "Default Language",
-                color = TextPrimary,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 12.dp)
-            )
-        }
-        item(key = "language_description") {
-            Text(
-                text = "Used to automatically pick a matching subtitle track when Subtitles is on.",
-                color = TextSecondary,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-        items(SubtitleLanguageOptions, key = { it.code ?: "system_default" }) { option ->
-            LanguageOptionRow(
-                label = option.label,
-                selected = option.code == preferences.defaultSubtitleLanguage,
-                onClick = { viewModel.setDefaultSubtitleLanguage(option.code) }
-            )
-        }
     }
-}
 
-/** A line of sample subtitle text on a dark picture, at the chosen size and colour, so the choice can be judged before playing something. */
-@Composable
-private fun SubtitlePreview(size: SubtitleSize, color: SubtitleColor) {
-    // A mock 16:9 video frame. The text is sized as a fraction of the frame's
-    // height -- the same proportion the real player uses -- so what you see
-    // here matches playback, over a real film frame to judge it against.
-    BoxWithConstraints(
-        modifier = Modifier
-            // On a TV the settings pane is very wide: a full-width 16:9 picture would fill the screen and push the choices below it out of view.
-            .widthIn(max = 480.dp)
-            .fillMaxWidth()
-            .aspectRatio(16f / 9f)
-            .clip(RoundedCornerShape(MangoDimens.CardCornerRadius))
-            .background(Color(0xFF05060A))
-    ) {
-        val density = LocalDensity.current
-        val textSize = with(density) { (constraints.maxHeight * size.fraction).toSp() }
-        // A frame from the open film Tears of Steel (CC-BY, Blender Foundation), as a
-        // real picture to judge subtitle size and colour against.
-        Image(
-            painter = painterResource(R.drawable.subtitle_preview_scene),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
-        Text(
-            text = "I told you we'd make it\nbefore the sun goes down.",
-            color = Color(color.argb),
-            fontSize = textSize,
-            textAlign = TextAlign.Center,
+    /** A line of sample subtitle text on a dark picture, at the chosen size and colour, so the choice can be judged before playing something. */
+    @Composable
+    private fun SubtitlePreview(size: SubtitleSize, color: SubtitleColor) {
+        // A mock 16:9 video frame. The text is sized as a fraction of the frame's
+        // height -- the same proportion the real player uses -- so what you see
+        // here matches playback, over a real film frame to judge it against.
+        BoxWithConstraints(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            style = TextStyle(shadow = Shadow(Color.Black, Offset(2f, 2f), 4f))
-        )
+                // On a TV the settings pane is very wide: a full-width 16:9 picture would fill the screen and push the choices below it out of view.
+                .widthIn(max = 480.dp)
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(MangoDimens.CardCornerRadius))
+                .background(Color(0xFF05060A))
+        ) {
+            val density = LocalDensity.current
+            val textSize = with(density) { (constraints.maxHeight * size.fraction).toSp() }
+            // A frame from the open film Tears of Steel (CC-BY, Blender Foundation), as a
+            // real picture to judge subtitle size and colour against.
+            Image(
+                painter = painterResource(R.drawable.subtitle_preview_scene),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Text(
+                text = "I told you we'd make it\nbefore the sun goes down.",
+                color = Color(color.argb),
+                fontSize = textSize,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                style = TextStyle(shadow = Shadow(Color.Black, Offset(2f, 2f), 4f))
+            )
+        }
+        Column(
+            modifier = Modifier
+                .width(320.dp)
+                .padding(start = 16.dp, top = 12.dp, end = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            SubtitlePreview(size = size, color = color)
+            Text(
+                text = "Frame from Tears of Steel, (CC) Blender Foundation | mango.blender.org",
+                color = TextSecondary,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
     }
 }
 
