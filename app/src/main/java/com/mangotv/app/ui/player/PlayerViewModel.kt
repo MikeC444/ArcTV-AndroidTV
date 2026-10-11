@@ -13,6 +13,8 @@ import com.mangotv.app.data.model.Episode
 import com.mangotv.app.data.model.PlayerPreferences
 import com.mangotv.app.data.model.Stream
 import com.mangotv.app.data.network.ExternalPlayerEventDto
+import com.mangotv.app.data.network.PlaybackOutcomeDto
+import com.mangotv.app.data.player.StreamHandoff
 import com.mangotv.app.data.provider.ProviderRegistry
 import com.mangotv.app.ui.sources.pickByAudio
 import com.mangotv.app.ui.sources.recommendedStreamId
@@ -103,6 +105,7 @@ class PlayerViewModel(
             val owningProvider = providers.find { it.id == providerId }
             val content = owningProvider?.let { runCatching { it.getDetails(contentType, contentId) }.getOrNull() }
             if (content == null) {
+                reportNeverStarted("details did not load")
                 _uiState.value = PlayerScreenUiState.Error("Couldn't load details for this title.")
                 return@launch
             }
@@ -110,17 +113,22 @@ class PlayerViewModel(
             // Same "query every active provider and merge" rule as the
             // Sources screen — run in parallel since the player route pays
             // this cost a second time on top of the one Sources already paid.
-            val streams = coroutineScope {
+            // The source the person just picked comes straight from the source list: nothing to look up again, so an addon whose ids change
+            // between two requests (AIOStreams) can't make it vanish. Only a resume from Detail, which has just the remembered id, asks again.
+            val handedOver = StreamHandoff.get(streamId)
+            val streams = if (handedOver != null) emptyList() else coroutineScope {
                 providers.map { provider ->
                     async { runCatching { provider.getStreams(contentType, contentId, season, episodeNumber) }.getOrDefault(emptyList()) }
                 }.awaitAll()
             }.flatten() + customTorrentRepository.streamsFor(providerId, contentId, contentType, season, episodeNumber)
 
             // The source's id can change between two fetches of the same addon: carry on with the same release when it is still offered.
-            val stream = streams.find { it.id == streamId }
+            val stream = handedOver
+                ?: streams.find { it.id == streamId }
                 ?: lastSourceRepository.findLastSource(providerId, contentId, contentType, season, episodeNumber)
                     ?.let { matchLastSource(streams, it) }
             if (stream == null) {
+                reportNeverStarted("source no longer available")
                 _uiState.value = PlayerScreenUiState.Error("This source is no longer available.")
                 return@launch
             }
@@ -180,6 +188,7 @@ class PlayerViewModel(
             if (stream != null) {
                 setReady(PlayerScreenUiState.Ready(content, episode, stream))
             } else {
+                reportNeverStarted("no sources for the next episode")
                 _uiState.value = PlayerScreenUiState.Error("No sources were found for the next episode.")
             }
         }
@@ -221,6 +230,20 @@ class PlayerViewModel(
         sourcesTried = sourcesTried,
         report = playbackOutcomeRepository::record
     )
+
+    /** A viewing that ended before any player opened (the source could not be found, details failed to load): reported like any other. */
+    private fun reportNeverStarted(kind: String) {
+        playbackOutcomeRepository.record(
+            PlaybackOutcomeDto(
+                engine = "none",
+                deviceModel = Build.MODEL?.take(80),
+                watchedMs = 0,
+                outcome = "never_started",
+                errorKind = kind,
+                sourcesTried = SourceAttempts.next(titleKey)
+            )
+        )
+    }
 
     fun onPlaybackPhaseChanged(phase: PlaybackPhase) {
         _playbackPhase.value = phase

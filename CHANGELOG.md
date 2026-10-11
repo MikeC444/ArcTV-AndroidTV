@@ -5165,3 +5165,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** a viewing is only reported when the player screen closes, so if the app is killed mid-playback (the Home button followed by Android reclaiming it) that viewing is not reported. Time played counts playing time and ignores buffering pauses inside VLC.
 
 **Issues fixed:** none.
+
+## Post-Milestone-124 -- Picking a source plays that exact source (fixes "This source is no longer available" with AIOStreams)
+
+**Status:** Done on branch `claude/source-handoff`, not merged, released or deployed.
+
+**Context:** A user on AIOStreams (ElfHosted) got "Something went wrong: This source is no longer available." for every source, and nothing showed in their Continue Watching because nothing ever played. The player screen did not use the source the person had picked: it asked every addon for its sources again and looked the pick up by its id (an id made from the source's address, or its name when it has none). An addon that gives out new ids or addresses on every request, as AIOStreams does, was never found the second time, and the fallback ("the last source for this title") only exists after something has played.
+
+**Changes:**
+- `StreamHandoff` (`data/player/StreamHandoff.kt`) carries the picked source from the source list (a click, or Smart source picking) to the player in memory. `PlayerViewModel.load` uses it when it is the pick with that id and then does not ask the addons again, which also starts playing sooner. A resume from the details page, which only has the remembered id, still looks it up as before.
+- The three ways a viewing can end before any player opens (details did not load, the source could not be found, no sources for the next episode) are now reported to the playback health card as "never started" with the engine "none" (server: `migrations/0029_playback_outcomes_engine_none.sql`, the schema accepts "none").
+
+**Tests performed:** Server suite for the player-events endpoint passes against a local Postgres (9 tests, including a viewing with the engine "none"); `tsc` is clean. The app change could not be built here (no route to `dl.google.com`): the new `StreamHandoffTest` and the compile are left to the Build workflow, and the code was re-read with braces and parentheses checked. Not run on a device or against AIOStreams: the cause comes from reading the code and the screenshot, not from reproducing it.
+
+**Issues discovered:** the id of a source is a hash of its address, so any addon that changes addresses between requests breaks anything that finds a source again by id. Resume from the details page (and the next episode's own pick) still match by remembered id, then by release name, so they are better but not immune.
+
+**Issues fixed:** the failure above.

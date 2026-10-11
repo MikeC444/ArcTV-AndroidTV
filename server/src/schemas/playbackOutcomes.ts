@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // What the app reports when a viewing ends (see migrations/0028_playback_outcomes.sql). No title, no content id, no stream address.
 export const playbackOutcomeSchema = z.object({
-  engine: z.enum(["vlc", "builtin"]),
+  engine: z.enum(["vlc", "builtin", "none"]),
   deviceModel: z.string().trim().max(80).nullable().optional(),
   resolution: z.string().trim().max(40).nullable().optional(),
   codec: z.string().trim().max(80).nullable().optional(),

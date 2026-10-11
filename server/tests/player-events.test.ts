@@ -99,6 +99,13 @@ describe("POST /user/player-events/playback", () => {
     expect(p.byResolution.map((g: { label: string }) => g.label)).toEqual(["4K", "1080p"]);
   });
 
+  it("accepts a viewing that ended before any player opened", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    expect((await post(admin.token, outcome({ engine: "none", outcome: "never_started", startMs: null, watchedMs: 0, errorKind: "source no longer available" }))).status).toBe(204);
+    const row = (await pool.query("SELECT engine, outcome, error_kind FROM playback_outcomes")).rows[0];
+    expect(row).toMatchObject({ engine: "none", outcome: "never_started", error_kind: "source no longer available" });
+  });
+
   it("is invisible to people who aren't admins", async () => {
     const plain = await createTestSession();
     expect((await post(plain.token, outcome())).status).toBe(204); // anyone signed in may report

@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Sources from some addons no longer fail with "no longer available": what you pick is what plays.
+
 ## 0.4.0
 
 - A fresher Home: Popular, New and Top rated rows, then your best genres, with different titles each day and nothing you've already seen.

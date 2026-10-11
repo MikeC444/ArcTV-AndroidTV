@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.mangotv.app.data.player.StreamHandoff
 import com.mangotv.app.data.model.Stream
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.widthIn
@@ -98,6 +99,7 @@ fun SourcesScreen(
                     // user doesn't need to see.
                     LaunchedEffect(autoSelectStream.id) {
                         state.content.providerId?.let { pid ->
+                            StreamHandoff.put(autoSelectStream)
                             onNavigate(
                                 MangoRoutes.player(pid, state.content.type, state.content.id, state.season, state.episode, autoSelectStream.id)
                             )
@@ -119,6 +121,7 @@ fun SourcesScreen(
                         onClearAddTorrentError = viewModel::clearAddTorrentError,
                         onSelectSource = { stream ->
                             state.content.providerId?.let { pid ->
+                                StreamHandoff.put(stream)
                                 onNavigate(
                                     MangoRoutes.player(pid, state.content.type, state.content.id, state.season, state.episode, stream.id)
                                 )
