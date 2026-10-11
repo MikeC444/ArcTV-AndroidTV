@@ -39,7 +39,7 @@ Same account, same list, same addons on every device:
 | 📺 **Fire TV / Firestick / Android TV / Google TV** | this repository, also home of the account backend (`server/`) |
 | 📱 **Android phones and tablets** | [ArcTV-MobileAPK](https://github.com/MikeC444/ArcTV-MobileAPK) |
 | 🌐 **Web** | [web.arctv.org](https://web.arctv.org) ([ArcTV-Web](https://github.com/MikeC444/ArcTV-Web)) |
-| 💻 **Mac** | [ArcTV-Mac](https://github.com/MikeC444/ArcTV-Mac) |
+| 💻 **Mac** | [ArcTV-Mac](https://github.com/MikeC444/ArcTV-Mac) ([download](https://github.com/MikeC444/ArcTV-Mac/releases/latest)) |
 
 ## 📺 Installing on your TV
 
