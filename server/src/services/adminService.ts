@@ -147,7 +147,7 @@ export async function watchingNow(): Promise<{ windowSeconds: number; watching: 
        WHERE c.user_id = d.user_id AND c.deleted_at IS NULL AND abs(extract(epoch FROM c.last_watched_at - d.last_progress_at)) < $2
        ORDER BY abs(extract(epoch FROM c.last_watched_at - d.last_progress_at)) LIMIT 1
      ) cw ON true
-     LEFT JOIN profiles pr ON pr.id = cw.profile_id
+     LEFT JOIN profiles pr ON pr.user_id = d.user_id AND pr.id = cw.profile_id
      WHERE d.revoked_at IS NULL AND u.deleted_at IS NULL AND d.last_progress_at > now() - make_interval(secs => $1)
      ORDER BY d.last_progress_at DESC LIMIT 200`,
     [WATCHING_WINDOW_SECONDS, MATCH_SECONDS]

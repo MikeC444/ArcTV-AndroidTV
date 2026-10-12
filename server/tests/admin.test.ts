@@ -328,6 +328,18 @@ describe("GET /admin/watching", () => {
     expect(res.body.watching).toHaveLength(1);
     expect(res.body.watching[0]).toMatchObject({ userId: playing.userId, platform: "fire_tv", title: "The Film", contentType: "MOVIE", positionMs: 5000, durationMs: 100000 });
   });
+  it("lists a device once, even though every account has a profile called 'main'", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    const playing = await createTestSession();
+    const others = [await createTestSession(), await createTestSession(), await createTestSession()];
+    for (const [i, s] of [playing, ...others].entries()) {
+      await pool.query("INSERT INTO profiles (user_id, id, name, avatar, is_default) VALUES ($1, 'main', $2, 'a', true) ON CONFLICT (user_id, id) DO NOTHING", [s.userId, `Person ${i}`]);
+    }
+    expect((await request(app).post("/user/watch-progress").set(auth(playing)).send(progress())).status).toBe(200);
+    const res = await request(app).get("/admin/watching").set(auth(admin));
+    expect(res.body.watching).toHaveLength(1);
+    expect(res.body.watching[0].userId).toBe(playing.userId);
+  });
   it("is for admins only", async () => {
     const plain = await createTestSession();
     expect((await request(app).get("/admin/watching").set(auth(plain))).status).toBe(404);

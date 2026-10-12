@@ -5396,8 +5396,8 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 - `adminService.watchingNow()` and `GET /admin/watching` (admins only, 404 for everyone else): one row per signed-in device that saved playback progress in the last 45 seconds (the same rule as the "watching" count), newest first, up to 200, with the account, platform, device name, app version, and what it is playing. The title, season and episode, position and profile come from the account's Continue Watching row saved closest to the device's last progress, only when within 3 minutes of it; otherwise they are null rather than a guess (finishing a title removes it from Continue Watching).
 - `docs/ADMIN.md` describes the endpoint.
 
-**Tests performed:** `tests/admin.test.ts` gains a test (someone playing is listed with title, platform and position; someone who stopped 50 seconds ago is not) and an admins-only test. Run against a local Postgres 16 with all migrations: the admin tests pass (26) and `tsc --noEmit` is clean. No Gradle/Android build was involved.
+**Tests performed:** `tests/admin.test.ts` gains tests (someone playing is listed with title, platform and position; someone who stopped 50 seconds ago is not; a device is listed once even though every account has a profile called `main`; admins only). Run against a local Postgres 16 with all migrations: the admin tests pass (27) and `tsc --noEmit` is clean. The "listed once" test fails (4 rows instead of 1) with the join below put back to its first form. No Gradle/Android build was involved.
 
-**Issues discovered:** none.
+**Issues discovered:** the first version of the query joined `profiles` on the profile id alone. Profile ids are only unique per account (every account's own profile is `main`), so each device was repeated once for every account's `main` profile: on the real data one person showed up as 200 devices (the query's limit) with other people's profile names. Reported from the dashboard.
 
-**Issues fixed:** none.
+**Issues fixed:** the join now also matches the account (`pr.user_id = d.user_id`), and the dashboard shows one card per device even if the backend ever repeats one.
