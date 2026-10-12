@@ -5351,3 +5351,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues fixed:** none.
 
+## Post-Milestone-135 -- The app closed on Android 6 and 7 as soon as Home loaded (java.time)
+
+**Status:** Fixed on main; not released. Compiled and checked by the Build workflow, not by hand.
+
+**Context:** Two people reported the 0.5.0 app failing to install on a Mi Box 2, and closing at once after opening (still after clearing its data). The new launch check (Post-Milestone-134) reproduced a crash on an Android 6 (API 23) emulator, in **both 0.5.0 and 0.4.1**: `NoClassDefFoundError: Failed resolution of: Ljava/time/LocalDate;` in `HomeVariety.seedFor`, called as Home loads. The same check on Android 8, 9, 10 and 14 emulators ran both versions without a crash.
+
+**Changes:**
+- `java.time` only exists from Android 8 (API 26), but the app supports Android 6 and up (minSdk 23). Home's daily variety (`HomeVariety`, from 0.4.0), the Cinemeta-style "New" row (`StremioAddonProvider`) and the stats screen (`WatchStats`, `WatchStatsRepository`) all use it, so Android 6 and 7 closed on the first Home load. Core library desugaring is now on (`isCoreLibraryDesugaringEnabled`, `coreLibraryDesugaring(desugar_jdk_libs 2.0.4)`), which brings `java.time` to those versions for all of it, including anything added later.
+- Comments in `Iso8601` and `DetailHeroSection` that said desugaring was not set up are updated.
+- The launch check workflow can also test a debug build (`build_run_id`), so a fix can be tried on the emulators before it is released.
+
+**Tests performed:** None run here (no route to `dl.google.com`); the unit tests and compile are left to the Build workflow, then the launch check on the Android 6 emulator against the fixed debug build.
+
+**Issues discovered:** the 0.4.0 and 0.4.1 releases have the same crash, so Android 6 and 7 devices have been unable to open the app since 0.4.0 (reports of "0.4 and 0.5" fit). The phone app shares the code and has the same problem. The Mi Box 2 "installation fails" report may be a separate problem and is not explained by this; it is still waiting on the reporter's details.
+
+**Issues fixed:** the Android 6 and 7 start-up crash (pending the verification above).
+

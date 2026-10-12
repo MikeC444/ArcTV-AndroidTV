@@ -22,6 +22,8 @@ tink = "1.19.0"
 # libtorrent4j: MIT-licensed Java bindings of libtorrent (BSD-licensed), the BitTorrent engine behind torrent playback. The per-chip artifacts hold the native
 # library; the three below match the ABIs this app ships (see abiFilters in app/build.gradle.kts).
 libtorrent4j = "2.1.0-39"
+# Lets java.time (and other newer Java classes) work on Android 6 and 7 (API 23-25), which this app still supports.
+desugarJdkLibs = "2.0.4"
 junit = "4.13.2"
 robolectric = "4.14.1"
 
@@ -65,6 +67,7 @@ tink-android = { group = "com.google.crypto.tink", name = "tink-android", versio
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugarJdkLibs" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 

@@ -7,9 +7,13 @@ on:
   workflow_dispatch:
     inputs:
       tags:
-        description: "Release tags to test, space separated (the first is the one under suspicion)"
+        description: "Release tags to test, space separated (the first is the one under suspicion); leave empty to test only the build below"
         default: "v0.5.0 v0.4.1"
-        required: true
+        required: false
+      build_run_id:
+        description: "Optional: the id of a 'Build debug APK' run (the number in its address) whose debug APK is tested too"
+        default: ""
+        required: false
       wait_seconds:
         description: "How long to leave the app open before checking it is still running"
         default: "25"
@@ -17,6 +21,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   launch:
@@ -43,6 +48,10 @@ jobs:
           for tag in ${{ inputs.tags }}; do
             gh release download "$tag" --repo "${{ github.repository }}" --pattern 'app-release.apk' --output "apks/$tag.apk"
           done
+          if [ -n "${{ inputs.build_run_id }}" ]; then
+            gh run download "${{ inputs.build_run_id }}" --repo "${{ github.repository }}" --name mango-tv-debug-apk --dir build-apk
+            mv build-apk/app-debug.apk "apks/build-${{ inputs.build_run_id }}.apk"
+          fi
           ls -l apks
 
       - name: Let the emulator use hardware acceleration

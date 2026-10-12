@@ -10,8 +10,8 @@ import java.util.TimeZone
  * (`Date.toISOString()`'s fixed `yyyy-MM-dd'T'HH:mm:ss.SSS'Z'` format —
  * see server/src/routes/auth.ts's serializeTokens, and z.iso.datetime() on
  * the validation side). Not a general-purpose date library: minSdk 23
- * predates java.time (needs API 26+ or desugaring, neither set up in this
- * project), and the format here is fixed and fully controlled by our own
+ * predates java.time (API 26+; the build now desugars it for older Android, but this
+ * parser predates that), and the format here is fixed and fully controlled by our own
  * backend, so a minimal, dependency-free parser/formatter is enough — a
  * full date/time library would be solving a more general problem than
  * this app actually has.

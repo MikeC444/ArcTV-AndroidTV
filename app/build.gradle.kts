@@ -107,6 +107,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // java.time is used by Home, the stats screen and the addon rows, and only exists from Android 8 (API 26); this brings it to Android 6 and 7,
+        // where the app used to close the moment Home loaded.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -160,6 +163,7 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.androidx.core.ktx)
     // Installs the baseline profile (app/src/main/baseline-prof.txt) on first launch so the app's own code, not just
     // the libraries', starts precompiled instead of interpreted.

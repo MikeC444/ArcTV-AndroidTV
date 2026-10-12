@@ -476,9 +476,8 @@ fun DetailHeroSection(
     }
 }
 
-// java.time needs API 26+ (this app's minSdk is 23, with no core library
-// desugaring configured), so this uses the always-available SimpleDateFormat
-// instead. Returns null (falling back to the bare year) on any malformed
+// java.time needs API 26+ (the build desugars it for Android 6 and 7), so this keeps the always-available
+// SimpleDateFormat it was written with. Returns null (falling back to the bare year) on any malformed
 // input rather than crashing the detail page over a display nicety.
 private fun formatReleaseDate(isoDate: String): String? = runCatching {
     val parsed = requireNotNull(SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(isoDate))
