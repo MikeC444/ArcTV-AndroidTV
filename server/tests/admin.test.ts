@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { pool } from "../src/db/pool.js";
 import { cleanAppVersion } from "../src/middleware/auth.js";
-import { buildGrowth, describeAddonUrl, GROWTH_DAYS } from "../src/services/adminService.js";
+import { buildGrowth, describeAddonUrl, describeManifest, GROWTH_DAYS } from "../src/services/adminService.js";
 import { createTestSession, type TestSession } from "./helpers/auth.js";
 import { resetDatabase } from "./helpers/db.js";
 
@@ -95,7 +95,7 @@ describe("the developer panel is for admins only", () => {
     await pool.query(
       `INSERT INTO user_addons (user_id, manifest_url, addon_id, name, manifest_json) VALUES
         ($1, 'https://torrentio.strem.fun/realdebrid=SECRET-KEY-123/manifest.json', 'torrentio', 'Torrentio', '{}'),
-        ($1, 'https://v3-cinemeta.strem.io/manifest.json', 'cinemeta', 'Cinemeta', '{}')`,
+        ($1, 'https://v3-cinemeta.strem.io/manifest.json', 'cinemeta', 'Cinemeta', '{"resources":["catalog","meta"],"catalogs":[{"type":"movie","id":"top","name":"Popular"}]}')`,
       [sam.userId]
     );
     await pool.query(
@@ -113,7 +113,9 @@ describe("the developer panel is for admins only", () => {
     expect(text).not.toContain("SECRET-KEY-123");
     expect(text).not.toContain("password");
     expect(text).not.toContain("hash");
-    expect(res.body.addons.find((a: { name: string }) => a.name === "Cinemeta")).toMatchObject({ debrid: null, configured: false });
+    expect(res.body.addons.find((a: { name: string }) => a.name === "Cinemeta")).toMatchObject({ debrid: null, configured: false, capabilities: { offers: ["catalog", "meta"], catalogs: { shown: 1, rows: 1 } } });
+    expect(torrentio.capabilities).toMatchObject({ offers: [], catalogs: { shown: 0 } });
+    expect(res.body.addons.every((a: Record<string, unknown>) => !("manifest_json" in a) && !("manifest_url" in a))).toBe(true);
   });
 
   it("answers 404 for an unknown or malformed user id", async () => {
@@ -269,5 +271,41 @@ describe("web users by system", () => {
     expect(android.body.users.map((u: { email: string }) => u.email)).toEqual(["a@example.com"]);
     expect((await request(app).get("/admin/users?webSystem=macOS").set(auth(admin))).body.total).toBe(0);
     expect((await request(app).get("/admin/users?webSystem=%27%3B--").set(auth(admin))).status).toBe(400);
+  });
+});
+
+describe("describeManifest", () => {
+  it("lists what a catalogue-and-stream addon offers and how many Home rows it makes", () => {
+    const caps = describeManifest({
+      resources: ["catalog", "meta", { name: "stream", types: ["movie"], idPrefixes: ["tt"] }],
+      catalogs: [
+        { type: "movie", id: "top", name: "Popular", extra: [{ name: "genre", options: ["Action", "Comedy"] }, { name: "skip" }] },
+        { type: "series", id: "top", name: "Popular", extra: [{ name: "genre", options: ["Action", "Drama"] }] },
+      ],
+    });
+    expect(caps.offers).toEqual(["catalog", "meta", "stream"]);
+    expect(caps.catalogs).toEqual({ shown: 2, ignored: 0, ignoredTypes: [], rows: 4 });
+    expect(caps.otherIdPrefixes).toEqual([]);
+  });
+
+  it("counts catalogues of types the apps ignore, and names non-IMDb id prefixes", () => {
+    const caps = describeManifest({
+      idPrefixes: ["kitsu:"],
+      resources: ["catalog", { name: "stream", idPrefixes: ["kitsu:", "tt"] }],
+      catalogs: [
+        { type: "anime", id: "a", name: "Anime" },
+        { type: "anime", id: "b", name: "More anime" },
+        { type: "series", id: "c", name: "Series", extra: [{ name: "genre", isRequired: true, options: ["Isekai"] }] },
+      ],
+    });
+    expect(caps.catalogs).toEqual({ shown: 1, ignored: 2, ignoredTypes: ["anime"], rows: 1 });
+    expect(caps.otherIdPrefixes).toEqual(["kitsu:"]);
+  });
+
+  it("recognises a subtitles-only addon and survives a missing or odd manifest", () => {
+    expect(describeManifest({ resources: [{ name: "subtitles", types: ["movie", "series"] }] })).toMatchObject({ offers: ["subtitles"], catalogs: { shown: 0, rows: 0 } });
+    for (const odd of [{}, null, "x", 7, { resources: "stream", catalogs: {} }]) {
+      expect(describeManifest(odd)).toEqual({ offers: [], catalogs: { shown: 0, ignored: 0, ignoredTypes: [], rows: 0 }, otherIdPrefixes: [] });
+    }
   });
 });

@@ -5318,3 +5318,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues fixed:** none.
 
+## Post-Milestone-133 -- Developer panel: what each of a user's addons offers
+
+**Status:** Done, on main. Not run against a database or in a browser here (see below).
+
+**Context:** The developer panel listed a user's addons by name and host only, so it could not answer how a given addon would look in the apps: whether it adds Home rows, only gives sources or subtitles, or is a catalogue of a type the apps do not show (anime catalogues, for example).
+
+**Changes:**
+- `describeManifest` (`adminService`): reads the addon's stored manifest (`user_addons.manifest_json`, as the app sent it; nothing is fetched) and reports what it offers (catalogues, details, sources, subtitles), how many catalogues the apps use (movie and series only) and ignore (and their types), about how many Home rows the used ones make (one merged row plus one per listed genre, up to the apps' ceiling of 30), and any non-IMDb id prefixes (`kitsu:`, `mal:`), whose titles may not open or play. It is safe on a missing or odd manifest.
+- `GET /admin/users/:id` returns that as `capabilities` on each addon. The manifest itself and the addon address are still never returned.
+- Web (`ArcTV-Web`): under each addon in a user's detail, one line (for example "Home rows (about 4) · Sources") and an amber warning for ignored catalogue types or non-IMDb ids. Admin only; nothing user-visible changes.
+
+**Tests performed:** `tsc --noEmit` on the server is clean and `describeManifest` was checked directly against the new cases (catalogue-and-stream addon, ignored anime catalogues with `kitsu:` ids, subtitles-only, and odd or missing manifests). The new `admin.test.ts` cases (including the user-detail check that no manifest or address is returned) were written but not run: there is no database in this sandbox, so Server CI is the check. The web type check, lint and all unit tests pass. Not seen in a browser.
+
+**Issues discovered:** the row count is an estimate from the manifest, not what the app finally shows: Cinemeta-style addons use a different layout (Popular, New, Top rated and only wide-appeal genres), so their real row count is lower than the estimate.
+
+**Issues fixed:** none.
+

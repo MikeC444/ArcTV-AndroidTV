@@ -25,6 +25,58 @@ export function describeAddonUrl(url: string): { host: string; configured: boole
   return { host, configured: segments.length > 1 || rest.includes("?"), debrid: match ? match[1]!.toLowerCase().replace("real-debrid", "realdebrid").replace("debrid-link", "debridlink") : null };
 }
 
+/** The catalogue types the apps turn into Home rows; any other type (anime, tv, channel, other...) is ignored by every app. */
+const APP_CATALOG_TYPES = new Set(["movie", "series"]);
+/** The most genre rows one addon adds to Home (the Fire TV app's own ceiling). */
+const MAX_GENRE_ROWS = 30;
+
+export interface AddonCapabilities {
+  /** What the addon says it provides, in a fixed order: catalog (Home rows), meta (title details), stream (the source list), subtitles. */
+  offers: string[];
+  catalogs: {
+    /** Catalogues the apps use (movie and series). */
+    shown: number;
+    /** Catalogues the apps ignore, and their types. */
+    ignored: number;
+    ignoredTypes: string[];
+    /** About how many Home rows the shown catalogues make: one merged row plus one per genre it lists, up to 30. */
+    rows: number;
+  };
+  /** Title id prefixes the addon accepts that are not IMDb's ("kitsu:", "mal:"...): titles with those ids may not open or play in the apps. Empty when it takes IMDb ids or any id. */
+  otherIdPrefixes: string[];
+}
+
+const asArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+const asRecord = (value: unknown): Record<string, unknown> => (value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {});
+const strings = (value: unknown): string[] => asArray(value).filter((x): x is string => typeof x === "string");
+
+/** What an addon's own manifest (stored as the app sent it) says it offers, in the terms of what the apps do with it. Safe on anything: a missing or odd manifest just says it offers nothing. */
+export function describeManifest(manifest: unknown): AddonCapabilities {
+  const m = asRecord(manifest);
+  const offered = new Set<string>();
+  const prefixes = new Set<string>(strings(m.idPrefixes));
+  for (const resource of asArray(m.resources)) {
+    if (typeof resource === "string") offered.add(resource);
+    else {
+      const r = asRecord(resource);
+      if (typeof r.name === "string") offered.add(r.name);
+      for (const prefix of strings(r.idPrefixes)) prefixes.add(prefix);
+    }
+  }
+  const catalogs = asArray(m.catalogs).map(asRecord);
+  if (catalogs.length > 0) offered.add("catalog");
+  const used = catalogs.filter((c) => typeof c.type === "string" && APP_CATALOG_TYPES.has(c.type));
+  const ignoredTypes = [...new Set(catalogs.filter((c) => !used.includes(c)).map((c) => (typeof c.type === "string" ? c.type : "unknown")))].sort();
+  const genreExtra = (c: Record<string, unknown>) => asArray(c.extra).map(asRecord).find((e) => e.name === "genre");
+  const genres = new Set(used.flatMap((c) => strings(genreExtra(c)?.options)));
+  const hasBase = used.some((c) => genreExtra(c)?.isRequired !== true);
+  return {
+    offers: ["catalog", "meta", "stream", "subtitles"].filter((name) => offered.has(name)),
+    catalogs: { shown: used.length, ignored: catalogs.length - used.length, ignoredTypes, rows: used.length === 0 ? 0 : (hasBase ? 1 : 0) + Math.min(MAX_GENRE_ROWS, genres.size) },
+    otherIdPrefixes: [...prefixes].filter((prefix) => !prefix.startsWith("tt")).sort(),
+  };
+}
+
 const ACTIVE_PLAN = `CASE WHEN p.status = 'active' AND (p.plan = 'lifetime' OR p.valid_until > now()) THEN p.plan ELSE NULL END`;
 
 /** Someone counts as online when their session made any request within this long (the apps only call the server when they sync, browse or play). */
@@ -238,8 +290,8 @@ export async function userDetail(userId: string) {
       `SELECT device_name AS name, platform, app_version AS "appVersion", last_seen_at AS "lastSeenAt", created_at AS "createdAt", revoked_at AS "revokedAt" FROM devices WHERE user_id = $1 ORDER BY revoked_at IS NOT NULL, last_seen_at DESC`,
       [userId]
     ),
-    pool.query<{ manifest_url: string }>(
-      `SELECT profile_id AS "profileId", name, addon_id AS "addonId", manifest_url, enabled, installed_at AS "installedAt", updated_at AS "updatedAt" FROM user_addons WHERE user_id = $1 AND deleted_at IS NULL ORDER BY profile_id, sort_order`,
+    pool.query<{ manifest_url: string; manifest_json: unknown }>(
+      `SELECT profile_id AS "profileId", name, addon_id AS "addonId", manifest_url, manifest_json, enabled, installed_at AS "installedAt", updated_at AS "updatedAt" FROM user_addons WHERE user_id = $1 AND deleted_at IS NULL ORDER BY profile_id, sort_order`,
       [userId]
     ),
     pool.query(
@@ -258,7 +310,7 @@ export async function userDetail(userId: string) {
     user: user.rows[0],
     profiles: profiles.rows,
     devices: devices.rows,
-    addons: addons.rows.map(({ manifest_url, ...rest }) => ({ ...rest, ...describeAddonUrl(manifest_url) })),
+    addons: addons.rows.map(({ manifest_url, manifest_json, ...rest }) => ({ ...rest, ...describeAddonUrl(manifest_url), capabilities: describeManifest(manifest_json) })),
     continueWatching: continueWatching.rows,
     history: history.rows,
     myListCount: watchlist.rows[0]!.n,
