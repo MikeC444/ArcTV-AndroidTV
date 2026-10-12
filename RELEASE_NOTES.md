@@ -14,7 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
-- Fixed Arc TV closing right after opening on older Android 6 and 7 devices.
+- Fixed an app crash on startup for some older devices.
 ## 0.5.0
 
 - Subtitles from your addons are here! Pick them in the player, with OpenSubtitles ready to go.
