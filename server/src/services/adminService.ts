@@ -111,6 +111,50 @@ export async function liveSummary() {
   };
 }
 
+export interface WatchingNow {
+  deviceId: string;
+  userId: string;
+  email: string;
+  displayName: string | null;
+  platform: string;
+  deviceName: string;
+  appVersion: string | null;
+  /** When the device last saved playback progress. */
+  lastProgressAt: string;
+  /** The title being watched, from the person's Continue Watching row saved closest to that moment; null when there is none close enough (for example a title finished a moment ago). */
+  title: string | null;
+  contentType: string | null;
+  seasonNumber: number | null;
+  episodeNumber: number | null;
+  episodeTitle: string | null;
+  profileName: string | null;
+  positionMs: number | null;
+  durationMs: number | null;
+}
+
+/** A device's Continue Watching row counts as "what it is playing" when it was saved within this many seconds of the device's last progress. */
+const MATCH_SECONDS = 180;
+
+/** Who is watching right now (a device saved progress within [WATCHING_WINDOW_SECONDS]), newest first, one row per device, with what it is playing. */
+export async function watchingNow(): Promise<{ windowSeconds: number; watching: WatchingNow[] }> {
+  const { rows } = await pool.query<WatchingNow>(
+    `SELECT d.id AS "deviceId", u.id AS "userId", u.email, u.display_name AS "displayName", d.platform, d.device_name AS "deviceName", d.app_version AS "appVersion",
+            d.last_progress_at AS "lastProgressAt", cw.title, cw.content_type AS "contentType", cw.season_number AS "seasonNumber", cw.episode_number AS "episodeNumber",
+            cw.episode_title AS "episodeTitle", pr.name AS "profileName", cw.position_ms::float8 AS "positionMs", cw.duration_ms::float8 AS "durationMs"
+     FROM devices d JOIN users u ON u.id = d.user_id
+     LEFT JOIN LATERAL (
+       SELECT c.* FROM continue_watching c
+       WHERE c.user_id = d.user_id AND c.deleted_at IS NULL AND abs(extract(epoch FROM c.last_watched_at - d.last_progress_at)) < $2
+       ORDER BY abs(extract(epoch FROM c.last_watched_at - d.last_progress_at)) LIMIT 1
+     ) cw ON true
+     LEFT JOIN profiles pr ON pr.id = cw.profile_id
+     WHERE d.revoked_at IS NULL AND u.deleted_at IS NULL AND d.last_progress_at > now() - make_interval(secs => $1)
+     ORDER BY d.last_progress_at DESC LIMIT 200`,
+    [WATCHING_WINDOW_SECONDS, MATCH_SECONDS]
+  );
+  return { windowSeconds: WATCHING_WINDOW_SECONDS, watching: rows };
+}
+
 /** How many days of growth the panel's chart gets (its range buttons pick 7, 30 or 90 of them, or all of these). */
 export const GROWTH_DAYS = 180;
 

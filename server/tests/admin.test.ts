@@ -310,6 +310,30 @@ describe("describeManifest", () => {
   });
 });
 
+describe("GET /admin/watching", () => {
+  const progress = (over: Record<string, unknown> = {}) => ({ providerId: "p", contentId: "tt1", contentType: "MOVIE", title: "The Film", positionMs: 5000, durationMs: 100000, completed: false, watchedAt: new Date().toISOString(), ...over });
+
+  it("lists who is watching right now with what they are playing, and not who stopped or finished", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    const playing = await createTestSession();
+    const stopped = await createTestSession();
+    await pool.query("UPDATE devices d SET platform = 'fire_tv' FROM sessions x WHERE x.device_id = d.id AND x.id = $1", [playing.sessionId]);
+    expect((await request(app).post("/user/watch-progress").set(auth(playing)).send(progress())).status).toBe(200);
+    await request(app).post("/user/watch-progress").set(auth(stopped)).send(progress());
+    await waitFor(async () => (await pool.query("SELECT 1 FROM devices WHERE last_progress_at IS NOT NULL")).rowCount, (n) => n === 2);
+    await pool.query("UPDATE devices d SET last_progress_at = now() - interval '50 seconds' FROM sessions x WHERE x.device_id = d.id AND x.id = $1", [stopped.sessionId]);
+    const res = await request(app).get("/admin/watching").set(auth(admin));
+    expect(res.status).toBe(200);
+    expect(res.body.windowSeconds).toBe(45);
+    expect(res.body.watching).toHaveLength(1);
+    expect(res.body.watching[0]).toMatchObject({ userId: playing.userId, platform: "fire_tv", title: "The Film", contentType: "MOVIE", positionMs: 5000, durationMs: 100000 });
+  });
+  it("is for admins only", async () => {
+    const plain = await createTestSession();
+    expect((await request(app).get("/admin/watching").set(auth(plain))).status).toBe(404);
+  });
+});
+
 describe("addonsFromRows", () => {
   const cinemeta = { resources: ["catalog", "meta"], catalogs: [{ type: "movie", id: "top" }] };
   const anime = { resources: ["catalog", "stream"], idPrefixes: ["kitsu:"], catalogs: [{ type: "anime", id: "top" }] };

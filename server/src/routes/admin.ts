@@ -25,6 +25,14 @@ adminRouter.get("/summary", async (_req, res, next) => {
   }
 });
 
+adminRouter.get("/watching", async (_req, res, next) => {
+  try {
+    res.json(await adminService.watchingNow());
+  } catch (error) {
+    next(error);
+  }
+});
+
 const listQuery = z.object({
   q: z.string().trim().max(100).optional(),
   plan: z.enum(["free", "monthly", "yearly", "lifetime"]).optional(),

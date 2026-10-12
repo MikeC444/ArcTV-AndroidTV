@@ -5385,3 +5385,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-137 -- Developer dashboard: who is watching right now
+
+**Status:** Done on main (backend); the web dashboard tab that reads it is in `ArcTV-Web`. Admin-only, so nothing for RELEASE_NOTES.md. Not live until the backend is redeployed.
+
+**Context:** The dashboard's live strip only counted people watching. A new Watching tab lists them.
+
+**Changes:**
+- `adminService.watchingNow()` and `GET /admin/watching` (admins only, 404 for everyone else): one row per signed-in device that saved playback progress in the last 45 seconds (the same rule as the "watching" count), newest first, up to 200, with the account, platform, device name, app version, and what it is playing. The title, season and episode, position and profile come from the account's Continue Watching row saved closest to the device's last progress, only when within 3 minutes of it; otherwise they are null rather than a guess (finishing a title removes it from Continue Watching).
+- `docs/ADMIN.md` describes the endpoint.
+
+**Tests performed:** `tests/admin.test.ts` gains a test (someone playing is listed with title, platform and position; someone who stopped 50 seconds ago is not) and an admins-only test. Run against a local Postgres 16 with all migrations: the admin tests pass (26) and `tsc --noEmit` is clean. No Gradle/Android build was involved.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
