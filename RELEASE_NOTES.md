@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+## 0.5.1
+
 - Fixed an app crash on startup.
 ## 0.5.0
 
