@@ -5299,3 +5299,22 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** a show with a very long episode description or many rows of text can still push the cast down; the three rows are sized for the usual 540 dp-high TV screen.
 
 **Issues fixed:** the episodes and cast being cut off when scrolling down the show page.
+
+## Post-Milestone-132 -- Developer panel: web Download use
+
+**Status:** Done, on main. Backend and web client written together; not run against a database or in a browser here (see below).
+
+**Context:** There was no way to see how many people press Download on the web app, how many are stopped by the Plus popup, and how many go on to pick a file.
+
+**Changes:**
+- Migration `0031_download_events.sql`: `download_events` (user, kind `popup` / `opened` / `file`, movie or show, whether it was an episode, and for a pressed file its quality label and whether the debrid service had it cached). No title, content id, release name or file address is stored.
+- `POST /user/player-events/download` (sign-in required, 204, same fire-and-forget shape as the other player events) and `downloadEventService` (`recordDownloadEvent`, `downloadsSummary`, with the same occasional clean-up of rows older than 90 days).
+- `GET /admin/summary` gains `downloads`: for the last 7 days, people who tried / saw the popup / opened the panel / pressed a file, press counts, episode and uncached shares, and the top qualities.
+- Web client (`ArcTV-Web`): the Detail page reports the three events; the developer panel shows a "Downloads" card under Playback health. A pressed file is the last thing the web app can know (the browser does the download), so it is counted as started. The phone and Mac apps do not report yet.
+
+**Tests performed:** `tsc --noEmit` on the server is clean; the web client's type check, lint and unit tests pass (`DownloadStats`, `DownloadPanel`). The new route tests in `player-events.test.ts` were written but not run: there is no database in this sandbox, so the Server CI run (migrate, `verify-schema`, tests) is the check. Not seen in a browser.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
+

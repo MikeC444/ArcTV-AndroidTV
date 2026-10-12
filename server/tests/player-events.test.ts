@@ -112,3 +112,32 @@ describe("POST /user/player-events/playback", () => {
     expect((await request(app).get("/admin/summary").set("Authorization", `Bearer ${plain.token}`)).status).toBe(404);
   });
 });
+
+describe("POST /user/player-events/download", () => {
+  const send = (token: string, body: Record<string, unknown>) => request(app).post("/user/player-events/download").set("Authorization", `Bearer ${token}`).send(body);
+
+  it("requires sign-in", async () => {
+    expect((await request(app).post("/user/player-events/download").send({ kind: "opened", contentType: "MOVIE" })).status).toBe(401);
+  });
+
+  it("counts people who tried and people who pressed a file, and shows the split to admins", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    const other = await createTestSession();
+    expect((await send(admin.token, { kind: "opened", contentType: "MOVIE" })).status).toBe(204);
+    expect((await send(admin.token, { kind: "file", contentType: "TV_SHOW", episode: true, resolution: "1080p", cached: true })).status).toBe(204);
+    expect((await send(admin.token, { kind: "file", contentType: "MOVIE", resolution: "4K", cached: false })).status).toBe(204);
+    expect((await send(other.token, { kind: "popup", contentType: "MOVIE" })).status).toBe(204);
+    const summary = await request(app).get("/admin/summary").set("Authorization", `Bearer ${admin.token}`);
+    expect(summary.body.downloads).toMatchObject({ triedPeople: 2, openedPeople: 1, startedPeople: 1, popupPeople: 1, popups: 1, opens: 1, files: 2, episodeFiles: 1, uncachedFiles: 1 });
+    expect(summary.body.downloads.byQuality).toEqual(expect.arrayContaining([{ label: "1080p", files: 1 }, { label: "4K", files: 1 }]));
+  });
+
+  it("keeps the quality only on a pressed file and rejects an unknown kind", async () => {
+    const s = await createTestSession();
+    await send(s.token, { kind: "opened", contentType: "MOVIE", resolution: "4K", cached: true });
+    const rows = await pool.query("SELECT resolution, cached FROM download_events");
+    expect(rows.rows).toEqual([{ resolution: null, cached: null }]);
+    expect((await send(s.token, { kind: "x", contentType: "MOVIE" })).status).toBe(400);
+    expect((await send(s.token, { kind: "file", contentType: "SONG" })).status).toBe(400);
+  });
+});
