@@ -14,7 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
-- Fixed an app crash on startup for some older devices.
+- Fixed an app crash on startup.
 ## 0.5.0
 
 - Subtitles from your addons are here! Pick them in the player, with OpenSubtitles ready to go.
