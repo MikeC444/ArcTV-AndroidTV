@@ -5335,3 +5335,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues fixed:** none.
 
+## Post-Milestone-134 -- A launch check on Android emulators (workflow, run by hand)
+
+**Status:** Written; first run pending. Nothing in the app changed.
+
+**Context:** Two people reported the 0.5.0 Fire TV / Android TV app failing to install on a Mi Box 2, or opening and closing at once (still after clearing its data). There was no log, and a read of the 0.4.1 to 0.5.0 changes found no start-up crash.
+
+**Changes:**
+- `.github/workflows/launch-check.yml` (manual only, never publishes): for Android 6, 8, 9, 10 and 14 emulators it downloads the chosen release APKs (default `v0.5.0 v0.4.1`), installs each in turn, opens `MainActivity`, waits (25 s by default) and reports "OK", "CRASHED" with the first `FATAL EXCEPTION` or "INSTALL FAILED" with the installer's message, in the run summary, and keeps the full logcat per version as an artifact.
+- `scripts/launch-check.sh`: the install, launch and check steps the workflow runs on each emulator.
+
+**Tests performed:** The workflow YAML parses and the script passes `bash -n`. Not run yet, so whether the emulators boot on the runner and what they show is unknown. The emulators are x86_64, so they cover the app's Kotlin and Compose code on each Android version, not a 32-bit ARM box's own libraries or the Mi Box's hardware.
+
+**Issues discovered:** none yet.
+
+**Issues fixed:** none.
+
