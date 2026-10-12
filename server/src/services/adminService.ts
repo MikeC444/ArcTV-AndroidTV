@@ -171,8 +171,84 @@ export async function webSystems() {
   return rows;
 }
 
+/** How many people used ArcTV in the last day and the last 30 days (the 7-day figure is `activeLast7Days`): distinct accounts with a signed-in device seen in that time. */
+export async function activitySummary() {
+  const { rows } = await pool.query<{ active1d: number; active30d: number }>(
+    `SELECT count(DISTINCT d.user_id) FILTER (WHERE d.last_seen_at > now() - interval '1 day')::int AS active1d,
+            count(DISTINCT d.user_id) FILTER (WHERE d.last_seen_at > now() - interval '30 days')::int AS active30d
+     FROM devices d JOIN users u ON u.id = d.user_id WHERE d.revoked_at IS NULL AND u.deleted_at IS NULL`
+  );
+  return rows[0]!;
+}
+
+/** The most addon sites listed in the Addons view. */
+const TOP_ADDON_HOSTS = 25;
+/** Reading every stored manifest is the heaviest thing the panel does, so the answer is reused for this long. */
+const ADDONS_CACHE_MS = 5 * 60 * 1000;
+let addonsCache: { at: number; value: Awaited<ReturnType<typeof buildAddonsSummary>> } | null = null;
+
+export interface AddonRow {
+  user_id: string;
+  name: string;
+  manifest_url: string;
+  manifest_json: unknown;
+}
+
+/** What people have installed across every account, from their addon rows: the most common addon sites (with what each says it offers), the debrid services, and who has an addon whose catalogues the apps all ignore. Pure, so it can be tested. */
+export function addonsFromRows(rows: AddonRow[]) {
+  const hosts = new Map<string, { users: Set<string>; names: Map<string, number>; ignoredTypes: Set<string>; otherIdPrefixes: Set<string> }>();
+  const debrid = new Map<string, Set<string>>();
+  const withAddons = new Set<string>();
+  const withDebrid = new Set<string>();
+  const flagged = new Set<string>();
+  for (const row of rows) {
+    const { host, debrid: service } = describeAddonUrl(row.manifest_url);
+    const caps = describeManifest(row.manifest_json);
+    withAddons.add(row.user_id);
+    const entry = hosts.get(host) ?? { users: new Set<string>(), names: new Map<string, number>(), ignoredTypes: new Set<string>(), otherIdPrefixes: new Set<string>() };
+    entry.users.add(row.user_id);
+    if (row.name) entry.names.set(row.name, (entry.names.get(row.name) ?? 0) + 1);
+    caps.catalogs.ignoredTypes.forEach((t) => entry.ignoredTypes.add(t));
+    caps.otherIdPrefixes.forEach((p) => entry.otherIdPrefixes.add(p));
+    hosts.set(host, entry);
+    if (service) {
+      withDebrid.add(row.user_id);
+      debrid.set(service, (debrid.get(service) ?? new Set<string>()).add(row.user_id));
+    }
+    if (caps.catalogs.shown === 0 && caps.catalogs.ignored > 0) flagged.add(row.user_id);
+  }
+  return {
+    usersWithAddons: withAddons.size,
+    usersWithDebrid: withDebrid.size,
+    flaggedUsers: flagged.size,
+    hosts: [...hosts.entries()]
+      .map(([host, e]) => ({ host, users: e.users.size, name: [...e.names.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null, ignoredTypes: [...e.ignoredTypes].sort(), otherIdPrefixes: [...e.otherIdPrefixes].sort() }))
+      .sort((a, b) => b.users - a.users || a.host.localeCompare(b.host))
+      .slice(0, TOP_ADDON_HOSTS),
+    debrid: [...debrid.entries()].map(([service, users]) => ({ service, users: users.size })).sort((a, b) => b.users - a.users || a.service.localeCompare(b.service)),
+  };
+}
+
+async function buildAddonsSummary() {
+  const { rows } = await pool.query<AddonRow>(
+    `SELECT a.user_id, a.name, a.manifest_url, a.manifest_json FROM user_addons a JOIN users u ON u.id = a.user_id WHERE a.deleted_at IS NULL AND u.deleted_at IS NULL`
+  );
+  return addonsFromRows(rows);
+}
+
+/** The Addons view's numbers, reused for five minutes. */
+export async function addonsSummary(now = Date.now()) {
+  if (!addonsCache || now - addonsCache.at > ADDONS_CACHE_MS) addonsCache = { at: now, value: await buildAddonsSummary() };
+  return addonsCache.value;
+}
+
+/** Forgets the reused Addons numbers (tests). */
+export function resetAddonsCache(): void {
+  addonsCache = null;
+}
+
 export async function summary() {
-  const [users, active, plans, versions, external, live, growth, systems, playback, downloads] = await Promise.all([
+  const [users, active, plans, versions, external, live, growth, systems, playback, downloads, activity, addons] = await Promise.all([
     pool.query<{ total: number; new7d: number }>(`SELECT count(*)::int AS total, count(*) FILTER (WHERE created_at > now() - interval '7 days')::int AS new7d FROM users WHERE deleted_at IS NULL`),
     pool.query<{ n: number }>(`SELECT count(DISTINCT d.user_id)::int AS n FROM devices d JOIN users u ON u.id = d.user_id WHERE d.revoked_at IS NULL AND u.deleted_at IS NULL AND d.last_seen_at > now() - interval '7 days'`),
     pool.query<{ plan: string; n: number }>(`SELECT ${ACTIVE_PLAN} AS plan, count(*)::int AS n FROM user_plus p JOIN users u ON u.id = p.user_id WHERE u.deleted_at IS NULL GROUP BY 1`),
@@ -187,10 +263,12 @@ export async function summary() {
     webSystems(),
     playbackSummary(),
     downloadsSummary(),
+    activitySummary(),
+    addonsSummary(),
   ]);
   const plus: Record<string, number> = { monthly: 0, yearly: 0, lifetime: 0 };
   for (const row of plans.rows) if (row.plan) plus[row.plan] = row.n;
-  return { users: users.rows[0]!.total, newLast7Days: users.rows[0]!.new7d, activeLast7Days: active.rows[0]!.n, plus, versions: versions.rows, externalPlayer: external, live, userGrowth: growth, webSystems: systems, playback, downloads };
+  return { users: users.rows[0]!.total, newLast7Days: users.rows[0]!.new7d, activeLast7Days: active.rows[0]!.n, plus, versions: versions.rows, externalPlayer: external, live, userGrowth: growth, webSystems: systems, playback, downloads, activity, addons };
 }
 
 /** How often people hand a title to another player (another app, or VLC's engine inside the app; `opens7d` counts the apps, `vlc7d` the engine): a lot of "after an error" points at the built-in player, not at taste. */

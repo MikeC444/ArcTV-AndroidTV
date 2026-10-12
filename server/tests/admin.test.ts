@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { pool } from "../src/db/pool.js";
 import { cleanAppVersion } from "../src/middleware/auth.js";
-import { buildGrowth, describeAddonUrl, describeManifest, GROWTH_DAYS } from "../src/services/adminService.js";
+import { addonsFromRows, buildGrowth, describeAddonUrl, describeManifest, GROWTH_DAYS, resetAddonsCache } from "../src/services/adminService.js";
 import { createTestSession, type TestSession } from "./helpers/auth.js";
 import { resetDatabase } from "./helpers/db.js";
 
@@ -307,5 +307,43 @@ describe("describeManifest", () => {
     for (const odd of [{}, null, "x", 7, { resources: "stream", catalogs: {} }]) {
       expect(describeManifest(odd)).toEqual({ offers: [], catalogs: { shown: 0, ignored: 0, ignoredTypes: [], rows: 0 }, otherIdPrefixes: [] });
     }
+  });
+});
+
+describe("addonsFromRows", () => {
+  const cinemeta = { resources: ["catalog", "meta"], catalogs: [{ type: "movie", id: "top" }] };
+  const anime = { resources: ["catalog", "stream"], idPrefixes: ["kitsu:"], catalogs: [{ type: "anime", id: "top" }] };
+  const rows = [
+    { user_id: "u1", name: "Cinemeta", manifest_url: "https://v3-cinemeta.strem.io/manifest.json", manifest_json: cinemeta },
+    { user_id: "u2", name: "Cinemeta", manifest_url: "https://v3-cinemeta.strem.io/manifest.json", manifest_json: cinemeta },
+    { user_id: "u1", name: "Torrentio", manifest_url: "https://torrentio.strem.fun/realdebrid=SECRETKEY/manifest.json", manifest_json: { resources: ["stream"] } },
+    { user_id: "u2", name: "AnimeStream", manifest_url: "https://anime.example.workers.dev/manifest.json", manifest_json: anime },
+  ];
+
+  it("counts people per addon site, debrid service and who has an addon whose catalogues the apps all ignore", () => {
+    const out = addonsFromRows(rows);
+    expect(out).toMatchObject({ usersWithAddons: 2, usersWithDebrid: 1, flaggedUsers: 1 });
+    expect(out.hosts[0]).toMatchObject({ host: "v3-cinemeta.strem.io", users: 2, name: "Cinemeta" });
+    expect(out.hosts.find((h) => h.host === "anime.example.workers.dev")).toMatchObject({ ignoredTypes: ["anime"], otherIdPrefixes: ["kitsu:"] });
+    expect(out.debrid).toEqual([{ service: "realdebrid", users: 1 }]);
+  });
+  it("never lets an addon key out", () => {
+    expect(JSON.stringify(addonsFromRows(rows))).not.toContain("SECRETKEY");
+  });
+  it("is empty for nobody", () => {
+    expect(addonsFromRows([])).toEqual({ usersWithAddons: 0, usersWithDebrid: 0, flaggedUsers: 0, hosts: [], debrid: [] });
+  });
+});
+
+describe("the summary's activity and addons", () => {
+  it("carries how many people were active today and in 30 days, and the addons numbers", async () => {
+    resetAddonsCache();
+    const admin = await createTestSession({ isAdmin: true });
+    await request(app).get("/user/me").set(auth(admin));
+    const res = await request(app).get("/admin/summary").set(auth(admin));
+    expect(res.status).toBe(200);
+    expect(res.body.activity.active30d).toBeGreaterThanOrEqual(1);
+    expect(res.body.activity.active1d).toBeLessThanOrEqual(res.body.activity.active30d);
+    expect(res.body.addons).toMatchObject({ usersWithAddons: expect.any(Number), flaggedUsers: expect.any(Number), hosts: expect.any(Array), debrid: expect.any(Array) });
   });
 });

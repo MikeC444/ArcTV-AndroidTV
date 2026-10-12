@@ -5368,3 +5368,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues fixed:** the Android 6 and 7 start-up crash (pending the verification above).
 
+
+## Post-Milestone-136 -- Developer dashboard: server numbers for the new Addons view and activity
+
+**Status:** Done on main (backend); the web dashboard that reads it is in `ArcTV-Web`. Admin-only, so nothing for RELEASE_NOTES.md. Not deployed until the backend is redeployed.
+
+**Context:** The developer panel was rebuilt as a dashboard (ArcTV-Web). Two parts of it need numbers the summary did not carry: how many people were active in the last day and 30 days, and what people have installed across every account.
+
+**Changes:**
+- `adminService.ts`: `activitySummary()` (`active1d`, `active30d`: distinct accounts with a signed-in device seen in that time) and `addonsSummary()` / `addonsFromRows()` (people with addons, with a debrid service and with an addon whose catalogues are all of a type the apps ignore; the 25 most-installed addon sites with their manifest's ignored types and non-IMDb id prefixes; people per debrid service). Only the host and the debrid service's name come out, never an address or key. Reading every stored manifest is the heaviest thing the panel does, so the addons numbers are reused for five minutes (`resetAddonsCache()` for tests).
+- `summary()` returns them as `activity` and `addons`; both are optional on the web side, so an older backend just hides those parts.
+- `docs/ADMIN.md` describes the new fields.
+
+**Tests performed:** `tests/admin.test.ts` gains `addonsFromRows` cases (counts, no key leaks, empty) and a summary test for `activity` and `addons`. Run against a throwaway local Postgres 16 with all 31 migrations: the whole server suite passed (25 files, 295 tests) and `tsc --noEmit` is clean. No Gradle/Android build was involved (server only).
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
