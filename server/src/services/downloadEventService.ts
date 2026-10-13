@@ -39,3 +39,92 @@ export async function downloadsSummary() {
   ]);
   return { ...totals.rows[0]!, byQuality: byQuality.rows };
 }
+
+export interface DownloadDay {
+  date: string;
+  popups: number;
+  opens: number;
+  files: number;
+}
+export interface DownloadPerson {
+  userId: string;
+  email: string;
+  displayName: string | null;
+  /** Their Plus plan right now, or null. */
+  plan: string | null;
+  popups: number;
+  opens: number;
+  files: number;
+  episodeFiles: number;
+  lastAt: string;
+  lastKind: "popup" | "opened" | "file";
+  /** The quality they pressed most, or null when they never pressed a file. */
+  topQuality: string | null;
+}
+export interface DownloadRecent {
+  kind: "popup" | "opened" | "file";
+  contentType: "MOVIE" | "TV_SHOW";
+  episode: boolean;
+  resolution: string | null;
+  cached: boolean | null;
+  at: string;
+  userId: string;
+  email: string;
+  displayName: string | null;
+}
+
+const ACTIVE_PLAN = `CASE WHEN p.status = 'active' AND (p.plan = 'lifetime' OR p.valid_until > now()) THEN p.plan ELSE NULL END`;
+
+/**
+ * The developer panel's Downloads view, in depth, for the last 7 days: each UTC day (so a trend can be drawn), movies against shows,
+ * cached against not, who tried and what they did (one row per person, most recent first), and the latest events. Still no title,
+ * content id, release name or file address: only what the web app reports.
+ */
+export async function downloadsDetail() {
+  const [days, byType, cached, people, recent] = await Promise.all([
+    pool.query<DownloadDay>(
+      `SELECT to_char(d::date, 'YYYY-MM-DD') AS date,
+              count(e.id) FILTER (WHERE e.kind = 'popup')::int AS popups,
+              count(e.id) FILTER (WHERE e.kind = 'opened')::int AS opens,
+              count(e.id) FILTER (WHERE e.kind = 'file')::int AS files
+       FROM generate_series((now() AT TIME ZONE 'utc')::date - 6, (now() AT TIME ZONE 'utc')::date, interval '1 day') d
+       LEFT JOIN download_events e ON (e.created_at AT TIME ZONE 'utc')::date = d::date
+       GROUP BY d ORDER BY d`
+    ),
+    pool.query<{ type: string; popups: number; opens: number; files: number }>(
+      `SELECT content_type AS type,
+              count(*) FILTER (WHERE kind = 'popup')::int AS popups,
+              count(*) FILTER (WHERE kind = 'opened')::int AS opens,
+              count(*) FILTER (WHERE kind = 'file')::int AS files
+       FROM download_events WHERE created_at > now() - interval '7 days' GROUP BY content_type ORDER BY content_type`
+    ),
+    pool.query<{ cached: number; uncached: number; unknown: number }>(
+      `SELECT count(*) FILTER (WHERE cached = true)::int AS cached,
+              count(*) FILTER (WHERE cached = false)::int AS uncached,
+              count(*) FILTER (WHERE cached IS NULL)::int AS unknown
+       FROM download_events WHERE kind = 'file' AND created_at > now() - interval '7 days'`
+    ),
+    pool.query<DownloadPerson>(
+      `SELECT u.id AS "userId", u.email, u.display_name AS "displayName", ${ACTIVE_PLAN} AS plan,
+              count(*) FILTER (WHERE e.kind = 'popup')::int AS popups,
+              count(*) FILTER (WHERE e.kind = 'opened')::int AS opens,
+              count(*) FILTER (WHERE e.kind = 'file')::int AS files,
+              count(*) FILTER (WHERE e.kind = 'file' AND e.episode)::int AS "episodeFiles",
+              max(e.created_at) AS "lastAt",
+              (array_agg(e.kind ORDER BY e.created_at DESC))[1] AS "lastKind",
+              mode() WITHIN GROUP (ORDER BY e.resolution) FILTER (WHERE e.kind = 'file' AND e.resolution IS NOT NULL AND e.resolution <> '') AS "topQuality"
+       FROM download_events e JOIN users u ON u.id = e.user_id LEFT JOIN user_plus p ON p.user_id = u.id
+       WHERE e.created_at > now() - interval '7 days' AND u.deleted_at IS NULL
+       GROUP BY u.id, u.email, u.display_name, p.status, p.plan, p.valid_until
+       ORDER BY max(e.created_at) DESC LIMIT 100`
+    ),
+    pool.query<DownloadRecent>(
+      `SELECT e.kind, e.content_type AS "contentType", e.episode, e.resolution, e.cached, e.created_at AS at,
+              u.id AS "userId", u.email, u.display_name AS "displayName"
+       FROM download_events e JOIN users u ON u.id = e.user_id
+       WHERE e.created_at > now() - interval '7 days' AND u.deleted_at IS NULL
+       ORDER BY e.created_at DESC LIMIT 60`
+    ),
+  ]);
+  return { days: days.rows, byType: byType.rows, cached: cached.rows[0]!, people: people.rows, recent: recent.rows };
+}

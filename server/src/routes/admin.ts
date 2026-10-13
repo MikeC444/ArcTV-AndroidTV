@@ -5,6 +5,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { FEATURE_INTROS } from "../schemas/featureIntros.js";
 import * as adminService from "../services/adminService.js";
+import * as downloadEventService from "../services/downloadEventService.js";
 
 /**
  * The developer panel's read-only data. Every route needs a signed-in account with users.is_admin (set by hand in the database).
@@ -20,6 +21,14 @@ adminRouter.use(requireAuth, (req, _res, next) => {
 adminRouter.get("/summary", async (_req, res, next) => {
   try {
     res.json(await adminService.summary());
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/downloads", async (_req, res, next) => {
+  try {
+    res.json(await downloadEventService.downloadsDetail());
   } catch (error) {
     next(error);
   }

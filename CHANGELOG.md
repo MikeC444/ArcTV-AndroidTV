@@ -5401,3 +5401,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the first version of the query joined `profiles` on the profile id alone. Profile ids are only unique per account (every account's own profile is `main`), so each device was repeated once for every account's `main` profile: on the real data one person showed up as 200 devices (the query's limit) with other people's profile names. Reported from the dashboard.
 
 **Issues fixed:** the join now also matches the account (`pr.user_id = d.user_id`), and the dashboard shows one card per device even if the backend ever repeats one.
+
+## Post-Milestone-138 -- Developer dashboard: who is trying to download, and a day-by-day view
+
+**Status:** Done on main (backend); the Downloads view that reads it is in `ArcTV-Web`. Admin-only, so nothing for RELEASE_NOTES.md. Not live until the backend is redeployed.
+
+**Context:** The Downloads card only had totals, and its funnel read as a sequence when popup (no Plus) and file list (Plus) are two separate paths. The dashboard now explains each number and shows who is trying.
+
+**Changes:**
+- `downloadEventService.downloadsDetail()` and `GET /admin/downloads` (admins only): the last 7 days per UTC day (popups, lists opened, files pressed), movies against shows, files cached against not, one row per person (plan, counts, the last action and when, the quality they pressed most; up to 100, most recent first) and the 60 latest events with the person. From the existing `download_events` rows (no migration); still no title, content id, release name or file address.
+- `docs/ADMIN.md` describes it.
+
+**Tests performed:** `tests/player-events.test.ts` gains a test (an admin who opened the list and pressed two files and an account that only saw the popup: seven days, today's counts, movie and show split, cached split, per-person rows and their order, the latest events, no secrets, 404 for a non-admin). Run against a local Postgres 16 with all migrations: that file passes (13), and `tsc --noEmit` is clean. No Gradle/Android build was involved.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

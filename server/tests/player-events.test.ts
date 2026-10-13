@@ -132,6 +132,30 @@ describe("POST /user/player-events/download", () => {
     expect(summary.body.downloads.byQuality).toEqual(expect.arrayContaining([{ label: "1080p", files: 1 }, { label: "4K", files: 1 }]));
   });
 
+  it("shows admins who tried and what they did, day by day, and nobody else", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    const free = await createTestSession();
+    await send(admin.token, { kind: "opened", contentType: "MOVIE" });
+    await send(admin.token, { kind: "file", contentType: "TV_SHOW", episode: true, resolution: "1080p", cached: true });
+    await send(admin.token, { kind: "file", contentType: "MOVIE", resolution: "1080p", cached: false });
+    await send(free.token, { kind: "popup", contentType: "MOVIE" });
+    await send(free.token, { kind: "popup", contentType: "TV_SHOW", episode: true });
+    const res = await request(app).get("/admin/downloads").set("Authorization", `Bearer ${admin.token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.days).toHaveLength(7);
+    expect(res.body.days[6]).toMatchObject({ popups: 2, opens: 1, files: 2 });
+    expect(res.body.byType).toEqual(expect.arrayContaining([{ type: "MOVIE", popups: 1, opens: 1, files: 1 }, { type: "TV_SHOW", popups: 1, opens: 0, files: 1 }]));
+    expect(res.body.cached).toEqual({ cached: 1, uncached: 1, unknown: 0 });
+    const byEmail = Object.fromEntries(res.body.people.map((p: { userId: string }) => [p.userId, p]));
+    expect(byEmail[admin.userId]).toMatchObject({ popups: 0, opens: 1, files: 2, episodeFiles: 1, lastKind: "file", topQuality: "1080p" });
+    expect(byEmail[free.userId]).toMatchObject({ popups: 2, opens: 0, files: 0, lastKind: "popup", topQuality: null, plan: null });
+    expect(res.body.people[0].userId).toBe(free.userId); // most recent first
+    expect(res.body.recent).toHaveLength(5);
+    expect(res.body.recent[0]).toMatchObject({ kind: "popup", userId: free.userId });
+    expect(JSON.stringify(res.body)).not.toMatch(/token|password/i);
+    expect((await request(app).get("/admin/downloads").set("Authorization", `Bearer ${free.token}`)).status).toBe(404);
+  });
+
   it("keeps the quality only on a pressed file and rejects an unknown kind", async () => {
     const s = await createTestSession();
     await send(s.token, { kind: "opened", contentType: "MOVIE", resolution: "4K", cached: true });
