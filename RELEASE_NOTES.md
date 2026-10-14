@@ -14,7 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
-- Search results are now easy to reach: type a title, press Down, and you're on the first poster.
+- Fixed an issue with searching.
 
 ## 0.5.1
 
