@@ -5432,3 +5432,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the web app cannot see whether a download finished, so "pressed Get the app" is the last thing counted.
 
 **Issues fixed:** none.
+
+## Post-Milestone-140 -- Search: reach the results with the remote after typing
+
+**Status:** Done on the branch; not built or run on a device.
+
+**Context:** Reported: after typing a title in Search, the remote could not get down to the results; focus stayed in the field or jumped to the top Search tab.
+
+**Changes:**
+- `SearchScreen.kt`: DOWN on the search field and on its clear button is now handled in code: it closes the keyboard, leaves typing mode and focuses the first result. It is consumed while results are showing or loading, so focus can't drift to the top bar; on the start page DOWN still moves to the recent searches. This replaces the old focus link that only existed in the exact `Results` state.
+- `SearchViewModel.kt`: while a refined search has no answers yet, the previous results stay on screen (still marked as checking) instead of being replaced by a spinner.
+
+**Tests performed:** manual re-read of both files only. No Gradle/Android build was possible here (no route to dl.google.com) and nothing was run on a device.
+
+**Issues discovered:** while the keyboard is open the system keyboard may take D-pad keys before the app sees them; DOWN on the field is handled once the keyboard is closed or passes the key through. Needs a check on a real TV device.
+
+**Issues fixed:** DOWN from Search going nowhere or to the top bar.

@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Search results are now easy to reach: type a title, press Down, and you're on the first poster.
+
 ## 0.5.1
 
 - Fixed an app crash on startup.

@@ -140,6 +140,20 @@ fun SearchScreen(
         scope.launch { listState.animateScrollToItem(0) }
     }
 
+    // DOWN from the bar (or its clear button): close the keyboard, leave typing mode and drop onto the first result. Done imperatively
+    // rather than only through focusProperties, because the results appear and swap asynchronously while the user is typing.
+    fun goToResults(): Boolean {
+        val results = uiState as? SearchUiState.Results ?: return false
+        if (results.movies.isEmpty() && results.tvShows.isEmpty()) return false
+        isEditing = false
+        keyboardController?.hide()
+        scope.launch {
+            listState.scrollToItem(0)
+            runCatching { firstResultFocusRequester.requestFocus() }
+        }
+        return true
+    }
+
     fun navigateToContent(target: Content) {
         val providerId = target.providerId ?: return
         // Opening a result makes this a search worth remembering.
@@ -215,14 +229,18 @@ fun SearchScreen(
                                         .focusRequester(fieldFocusRequester)
                                         .focusProperties {
                                             up = navFocusRequester
-                                            if (uiState is SearchUiState.Results) down = firstResultFocusRequester
                                         }
                                         .onFocusChanged { state ->
                                             fieldFocused = state.isFocused
                                             if (state.isFocused) backToTop() else isEditing = false
                                         }
                                         .onPreviewKeyEvent { event ->
-                                            if (!isEditing &&
+                                            if (event.key == Key.DirectionDown) {
+                                                // Consumed while results are showing or loading, so focus can't drift to the nav bar; otherwise
+                                                // (start page) DOWN keeps its normal move to the recent searches.
+                                                if (event.type == KeyEventType.KeyDown) goToResults() || uiState is SearchUiState.Searching
+                                                else uiState !is SearchUiState.Idle
+                                            } else if (!isEditing &&
                                                 (event.key == Key.DirectionCenter || event.key == Key.Enter) &&
                                                 event.type == KeyEventType.KeyDown
                                             ) {
@@ -251,7 +269,15 @@ fun SearchScreen(
                                             viewModel.onQueryChanged("")
                                             runCatching { fieldFocusRequester.requestFocus() }
                                         },
-                                        modifier = Modifier.padding(end = 8.dp),
+                                        modifier = Modifier
+                                            .padding(end = 8.dp)
+                                            .onPreviewKeyEvent { event ->
+                                                if (event.key == Key.DirectionDown) {
+                                                    if (event.type == KeyEventType.KeyDown) goToResults() else uiState is SearchUiState.Results
+                                                } else {
+                                                    false
+                                                }
+                                            },
                                         compact = true,
                                         focusLeft = fieldFocusRequester,
                                         focusUp = navFocusRequester

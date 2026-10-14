@@ -164,9 +164,15 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             // Called as each addon (or each of its catalogs) answers; every state change goes through the same lock.
             fun publish() {
                 val (movies, shows) = mergeSearchAnswers(answers.toList())
+                loading = pending > 0
+                // Nothing in yet from the new search but older results are on screen: keep them (marked "still checking") rather than
+                // swapping them for a spinner, which would pull the rug from under a result the user is already moving onto.
+                if (movies.isEmpty() && shows.isEmpty() && pending > 0 && previous is SearchUiState.Results) {
+                    _uiState.value = previous.copy(loading = true)
+                    return
+                }
                 rawMovies = movies
                 rawTvShows = shows
-                loading = pending > 0
                 _uiState.value = when {
                     movies.isNotEmpty() || shows.isNotEmpty() -> currentResults()
                     pending > 0 -> SearchUiState.Searching
