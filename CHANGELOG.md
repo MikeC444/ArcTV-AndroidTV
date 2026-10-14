@@ -5417,3 +5417,18 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-139 -- Developer dashboard: web users offered the Mac or Windows app
+
+**Status:** Done on main (backend); the "App popups" view and the reporting from the popups are in `ArcTV-Web`. Admin-only, so nothing for RELEASE_NOTES.md. Not live until the backend is redeployed (the migration runs then).
+
+**Context:** The web app now offers the Mac app and the Windows app in a one-time popup, and nothing showed how many people see it or take it.
+
+**Changes:**
+- `migrations/0032_app_promo_events.sql` (`app_promo_events`: user, `app` mac/windows, `kind` shown/download/closed, time), `schemas/appPromoEvents.ts`, `services/appPromoEventService.ts` (`recordAppPromoEvent`, `appPromosSummary`, `appPromosDetail`), `POST /user/player-events/app-promo` (signed in, fire-and-forget), `GET /admin/app-promos` (admins only: per UTC day, per person with what they did, latest events) and `appPromos` in `GET /admin/summary` (per app, 7 days, people and counts).
+
+**Tests performed:** `tests/player-events.test.ts` gains four tests (sign-in required; counts per app for an admin and another account across shown / pressed / closed; the day-by-day and per-person view and a 404 for a non-admin; an unknown app or kind is a 400). The whole backend suite passed against a local Postgres 16 (303 tests), with the new migration applied. No Android build (not relevant to this change).
+
+**Issues discovered:** the web app cannot see whether a download finished, so "pressed Get the app" is the last thing counted.
+
+**Issues fixed:** none.

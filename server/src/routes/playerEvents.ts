@@ -4,6 +4,8 @@ import { requireAuth, cleanAppVersion } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { externalPlayerEventSchema } from "../schemas/playerEvents.js";
 import { downloadEventSchema } from "../schemas/downloadEvents.js";
+import { appPromoEventSchema } from "../schemas/appPromoEvents.js";
+import * as appPromoEventService from "../services/appPromoEventService.js";
 import { playbackOutcomeSchema } from "../schemas/playbackOutcomes.js";
 import * as downloadEventService from "../services/downloadEventService.js";
 import * as playbackOutcomeService from "../services/playbackOutcomeService.js";
@@ -38,6 +40,17 @@ playerEventsRouter.post("/player-events/download", requireAuth, validate({ body:
   try {
     const input = req.validated!.body as z.infer<typeof downloadEventSchema>;
     await downloadEventService.recordDownloadEvent(req.user!.id, input);
+    res.status(204).end();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// The web app's "get the Mac / Windows app" popups: shown, the button pressed, or closed (see migrations/0032_app_promo_events.sql). Fire-and-forget, like the above.
+playerEventsRouter.post("/player-events/app-promo", requireAuth, validate({ body: appPromoEventSchema }), async (req, res, next) => {
+  try {
+    const input = req.validated!.body as z.infer<typeof appPromoEventSchema>;
+    await appPromoEventService.recordAppPromoEvent(req.user!.id, input);
     res.status(204).end();
   } catch (error) {
     next(error);

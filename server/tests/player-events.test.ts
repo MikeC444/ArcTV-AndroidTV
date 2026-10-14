@@ -165,3 +165,51 @@ describe("POST /user/player-events/download", () => {
     expect((await send(s.token, { kind: "file", contentType: "SONG" })).status).toBe(400);
   });
 });
+
+describe("POST /user/player-events/app-promo", () => {
+  const send = (token: string, body: Record<string, unknown>) => request(app).post("/user/player-events/app-promo").set("Authorization", `Bearer ${token}`).send(body);
+
+  it("requires sign-in", async () => {
+    expect((await request(app).post("/user/player-events/app-promo").send({ app: "mac", kind: "shown" })).status).toBe(401);
+  });
+
+  it("counts who was offered each desktop app and what they did, and shows admins the split", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    const other = await createTestSession();
+    expect((await send(admin.token, { app: "windows", kind: "shown" })).status).toBe(204);
+    expect((await send(admin.token, { app: "windows", kind: "download" })).status).toBe(204);
+    expect((await send(other.token, { app: "windows", kind: "shown" })).status).toBe(204);
+    expect((await send(other.token, { app: "windows", kind: "closed" })).status).toBe(204);
+    expect((await send(other.token, { app: "mac", kind: "shown" })).status).toBe(204);
+    const summary = await request(app).get("/admin/summary").set("Authorization", `Bearer ${admin.token}`);
+    const by = Object.fromEntries(summary.body.appPromos.map((p: { app: string }) => [p.app, p]));
+    expect(by.windows).toMatchObject({ shownPeople: 2, downloadPeople: 1, closedPeople: 1, shown: 2, downloads: 1, closes: 1 });
+    expect(by.mac).toMatchObject({ shownPeople: 1, downloadPeople: 0, closedPeople: 0, shown: 1, downloads: 0, closes: 0 });
+  });
+
+  it("shows admins, day by day and person by person, what each did, and nobody else", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    const free = await createTestSession();
+    await send(admin.token, { app: "windows", kind: "shown" });
+    await send(admin.token, { app: "windows", kind: "download" });
+    await send(free.token, { app: "mac", kind: "shown" });
+    await send(free.token, { app: "mac", kind: "closed" });
+    const res = await request(app).get("/admin/app-promos").set("Authorization", `Bearer ${admin.token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.days).toHaveLength(7);
+    expect(res.body.days[6]).toMatchObject({ windows: { shown: 1, downloads: 1 }, mac: { shown: 1, downloads: 0 } });
+    const byUser = Object.fromEntries(res.body.people.map((p: { userId: string }) => [p.userId, p]));
+    expect(byUser[admin.userId]).toMatchObject({ app: "windows", outcome: "download" });
+    expect(byUser[free.userId]).toMatchObject({ app: "mac", outcome: "closed" });
+    expect(res.body.recent).toHaveLength(4);
+    expect(JSON.stringify(res.body)).not.toMatch(/token|password/i);
+    expect((await request(app).get("/admin/app-promos").set("Authorization", `Bearer ${free.token}`)).status).toBe(404);
+  });
+
+  it("rejects an unknown app or kind", async () => {
+    const s = await createTestSession();
+    expect((await send(s.token, { app: "linux", kind: "shown" })).status).toBe(400);
+    expect((await send(s.token, { app: "mac", kind: "x" })).status).toBe(400);
+  });
+});
+

@@ -6,6 +6,7 @@ import { validate } from "../middleware/validate.js";
 import { FEATURE_INTROS } from "../schemas/featureIntros.js";
 import * as adminService from "../services/adminService.js";
 import * as downloadEventService from "../services/downloadEventService.js";
+import * as appPromoEventService from "../services/appPromoEventService.js";
 
 /**
  * The developer panel's read-only data. Every route needs a signed-in account with users.is_admin (set by hand in the database).
@@ -29,6 +30,14 @@ adminRouter.get("/summary", async (_req, res, next) => {
 adminRouter.get("/downloads", async (_req, res, next) => {
   try {
     res.json(await downloadEventService.downloadsDetail());
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/app-promos", async (_req, res, next) => {
+  try {
+    res.json(await appPromoEventService.appPromosDetail());
   } catch (error) {
     next(error);
   }
