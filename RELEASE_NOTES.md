@@ -29,6 +29,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - The payment screen is roomier and lists every Plus perk with a tick.
 - Like and Not for me are now visible to everyone, with a Plus badge. Press one to see everything Plus adds.
 - Closing a poster's menu on Home now puts the highlight back on that poster.
+- A show's page is tighter: the title and Play sit right above Seasons, clear of the Arc TV logo.
 
 ## 0.5.1
 

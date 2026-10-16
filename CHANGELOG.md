@@ -5764,3 +5764,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none confirmed.
+
+## Post-Milestone-159 -- TV: a show's title and Play sit right above Seasons
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** On a TV show's page the title block (title or logo, details, description, buttons) sat about 100dp above Seasons, and its top ran up under the Arc TV logo in the nav bar.
+
+**Changes:**
+- `ui/detail/DetailHeroSection.kt`: new `contentDrop` parameter moves the hero's content, and the rating beside the buttons, down by that much (drawing only, not the page's layout).
+- `ui/detail/DetailScreen.kt`: for a show with seasons it passes the nav bar's height plus 4dp, exactly the empty room the seasons block keeps at its top so that it clears the bar once the page scrolls up. The hero's content now fills that room: the gap between Play and Seasons closes (to the hero's own bottom padding) and the title starts below the nav bar. Movies and shows without season data are unchanged.
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** a manual re-read and brace/paren balance check. No Gradle/Android build or on-device look was possible here (no route to `dl.google.com`).
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
