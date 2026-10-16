@@ -5796,6 +5796,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 - `ui/plus/PlusAsk.kt`: `PROFILES_ASK`.
 - The tile carries no Plus badge, just the plain "Add profile" label (asked for after a first version had one).
 - "Take me there" first opens the account's own profile (the only one without Plus; if it has a PIN the PIN pad comes first), then goes to Settings -> Arc TV Plus on top of Home. Before it went straight to Settings, and at launch, before any profile has been picked, the app sends everyone back to Who's watching, so it looked as if the button did nothing.
+- The Add profile tile shows for any account without Plus, without also waiting for the Plus asks' own checks (signed in, Plus a paid tier, not a kids profile). "Who's watching?" now opens at every launch, often before the Plus status has been read, and the tile was missing then.
 - RELEASE_NOTES.md: one bullet.
 
 **Tests performed:** a manual re-read and brace/paren balance check, and a check that each edited file imports what it uses. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`).
