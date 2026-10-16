@@ -31,6 +31,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +71,9 @@ import com.mangotv.app.ui.theme.TextTertiary
 import java.text.DateFormat
 import java.util.Date
 
+/** How big the Your stats page is drawn compared with the rest of Settings: everything in it (text and shapes) is multiplied by this. */
+private const val StatsScale = 0.8f
+
 /**
  * Settings > Your stats (Arc TV Plus): how much you watch, from the watch history of the profile in use. Plain text isn't focusable, so each
  * block of numbers is a focus stop, which is what lets the remote scroll down the whole page.
@@ -94,7 +101,12 @@ fun ColumnScope.StatsSettingsContent(
         }
         else -> {
             val ready = state as StatsUiState.Ready
-            StatsPanel(ready.stats, ready.truncated, contentFocusRequester, sidebarFocusRequester, Modifier.weight(1f))
+            // Everything on this page (text, tiles, charts, spacing) drawn at 80% of the Settings size, so far more of it fits at once.
+            val density = LocalDensity.current
+            val compact = remember(density) { Density(density.density * StatsScale, density.fontScale) }
+            CompositionLocalProvider(LocalDensity provides compact) {
+                StatsPanel(ready.stats, ready.truncated, contentFocusRequester, sidebarFocusRequester, Modifier.weight(1f))
+            }
         }
     }
 }
