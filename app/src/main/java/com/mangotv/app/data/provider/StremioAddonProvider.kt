@@ -30,6 +30,36 @@ private val SUPPORTED_CATALOG_TYPES = setOf("movie", "series")
 /** The catalogue type anime addons use. Its titles are shown on the Anime tab, which only exists while an installed addon has such a catalogue. */
 private const val ANIME_TYPE = "anime"
 
+private val IMDB_ID = Regex("^tt\\d+$")
+
+/** Id types anime addons use that put only the episode number after the id ("kitsu:7442:3"), not a season and an episode. */
+private val EPISODE_ONLY_IDS = Regex("^(kitsu|mal|anilist|anidb):")
+
+/** Episode video ids learned from a title's details ("kitsu:7442:3"), by title id then "season:episode": a stream addon is asked for the episode by that id. */
+private val episodeVideoIds = java.util.concurrent.ConcurrentHashMap<String, Map<String, String>>()
+
+/** Remembers a title's episode video ids when its details are read (IMDb titles never need them: "tt:season:episode" is the rule there). */
+internal fun rememberEpisodeIds(content: Content) {
+    if (IMDB_ID.matches(content.id)) return
+    val known = HashMap<String, String>()
+    for (season in content.seasons) for (episode in season.episodes) if (episode.id.isNotBlank()) known["${episode.seasonNumber}:${episode.episodeNumber}"] = episode.id
+    if (known.isNotEmpty()) episodeVideoIds[content.id] = known
+}
+
+/**
+ * The id a stream addon is asked for an episode by. IMDb titles keep "tt:season:episode". Others use the episode's own video id from the title's
+ * details when known (the Stremio rule), else for anime id types "id:episode", else "id:season:episode" as before (the web app's `streamRequestId`).
+ */
+internal fun streamRequestId(id: String, season: Int?, episode: Int?): String {
+    if (season == null || episode == null) return id
+    if (IMDB_ID.matches(id)) return "$id:$season:$episode"
+    episodeVideoIds[id]?.get("$season:$episode")?.let { return it }
+    return if (EPISODE_ONLY_IDS.containsMatchIn(id)) "$id:$episode" else "$id:$season:$episode"
+}
+
+/** Forgets every remembered episode id (tests). */
+internal fun clearEpisodeIds() = episodeVideoIds.clear()
+
 private fun AddonCatalogDef.genreExtra(): AddonCatalogExtra? = allExtras.firstOrNull { it.name == "genre" }
 
 /** A catalogue the Anime tab can read: nothing is required of it except (at most) a genre. */
@@ -452,10 +482,29 @@ class StremioAddonProvider(
     }
 
     override suspend fun getDetails(type: ContentType, id: String): Content? {
-        val stremioType = if (type == ContentType.TV_SHOW) "series" else "movie"
-        return runCatching { client.fetchMeta(manifestUrl, stremioType, id) }
+        return runCatching { client.fetchMeta(manifestUrl, stremioTypeFor("meta", type), id) }
             .getOrNull()
             ?.toContent(providerId = this.id)
+            ?.also { rememberEpisodeIds(it) }
+    }
+
+    /** The types the addon declares for a resource ("meta" / "stream"): that resource's own list when it has one, else the manifest's. */
+    private fun declaredTypes(resource: String): List<String> {
+        for (element in manifest.resources) {
+            val obj = element as? JsonObject ?: continue
+            if ((obj["name"] as? JsonPrimitive)?.contentOrNull != resource) continue
+            val types = obj["types"] as? kotlinx.serialization.json.JsonArray ?: continue
+            return types.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+        }
+        return manifest.types
+    }
+
+    /** "series" or "movie" as before; but a show asked of an addon that only declares "anime" for that resource is asked as "anime". */
+    private fun stremioTypeFor(resource: String, type: ContentType): String {
+        val base = if (type == ContentType.TV_SHOW) "series" else "movie"
+        if (type != ContentType.TV_SHOW) return base
+        val declared = declaredTypes(resource)
+        return if (declared.isNotEmpty() && base !in declared && ANIME_TYPE in declared) ANIME_TYPE else base
     }
 
     override suspend fun getStreams(type: ContentType, id: String, season: Int?, episode: Int?): List<Stream> =
@@ -469,8 +518,8 @@ class StremioAddonProvider(
 
     override suspend fun getStreamReport(type: ContentType, id: String, season: Int?, episode: Int?): StreamReport {
         if (!offersStreams()) return StreamReport(name, emptyList(), StreamLookup.Unsupported)
-        val stremioType = if (type == ContentType.TV_SHOW) "series" else "movie"
-        val requestId = if (season != null && episode != null) "$id:$season:$episode" else id
+        val stremioType = stremioTypeFor("stream", type)
+        val requestId = streamRequestId(id, season, episode)
         return try {
             val streams = client.fetchStreams(manifestUrl, stremioType, requestId)
                 .map { it.toStream(providerId = this.id, providerLabel = this.name) }

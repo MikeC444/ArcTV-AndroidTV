@@ -5864,9 +5864,9 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues fixed:** none.
 
-## Post-Milestone-164 -- TV: the Anime tab, step 1: the tab and its grid (like the web app)
+## Post-Milestone-164 -- TV: the Anime tab (like the web app): the tab and its grid, and playing anime
 
-**Status:** Done on the branch; not built or run here. Anime titles do not play yet and Search has no anime line yet: those are the next two steps.
+**Status:** All steps done (tab and grid merged; playing and Search on the branch); not built or run here.
 
 **Context:** The web app has an Anime tab while an installed addon has catalogues of type `anime`. The TV had nothing for it.
 
@@ -5876,9 +5876,11 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 - `data/provider/ProviderRegistry.kt`: `hasAnime(providers)`.
 - `ui/home/TopNavBar.kt`: the nav bar gets an Anime item after TV Shows while an enabled addon has anime catalogues (`navItemsWithAnime`), and comes and goes with the addons. The bar now highlights the open tab by label (`selectedLabel`) instead of by position, which would have shifted; Search, Settings and the browse screens pass their label.
 - `navigation/MangoRoutes.kt`, `MangoNavHost.kt`: the `anime` route and tab root; `ui/browse/RowsBrowseScreen.kt`, `TypeBrowseViewModel.kt`: `AnimeScreen` reuses the Movies / TV Shows grid with a genre drop-down built from the anime addons' genres (A to Z, minus blocked genres), in the addons' own order (not shuffled), with the messages "No <genre> anime found right now." and "Your anime addons didn't return any titles right now."; opening it with no anime addon goes Home. Shown to every profile, kids included, and needs no Plus (as on the web).
+- Playing (`data/provider/StremioAddonProvider.kt`, same rules as the web app's `provider.ts`): a show is asked of an addon (details and streams) as `anime` when the addon declares only `anime` for that resource ("meta" / "stream", its own types list or else the manifest's), else as `series` as before. A stream addon is asked for an episode by `streamRequestId`: IMDb titles keep `tt:season:episode`; other titles use the episode's own video id from the title's details when it was read (`kitsu:7442:3`, remembered by `rememberEpisodeIds` when details load); else for `kitsu`/`mal`/`anilist`/`anidb` ids `id:episode`; else `id:season:episode` as before. `StremioAddonClient.fetchStreams` / `fetchMeta` are now `open` so tests can stand in for them.
+- Search (`ui/search/SearchViewModel.kt`, `SearchScreen.kt`): an Anime line, first on the page and before Movies and TV Shows. It is asked only of the addons that have anime catalogues (`hasAnimeSearch`: their own search where a catalogue has one, else a title match over their ranked lists), alongside the normal search, each answer showing as it arrives and a slow addon left behind after the usual 6 seconds. Without such an addon there is never an anime line. With one, a search that finds no anime still shows the line, saying "No anime matched "<query>" in your anime addons." or, when every one failed, "Your anime addons didn't answer. Try again in a moment." (as on the web app). The first result row on the page, for the up-to-the-search-bar jump, is the anime row when there is one.
 - RELEASE_NOTES.md: one bullet.
 
-**Tests performed:** `AnimeCatalogsTest` (detection, the older manifest fields, genres, the ranked and genre catalogues and paging, anime as a show, the tab's place in the bar), written but not run; a manual re-read and brace/paren balance check. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`).
+**Tests performed:** `AnimeSearchMergeTest` and the anime search tests in `AnimeCatalogsTest`, `AnimePlaybackIdsTest` (the ids for IMDb, anime and other titles, the remembered video ids, and the type a show is asked as), `AnimeCatalogsTest` (detection, the older manifest fields, genres, the ranked and genre catalogues and paging, anime as a show, the tab's place in the bar), written but not run; a manual re-read and brace/paren balance check. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`), and the sandbox cannot reach a live anime addon either (Cloudflare blocks it), so the ids follow the web app's rules and the tests rather than a real addon's answers: worth one real try on a TV.
 
 **Issues discovered:** none.
 

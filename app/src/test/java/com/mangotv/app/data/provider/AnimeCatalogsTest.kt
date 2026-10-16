@@ -103,4 +103,28 @@ class AnimeCatalogsTest {
         assertEquals(listOf("Home", "Movies", "TV Shows", "Anime", "Search", "My List", "Settings"), navItemsWithAnime(tabs, hasAnime = true))
         assertEquals("not added twice", navItemsWithAnime(navItemsWithAnime(tabs, true), true), navItemsWithAnime(tabs, true))
     }
+
+    @Test
+    fun `anime search uses the addon's own search where a catalogue has one`() = runBlocking {
+        val client = FakeClient()
+        val p = provider(manifest(catalog("find", "anime", extra("search", required = true)), catalog("trending", "anime")), client)
+        assertTrue(p.hasAnimeSearch)
+        val found = p.searchAnime("naruto")
+        assertEquals(listOf("anime/find/{search=naruto}"), client.asked)
+        assertEquals(listOf("find"), found.map { it.title })
+    }
+
+    @Test
+    fun `anime search falls back to a title match over the ranked lists`() = runBlocking {
+        val client = FakeClient()
+        val p = provider(manifest(catalog("trending", "anime")), client)
+        assertEquals(listOf("trending"), p.searchAnime("trend").map { it.title })
+        assertTrue("no title matches", p.searchAnime("zzz").isEmpty())
+        assertTrue(p.searchAnime("  ").isEmpty())
+    }
+
+    @Test
+    fun `a provider with no anime catalogue is never asked for anime search`() {
+        assertFalse(provider(manifest(catalog("top", "movie"))).hasAnimeSearch)
+    }
 }
