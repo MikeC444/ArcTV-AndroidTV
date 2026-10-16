@@ -5801,6 +5801,22 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues fixed:** none.
 
+## Post-Milestone-161 -- TV: the profile chip in the top bar for everyone (phase 4 of the Plus catch-up with the web app)
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** The web app shows the profile (picture and name) at the top right of the bar for everyone signed in. The TV showed it only for Plus members.
+
+**Changes:**
+- `ui/home/TopNavBar.kt`: the profile button now shows for any signed-in account where profiles are supported. With Plus it is the profile in use as before; without Plus it is the account's own (default) profile, the only one they can use. Pressing it opens the Profiles screen, which for someone without Plus shows their profile and the Add profile tile (Post-Milestone-160). Guests still see Sign In and no chip; kids profiles are unchanged.
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** a manual re-read and brace/paren balance check. No Gradle/Android build or on-device look was possible here (no route to `dl.google.com`).
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
+
 ## Post-Milestone-162 -- TV: "Who's watching?" at every launch, for everyone
 
 **Status:** Done on the branch; not built or run here.
