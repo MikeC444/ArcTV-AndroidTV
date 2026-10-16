@@ -385,6 +385,10 @@ private fun PlanCard(plan: PlusPlan, trialDays: Int, priceText: PlanPriceText?, 
                 Spacer(Modifier.height(6.dp))
             }
             Text(text = plan.label, color = TextPrimary, style = MaterialTheme.typography.titleMedium)
+            val saving = priceText?.saving
+            val perDay = priceText?.perDay
+            val was = priceText?.was
+            val versus = priceText?.versus
             val shownPrice = priceText?.price ?: plan.price
             Text(
                 text = shownPrice ?: "Price at checkout",
@@ -393,28 +397,28 @@ private fun PlanCard(plan: PlusPlan, trialDays: Int, priceText: PlanPriceText?, 
                 fontWeight = FontWeight.SemiBold
             )
             Text(text = plan.per, color = TextTertiary, style = MaterialTheme.typography.labelSmall)
-            if (priceText?.saving != null) {
+            if (saving != null) {
                 Spacer(Modifier.height(4.dp))
-                Pill(text = priceText.saving, container = MangoSurfaceHigh, content = ArcAccent)
+                Pill(text = saving, container = MangoSurfaceHigh, content = ArcAccent)
             }
-            if (priceText?.perDay != null) {
+            if (perDay != null) {
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = buildAnnotatedString {
                         // The monthly price, struck through: what paying monthly costs against this.
-                        if (priceText.was != null) {
-                            withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) { append("${priceText.was}/mo") }
+                        if (was != null) {
+                            withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) { append("$was/mo") }
                             append("  ")
                         }
-                        append(priceText.perDay)
+                        append(perDay)
                     },
                     color = TextSecondary,
                     style = MaterialTheme.typography.labelSmall
                 )
             }
-            if (priceText?.versus != null) {
+            if (versus != null) {
                 Spacer(Modifier.height(4.dp))
-                Text(text = priceText.versus, color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+                Text(text = versus, color = TextSecondary, style = MaterialTheme.typography.labelSmall)
             }
             Spacer(Modifier.height(6.dp))
             Text(text = plan.blurb, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
