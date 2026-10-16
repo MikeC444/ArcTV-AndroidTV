@@ -5727,3 +5727,23 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-157 -- TV: Like / Not for me for people without Plus (phase 2 of the Plus catch-up with the web app)
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** The web app shows Like and Not for me to people without Plus, tagged Plus, and pressing one opens a Plus invitation instead of hiding the buttons. The TV hid them completely.
+
+**Changes:**
+- `ui/plus/PlusAsk.kt` (new): `PlusAskDialog`, the invitation as a dialog opened only by pressing something (never on a timer); `PICKED_ASK` is its wording ("Rate movies to tune your Home row."); `rememberPlusAskEligible()` says whether it may show: signed in, Plus is a paid tier (not early access), no Plus on the account, and not a kids profile.
+- `ui/plus/PlusPromoPopup.kt`: the popup's card is now `PlusInviteCard` with its headline and line handed in and "Don't show me again" only when asked for, so the Home popup's card (`PlusPromoCard`, unchanged to its callers) and the ask share it. The Home popup itself is still not shown (Post-Milestone-147).
+- `ui/detail/DetailScreen.kt`, `DetailHeroSection.kt`: on a title's page, Like and Not for me show for an eligible account without Plus, each with a small Plus tag, and pressing one opens the ask.
+- `ui/components/CardActionsMenu.kt`: the same in the poster's long-press menu: both buttons show with a Plus tag; pressing one closes the menu and opens the ask. "Take me there" opens Settings -> Arc TV Plus.
+- Nothing is saved for someone without Plus when they press either. Accounts with Plus, guests and kids profiles see what they saw before.
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** a manual re-read and brace/paren balance check of every edited file, and a check that each file imports what it uses. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`); the existing `PlusPromoRenderTest` still draws `PlusPromoCard`, whose signature is unchanged.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

@@ -63,6 +63,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.mangotv.app.data.history.ContinueWatchingEntry
 import com.mangotv.app.data.model.Content
@@ -73,6 +74,7 @@ import com.mangotv.app.ui.components.HeroIconButton
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
 import com.mangotv.app.ui.theme.ArcAccent
+import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
@@ -126,6 +128,8 @@ fun DetailHeroSection(
     // Like / Not for me (movies, Plus preview): null hides the two buttons. Both sit in the three-dot group.
     feedback: Feedback? = null,
     onFeedback: ((Feedback) -> Unit)? = null,
+    // True for someone without Plus: the two buttons carry a small Plus tag and open the invitation instead of rating.
+    feedbackLocked: Boolean = false,
     // Idle/Loading hide the meta row's date slot entirely rather than
     // showing content.year and then visibly swapping it for the real TMDB
     // date a moment later -- see ReleaseDateState's own doc. NotFound falls
@@ -442,21 +446,25 @@ fun DetailHeroSection(
                         )
                         Spacer(Modifier.width(if (compact) 10.dp else 16.dp))
                         if (onFeedback != null) {
-                            HeroIconButton(
-                                icon = if (feedback == Feedback.LIKE) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
-                                contentDescription = if (feedback == Feedback.LIKE) "Remove like" else "Like",
-                                onClick = { onFeedback(Feedback.LIKE) },
-                                focusUp = navUpFocusRequester,
-                                compact = compact
-                            )
+                            PlusTagged(locked = feedbackLocked) {
+                                HeroIconButton(
+                                    icon = if (feedback == Feedback.LIKE) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                                    contentDescription = if (feedbackLocked) "Like (Plus)" else if (feedback == Feedback.LIKE) "Remove like" else "Like",
+                                    onClick = { onFeedback(Feedback.LIKE) },
+                                    focusUp = navUpFocusRequester,
+                                    compact = compact
+                                )
+                            }
                             Spacer(Modifier.width(if (compact) 10.dp else 16.dp))
-                            HeroIconButton(
-                                icon = if (feedback == Feedback.DISLIKE) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
-                                contentDescription = if (feedback == Feedback.DISLIKE) "Remove Not for me" else "Not for me",
-                                onClick = { onFeedback(Feedback.DISLIKE) },
-                                focusUp = navUpFocusRequester,
-                                compact = compact
-                            )
+                            PlusTagged(locked = feedbackLocked) {
+                                HeroIconButton(
+                                    icon = if (feedback == Feedback.DISLIKE) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
+                                    contentDescription = if (feedbackLocked) "Not for me (Plus)" else if (feedback == Feedback.DISLIKE) "Remove Not for me" else "Not for me",
+                                    onClick = { onFeedback(Feedback.DISLIKE) },
+                                    focusUp = navUpFocusRequester,
+                                    compact = compact
+                                )
+                            }
                             Spacer(Modifier.width(if (compact) 10.dp else 16.dp))
                         }
                     }
@@ -483,3 +491,26 @@ private fun formatReleaseDate(isoDate: String): String? = runCatching {
     val parsed = requireNotNull(SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(isoDate))
     SimpleDateFormat("MMM d, yyyy", Locale.US).format(parsed)
 }.getOrNull()
+
+/** [content] with a small "Plus" tag pinned to its top right corner when [locked]; otherwise just [content]. */
+@Composable
+private fun PlusTagged(locked: Boolean, content: @Composable () -> Unit) {
+    if (!locked) {
+        content()
+        return
+    }
+    Box {
+        content()
+        Text(
+            text = "Plus",
+            color = MangoBackground,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 9.sp,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .background(ArcAccent, RoundedCornerShape(percent = 50))
+                .padding(horizontal = 5.dp, vertical = 1.dp)
+        )
+    }
+}

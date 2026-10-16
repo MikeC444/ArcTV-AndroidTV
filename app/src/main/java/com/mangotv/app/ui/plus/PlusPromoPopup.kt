@@ -155,6 +155,22 @@ private fun PlusPromoDialog(onClose: () -> Unit, onNever: () -> Unit, onGo: () -
 /** The popup's card, with everything handed in (also drawn on its own by the screenshot test). */
 @Composable
 internal fun PlusPromoCard(onGo: () -> Unit, onClose: () -> Unit, onNever: () -> Unit, primaryFocusRequester: FocusRequester) {
+    PlusInviteCard(
+        headline = "Get more from every movie night.",
+        subline = "Everything you use today stays free.",
+        onGo = onGo,
+        onClose = onClose,
+        onNever = onNever,
+        primaryFocusRequester = primaryFocusRequester
+    )
+}
+
+/**
+ * The Arc TV Plus invitation card: a headline and line under it, the three benefits, "Take me there" and Close, and (only when [onNever] is
+ * given) "Don't show me again". Shared by the Home popup and the asks that open when a locked feature is pressed.
+ */
+@Composable
+internal fun PlusInviteCard(headline: String, subline: String, onGo: () -> Unit, onClose: () -> Unit, onNever: (() -> Unit)?, primaryFocusRequester: FocusRequester) {
     val panelShape = RoundedCornerShape(18.dp)
     // The same card size as the Plus welcome popup (it was once 600 dp wide and nearly the whole height of a 540 dp screen): 380 dp wide and a little over half the height.
     Column(
@@ -184,14 +200,14 @@ internal fun PlusPromoCard(onGo: () -> Unit, onClose: () -> Unit, onNever: () ->
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Get more from every movie night.",
+            text = headline,
             color = TextPrimary,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.ExtraBold
         )
         Spacer(Modifier.height(3.dp))
         Text(
-            text = "Everything you use today stays free.",
+            text = subline,
             color = TextSecondary,
             style = MaterialTheme.typography.bodySmall,
             fontSize = 11.sp
@@ -232,20 +248,22 @@ internal fun PlusPromoCard(onGo: () -> Unit, onClose: () -> Unit, onNever: () ->
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            TvFocusSurface(
-                onClick = onNever,
-                shape = RoundedCornerShape(8.dp),
-                focusedScale = 1.04f,
-                clickSound = ClickSound.BACK
-            ) {
-                Text(
-                    text = "Don't show me again",
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.labelMedium,
-                    textDecoration = TextDecoration.Underline,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
-                )
+        if (onNever != null) {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                TvFocusSurface(
+                    onClick = onNever,
+                    shape = RoundedCornerShape(8.dp),
+                    focusedScale = 1.04f,
+                    clickSound = ClickSound.BACK
+                ) {
+                    Text(
+                        text = "Don't show me again",
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.labelMedium,
+                        textDecoration = TextDecoration.Underline,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
+                    )
+                }
             }
         }
     }
