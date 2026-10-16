@@ -23,8 +23,8 @@ export const settingsBodySchema = z.object({
   // a client that predates it still pushes cleanly -- it then leaves the
   // stored list alone instead of wiping it.
   blockedGenres: z.array(z.string().trim().min(1).max(100)).max(200).optional(),
-  // When "Reset stats" was last pressed (migrations/0033): Your stats counts only what was watched after it; null counts everything.
-  // Optional so a client that predates it still pushes cleanly -- it then leaves the stored value alone.
+  // When "Reset stats" was last pressed (migrations/0033): Your stats counts only what was watched after it. It can only move forward: a null
+  // or an earlier time leaves the stored one alone. Optional so a client that predates it still pushes cleanly.
   statsResetAt: z.iso.datetime("statsResetAt must be an ISO-8601 UTC timestamp").nullable().optional(),
   updatedAt: z.iso.datetime("updatedAt must be an ISO-8601 UTC timestamp"),
 });
