@@ -99,8 +99,10 @@ fun ProfilesScreen(
     onFinished: (switched: Boolean) -> Unit,
     onBack: () -> Unit,
     onSignOut: () -> Unit,
-    // Opens Settings -> Arc TV Plus (from the Plus invitation that Add profile opens without Plus).
-    onOpenPlus: () -> Unit,
+    // Opens Settings -> Arc TV Plus (from the Plus invitation that Add profile opens without Plus), once the account's own profile is open
+    // (true when that was a different profile, so Home has to reload). Opening it first is what lets Settings be reached at launch: until a
+    // profile has been picked the app keeps sending everyone back to this screen.
+    onOpenPlus: (switched: Boolean) -> Unit,
     viewModel: ProfilesViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -249,7 +251,22 @@ fun ProfilesScreen(
             },
             onGo = {
                 showPlusAsk = false
-                onOpenPlus()
+                // Without Plus there is only the account's own profile: open it on the person's behalf, then go to the Plus page.
+                val own = state.profiles.firstOrNull { it.isDefault } ?: state.profiles.firstOrNull()
+                when {
+                    own == null -> onOpenPlus(false)
+                    own.hasPin -> {
+                        // Locked: the PIN is asked first (and then Home opens, as for any profile).
+                        pinError = null
+                        asking = own
+                    }
+                    else -> viewModel.open(
+                        profile = own,
+                        pin = null,
+                        onResult = { result -> if (result is ProfileResult.Failed) error = result.message },
+                        onDone = { switched -> onOpenPlus(switched) }
+                    )
+                }
             }
         )
     }

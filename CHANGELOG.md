@@ -5795,6 +5795,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 - `ui/profiles/ProfilesScreen.kt`: without Plus (and when the Plus asks may show: signed in, Plus a paid tier, not a kids profile) the row of profiles ends with an Add profile tile (no badge); pressing it opens the invitation (`PROFILES_ASK`, "Give everyone their own profile."). Closing it puts the highlight back on that tile. The static paragraph is gone. "Take me there" goes to Settings -> Arc TV Plus through the new `onOpenPlus` parameter, wired in `navigation/MangoNavHost.kt`. People with Plus see the same Add profile tile as before.
 - `ui/plus/PlusAsk.kt`: `PROFILES_ASK`.
 - The tile carries no Plus badge, just the plain "Add profile" label (asked for after a first version had one).
+- "Take me there" first opens the account's own profile (the only one without Plus; if it has a PIN the PIN pad comes first), then goes to Settings -> Arc TV Plus on top of Home. Before it went straight to Settings, and at launch, before any profile has been picked, the app sends everyone back to Who's watching, so it looked as if the button did nothing.
 - RELEASE_NOTES.md: one bullet.
 
 **Tests performed:** a manual re-read and brace/paren balance check, and a check that each edited file imports what it uses. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`).
