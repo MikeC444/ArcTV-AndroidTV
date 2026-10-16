@@ -22,6 +22,7 @@ function validBody(overrides: Partial<Record<string, unknown>> = {}) {
     defaultSubtitleLanguage: "es",
     defaultAudioLanguage: "fr",
     blockedGenres: ["Horror", "Reality-TV"],
+    statsResetAt: null,
     updatedAt: "2025-01-01T00:00:00.000Z",
     ...overrides,
   };
@@ -46,6 +47,7 @@ describe("GET /user/settings", () => {
       defaultSubtitleLanguage: null,
       defaultAudioLanguage: null,
       blockedGenres: [],
+      statsResetAt: null,
       updatedAt: null,
     });
   });
@@ -185,6 +187,7 @@ describe("cross-user isolation", () => {
       defaultSubtitleLanguage: null,
       defaultAudioLanguage: null,
       blockedGenres: [],
+      statsResetAt: null,
       updatedAt: null,
     });
 
@@ -258,5 +261,38 @@ describe("default audio language on the account", () => {
   it("rejects a value too short to be a language code", async () => {
     const session = await createTestSession();
     expect((await put(session.token, validBody({ defaultAudioLanguage: "e" }))).status).toBe(400);
+  });
+});
+
+describe("stats reset on the account", () => {
+  const put = (token: string, body: Record<string, unknown>) =>
+    request(app).put("/user/settings").set("Authorization", `Bearer ${token}`).send(body);
+  const get = (token: string) => request(app).get("/user/settings").set("Authorization", `Bearer ${token}`);
+
+  it("is null until a reset is pressed, then round-trips as a time", async () => {
+    const session = await createTestSession();
+    expect((await get(session.token)).body.statsResetAt).toBeNull();
+    const reset = await put(session.token, validBody({ statsResetAt: "2025-02-01T10:00:00.000Z" }));
+    expect(reset.status).toBe(200);
+    expect(reset.body.statsResetAt).toBe("2025-02-01T10:00:00.000Z");
+    expect((await get(session.token)).body.statsResetAt).toBe("2025-02-01T10:00:00.000Z");
+  });
+
+  it("a client that omits it leaves the stored reset alone, and a newer push of null shows all history again", async () => {
+    const session = await createTestSession();
+    await put(session.token, validBody({ statsResetAt: "2025-02-01T10:00:00.000Z" }));
+    const { statsResetAt: _omitted, ...withoutIt } = validBody({ updatedAt: "2025-01-02T00:00:00.000Z", statsResetAt: null });
+    expect((await put(session.token, withoutIt)).body.statsResetAt).toBe("2025-02-01T10:00:00.000Z");
+    const cleared = await put(session.token, validBody({ statsResetAt: null, updatedAt: "2025-01-03T00:00:00.000Z" }));
+    expect(cleared.body.statsResetAt).toBeNull();
+    expect((await get(session.token)).body.statsResetAt).toBeNull();
+  });
+
+  it("is each account's own, and a value that is not a time is a 400", async () => {
+    const alice = await createTestSession();
+    const bob = await createTestSession();
+    await put(alice.token, validBody({ statsResetAt: "2025-02-01T10:00:00.000Z" }));
+    expect((await get(bob.token)).body.statsResetAt).toBeNull();
+    expect((await put(alice.token, validBody({ statsResetAt: "yesterday" }))).status).toBe(400);
   });
 });

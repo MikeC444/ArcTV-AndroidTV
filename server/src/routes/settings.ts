@@ -18,6 +18,7 @@ function serialize(settings: settingsService.UserSettings) {
     defaultSubtitleLanguage: settings.defaultSubtitleLanguage,
     defaultAudioLanguage: settings.defaultAudioLanguage,
     blockedGenres: settings.blockedGenres,
+    statsResetAt: settings.statsResetAt ? settings.statsResetAt.toISOString() : null,
     updatedAt: settings.updatedAt ? settings.updatedAt.toISOString() : null,
   };
 }

@@ -5465,3 +5465,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** promo codes (`allow_promotion_codes`) mean the list price may differ from what is charged, so apps should say it is a list price.
 
 **Issues fixed:** none.
+
+## Post-Milestone-142 -- Settings: a stats reset time on the account
+
+**Status:** Done on the branch (backend); the Reset stats button that uses it is in `ArcTV-Web`. Not live until the backend is redeployed (the migration runs then). Nothing for RELEASE_NOTES.md (no Fire TV screen uses it yet).
+
+**Context:** Your stats counts everything in the watch history. To let someone start counting again without deleting that history (which Continue Watching, the watched ticks and Picked for you also use), the account needs to remember when they pressed Reset stats, on every device.
+
+**Changes:**
+- `migrations/0033_user_settings_stats_reset.sql`: `user_settings.stats_reset_at` (timestamptz, null = count everything). Settings are per profile, so a reset is per profile.
+- `schemas/settings.ts`, `services/settingsService.ts`, `routes/settings.ts`: `statsResetAt` on GET and PUT `/user/settings`. Optional on PUT like `defaultAudioLanguage`: a client that omits it (the Fire TV app today) leaves the stored value alone; null clears it. Still last-write-wins on `updatedAt`.
+
+**Tests performed:** `tests/settings.test.ts` gains three tests (null until a reset, round-trips as a time; omitted leaves it alone and a newer null clears it; per account, and a non-time is a 400) and the existing expectations include the new field. The whole backend suite passed against a local Postgres 16 (308 tests). No Android build (the Fire TV app does not read the field yet: its Your stats still counts everything).
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
