@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -140,6 +141,10 @@ fun DetailHeroSection(
     // the whole page (hero + Cast + You May Also Like) fits on one screen
     // without scrolling. TV shows don't pass this and are unaffected.
     compact: Boolean = false,
+    // A TV show with seasons: how far the title, details and buttons (and the rating beside them) are moved down. The seasons block below starts with
+    // the nav bar's height of empty room (so it clears the bar once scrolled up under it); moving the hero's content into that room closes the
+    // gap between Play and Seasons and takes the title clear of the nav bar's logo. Only drawing moves, not the page's layout.
+    contentDrop: Dp = 0.dp,
     // This exact title's Continue Watching entry, if any -- null for a
     // title that's never been played, or one that's since been finished.
     // Swaps "Play" for "Resume" and, for a TV show, retargets which
@@ -218,6 +223,7 @@ fun DetailHeroSection(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
+                    .offset(y = contentDrop)
                     // Level with the Play row: the badge's centre on the buttons' centre, half a button above the
                     // row's bottom edge. Padding by that much and then sliding the badge down by half its own height
                     // does it without needing to know how tall the badge is.
@@ -257,6 +263,7 @@ fun DetailHeroSection(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
+                .offset(y = contentDrop)
                 .let { if (compact) it.fillMaxSize() else it }
                 .padding(
                     start = MangoDimens.ScreenPaddingHorizontal,

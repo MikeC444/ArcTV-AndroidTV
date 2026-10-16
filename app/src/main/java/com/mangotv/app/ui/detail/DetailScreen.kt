@@ -330,6 +330,8 @@ private fun DetailContent(
                             else -> null
                         },
                         feedbackLocked = !hasPlus && plusAskEligible,
+                        // A show with seasons: the hero's content drops into the room the seasons block keeps for the nav bar (see DetailHeroSection).
+                        contentDrop = if (content.type == ContentType.TV_SHOW && content.seasons.isNotEmpty()) MangoDimens.NavBarHeight + 4.dp else 0.dp,
                         onTrailer = onTrailer,
                         trailerReady = trailerReady,
                         releaseDateState = releaseDateState,
