@@ -24,7 +24,17 @@ sealed interface SearchUiState {
     data object Idle : SearchUiState
     data object Searching : SearchUiState
     /** [loading] while slower addons are still answering ("Still checking other addons..."). */
-    data class Results(val movies: List<Content>, val tvShows: List<Content>, val loading: Boolean = false) : SearchUiState
+    data class Results(
+        val movies: List<Content>,
+        val tvShows: List<Content>,
+        val loading: Boolean = false,
+        /** The anime-only line (first on the page): what the addons that have anime catalogues found. */
+        val anime: List<Content> = emptyList(),
+        /** How many addons were asked for anime, how many of them failed, and whether every one has answered: a search that finds no anime still says so. */
+        val animeAsked: Int = 0,
+        val animeFailed: Int = 0,
+        val animeDone: Boolean = false
+    ) : SearchUiState
     data class NoResults(val query: String) : SearchUiState
     data class Error(val message: String) : SearchUiState
 }
@@ -41,6 +51,9 @@ fun mergeSearchAnswers(answers: List<List<Content>?>): Pair<List<Content>, List<
     val merged = interleaveAnswers(answers.filterNotNull()).distinctBy { it.id }
     return merged.filter { it.type == ContentType.MOVIE } to merged.filter { it.type == ContentType.TV_SHOW }
 }
+
+/** What the anime addons have said so far, merged the same way (addon order is stable). */
+fun mergeAnimeAnswers(answers: List<List<Content>?>): List<Content> = interleaveAnswers(answers.filterNotNull()).distinctBy { it.id }
 
 private fun <T> interleaveAnswers(lists: List<List<T>>): List<T> {
     if (lists.size == 1) return lists[0]
@@ -76,6 +89,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     // already in _uiState, so a title removed from My List after being watched correctly loses its tick on the next re-publish.
     private var rawMovies: List<Content> = emptyList()
     private var rawTvShows: List<Content> = emptyList()
+    private var rawAnime: List<Content> = emptyList()
+    private var animeAsked: Int = 0
+    private var animeFailed: Int = 0
+    private var animePending: Int = 0
     private var loading: Boolean = false
 
     // Ids My List has marked watched -- drives the poster tick on search results too, not just My List's own screen.
@@ -110,7 +127,11 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         SearchUiState.Results(
             rawMovies.withoutBlocked(blocked).map { it.withWatchedFlag() },
             rawTvShows.withoutBlocked(blocked).map { it.withWatchedFlag() },
-            loading
+            loading,
+            anime = rawAnime.withoutBlocked(blocked).map { it.withWatchedFlag() },
+            animeAsked = animeAsked,
+            animeFailed = animeFailed,
+            animeDone = animePending == 0
         )
 
     /** The text in the bar changed: search after a short pause (never for a single letter), and go back to the start page when it is emptied. */
@@ -160,22 +181,31 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             val answers = arrayOfNulls<List<Content>>(providers.size)
             var pending = providers.size
             var failed = 0
+            // Anime has its own line, asked only of the addons that have anime catalogues: without one there is never an anime line.
+            val animeProviders = providers.filter { it.hasAnimeSearch }
+            val animeAnswers = arrayOfNulls<List<Content>>(animeProviders.size)
+            animeAsked = animeProviders.size
+            animePending = animeProviders.size
+            animeFailed = 0
 
             // Called as each addon (or each of its catalogs) answers; every state change goes through the same lock.
             fun publish() {
                 val (movies, shows) = mergeSearchAnswers(answers.toList())
-                loading = pending > 0
+                val anime = mergeAnimeAnswers(animeAnswers.toList())
+                val stillAsking = pending > 0 || animePending > 0
+                loading = stillAsking
                 // Nothing in yet from the new search but older results are on screen: keep them (marked "still checking") rather than
                 // swapping them for a spinner, which would pull the rug from under a result the user is already moving onto.
-                if (movies.isEmpty() && shows.isEmpty() && pending > 0 && previous is SearchUiState.Results) {
+                if (movies.isEmpty() && shows.isEmpty() && anime.isEmpty() && stillAsking && previous is SearchUiState.Results) {
                     _uiState.value = previous.copy(loading = true)
                     return
                 }
                 rawMovies = movies
                 rawTvShows = shows
+                rawAnime = anime
                 _uiState.value = when {
-                    movies.isNotEmpty() || shows.isNotEmpty() -> currentResults()
-                    pending > 0 -> SearchUiState.Searching
+                    movies.isNotEmpty() || shows.isNotEmpty() || anime.isNotEmpty() -> currentResults()
+                    stillAsking -> SearchUiState.Searching
                     failed == providers.size -> SearchUiState.Error("Couldn't reach your installed addons. Check your connection and try again.")
                     else -> SearchUiState.NoResults(query)
                 }
@@ -203,6 +233,31 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         }
                         synchronized(lock) {
                             pending--
+                            publish()
+                        }
+                    }
+                }
+                animeProviders.forEachIndexed { index, provider ->
+                    launch {
+                        try {
+                            val result = withTimeout(SEARCH_ADDON_TIMEOUT_MS) {
+                                provider.searchAnime(query) { partial ->
+                                    synchronized(lock) {
+                                        animeAnswers[index] = partial
+                                        publish()
+                                    }
+                                }
+                            }
+                            synchronized(lock) { animeAnswers[index] = result }
+                        } catch (e: TimeoutCancellationException) {
+                            synchronized(lock) { animeFailed++ }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            synchronized(lock) { animeFailed++ }
+                        }
+                        synchronized(lock) {
+                            animePending--
                             publish()
                         }
                     }

@@ -318,14 +318,42 @@ fun SearchScreen(
                             }
                         }
                         is SearchUiState.Results -> {
+                            val hasAnime = state.anime.isNotEmpty()
                             val hasMovies = state.movies.isNotEmpty()
+                            // The anime line comes first, as on the web app.
+                            if (hasAnime) {
+                                resultGrid(
+                                    keyPrefix = "anime",
+                                    heading = "Anime",
+                                    items = state.anime,
+                                    posterScale = posterScale,
+                                    firstGridRowOfScreen = true,
+                                    firstResultFocusRequester = firstResultFocusRequester,
+                                    onRowFocused = { focusedRowKey = it },
+                                    onUpFromFirstRow = { runCatching { fieldFocusRequester.requestFocus() } },
+                                    onOpen = ::navigateToContent
+                                )
+                            } else if (state.animeAsked > 0 && state.animeDone) {
+                                // The person has an anime addon: the line still shows, saying what happened.
+                                item(key = "anime_none") {
+                                    Column(modifier = Modifier.padding(horizontal = MangoDimens.ScreenPaddingHorizontal, vertical = 8.dp)) {
+                                        Text(text = "Anime", color = TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = if (state.animeFailed >= state.animeAsked) "Your anime addons didn't answer. Try again in a moment." else "No anime matched \"${query.trim()}\" in your anime addons.",
+                                            color = TextSecondary,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    }
+                                }
+                            }
                             if (hasMovies) {
                                 resultGrid(
                                     keyPrefix = "movies",
                                     heading = "Movies",
                                     items = state.movies,
                                     posterScale = posterScale,
-                                    firstGridRowOfScreen = true,
+                                    firstGridRowOfScreen = !hasAnime,
                                     firstResultFocusRequester = firstResultFocusRequester,
                                     onRowFocused = { focusedRowKey = it },
                                     onUpFromFirstRow = { runCatching { fieldFocusRequester.requestFocus() } },
@@ -338,7 +366,7 @@ fun SearchScreen(
                                     heading = "TV Shows",
                                     items = state.tvShows,
                                     posterScale = posterScale,
-                                    firstGridRowOfScreen = !hasMovies,
+                                    firstGridRowOfScreen = !hasAnime && !hasMovies,
                                     firstResultFocusRequester = firstResultFocusRequester,
                                     onRowFocused = { focusedRowKey = it },
                                     onUpFromFirstRow = { runCatching { fieldFocusRequester.requestFocus() } },
