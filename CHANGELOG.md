@@ -5783,3 +5783,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-160 -- TV: Add profile for people without Plus (phase 3 of the Plus catch-up with the web app)
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** The web app shows an Add profile entry to people without Plus, which opens a Plus invitation, in place of a static "More profiles come with ArcTV Plus" paragraph. The TV's Profiles screen showed only that paragraph.
+
+**Changes:**
+- `ui/profiles/ProfilesScreen.kt`: without Plus (and when the Plus asks may show: signed in, Plus a paid tier, not a kids profile) the row of profiles ends with an Add profile tile carrying a Plus badge; pressing it opens the invitation (`PROFILES_ASK`, "Give everyone their own profile."). Closing it puts the highlight back on that tile. The static paragraph is gone. "Take me there" goes to Settings -> Arc TV Plus through the new `onOpenPlus` parameter, wired in `navigation/MangoNavHost.kt`. People with Plus see the same Add profile tile as before.
+- `ui/plus/PlusAsk.kt`: `PROFILES_ASK`.
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** a manual re-read and brace/paren balance check, and a check that each edited file imports what it uses. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`).
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

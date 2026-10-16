@@ -1,5 +1,10 @@
 package com.mangotv.app.ui.profiles
 
+import androidx.compose.runtime.withFrameNanos
+import com.mangotv.app.ui.components.PlusBadge
+import com.mangotv.app.ui.plus.rememberPlusAskEligible
+import com.mangotv.app.ui.plus.PlusAskDialog
+import com.mangotv.app.ui.plus.PROFILES_ASK
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -95,6 +100,8 @@ fun ProfilesScreen(
     onFinished: (switched: Boolean) -> Unit,
     onBack: () -> Unit,
     onSignOut: () -> Unit,
+    // Opens Settings -> Arc TV Plus (from the Plus invitation that Add profile opens without Plus).
+    onOpenPlus: () -> Unit,
     viewModel: ProfilesViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -105,6 +112,18 @@ fun ProfilesScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var pinError by remember { mutableStateOf<String?>(null) }
     val firstTile = remember { FocusRequester() }
+    // Without Plus, Add profile is still there: it opens the Plus invitation (never for a guest or when Plus is not a paid tier yet).
+    val plusAskEligible = rememberPlusAskEligible()
+    var showPlusAsk by remember { mutableStateOf(false) }
+    var askClosedTick by remember { mutableStateOf(0) }
+    val addTileFocus = remember { FocusRequester() }
+    LaunchedEffect(askClosedTick) {
+        if (askClosedTick == 0) return@LaunchedEffect
+        // The invitation's window is leaving: put the highlight back on Add profile rather than letting it fall to the first tile.
+        withFrameNanos { }
+        withFrameNanos { }
+        runCatching { addTileFocus.requestFocus() }
+    }
     val canGoBack = state.chosen || !state.plus || !state.supported
 
     BackHandler(enabled = asking == null && editing == null) {
@@ -192,6 +211,9 @@ fun ProfilesScreen(
                     if (state.supported && state.plus && state.profiles.size < state.limit) {
                         AddTile(onClick = { editing = EditTarget.New })
                     }
+                    if (state.ready && state.supported && !state.plus && plusAskEligible) {
+                        AddTile(onClick = { showPlusAsk = true }, plusBadge = true, focusRequester = addTileFocus)
+                    }
                 }
 
                 Spacer(Modifier.height(30.dp))
@@ -207,16 +229,6 @@ fun ProfilesScreen(
                         Text(text = "An account can have up to ${state.limit} profiles.", color = TextTertiary, style = MaterialTheme.typography.labelSmall)
                     }
                 }
-                if (state.ready && state.supported && !state.plus) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = "More profiles come with ArcTV Plus: a separate My List, Continue Watching and recommendations for everyone at home, kids profiles, and a PIN on any profile.",
-                        color = TextSecondary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(0.6f)
-                    )
-                }
                 if (state.ready && !state.supported) {
                     Text(text = "Profiles aren't available yet. Everything you watch stays in your account's one library for now.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
                 }
@@ -228,6 +240,19 @@ fun ProfilesScreen(
         }
     }
 
+    if (showPlusAsk) {
+        PlusAskDialog(
+            ask = PROFILES_ASK,
+            onClose = {
+                showPlusAsk = false
+                askClosedTick++
+            },
+            onGo = {
+                showPlusAsk = false
+                onOpenPlus()
+            }
+        )
+    }
     asking?.let { profile ->
         FullScreenDialog(onDismiss = { asking = null; pinError = null }) {
             PinPad(
@@ -282,20 +307,27 @@ private fun ProfileTile(
 }
 
 @Composable
-private fun AddTile(onClick: () -> Unit) {
+private fun AddTile(onClick: () -> Unit, plusBadge: Boolean = false, focusRequester: FocusRequester? = null) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(140.dp)) {
         TvFocusSurface(
             onClick = onClick,
             shape = RoundedCornerShape(14.dp),
             backgroundColor = MangoBackgroundElevated,
+            focusRequester = focusRequester,
             modifier = Modifier.size(140.dp)
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Add, contentDescription = "Add profile", tint = TextSecondary, modifier = Modifier.size(48.dp))
+                Icon(Icons.Filled.Add, contentDescription = if (plusBadge) "Add profile (Plus)" else "Add profile", tint = TextSecondary, modifier = Modifier.size(48.dp))
             }
         }
         Spacer(Modifier.height(10.dp))
-        Text(text = "Add profile", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = "Add profile", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            if (plusBadge) {
+                Spacer(Modifier.width(6.dp))
+                PlusBadge()
+            }
+        }
     }
 }
 

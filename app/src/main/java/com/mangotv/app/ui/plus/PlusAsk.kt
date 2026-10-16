@@ -26,6 +26,12 @@ val PICKED_ASK = PlusAsk(
     subline = "Like and Not for me are part of Plus. Everything you use today stays free."
 )
 
+/** Opened when someone without Plus presses Add profile. */
+val PROFILES_ASK = PlusAsk(
+    headline = "Give everyone their own profile.",
+    subline = "Up to 5 profiles are part of Plus. Everything you use today stays free."
+)
+
 /**
  * Whether the Plus asks may be shown: signed in, Plus is a paid tier (not early access), this account has no Plus, and it is not a kids profile.
  * The same rules as the Home invitation had.
