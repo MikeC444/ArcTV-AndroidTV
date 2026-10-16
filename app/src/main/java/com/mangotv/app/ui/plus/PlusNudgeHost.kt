@@ -38,7 +38,13 @@ fun PlusNudgeHost(blocked: Boolean, onGo: () -> Unit) {
         if (!pending || blocked || record == null) return@LaunchedEffect
         delay(AFTER_WATCH_DELAY_MS)
         val due = nudgeDue(record, NudgeTrigger.AFTER_WATCH, System.currentTimeMillis())
-        Log.d("PlusNudge", "host: deciding eligible=$eligible due=$due record=$record")
+        // Which part of "eligible" is what stopped it: guest, the paywall being off, Plus already active, or a kids profile.
+        val plus = container.plusRepository.status.value
+        Log.d(
+            "PlusNudge",
+            "host: deciding eligible=$eligible due=$due guest=${container.guestGate.isGuest.value} paywall=${plus.paywall} plusActive=${plus.active} plan=${plus.plan} " +
+                "kids=${container.profileRepository.state.value.active?.isKids} record=$record"
+        )
         if (eligible && due) {
             repository.markShown(NudgeTrigger.AFTER_WATCH)
             open = true
