@@ -5481,3 +5481,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-143 -- Watch history: which reports were marked by hand
+
+**Status:** Done on the branch (backend); the web app uses it so Your stats counts only what was played. Not live until the backend is redeployed (the migration runs then). Nothing for RELEASE_NOTES.md (no Fire TV screen uses it yet).
+
+**Context:** Marking an episode or a whole season as watched writes a progress report that says "watched the whole episode" (the listed runtime as both position and length), so Your stats counted it as hours really watched, and as episodes watched, days and streak.
+
+**Changes:**
+- `migrations/0034_watch_history_marked_manually.sql`: `watch_history.marked_manually` (boolean, default false).
+- `schemas/watchProgress.ts`, `services/playbackProgressService.ts`, `routes/history.ts`: `markedManually` is optional on `POST /user/watch-progress` (omitted reads as played, so older clients are unaffected), is stored with the row (a newer report replaces it, so playing an episode that was ticked makes it count, and a later tick makes it a tick again) and comes back on `GET /user/history` and in the report's answer.
+
+**Tests performed:** `tests/watch-progress.test.ts` gains four tests (reads as played unless flagged, and history says which; playing a ticked episode makes it count and a newer tick flips it back; an older report loses and the flag stays; a non-boolean is a 400). The whole backend suite passed against a local Postgres 16. No Android build; the Fire TV app does not send or read the field yet, so its own Your stats still counts hand-marked episodes.
+
+**Issues discovered:** rows written before this have no way to say they were hand-marked; the web app recognises the old ones by their shape (an episode whose length is a whole number of minutes with the position exactly at the end), which real playback almost never has.
+
+**Issues fixed:** hand-marked episodes inflating Your stats.

@@ -365,3 +365,40 @@ describe("cross-user isolation", () => {
     expect(aliceCw.body.items[0].contentId).toBe("alice-secret-movie");
   });
 });
+
+describe("episodes marked watched by hand", () => {
+  const post = (token: string, body: Record<string, unknown>) => request(app).post("/user/watch-progress").set("Authorization", `Bearer ${token}`).send(body);
+  const history = async (token: string) => (await request(app).get("/user/history").set("Authorization", `Bearer ${token}`)).body.items;
+
+  it("reads as played unless the report says it was marked by hand, and history says which", async () => {
+    const session = await createTestSession();
+    await post(session.token, episodeProgress({ episodeNumber: 1 }));
+    await post(session.token, episodeProgress({ episodeNumber: 2, completed: true, positionMs: 1_500_000, markedManually: true }));
+    const items = await history(session.token);
+    const byEpisode = (n: number) => items.find((i: { episodeNumber: number }) => i.episodeNumber === n);
+    expect(byEpisode(1).markedManually).toBe(false);
+    expect(byEpisode(2).markedManually).toBe(true);
+    expect(byEpisode(2).completed).toBe(true); // it still gives the episode its tick
+  });
+
+  it("actually playing an episode that was marked by hand makes it count as played, and a newer mark makes it a mark again", async () => {
+    const session = await createTestSession();
+    await post(session.token, episodeProgress({ completed: true, positionMs: 1_500_000, markedManually: true, watchedAt: "2025-01-01T00:00:00.000Z" }));
+    await post(session.token, episodeProgress({ completed: true, positionMs: 1_499_000, watchedAt: "2025-01-02T00:00:00.000Z" }));
+    expect((await history(session.token))[0].markedManually).toBe(false);
+    await post(session.token, episodeProgress({ completed: false, positionMs: 0, markedManually: true, watchedAt: "2025-01-03T00:00:00.000Z" }));
+    expect((await history(session.token))[0].markedManually).toBe(true);
+  });
+
+  it("an older report loses, and the stored flag stays", async () => {
+    const session = await createTestSession();
+    await post(session.token, episodeProgress({ completed: true, positionMs: 1_500_000, markedManually: true, watchedAt: "2025-01-05T00:00:00.000Z" }));
+    await post(session.token, episodeProgress({ completed: true, positionMs: 1_400_000, watchedAt: "2025-01-01T00:00:00.000Z" }));
+    expect((await history(session.token))[0].markedManually).toBe(true);
+  });
+
+  it("rejects a flag that is not true or false", async () => {
+    const session = await createTestSession();
+    expect((await post(session.token, episodeProgress({ markedManually: "yes" }))).status).toBe(400);
+  });
+});
