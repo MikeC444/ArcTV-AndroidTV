@@ -36,8 +36,32 @@ export const setStripeFetch = (impl: StripeFetch | null): void => {
   stripeFetch = impl ?? ((url, init) => fetch(url, init));
 };
 
-/** What the Lifetime payment page says about the supporters board: it is the member's choice, made afterwards in Settings. */
-export const SUPPORTERS_BOARD_NOTICE = "As a Lifetime supporter you can choose to have your display name on the supporters board on arctv.org. It is off unless you turn it on in Settings → ArcTV Plus.";
+/** What the Lifetime payment page says about the supporters board: it is the member's choice, made in the question above it or later in Settings. */
+export const SUPPORTERS_BOARD_NOTICE = "As a Lifetime supporter you can choose to have your display name on the supporters board on arctv.org. Answer the question above; you can change your mind any time in Settings → ArcTV Plus.";
+
+/** The same note when the question could not be shown: the choice is made afterwards. */
+export const SUPPORTERS_BOARD_NOTICE_LATER = "As a Lifetime supporter you can choose to have your display name on the supporters board on arctv.org. It is off unless you turn it on in Settings → ArcTV Plus.";
+
+/** The question on the Lifetime payment page ("custom field"), and what its two answers are. The webhook reads the answer back by this key. */
+export const SUPPORTERS_FIELD_KEY = "supporters_board";
+export const SUPPORTERS_FIELD_YES = "yes";
+export const SUPPORTERS_FIELD_NO = "no";
+
+/**
+ * A required drop-down on the Lifetime payment page: "Put my name on the supporters board?". "No thanks" is listed first and nothing is pre-selected, so a
+ * listing is only ever something the buyer chose. Answers come back on the completed session's `custom_fields`.
+ */
+function addSupportersQuestion(form: URLSearchParams): void {
+  form.set("custom_fields[0][key]", SUPPORTERS_FIELD_KEY);
+  form.set("custom_fields[0][type]", "dropdown");
+  form.set("custom_fields[0][optional]", "false");
+  form.set("custom_fields[0][label][type]", "custom");
+  form.set("custom_fields[0][label][custom]", "Put my name on the supporters board?");
+  form.set("custom_fields[0][dropdown][options][0][label]", "No thanks, keep my name private");
+  form.set("custom_fields[0][dropdown][options][0][value]", SUPPORTERS_FIELD_NO);
+  form.set("custom_fields[0][dropdown][options][1][label]", "Yes, add my display name");
+  form.set("custom_fields[0][dropdown][options][1][value]", SUPPORTERS_FIELD_YES);
+}
 
 /** Free days on a first monthly or yearly subscription: Stripe takes the card now and bills when they end. */
 export const PLUS_TRIAL_DAYS = 5;
@@ -91,16 +115,29 @@ export async function createCheckoutSession(input: CheckoutInput): Promise<Check
     }
   }
   // Said on the payment page itself, before anyone pays: Lifetime members may choose to be on the supporters board (off unless they turn it on in Settings).
-  if (input.plan === "lifetime") form.set("custom_text[submit][message]", SUPPORTERS_BOARD_NOTICE);
+  if (input.plan === "lifetime") {
+    form.set("custom_text[submit][message]", SUPPORTERS_BOARD_NOTICE);
+    addSupportersQuestion(form);
+  }
   if (input.stripeCustomerId) form.set("customer", input.stripeCustomerId);
   else form.set("customer_email", input.email);
   form.set("allow_promotion_codes", "true");
 
-  const response = await stripeFetch("https://api.stripe.com/v1/checkout/sessions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${config.stripeSecretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
-    body: form.toString(),
-  });
+  const create = (fields: URLSearchParams) =>
+    stripeFetch("https://api.stripe.com/v1/checkout/sessions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${config.stripeSecretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
+      body: fields.toString(),
+    });
+  let response = await create(form);
+  if (response.status === 400 && form.has("custom_fields[0][key]")) {
+    // Stripe refused the extra question: never let that stop a purchase. Try again without it (the board stays a choice made later in Settings).
+    console.error("Stripe refused the supporters-board question; creating the Lifetime checkout without it");
+    const plain = new URLSearchParams(form);
+    for (const key of [...plain.keys()]) if (key.startsWith("custom_fields[")) plain.delete(key);
+    plain.set("custom_text[submit][message]", SUPPORTERS_BOARD_NOTICE_LATER);
+    response = await create(plain);
+  }
   const body = (await response.json().catch(() => null)) as { url?: unknown; amount_total?: unknown; currency?: unknown } | null;
   if (!response.ok || !body || typeof body.url !== "string") {
     throw new Error(`Stripe checkout session failed (HTTP ${response.status})`);

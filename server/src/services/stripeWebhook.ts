@@ -1,4 +1,5 @@
 import type { PlusPlanId } from "../config/env.js";
+import { SUPPORTERS_FIELD_KEY, SUPPORTERS_FIELD_YES } from "./stripe.js";
 import { findUserForStripe, userExists, writePlus } from "./plusService.js";
 
 export interface StripeEvent {
@@ -23,6 +24,13 @@ const planOf = (metadata: unknown): PlusPlanId | null => {
   const plan = str(obj(metadata).plan);
   return plan && PLANS.has(plan) ? (plan as PlusPlanId) : null;
 };
+
+/** Whether the buyer answered Yes to the supporters-board question on the Lifetime payment page. Anything else (No, no answer, an older session) is No. */
+function choseBoard(session: Record<string, unknown>): boolean {
+  const fields = Array.isArray(session.custom_fields) ? (session.custom_fields as unknown[]) : [];
+  const field = fields.map(obj).find((f) => f.key === SUPPORTERS_FIELD_KEY);
+  return str(obj(field?.dropdown).value) === SUPPORTERS_FIELD_YES;
+}
 
 /** The end of the paid period. Older API versions put it on the subscription, newer ones on its items. */
 function periodEnd(subscription: Record<string, unknown>): Date | null {
@@ -49,7 +57,7 @@ export async function handleStripeEvent(event: StripeEvent): Promise<WebhookOutc
     if (plan === "lifetime") {
       // The one-time payment: only once Stripe says it was actually paid.
       if (mode !== "payment" || object.payment_status !== "paid") return "ignored";
-      const applied = await writePlus({ userId, plan, status: "active", validUntil: null, stripeCustomerId: str(object.customer), stripeSubscriptionId: null, eventAt });
+      const applied = await writePlus({ userId, plan, status: "active", validUntil: null, stripeCustomerId: str(object.customer), stripeSubscriptionId: null, joinBoard: choseBoard(object), eventAt });
       return applied ? "applied" : "ignored";
     }
     if (mode !== "subscription") return "ignored";
