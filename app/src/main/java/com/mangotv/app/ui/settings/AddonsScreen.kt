@@ -3,6 +3,7 @@ package com.mangotv.app.ui.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -55,6 +56,9 @@ import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
 import com.mangotv.app.ui.theme.TextTertiary
 
+/** SettingsListPadding with a roomier bottom, so the last addon of a long list scrolls fully clear of the screen edge (its outline and scale-up included). */
+private val AddonsListPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 96.dp)
+
 /** A ColumnScope extension hosted by SettingsScreen's detail pane -- see AccountSettingsContent's kdoc for why this isn't its own screen anymore. */
 @Composable
 fun ColumnScope.AddonsSettingsContent(
@@ -78,8 +82,8 @@ fun ColumnScope.AddonsSettingsContent(
         modifier = Modifier
             .fillMaxWidth()
             .weight(1f),
-        contentPadding = SettingsListPadding,
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        contentPadding = AddonsListPadding,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item(key = "header") {
             Row(
@@ -116,6 +120,7 @@ fun ColumnScope.AddonsSettingsContent(
             items(addons, key = { it.manifestUrl }) { addon ->
                 AddonRow(
                     addon = addon,
+                    focusLeft = sidebarFocusRequester,
                     onToggle = { enabled -> viewModel.setEnabled(addon.manifestUrl, enabled) },
                     onRemove = { viewModel.remove(addon.manifestUrl) }
                 )
@@ -184,51 +189,82 @@ private fun EmptyAddonsHint() {
 @Composable
 private fun AddonRow(
     addon: InstalledAddon,
+    focusLeft: FocusRequester,
     onToggle: (Boolean) -> Unit,
     onRemove: () -> Unit
 ) {
+    val titleColor = if (addon.enabled) TextPrimary else TextTertiary
+    val bodyColor = if (addon.enabled) TextSecondary else TextTertiary
+    // Two stops per addon, side by side: the whole row is the on/off switch (a bordered, scaled-up row you can't miss, like Home rows),
+    // and a separate Remove button to its right. Left always goes back to the category list.
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MangoSurface, RoundedCornerShape(MangoDimens.CardCornerRadius))
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = addon.manifest.name, color = TextPrimary, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.width(10.dp))
-                Text(text = "v${addon.manifest.version}", color = TextTertiary, style = MaterialTheme.typography.labelSmall)
-            }
-            addon.manifest.description?.let {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = it,
-                    color = TextSecondary,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            if (addon.manifest.types.isNotEmpty()) {
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = addon.manifest.types.joinToString("  ·  ") { it.replaceFirstChar { c -> c.uppercase() } },
-                    color = TextTertiary,
-                    style = MaterialTheme.typography.labelSmall
+        TvFocusSurface(
+            onClick = { onToggle(!addon.enabled) },
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
+            // A full-width row: the default poster-card scale would push it past the screen's safe margin.
+            focusedScale = 1.02f,
+            backgroundColor = MangoSurface,
+            borderColor = TextPrimary,
+            focusLeft = focusLeft
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = addon.manifest.name, color = titleColor, style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.width(10.dp))
+                        Text(text = "v${addon.manifest.version}", color = TextTertiary, style = MaterialTheme.typography.labelSmall)
+                    }
+                    addon.manifest.description?.let {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = it,
+                            color = bodyColor,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    if (addon.manifest.types.isNotEmpty()) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = addon.manifest.types.joinToString("  ·  ") { it.replaceFirstChar { c -> c.uppercase() } },
+                            color = TextTertiary,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+
+                Spacer(Modifier.width(16.dp))
+
+                // Display only: the row around it takes the press, so focus shows on the whole row rather than as a faint ring on the switch.
+                Text(text = if (addon.enabled) "On" else "Off", color = bodyColor, style = MaterialTheme.typography.labelLarge)
+                Spacer(Modifier.width(12.dp))
+                Switch(
+                    checked = addon.enabled,
+                    onCheckedChange = null,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MangoBackground,
+                        checkedTrackColor = TextPrimary,
+                        checkedBorderColor = TextPrimary,
+                        uncheckedThumbColor = TextTertiary,
+                        uncheckedTrackColor = MangoBackground,
+                        uncheckedBorderColor = TextTertiary
+                    )
                 )
             }
         }
-
-        Spacer(Modifier.width(16.dp))
-
-        Switch(
-            checked = addon.enabled,
-            onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(checkedTrackColor = ArcAccent)
-        )
-
-        Spacer(Modifier.width(12.dp))
 
         TvFocusSurface(
             onClick = onRemove,
