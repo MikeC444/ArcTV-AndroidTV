@@ -96,27 +96,29 @@ object MangoMotion {
     // move, which reads as the page shaking. This ignores an item that is no more than [slackPx] outside the visible area, and when it does
     // scroll it leaves [marginPx] of room at the edge, so the item ends up fully visible with space for its own scale-up.
     @OptIn(ExperimentalFoundationApi::class)
-    fun tolerantBringIntoViewSpec(slackPx: Float, marginPx: Float): BringIntoViewSpec = object : BringIntoViewSpec {
+    fun tolerantBringIntoViewSpec(slackPx: Float, marginPx: Float, bottomInsetPx: Float = 0f): BringIntoViewSpec = object : BringIntoViewSpec {
         override val scrollAnimationSpec: AnimationSpec<Float> = focusTween
         override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
             val trailing = offset + size
+            // The bottom [bottomInsetPx] of the container counts as outside: an item resting there (on a card whose own edge cuts it) is scrolled up.
+            val limit = containerSize - bottomInsetPx
             return when {
-                offset >= -slackPx && trailing <= containerSize + slackPx -> 0f
-                size + 2 * marginPx > containerSize -> if (offset < 0f) offset else 0f
+                offset >= -slackPx && trailing <= limit + slackPx -> 0f
+                size + 2 * marginPx > limit -> if (offset < 0f) offset else 0f
                 offset < 0f -> offset - marginPx
-                trailing > containerSize -> trailing - containerSize + marginPx
+                trailing > limit -> trailing - limit + marginPx
                 else -> 0f
             }
         }
     }
 }
 
-/** Provides [MangoMotion.tolerantBringIntoViewSpec] (slack in dp) to the scrolling containers inside [content]. */
+/** Provides [MangoMotion.tolerantBringIntoViewSpec] (slack in dp, and an optional bottom inset in dp that keeps focus clear of the bottom edge) to the scrolling containers inside [content]. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TolerantBringIntoView(slackDp: Int = 3, marginDp: Int = 10, content: @Composable () -> Unit) {
+fun TolerantBringIntoView(slackDp: Int = 3, marginDp: Int = 10, bottomInsetDp: Int = 0, content: @Composable () -> Unit) {
     val density = androidx.compose.ui.platform.LocalDensity.current
-    val spec = remember(density, slackDp, marginDp) { with(density) { MangoMotion.tolerantBringIntoViewSpec(slackDp.dp.toPx(), marginDp.dp.toPx()) } }
+    val spec = remember(density, slackDp, marginDp, bottomInsetDp) { with(density) { MangoMotion.tolerantBringIntoViewSpec(slackDp.dp.toPx(), marginDp.dp.toPx(), bottomInsetDp.dp.toPx()) } }
     androidx.compose.runtime.CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides spec, content = content)
 }
 
