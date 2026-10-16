@@ -40,6 +40,17 @@ class PlusApiClient(private val baseUrl: String) {
         json.decodeFromString(PlusStatusDto.serializer(), execute(request))
     }
 
+    /** A Lifetime member puts themselves on the supporters board (by name, or as Anonymous) or takes themselves off; returns the new status. 409 when not Lifetime. */
+    suspend fun setSupporter(accessToken: String, show: Boolean, anonymous: Boolean): PlusStatusDto = withContext(Dispatchers.IO) {
+        val body = json.encodeToString(PlusSupporterRequest.serializer(), PlusSupporterRequest(show, anonymous))
+        val request = Request.Builder()
+            .url("$baseUrl/user/plus/supporter")
+            .header("Authorization", "Bearer $accessToken")
+            .put(body.toRequestBody(JSON_MEDIA_TYPE))
+            .build()
+        json.decodeFromString(PlusStatusDto.serializer(), execute(request))
+    }
+
     private fun execute(request: Request): String {
         httpClient.newCall(request).execute().use { response ->
             val bodyString = response.body?.string().orEmpty()

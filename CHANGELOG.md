@@ -5921,3 +5921,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-167 -- TV: the supporters board (Lifetime note and the member's switches)
+
+**Status:** Done; not built or run here.
+
+**Context:** The web app lets Lifetime members opt in to the supporters board on arctv.org (backend `supporterBoard`, `PUT /user/plus/supporter`, already live). The TV had only the Lifetime tag and the checkout note.
+
+**Changes:**
+- `PlusDtos.kt`, `PlusApiClient.kt`, `PlusRepository.kt`: `supporterBoard` / `supporterAnonymous` on the status (kept on the device); `setSupporterBoard(show, anonymous)` calls the PUT and takes the returned status.
+- `PlusSettingsViewModel.kt`, `PlusSettingsScreen.kt`: for a Lifetime member, a "Supporters board" switch (off until turned on) and, once on, "List me as Anonymous"; a saving error line. Under the plan cards for people who can buy, the board note (`LIFETIME_BOARD_NOTE`, same words as the web app).
+
+**Tests performed:** manual re-read and brace/paren balance check only. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`); no unit test added (the new code is wiring around the network call).
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
