@@ -5605,3 +5605,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-150 -- TV: Settings pages were cut off at the bottom
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** On the Fire TV, scrolling any Settings tab to its end left the last item (e.g. the Plus plan buttons) cut by the card's bottom edge, and the cards sat close to the bottom of the screen.
+
+**Changes:**
+- `ui/settings/SettingsScreen.kt`: `SettingsListPadding`, used by every Settings tab's list, now has 72dp at the bottom (was 24dp), so the last item and its focus outline scroll fully clear of the card's edge. The side panel and the open card now stop 24dp above the bottom of the screen (was 8dp), via `SettingsCardBottomGap`.
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** a manual re-read of the edit. No Gradle/Android build, on-device check or screenshot-test run was possible here (no route to `dl.google.com`); a Settings screenshot test, if it has stored images, will need them re-recorded because the card is 16dp shorter.
+
+**Issues discovered:** none.
+
+**Issues fixed:** the cut-off bottom of Settings tabs.

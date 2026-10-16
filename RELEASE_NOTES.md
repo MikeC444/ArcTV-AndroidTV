@@ -14,6 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - The Arc TV Plus pop-up on Home is gone. Explore Plus any time in Settings.
 - Switching an addon off now sticks, instead of springing back on.
 - Added an addon on your phone? Press Refresh addons at the bottom of Addons to see it on your TV right away.
+- Settings no longer gets cut off at the bottom: every tab scrolls fully into view with space below.
 
 ## Unreleased
 
