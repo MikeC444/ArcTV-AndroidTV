@@ -64,7 +64,7 @@ open class StremioAddonClient {
             json.decodeFromString(StremioCatalogResponse.serializer(), body).metas
         }
 
-    suspend fun fetchStreams(manifestUrl: String, type: String, id: String): List<StremioStream> =
+    open suspend fun fetchStreams(manifestUrl: String, type: String, id: String): List<StremioStream> =
         withContext(Dispatchers.IO) {
             val base = AddonUrl.resourceBase(manifestUrl)
             // Series stream ids are "imdbId:season:episode" — encoding the
@@ -91,7 +91,7 @@ open class StremioAddonClient {
             json.decodeFromString(StremioSubtitlesResponse.serializer(), get(url)).subtitles
         }
 
-    suspend fun fetchMeta(manifestUrl: String, type: String, id: String): StremioMeta? =
+    open suspend fun fetchMeta(manifestUrl: String, type: String, id: String): StremioMeta? =
         withContext(Dispatchers.IO) {
             val base = AddonUrl.resourceBase(manifestUrl)
             val url = "$base/meta/$type/${encode(id)}.json"
