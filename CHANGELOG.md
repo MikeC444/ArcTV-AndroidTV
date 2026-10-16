@@ -5703,6 +5703,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Changes:**
 - `ui/settings/PlusSettingsScreen.kt`: `PerkRow` is replaced by `PerkTile`, laid out two to a row with equal heights (so Down moves along the page): a gradient icon tile (grey for a perk that is coming soon), the name, the Plus / Coming soon / Included in early access tag under it, and the description. Left from the first column returns to the category list. The wording of every perk is unchanged.
 - `ui/settings/PlusPlans.kt`: perks that are coming soon (Parental controls) are listed last, as on the web app; a new Download tile says Plus lets you download from your debrid service on the web, Mac and Windows apps, (`otherDevicesOnly`, tagged "Web, Mac and Windows"; the checkout screen's list of what you get skips it). Phone is not named because the phone app has no downloads.
+- The plan cards (Monthly, Yearly, Lifetime) sit 14dp lower, so there is a clear gap between them and the perk tiles above.
 - RELEASE_NOTES.md: one bullet.
 
 **Tests performed:** a manual re-read and brace/paren balance check. No Gradle/Android build or on-device look was possible here (no route to `dl.google.com`); any screenshot test of the Plus tab needs re-recording.
