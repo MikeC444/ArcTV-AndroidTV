@@ -172,7 +172,7 @@ class AddonSyncRepository(
                     val response = apiClient.removeAddon(token, dto.manifestUrl, dto.updatedAt)
                     if (response != null) reconcile(response)
                 } else {
-                    reconcile(apiClient.upsertAddon(token, dto))
+                    reconcile(upsertWinning(token, dto))
                 }
                 pendingStore.remove(key)
             } catch (e: ApiException) {
@@ -193,6 +193,20 @@ class AddonSyncRepository(
         }
     }
 
+    /**
+     * Pushes one addon, and makes sure an on/off the person just chose is not thrown away by the server's last-write-wins. The server keeps whichever write
+     * has the newer updatedAt, and a TV's clock is often behind the real time: every toggle then "loses" against the stored row and the echo puts the old
+     * value straight back (an addon switched off springs back on). When the answer is newer than what was sent and disagrees with it, the write is sent
+     * once more stamped just after the stored time, so a deliberate change from this device wins.
+     */
+    private suspend fun upsertWinning(token: String, dto: AddonSyncDto): AddonSyncDto {
+        val response = apiClient.upsertAddon(token, dto)
+        val stored = runCatching { Iso8601.parseToEpochMillis(response.updatedAt) }.getOrNull() ?: return response
+        val sent = runCatching { Iso8601.parseToEpochMillis(dto.updatedAt) }.getOrNull() ?: return response
+        if (response.deletedAt != null || stored <= sent || response.enabled == dto.enabled) return response
+        return apiClient.upsertAddon(token, dto.copy(updatedAt = Iso8601.format(stored + 1)))
+    }
+
     /** Fire-and-forget: AddonRepository calls this via onLocalChange right after a genuine local install/remove/enable-toggle finishes persisting. */
     private fun pushToServer(change: AddonChange) {
         scope.launch {
@@ -208,7 +222,7 @@ class AddonSyncRepository(
                     return@launch
                 }
                 when (change) {
-                    is AddonChange.Upserted -> apiClient.upsertAddon(token, pendingDto).let { if (isLatest()) reconcile(it) }
+                    is AddonChange.Upserted -> upsertWinning(token, pendingDto).let { if (isLatest()) reconcile(it) }
                     is AddonChange.Removed -> {
                         val response = apiClient.removeAddon(token, change.manifestUrl, pendingDto.updatedAt)
                         // null means this addon was never synced from any

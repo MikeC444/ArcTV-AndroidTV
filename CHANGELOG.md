@@ -5575,14 +5575,15 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Status:** Done on the branch; not built or run here.
 
-**Context:** Reported on the Fire TV: switching an addon on or off in Settings -> Addons made it go straight back to its previous state.
+**Context:** Reported on the Fire TV: switching an addon off in Settings -> Addons (all were on) made it spring straight back on.
 
 **Changes:**
 - `data/sync/AddonSyncRepository.kt`: addon pushes run concurrently, and each one applied the server's echo of its own write to the local list. With several quick toggles, an older push's echo could land after a newer local change and put the switch back. Each push now has a sequence number per addon and only the latest one applies its echo, clears the pending entry or queues a retry.
+- The likelier cause of the report, a single press reverting at once: the server keeps the write with the newer `updatedAt` (last-write-wins) and a TV's clock is often behind, so the toggle lost and the server's echo restored the old value. `upsertWinning` sends the write once more, stamped just after the stored time, when the answer is newer than what was sent and disagrees with it (also on the offline retry path), so a deliberate change from this device wins.
 - RELEASE_NOTES.md: one bullet.
 
-**Tests performed:** a manual re-read and a brace balance check. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`), and the failure was not reproduced, so this is a diagnosis from the code rather than a confirmed fix.
+**Tests performed:** a manual re-read and a brace balance check. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`), and the failure was not reproduced, so both fixes are diagnoses from the code rather than confirmed.
 
-**Issues discovered:** if a single, slow toggle still flips back, the next suspect is a device clock behind the server's: the server keeps the write with the newer `updatedAt` (last-write-wins), so a skewed clock would lose and the echo would restore the old value. Not changed.
+**Issues discovered:** a device whose clock is behind the server's could never change an addon that was last written by the server or a faster-clocked device.
 
-**Issues fixed:** the out-of-order echo overwriting a newer toggle.
+**Issues fixed:** the out-of-order echo overwriting a newer toggle, and a toggle losing to the server's newer stored time.
