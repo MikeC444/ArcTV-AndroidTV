@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -344,6 +345,7 @@ private fun perkIcon(title: String): ImageVector = when (title) {
     "Parental controls" -> Icons.Filled.Shield
     "Smart source picking" -> Icons.Filled.Bolt
     "Your stats" -> Icons.Filled.BarChart
+    "Download" -> Icons.Filled.Download
     else -> Icons.Filled.WorkspacePremium
 }
 
@@ -377,6 +379,7 @@ private fun PerkTile(perk: PlusPerk, paywall: Boolean, modifier: Modifier, focus
                 Pill(
                     text = when {
                         perk.comingSoon -> "Coming soon"
+                        perk.otherDevicesOnly -> "Web, Mac and Windows"
                         paywall -> "Plus"
                         else -> "Included in early access"
                     },
