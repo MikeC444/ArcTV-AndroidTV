@@ -11,6 +11,8 @@ import com.mangotv.app.data.auth.AuthRepository
 import com.mangotv.app.data.network.ApiException
 import com.mangotv.app.data.network.PlusApiClient
 import com.mangotv.app.data.network.PlusCheckoutLink
+import com.mangotv.app.data.network.PlusPriceDto
+import com.mangotv.app.data.network.PlusPricesDto
 import com.mangotv.app.data.network.PlusStatusDto
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -37,13 +39,18 @@ data class PlanPrices(val monthly: PlanPrice, val yearly: PlanPrice, val lifetim
 
 /** The backend's `prices`, read defensively: all three plans with a positive whole amount and a 3-letter currency, else null (the cards then say "Price at checkout"). */
 internal fun parsePlanPrices(dto: PlusPricesDto?): PlanPrices? {
+    if (dto == null) return null
     fun one(p: PlusPriceDto?): PlanPrice? {
-        val amount = p?.amount ?: return null
+        if (p == null) return null
+        val amount = p.amount ?: return null
         val currency = p.currency?.trim().orEmpty()
         if (!amount.isFinite() || amount <= 0.0 || currency.length != 3) return null
         return PlanPrice(Math.round(amount), currency.lowercase())
     }
-    return PlanPrices(one(dto?.monthly) ?: return null, one(dto.yearly) ?: return null, one(dto.lifetime) ?: return null)
+    val monthly = one(dto.monthly) ?: return null
+    val yearly = one(dto.yearly) ?: return null
+    val lifetime = one(dto.lifetime) ?: return null
+    return PlanPrices(monthly, yearly, lifetime)
 }
 
 /** What this account has, as the backend last said. */
