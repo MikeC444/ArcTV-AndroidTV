@@ -5853,6 +5853,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 - `ui/settings/SettingsScreen.kt`: pressing the locked Your stats, Plus settings or Recommendations tab without Plus (it used to do nothing) opens an ask for it (`STATS_ASK`, `PLUS_SETTINGS_ASK`, `PICKED_ASK`); "Take me there" opens the Arc TV Plus tab. These presses are not capped.
 - `ui/plus/PlusAsk.kt`: the three new asks.
 - `PlusNudgeRulesTest`: the rules above.
+- Debug log lines under the tag `PlusNudge` (the player's progress and whether it counts as watched through; the root's decision: blocked, record read, eligible, due), added when the after-watch ask did not open on a real TV, to see which condition stopped it.
 - RELEASE_NOTES.md: one bullet.
 
 **Not done:** the web app's blurred stats preview for free accounts (a separate piece of work: the TV's Your stats tab still stays locked), and an ask after rating a title (pressing Like / Not for me already opens one).
