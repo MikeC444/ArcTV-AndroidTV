@@ -179,15 +179,6 @@ fun ColumnScope.PlusSettingsContent(
         }
 
         if (sellPlans) {
-            item(key = "steps") {
-                Column(modifier = Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(text = "How to subscribe", color = TextPrimary, style = MaterialTheme.typography.titleMedium)
-                    Text(text = "1. Pick a plan below: monthly, yearly, or a one-time Lifetime payment." + if (status.trialDays > 0) " Yearly starts with ${status.trialDays} days free." else "", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                    Text(text = "2. Scan the QR code with your phone and pay on the secure Stripe page.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                    Text(text = "3. This screen switches Plus on by itself once the payment goes through.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-
             item(key = "plans") {
                 // Equal-height cards: with uneven heights the taller card's bottom edge counted as "below" the others, so Down
                 // moved sideways between cards instead of on down the tab.
@@ -419,6 +410,11 @@ private fun PlanCard(plan: PlusPlan, trialDays: Int, priceText: PlanPriceText?, 
             if (versus != null) {
                 Spacer(Modifier.height(4.dp))
                 Text(text = versus, color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+            }
+            if (plan.id == "lifetime") {
+                // Lifetime buyers are asked at checkout whether to be on the supporters board on arctv.org (see the web app's plan card).
+                Spacer(Modifier.height(6.dp))
+                Pill(text = "Join the supporters board", container = MangoSurfaceHigh, content = ArcAccent)
             }
             Spacer(Modifier.height(6.dp))
             Text(text = plan.blurb, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
