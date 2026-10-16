@@ -219,8 +219,18 @@ fun CardActionsMenuOverlay(
         if (restoreTick == 0) return@LaunchedEffect
         withFrameNanos { }
         withFrameNanos { }
-        val restored = state.restoreRequester?.let { runCatching { it.requestFocus() }.isSuccess } ?: false
-        if (!restored) state.fallbackFocus?.invoke()
+        val requester = state.restoreRequester
+        val restored = requester?.let { runCatching { it.requestFocus() }.isSuccess } ?: false
+        if (!restored) {
+            state.fallbackFocus?.invoke()
+            return@LaunchedEffect
+        }
+        // The request can succeed and the page still hand focus to its first button (the hero's Play) a moment later, as the menu's own focused row
+        // finishes leaving. Ask again a few frames on, and once more shortly after: a no-op when the poster already has focus.
+        repeat(2) { attempt ->
+            repeat(if (attempt == 0) 3 else 12) { withFrameNanos { } }
+            runCatching { requester!!.requestFocus() }
+        }
     }
 
     if (content == null) return
@@ -561,13 +571,7 @@ private fun GridAction(icon: ImageVector, label: String, on: Boolean, onClick: (
             )
             if (tag != null) {
                 Spacer(Modifier.width(8.dp))
-                Text(
-                    text = tag,
-                    color = MangoBackground,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.background(ArcAccent, RoundedCornerShape(percent = 50)).padding(horizontal = 6.dp, vertical = 1.dp)
-                )
+                PlusBadge()
             }
         }
     }

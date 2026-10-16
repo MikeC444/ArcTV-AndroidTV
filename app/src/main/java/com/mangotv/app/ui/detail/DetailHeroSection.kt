@@ -71,6 +71,7 @@ import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.model.Episode
 import com.mangotv.app.data.recommend.Feedback
 import com.mangotv.app.ui.components.HeroIconButton
+import com.mangotv.app.ui.components.PlusBadge
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
 import com.mangotv.app.ui.theme.ArcAccent
@@ -501,16 +502,6 @@ private fun PlusTagged(locked: Boolean, content: @Composable () -> Unit) {
     }
     Box {
         content()
-        Text(
-            text = "Plus",
-            color = MangoBackground,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 9.sp,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .background(ArcAccent, RoundedCornerShape(percent = 50))
-                .padding(horizontal = 5.dp, vertical = 1.dp)
-        )
+        PlusBadge(modifier = Modifier.align(Alignment.TopEnd).padding(top = 0.dp), fontSize = 8.sp)
     }
 }
