@@ -1,5 +1,5 @@
 import type { PlusPlanId } from "../config/env.js";
-import { SUPPORTERS_FIELD_KEY, SUPPORTERS_FIELD_YES } from "./stripe.js";
+import { SUPPORTERS_FIELD_ANONYMOUS, SUPPORTERS_FIELD_KEY, SUPPORTERS_FIELD_YES } from "./stripe.js";
 import { findUserForStripe, userExists, writePlus } from "./plusService.js";
 
 export interface StripeEvent {
@@ -25,11 +25,12 @@ const planOf = (metadata: unknown): PlusPlanId | null => {
   return plan && PLANS.has(plan) ? (plan as PlusPlanId) : null;
 };
 
-/** Whether the buyer answered Yes to the supporters-board question on the Lifetime payment page. Anything else (No, no answer, an older session) is No. */
-function choseBoard(session: Record<string, unknown>): boolean {
+/** How the buyer answered the supporters-board question on the Lifetime payment page: by name, anonymously, or (No, no answer, an older session) not at all. */
+function choseBoard(session: Record<string, unknown>): "named" | "anonymous" | undefined {
   const fields = Array.isArray(session.custom_fields) ? (session.custom_fields as unknown[]) : [];
   const field = fields.map(obj).find((f) => f.key === SUPPORTERS_FIELD_KEY);
-  return str(obj(field?.dropdown).value) === SUPPORTERS_FIELD_YES;
+  const value = str(obj(field?.dropdown).value);
+  return value === SUPPORTERS_FIELD_YES ? "named" : value === SUPPORTERS_FIELD_ANONYMOUS ? "anonymous" : undefined;
 }
 
 /** The end of the paid period. Older API versions put it on the subscription, newer ones on its items. */

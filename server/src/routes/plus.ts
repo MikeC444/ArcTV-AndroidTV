@@ -44,16 +44,16 @@ plusRouter.post("/plus/checkout", requireAuth, validate({ body: checkoutBody }),
   }
 });
 
-const supporterBody = z.object({ show: z.boolean() });
+const supporterBody = z.object({ show: z.boolean(), anonymous: z.boolean().optional() });
 
 /**
- * A Lifetime member puts their display name on the supporters board, or takes it off. Only an active Lifetime member can be on it (409
+ * A Lifetime member puts their display name on the supporters board (or just "Anonymous" with `anonymous: true`), or takes it off. Only an active Lifetime member can be on it (409
  * otherwise). Answers with the account's new entitlement.
  */
 plusRouter.put("/plus/supporter", requireAuth, validate({ body: supporterBody }), async (req, res, next) => {
   try {
-    const { show } = req.validated!.body as z.infer<typeof supporterBody>;
-    if (!(await setSupporterBoard(req.user!.id, show))) throw new HttpError(409, "Only Lifetime supporters can be on the supporters board");
+    const { show, anonymous } = req.validated!.body as z.infer<typeof supporterBody>;
+    if (!(await setSupporterBoard(req.user!.id, show, anonymous === true))) throw new HttpError(409, "Only Lifetime supporters can be on the supporters board");
     res.json(await getEntitlement(req.user!.id));
   } catch (error) {
     next(error);

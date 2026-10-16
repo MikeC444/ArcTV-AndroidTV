@@ -74,9 +74,9 @@ const completed = (userId: string, over: Record<string, unknown> = {}, created =
 const subscriptionEvent = (type: string, over: Record<string, unknown>, created = nowSec()) => ({ id: "evt_s", type, created, data: { object: { id: "sub_1", customer: "cus_1", status: "active", current_period_end: nowSec() + 30 * 86400, metadata: { plan: "monthly" }, ...over } } });
 
 describe("computeEntitlement", () => {
-  const row = (over: Partial<PlusRow> = {}): PlusRow => ({ plan: "monthly", status: "active", validUntil: new Date(Date.now() + 86_400_000), stripeCustomerId: null, stripeSubscriptionId: null, cancelAtPeriodEnd: false, supporterBoard: false, lastEventAt: new Date(), ...over });
+  const row = (over: Partial<PlusRow> = {}): PlusRow => ({ plan: "monthly", status: "active", validUntil: new Date(Date.now() + 86_400_000), stripeCustomerId: null, stripeSubscriptionId: null, cancelAtPeriodEnd: false, supporterBoard: false, supporterAnonymous: false, lastEventAt: new Date(), ...over });
   it("everyone has Plus while the paywall is off (early access)", () => {
-    expect(computeEntitlement(null, false)).toEqual({ active: true, plan: "early_access", validUntil: null, cancelAtPeriodEnd: false, paywall: false, supporterBoard: null });
+    expect(computeEntitlement(null, false)).toEqual({ active: true, plan: "early_access", validUntil: null, cancelAtPeriodEnd: false, paywall: false, supporterBoard: null, supporterAnonymous: null });
   });
   it("with the paywall on, only a paid account has it", () => {
     expect(computeEntitlement(null, true)).toMatchObject({ active: false, plan: null, paywall: true });
@@ -108,7 +108,7 @@ describe("GET /user/plus", () => {
   it("is active for everyone while the paywall is off, and inactive without a payment once it is on", async () => {
     const s = await createTestSession();
     paywall(false);
-    expect((await entitlement(s.token)).body).toEqual({ active: true, plan: "early_access", validUntil: null, cancelAtPeriodEnd: false, paywall: false, supporterBoard: null, trialDays: 0, prices: null });
+    expect((await entitlement(s.token)).body).toEqual({ active: true, plan: "early_access", validUntil: null, cancelAtPeriodEnd: false, paywall: false, supporterBoard: null, supporterAnonymous: null, trialDays: 0, prices: null });
     paywall(true);
     expect((await entitlement(s.token)).body).toEqual({
       active: false,
@@ -117,6 +117,7 @@ describe("GET /user/plus", () => {
       cancelAtPeriodEnd: false,
       paywall: true,
       supporterBoard: null,
+      supporterAnonymous: null,
       trialDays: 5,
       prices: { monthly: { amount: 499, currency: "gbp" }, yearly: { amount: 3999, currency: "gbp" }, lifetime: { amount: 9999, currency: "gbp" } },
     });
@@ -502,7 +503,7 @@ describe("the supporters board (opt-in)", () => {
 });
 
 describe("the supporters-board question at checkout", () => {
-  const answered = (userId: string, answer: "yes" | "no" | null, created = nowSec()) =>
+  const answered = (userId: string, answer: "yes" | "no" | "anonymous" | null, created = nowSec()) =>
     webhook(
       completed(
         userId,
@@ -533,11 +534,29 @@ describe("the supporters-board question at checkout", () => {
     expect(f.get("custom_fields[0][optional]")).toBe("false");
     expect(f.get("custom_fields[0][dropdown][options][0][value]")).toBe("no"); // listed first
     expect(f.get("custom_fields[0][dropdown][options][1][value]")).toBe("yes");
+    expect(f.get("custom_fields[0][dropdown][options][2][value]")).toBe("anonymous");
     expect(f.get("custom_fields[0][dropdown][default_value]")).toBeNull(); // nothing is pre-selected
     expect(f.get("custom_fields[0][label][custom]")!.length).toBeLessThanOrEqual(50); // Stripe's limit
     expect(f.get("custom_text[submit][message]")).toBe(SUPPORTERS_BOARD_NOTICE);
     expect((await post("monthly")).status).toBe(200);
     expect([...forms[1]!.keys()].some((k) => k.startsWith("custom_fields"))).toBe(false);
+  });
+
+  it("answering \"as Anonymous\" lists the buyer with no name and no picture; Settings can switch it to their name and back", async () => {
+    const s = await createTestSession({ displayName: "Secret Person" });
+    await answered(s.userId, "anonymous");
+    expect((await entitlement(s.token)).body).toMatchObject({ supporterBoard: true, supporterAnonymous: true });
+    const entry = (await board()).body.supporters;
+    expect(entry).toEqual([{ name: "Anonymous", avatar: null, since: new Date().toISOString().slice(0, 7) }]);
+    expect(JSON.stringify(entry)).not.toContain("Secret");
+    const named = await request(app).put("/user/plus/supporter").set("Authorization", `Bearer ${s.token}`).send({ show: true, anonymous: false });
+    expect(named.body).toMatchObject({ supporterBoard: true, supporterAnonymous: false });
+    expect((await board()).body.supporters[0].name).toBe("Secret Person");
+    const back = await request(app).put("/user/plus/supporter").set("Authorization", `Bearer ${s.token}`).send({ show: true, anonymous: true });
+    expect(back.body).toMatchObject({ supporterAnonymous: true });
+    const off = await toggle(s.token, false);
+    expect(off.body).toMatchObject({ supporterBoard: false, supporterAnonymous: null });
+    expect((await board()).body.total).toBe(0);
   });
 
   it("answering Yes puts the buyer on the board; No, no answer or anything else does not", async () => {

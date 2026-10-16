@@ -37,19 +37,20 @@ export const setStripeFetch = (impl: StripeFetch | null): void => {
 };
 
 /** What the Lifetime payment page says about the supporters board: it is the member's choice, made in the question above it or later in Settings. */
-export const SUPPORTERS_BOARD_NOTICE = "As a Lifetime supporter you can choose to have your display name on the supporters board on arctv.org. Answer the question above; you can change your mind any time in Settings → ArcTV Plus.";
+export const SUPPORTERS_BOARD_NOTICE = "As a Lifetime supporter you can choose to be on the supporters board on arctv.org, with your display name and picture or just as Anonymous. Answer the question above; you can change your mind any time in Settings → ArcTV Plus.";
 
 /** The same note when the question could not be shown: the choice is made afterwards. */
-export const SUPPORTERS_BOARD_NOTICE_LATER = "As a Lifetime supporter you can choose to have your display name on the supporters board on arctv.org. It is off unless you turn it on in Settings → ArcTV Plus.";
+export const SUPPORTERS_BOARD_NOTICE_LATER = "As a Lifetime supporter you can choose to be on the supporters board on arctv.org, with your display name and picture or just as Anonymous. It is off unless you turn it on in Settings → ArcTV Plus.";
 
 /** The question on the Lifetime payment page ("custom field"), and what its two answers are. The webhook reads the answer back by this key. */
 export const SUPPORTERS_FIELD_KEY = "supporters_board";
 export const SUPPORTERS_FIELD_YES = "yes";
 export const SUPPORTERS_FIELD_NO = "no";
+export const SUPPORTERS_FIELD_ANONYMOUS = "anonymous";
 
 /**
  * A required drop-down on the Lifetime payment page: "Put my name on the supporters board?". "No thanks" is listed first and nothing is pre-selected, so a
- * listing is only ever something the buyer chose. Answers come back on the completed session's `custom_fields`.
+ * listing is only ever something the buyer chose; the buyer can be listed by name or as Anonymous (no name, no picture). Answers come back on the completed session's `custom_fields`.
  */
 function addSupportersQuestion(form: URLSearchParams): void {
   form.set("custom_fields[0][key]", SUPPORTERS_FIELD_KEY);
@@ -57,10 +58,12 @@ function addSupportersQuestion(form: URLSearchParams): void {
   form.set("custom_fields[0][optional]", "false");
   form.set("custom_fields[0][label][type]", "custom");
   form.set("custom_fields[0][label][custom]", "Put my name on the supporters board?");
-  form.set("custom_fields[0][dropdown][options][0][label]", "No thanks, keep my name private");
+  form.set("custom_fields[0][dropdown][options][0][label]", "No thanks, don't list me");
   form.set("custom_fields[0][dropdown][options][0][value]", SUPPORTERS_FIELD_NO);
-  form.set("custom_fields[0][dropdown][options][1][label]", "Yes, add my display name");
+  form.set("custom_fields[0][dropdown][options][1][label]", "Yes, show my display name and picture");
   form.set("custom_fields[0][dropdown][options][1][value]", SUPPORTERS_FIELD_YES);
+  form.set("custom_fields[0][dropdown][options][2][label]", "Yes, but list me as Anonymous");
+  form.set("custom_fields[0][dropdown][options][2][value]", SUPPORTERS_FIELD_ANONYMOUS);
 }
 
 /** Free days on a first monthly or yearly subscription: Stripe takes the card now and bills when they end. */

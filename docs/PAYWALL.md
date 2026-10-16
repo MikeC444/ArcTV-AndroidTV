@@ -38,14 +38,15 @@ not build that screen; link to it from Stripe).
   these are list prices.
 - **The supporters board** (opt-in): a Lifetime member can choose to have their display name on a public list shown on the landing page.
   The choice is asked on the Lifetime payment page: a required drop-down ("Put my name on the supporters board?", Stripe `custom_fields` key
-  `supporters_board`, "No thanks" listed first, nothing pre-selected). The webhook reads the answer from the completed session's `custom_fields`:
-  only a **Yes** puts the buyer on the board; No, no answer or an older session does not. (If Stripe ever refuses the question the Lifetime
+  `supporters_board`, "No thanks" listed first, nothing pre-selected, then "Yes, show my display name and picture" and "Yes, but list me as Anonymous"). The webhook reads
+  the answer from the completed session's `custom_fields`: only a **Yes** (`yes`, or `anonymous`) puts the buyer on the board; No, no answer or an older session does not. (If Stripe ever refuses the question the Lifetime
   checkout is created without it, so a purchase is never blocked; the board is then chosen later in Settings.) A member can change their mind any
   time: `GET /user/plus` carries `supporterBoard` (`true`/`false` for an active Lifetime member, `null` for everyone else) and
-  `PUT /user/plus/supporter { show }` switches it (409 for anyone who is not an active Lifetime member). A Stripe retry of the purchase never undoes a
+  `supporterAnonymous`, and `PUT /user/plus/supporter { show, anonymous? }` switches it (409 for anyone who is not an active Lifetime member). A Stripe retry of the purchase never undoes a
   later choice. `GET /supporters` (public, no sign-in, cached 5 minutes) lists `{ supporters: [{ name, avatar, since }], total }`:
   the display name (cut at 24 characters, "Anonymous supporter" when the account has none), the picture id of the account's own profile (or null) and
-  the month they joined ("2026-10"), the earliest to join first. Never an email or an id.
+  the month they joined ("2026-10"), the earliest to join first. A member listed as Anonymous appears as `{ name: "Anonymous", avatar: null }`.
+  Never an email or an id.
 - Stripe calls `POST /stripe/webhook`. The signature is checked against the raw body (5 minute tolerance); anything else
   is refused. `checkout.session.completed` switches Plus on (a Lifetime payment only once `payment_status` is `paid`);
   `customer.subscription.updated` moves the paid period; `customer.subscription.deleted` ends it.
