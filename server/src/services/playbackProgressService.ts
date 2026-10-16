@@ -15,6 +15,8 @@ export interface WatchHistoryEntry {
   positionMs: number;
   durationMs: number;
   completed: boolean;
+  /** Marked watched (or unwatched) by hand rather than played: it gives the tick but is not counted as time watched. */
+  markedManually: boolean;
   watchedAt: Date;
 }
 
@@ -30,10 +32,11 @@ interface WatchHistoryRow {
   position_ms: string; // bigint comes back as string from pg
   duration_ms: string;
   completed: boolean;
+  marked_manually: boolean;
   watched_at: Date;
 }
 
-const HISTORY_COLUMNS = `provider_id, content_id, content_type, season_number, episode_number, episode_title, title, poster_url, position_ms, duration_ms, completed, watched_at`;
+const HISTORY_COLUMNS = `provider_id, content_id, content_type, season_number, episode_number, episode_title, title, poster_url, position_ms, duration_ms, completed, marked_manually, watched_at`;
 
 function mapHistoryRow(row: WatchHistoryRow): WatchHistoryEntry {
   return {
@@ -48,6 +51,7 @@ function mapHistoryRow(row: WatchHistoryRow): WatchHistoryEntry {
     positionMs: Number(row.position_ms),
     durationMs: Number(row.duration_ms),
     completed: row.completed,
+    markedManually: row.marked_manually,
     watchedAt: row.watched_at,
   };
 }
@@ -118,8 +122,8 @@ export async function recordProgress(
     const completed = input.completed || isMovieMostlyWatched;
 
     const historyResult = await client.query<WatchHistoryRow>(
-      `INSERT INTO watch_history (user_id, provider_id, content_id, content_type, season_number, episode_number, episode_title, title, poster_url, position_ms, duration_ms, completed, watched_at, updated_at, profile_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, $14)
+      `INSERT INTO watch_history (user_id, provider_id, content_id, content_type, season_number, episode_number, episode_title, title, poster_url, position_ms, duration_ms, completed, watched_at, updated_at, profile_id, marked_manually)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, $14, $15)
        ON CONFLICT (user_id, profile_id, provider_id, content_id, content_type, episode_key) DO UPDATE SET
          episode_title = EXCLUDED.episode_title,
          title = EXCLUDED.title,
@@ -127,6 +131,7 @@ export async function recordProgress(
          position_ms = EXCLUDED.position_ms,
          duration_ms = EXCLUDED.duration_ms,
          completed = EXCLUDED.completed,
+         marked_manually = EXCLUDED.marked_manually,
          watched_at = EXCLUDED.watched_at,
          updated_at = EXCLUDED.updated_at
        WHERE EXCLUDED.updated_at > watch_history.updated_at
@@ -146,6 +151,7 @@ export async function recordProgress(
         completed,
         watchedAt,
         profileId,
+        input.markedManually === true,
       ]
     );
     const historyEntry = historyResult.rows[0]

@@ -23,6 +23,7 @@ function serializeHistoryEntry(entry: playbackProgressService.WatchHistoryEntry)
     positionMs: entry.positionMs,
     durationMs: entry.durationMs,
     completed: entry.completed,
+    markedManually: entry.markedManually,
     watchedAt: entry.watchedAt.toISOString(),
   };
 }

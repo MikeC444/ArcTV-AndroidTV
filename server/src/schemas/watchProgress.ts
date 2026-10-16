@@ -25,6 +25,9 @@ export const watchProgressBodySchema = z
     positionMs: z.number().int().min(0).max(1_000_000_000_000),
     durationMs: z.number().int().min(0).max(1_000_000_000_000),
     completed: z.boolean(),
+    // True when the person marked it watched (or unwatched) by hand instead of playing it, so Your stats does not count it as time watched
+    // (migrations/0034). Optional so a client that predates it still reports cleanly; it then reads as played.
+    markedManually: z.boolean().optional(),
     // The client's own local mutation timestamp, same last-write-wins
     // contract as settings/watchlist's updatedAt -- named watchedAt here
     // to match watch_history's own column, since this value becomes both
