@@ -11,16 +11,16 @@ file is only ever end-user-facing release notes.)
 Releasing needs nothing done to this file: add each change as a bullet under `## Unreleased` as you make it. When a release is
 published, the workflow uses what is under `## Unreleased` as that release's notes (what the app's update pop-up shows), then moves it
 under the new version heading and leaves a fresh empty `## Unreleased` above it.
-- The Arc TV Plus pop-up on Home is gone. Explore Plus any time in Settings.
-- Switching an addon off now sticks, instead of springing back on.
-- Added an addon on your phone? Press Refresh addons at the bottom of Addons to see it on your TV right away.
-- Settings no longer gets cut off at the bottom: every tab scrolls fully into view with space below.
 
 ## Unreleased
 
 - Fixed an issue with searching.
 - Sign up with your name! Your display name is now needed and becomes your first profile.
-- Addons are easier to manage: a bold highlight on each addon's switch, and long lists now scroll fully into view.
+- Addons are easier to manage: a bold highlight shows which addon switch you're on.
+- The Arc TV Plus pop-up on Home is gone. Explore Plus any time in Settings.
+- Switching an addon off now sticks, instead of springing back on.
+- Added an addon on your phone? Press Refresh addons at the bottom of Addons to see it on your TV right away.
+- Settings no longer gets cut off at the bottom: every tab scrolls fully into view with space below.
 
 ## 0.5.1
 
