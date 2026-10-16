@@ -55,7 +55,8 @@ fun ColumnScope.AccountSettingsContent(
     val container = remember { (context.applicationContext as MangoTvApplication).container }
     val profiles by container.profileRepository.state.collectAsStateWithLifecycle()
     val plus by container.plusRepository.status.collectAsStateWithLifecycle()
-    val activeProfile = if (plus.active && profiles.supported) profiles.active else null
+    // Without Plus the account's own (default) profile is the one in use, as in the nav bar's profile chip.
+    val activeProfile = if (!profiles.supported) null else if (plus.active) profiles.active else profiles.profiles.firstOrNull { it.isDefault }
     val session by viewModel.session.collectAsStateWithLifecycle()
     val signingOut by viewModel.signingOut.collectAsStateWithLifecycle()
     val signedOut by viewModel.signedOut.collectAsStateWithLifecycle()
@@ -84,9 +85,8 @@ fun ColumnScope.AccountSettingsContent(
         borderColor = TextPrimary
     )
     if (activeProfile == null) {
-        // Say why, instead of just not showing profiles: no Plus, an older service, or the list couldn't be read.
+        // Say why, instead of just not showing profiles: an older service, or the list couldn't be read.
         val why = when {
-            !plus.active -> "ArcTV Plus isn't active on this account"
             profiles.problem != null -> profiles.problem
             !profiles.ready -> "still loading"
             else -> "not available"

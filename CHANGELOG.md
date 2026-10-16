@@ -5809,6 +5809,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Changes:**
 - `ui/home/TopNavBar.kt`: the profile button now shows for any signed-in account where profiles are supported. With Plus it is the profile in use as before; without Plus it is the account's own (default) profile, the only one they can use. Pressing it opens the Profiles screen, which for someone without Plus shows their profile and the Add profile tile (Post-Milestone-160). Guests still see Sign In and no chip; kids profiles are unchanged.
+- `ui/settings/AccountScreen.kt`: Settings -> Account used the same Plus-only rule, so it said "Profiles: ArcTV Plus isn't active on this account" for a free account. It now shows "Watching as <name>" and the Switch or manage profiles button for the account's own profile too, and that message is only for an older service or a list that could not be read.
 - RELEASE_NOTES.md: one bullet.
 
 **Tests performed:** a manual re-read and brace/paren balance check. No Gradle/Android build or on-device look was possible here (no route to `dl.google.com`).
