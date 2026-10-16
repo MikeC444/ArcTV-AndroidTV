@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -143,46 +145,49 @@ private fun PlanCardPanel(plan: String, planName: String, price: String?, trialD
     LaunchedEffect(Unit) { runCatching { changeFocus.requestFocus() } }
     Column(
         modifier = modifier
+            .fillMaxHeight()
             .background(MangoSurface, RoundedCornerShape(MangoDimens.CardCornerRadius))
-            // Scrolls only as a safety net: the details are laid out compactly so that, on a TV screen, they and the Change plan button all fit.
+            // Scrolls only as a safety net: the card is as tall as the code's panel beside it and laid out so that everything, and the Change plan button, fit.
             .verticalScroll(rememberScrollState())
-            .padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(5.dp)
+            .padding(horizontal = 22.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(text = "YOUR PLAN", color = TextTertiary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-            Text(text = "Arc TV Plus · $planName", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            val trial = hasTrial(plan, trialDays)
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(text = if (loading) "" else if (trial) "Free for $trialDays days" else price ?: "Shown on your phone", color = ArcAccent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                val suffix = billingSuffix(plan)
-                if (!trial && price != null && suffix != null) {
-                    Spacer(Modifier.width(6.dp))
-                    Text(text = suffix, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-        }
-        // The perks in two columns, so four of them take two lines instead of four.
-        PLUS_PERKS.filter { !it.comingSoon && !it.otherDevicesOnly }.chunked(2).forEach { pair ->
-            Row(modifier = Modifier.fillMaxWidth()) {
-                pair.forEach { perk ->
-                    Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Check, contentDescription = null, tint = ArcAccent, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(text = perk.title, color = TextPrimary, style = MaterialTheme.typography.bodyMedium)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(text = "YOUR PLAN", color = TextTertiary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Text(text = "Arc TV Plus · $planName", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                val trial = hasTrial(plan, trialDays)
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(text = if (loading) "" else if (trial) "Free for $trialDays days" else price ?: "Shown on your phone", color = ArcAccent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    val suffix = billingSuffix(plan)
+                    if (!trial && price != null && suffix != null) {
+                        Spacer(Modifier.width(6.dp))
+                        Text(text = suffix, color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-                if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
         }
-        InfoRow("Billing", billingLabel(plan))
-        InfoRow("Due today", if (loading) "" else if (hasTrial(plan, trialDays)) "Free" else price ?: "-")
-        Text(text = if (hasTrial(plan, trialDays)) trialBillingNote(plan, trialDays) else billingNote(plan), color = TextTertiary, style = MaterialTheme.typography.labelSmall)
+        CheckoutDivider()
+        // Everything Plus includes, in two columns with a tick each. Download is part of Plus but on other devices; anything still coming soon is dimmed.
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            PLUS_PERKS.chunked(2).forEach { pair ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    pair.forEach { perk -> PerkTick(perk, Modifier.weight(1f)) }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+        CheckoutDivider()
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            InfoRow("Billing", billingLabel(plan))
+            InfoRow("Due today", if (loading) "" else if (hasTrial(plan, trialDays)) "Free" else price ?: "-")
+            Text(text = if (hasTrial(plan, trialDays)) trialBillingNote(plan, trialDays) else billingNote(plan), color = TextTertiary, style = MaterialTheme.typography.labelSmall)
+        }
         if (plan == "lifetime") {
             // The supporters board is Lifetime-only and opt-in: the payment page asks, so say so here (same facts as the web app and the Stripe page).
             Row(verticalAlignment = Alignment.Top) {
                 Icon(Icons.Filled.Favorite, contentDescription = null, tint = ArcViolet, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(
                     text = "Lifetime supporters can choose to be on the supporters board on arctv.org, by name or as Anonymous. You'll be asked on the payment page.",
                     color = TextSecondary,
@@ -192,6 +197,34 @@ private fun PlanCardPanel(plan: String, planName: String, price: String?, trialD
         }
         MangoButton(text = "Change plan", icon = Icons.Filled.ArrowBack, onClick = onChange, focusRequester = changeFocus, compact = true)
     }
+}
+
+/** One perk with a tick (a clock, dimmed, while it is still coming soon) and, when it needs saying, a line under its name. */
+@Composable
+private fun PerkTick(perk: PlusPerk, modifier: Modifier) {
+    val caption = when {
+        perk.comingSoon -> "Coming soon"
+        perk.otherDevicesOnly -> "Web, Mac and Windows"
+        else -> null
+    }
+    Row(modifier = modifier, verticalAlignment = Alignment.Top) {
+        Icon(
+            imageVector = if (perk.comingSoon) Icons.Filled.Schedule else Icons.Filled.Check,
+            contentDescription = null,
+            tint = if (perk.comingSoon) TextTertiary else ArcAccent,
+            modifier = Modifier.padding(top = 2.dp).size(16.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Column {
+            Text(text = perk.title, color = if (perk.comingSoon) TextTertiary else TextPrimary, style = MaterialTheme.typography.bodyMedium)
+            if (caption != null) Text(text = caption, color = TextTertiary, style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+@Composable
+private fun CheckoutDivider() {
+    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(MangoSurfaceHigh))
 }
 
 @Composable

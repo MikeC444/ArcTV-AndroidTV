@@ -26,6 +26,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Plus plans now show real prices, with how much you save on Yearly and what it costs per day.
 - The Plus plans screen is tidier, and Lifetime says you can join the supporters board, on the plan and at payment.
 - "What Plus adds" is easier to take in: neat icon tiles, two to a row, with what is coming soon last and a note that Download is on web, Mac and Windows.
+- The payment screen is roomier and lists every Plus perk with a tick.
 
 ## 0.5.1
 
