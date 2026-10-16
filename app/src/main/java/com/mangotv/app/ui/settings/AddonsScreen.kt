@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -43,6 +43,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -77,6 +83,10 @@ fun ColumnScope.AddonsSettingsContent(
     // "Click here for help" on the debrid note: a QR code for a phone.
     var showDebridHelp by remember { mutableStateOf(false) }
     if (showDebridHelp) DebridHelpDialog(onClose = { showDebridHelp = false })
+    // Down walks the page in the order it reads: Add Addon, the help link, then the first addon's on/off row (not its bin, which the default focus
+    // search would pick, being nearest to the Add Addon button on the right). Right from a row still reaches the bin.
+    val helpLinkFocus = remember { FocusRequester() }
+    val firstAddonFocus = remember { FocusRequester() }
 
     // The "Add Addon" header and the addon list are both items in this one
     // LazyColumn (rather than a static header above a separately-scrolling
@@ -107,6 +117,7 @@ fun ColumnScope.AddonsSettingsContent(
                     icon = Icons.Filled.Add,
                     onClick = onAddAddon,
                     style = MangoButtonStyle.FILLED,
+                    modifier = Modifier.onPreviewKeyEvent { downTo(it, helpLinkFocus) },
                     focusRequester = contentFocusRequester,
                     focusUp = navFocusRequester,
                     focusLeft = sidebarFocusRequester,
@@ -117,14 +128,15 @@ fun ColumnScope.AddonsSettingsContent(
         }
 
         // Same note as the web app: only debrid-backed addons give playable links.
-        item(key = "debrid_notice") { DebridNotice(onHelp = { showDebridHelp = true }) }
+        item(key = "debrid_notice") { DebridNotice(onHelp = { showDebridHelp = true }, focusRequester = helpLinkFocus, onDown = firstAddonFocus) }
 
         if (addons.isEmpty()) {
             item(key = "empty") { EmptyAddonsHint() }
         } else {
-            items(addons, key = { it.manifestUrl }) { addon ->
+            itemsIndexed(addons, key = { _, addon -> addon.manifestUrl }) { index, addon ->
                 AddonRow(
                     addon = addon,
+                    toggleFocusRequester = if (index == 0) firstAddonFocus else null,
                     focusLeft = sidebarFocusRequester,
                     onToggle = { enabled -> viewModel.setEnabled(addon.manifestUrl, enabled) },
                     onRemove = { viewModel.remove(addon.manifestUrl) }
@@ -157,7 +169,7 @@ fun ColumnScope.AddonsSettingsContent(
 }
 
 @Composable
-private fun DebridNotice(onHelp: () -> Unit) {
+private fun DebridNotice(onHelp: () -> Unit, focusRequester: FocusRequester, onDown: FocusRequester) {
     val shape = RoundedCornerShape(MangoDimens.CardCornerRadius)
     Row(
         modifier = Modifier
@@ -181,7 +193,13 @@ private fun DebridNotice(onHelp: () -> Unit) {
             )
             Spacer(Modifier.height(6.dp))
             // Selectable with the remote; opens a QR code to scan with a phone.
-            TvFocusSurface(onClick = onHelp, shape = RoundedCornerShape(8.dp), focusedScale = 1.04f) {
+            TvFocusSurface(
+                onClick = onHelp,
+                modifier = Modifier.onPreviewKeyEvent { downTo(it, onDown) },
+                shape = RoundedCornerShape(8.dp),
+                focusedScale = 1.04f,
+                focusRequester = focusRequester
+            ) {
                 Text(
                     text = "Click here for help",
                     color = ArcAccent,
@@ -217,6 +235,7 @@ private fun EmptyAddonsHint() {
 @Composable
 private fun AddonRow(
     addon: InstalledAddon,
+    toggleFocusRequester: FocusRequester?,
     focusLeft: FocusRequester,
     onToggle: (Boolean) -> Unit,
     onRemove: () -> Unit
@@ -242,6 +261,7 @@ private fun AddonRow(
             focusedScale = 1.02f,
             backgroundColor = MangoSurface,
             borderColor = TextPrimary,
+            focusRequester = toggleFocusRequester,
             focusLeft = focusLeft,
             onFocusChanged = { focused = it }
         ) {
@@ -314,3 +334,7 @@ private fun AddonRow(
         }
     }
 }
+
+/** A Down press moves focus to [target] instead of wherever the default search would go. False (default behaviour) for any other key or when [target] isn't on screen. */
+private fun downTo(event: KeyEvent, target: FocusRequester): Boolean =
+    event.key == Key.DirectionDown && event.type == KeyEventType.KeyDown && runCatching { target.requestFocus() }.isSuccess
