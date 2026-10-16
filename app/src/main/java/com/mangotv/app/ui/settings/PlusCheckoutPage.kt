@@ -163,7 +163,7 @@ private fun PlanCardPanel(plan: String, planName: String, price: String?, trialD
             }
         }
         // The perks in two columns, so four of them take two lines instead of four.
-        PLUS_PERKS.filter { !it.comingSoon }.chunked(2).forEach { pair ->
+        PLUS_PERKS.filter { !it.comingSoon && !it.otherDevicesOnly }.chunked(2).forEach { pair ->
             Row(modifier = Modifier.fillMaxWidth()) {
                 pair.forEach { perk ->
                     Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {

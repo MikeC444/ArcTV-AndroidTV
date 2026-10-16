@@ -21,15 +21,17 @@ val PLUS_PLANS: List<PlusPlan> = listOf(
     PlusPlan("lifetime", "Lifetime", price = null, per = "one-time payment", blurb = "Pay once, keep Plus forever. No renewals.", note = "Pay once")
 )
 
-/** [comingSoon] perks are announced but not on yet; the others are on for accounts with Plus (everyone, while it is in early access). */
-data class PlusPerk(val title: String, val detail: String, val comingSoon: Boolean = true)
+/** [comingSoon] perks are announced but not on yet; the others are on for accounts with Plus (everyone, while it is in early access). [otherDevicesOnly] ones are part of Plus but are not on the TV (Download). */
+data class PlusPerk(val title: String, val detail: String, val comingSoon: Boolean = true, val otherDevicesOnly: Boolean = false)
 
+/** In the order they are shown: what is on now first, anything still coming soon last. */
 val PLUS_PERKS: List<PlusPerk> = listOf(
     PlusPerk("Picked for you", "A Home row chosen from the movies you like, finish and save, with the reason under each poster, plus Like and Not for me on movies.", comingSoon = false),
     PlusPerk("Profiles", "Up to 5 profiles on one account, each with its own My List, Continue Watching, settings and recommendations. Add kids profiles, and lock any profile with a PIN.", comingSoon = false),
-    PlusPerk("Parental controls", "Locks on individual genres and titles, built on kids profiles and Blocked Genres."),
     PlusPerk("Smart source picking", "Skips Select a Source and starts the best source for your device, once every addon has answered. Turn it on under Settings > Plus settings.", comingSoon = false),
-    PlusPerk("Your stats", "How much you watch, how this week compares, your streak, a map of your last 13 weeks and your busiest day, under Settings > Your stats.", comingSoon = false)
+    PlusPerk("Your stats", "How much you watch, how this week compares, your streak, a map of your last 13 weeks and your busiest day, under Settings > Your stats.", comingSoon = false),
+    PlusPerk("Download", "With Plus you can download movies and episodes from your debrid service on the web, Mac and Windows apps. Not on this TV.", comingSoon = false, otherDevicesOnly = true),
+    PlusPerk("Parental controls", "Locks on individual genres and titles, built on kids profiles and Blocked Genres.")
 )
 
 const val PLUS_FREE_NOTE = "Everything you use today stays free: browsing, playing, My List, Continue Watching, addons and Blocked Genres."
