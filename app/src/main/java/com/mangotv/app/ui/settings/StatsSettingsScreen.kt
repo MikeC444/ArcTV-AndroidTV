@@ -223,7 +223,7 @@ private fun StatsPreview(
 ) {
     LazyColumn(modifier = modifier, contentPadding = SettingsListPadding, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item(key = "lead") {
-            StatBlock(null, sidebarFocusRequester) {
+            StaticBlock {
                 Column {
                     Text("In the last 30 days you've watched", color = TextTertiary, style = MaterialTheme.typography.labelMedium)
                     // A stand-in bar, not the real total: the number itself is part of Plus.
@@ -242,11 +242,10 @@ private fun StatsPreview(
                 Column(Modifier.fillMaxWidth().blur(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     StaticBlock { TilesBlock(stats) }
                     StaticBlock { HeatBlock(stats) }
-                    StaticBlock { WeekdayBlock(stats) }
                 }
                 Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(14.dp)))
                 Column(
-                    Modifier.align(Alignment.Center).background(MangoSurfaceHigh, RoundedCornerShape(16.dp)).padding(20.dp),
+                    Modifier.align(Alignment.TopCenter).padding(top = 28.dp).background(MangoSurfaceHigh, RoundedCornerShape(16.dp)).padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
