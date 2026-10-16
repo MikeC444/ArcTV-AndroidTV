@@ -26,7 +26,7 @@ class WatchStatsRepository(private val authRepository: AuthRepository, private v
                 val type = entry.contentType
                 if (type != "MOVIE" && type != "TV_SHOW") return@forEach
                 val at = runCatching { Instant.parse(entry.watchedAt).toEpochMilli() }.getOrNull() ?: return@forEach
-                items.add(HistoryItem(entry.providerId, entry.contentId, type == "MOVIE", entry.positionMs, entry.durationMs, entry.completed, at, entry.markedManually))
+                items.add(HistoryItem(entry.providerId, entry.contentId, type == "MOVIE", entry.positionMs, entry.durationMs, entry.completed, at, entry.markedManually, entry.title, entry.posterUrl))
             }
             if (result.size < PAGE) { truncated = false; break }
             before = result.last().watchedAt

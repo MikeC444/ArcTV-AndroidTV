@@ -150,4 +150,31 @@ class WatchStatsTest {
         assertEquals(9L, laterReset(9L, 5L))
         assertNull(laterReset(null, null))
     }
+
+    @Test
+    fun `most watched adds up a show's episodes and picks one show and one movie`() {
+        val ep = hour + 7 // not whole minutes: that would read as a tick
+        val episode = { HistoryItem("p", "show", false, ep, ep, true, at("2026-10-07T10:00:00"), title = "Show") }
+        val items = listOf(
+            episode(), episode(),
+            HistoryItem("p", "m1", true, 2 * hour, 2 * hour, true, at("2026-10-06T10:00:00"), title = "Movie"),
+            HistoryItem("p", "m2", true, hour, hour, true, at("2026-10-05T10:00:00"), title = "Short")
+        )
+        val stats = computeStats(items, now, zone)
+        assertEquals("Show", stats.topShow?.title)
+        assertEquals(2 * ep, stats.topShow?.watchedMs)
+        assertEquals(2, stats.topShow?.parts)
+        assertEquals("Movie", stats.topMovie?.title)
+    }
+
+    @Test
+    fun `streak note and recap wording`() {
+        assertEquals(null, streakNote(0, 0))
+        assertEquals("best 9", streakNote(0, 9))
+        assertEquals("your best", streakNote(4, 4))
+        assertEquals(null, streakNote(5, 4))
+        assertEquals("best 9 · 1 day to match it", streakNote(8, 9))
+        assertEquals("You watch most on Mondays.", weekdayLine(0))
+        assertEquals(null, recapOf(emptyStats()))
+    }
 }
