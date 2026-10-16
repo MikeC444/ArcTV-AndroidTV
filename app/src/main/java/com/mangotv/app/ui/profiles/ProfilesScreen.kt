@@ -1,7 +1,6 @@
 package com.mangotv.app.ui.profiles
 
 import androidx.compose.runtime.withFrameNanos
-import com.mangotv.app.ui.components.PlusBadge
 import com.mangotv.app.ui.plus.rememberPlusAskEligible
 import com.mangotv.app.ui.plus.PlusAskDialog
 import com.mangotv.app.ui.plus.PROFILES_ASK
@@ -213,7 +212,7 @@ fun ProfilesScreen(
                         AddTile(onClick = { editing = EditTarget.New })
                     }
                     if (state.ready && state.supported && !state.plus && plusAskEligible) {
-                        AddTile(onClick = { showPlusAsk = true }, plusBadge = true, focusRequester = addTileFocus)
+                        AddTile(onClick = { showPlusAsk = true }, focusRequester = addTileFocus)
                     }
                 }
 
@@ -308,7 +307,7 @@ private fun ProfileTile(
 }
 
 @Composable
-private fun AddTile(onClick: () -> Unit, plusBadge: Boolean = false, focusRequester: FocusRequester? = null) {
+private fun AddTile(onClick: () -> Unit, focusRequester: FocusRequester? = null) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(140.dp)) {
         TvFocusSurface(
             onClick = onClick,
@@ -318,17 +317,11 @@ private fun AddTile(onClick: () -> Unit, plusBadge: Boolean = false, focusReques
             modifier = Modifier.size(140.dp)
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Add, contentDescription = if (plusBadge) "Add profile (Plus)" else "Add profile", tint = TextSecondary, modifier = Modifier.size(48.dp))
+                Icon(Icons.Filled.Add, contentDescription = "Add profile", tint = TextSecondary, modifier = Modifier.size(48.dp))
             }
         }
         Spacer(Modifier.height(10.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = "Add profile", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            if (plusBadge) {
-                Spacer(Modifier.width(6.dp))
-                PlusBadge()
-            }
-        }
+        Text(text = "Add profile", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 
