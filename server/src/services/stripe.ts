@@ -30,7 +30,7 @@ export function verifyStripeSignature(rawBody: Buffer | string, header: string |
 }
 
 /** Swappable for tests, which must never reach the real Stripe API. */
-export type StripeFetch = (url: string, init: { method: string; headers: Record<string, string>; body: string }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
+export type StripeFetch = (url: string, init: { method: string; headers: Record<string, string>; body?: string }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
 let stripeFetch: StripeFetch = (url, init) => fetch(url, init);
 export const setStripeFetch = (impl: StripeFetch | null): void => {
   stripeFetch = impl ?? ((url, init) => fetch(url, init));
@@ -124,5 +124,49 @@ export async function cancelSubscriptionAtPeriodEnd(subscriptionId: string): Pro
     // The reason goes to the server log only: the thrown error (which a non-production response echoes as `detail`) stays generic.
     console.error(`Stripe subscription cancel refused (HTTP ${response.status})${detail ? `: ${detail}` : ""}`);
     throw new Error(`Stripe subscription cancel failed (HTTP ${response.status})`);
+  }
+}
+
+/** What one plan costs on the list: the amount in the currency's smallest unit (pence, cents) and its lower-case ISO code. */
+export interface PlanPrice {
+  amount: number;
+  currency: string;
+}
+export type PlanPrices = Record<PlusPlanId, PlanPrice>;
+
+/** How long a read of the prices is reused: they change rarely, and /plus is read often. */
+export const PRICES_TTL_MS = 6 * 60 * 60 * 1000;
+let pricesCache: { value: PlanPrices; at: number } | null = null;
+export const resetPricesCache = (): void => {
+  pricesCache = null;
+};
+
+/**
+ * The list price of each plan, read from Stripe (so it always matches what checkout charges) and kept for a few hours. Null when the
+ * paywall is off, Stripe isn't configured, or any plan's price can't be read and nothing earlier is kept; a failed refresh serves the
+ * last good answer. It never throws: a price display must not break reading someone's Plus status.
+ */
+export async function getPlanPrices(now: number = Date.now()): Promise<PlanPrices | null> {
+  const config = getPlusConfig();
+  if (!config.paywallOn || !config.stripeSecretKey) return null;
+  if (pricesCache && now - pricesCache.at < PRICES_TTL_MS) return pricesCache.value;
+  try {
+    const plans: PlusPlanId[] = ["monthly", "yearly", "lifetime"];
+    const entries = await Promise.all(
+      plans.map(async (plan) => {
+        const id = config.prices[plan];
+        if (!id) throw new Error(`no price id for ${plan}`);
+        const response = await stripeFetch(`https://api.stripe.com/v1/prices/${encodeURIComponent(id)}`, { method: "GET", headers: { Authorization: `Bearer ${config.stripeSecretKey}` } });
+        const body = (await response.json().catch(() => null)) as { unit_amount?: unknown; currency?: unknown } | null;
+        if (!response.ok || !body || typeof body.unit_amount !== "number" || typeof body.currency !== "string") throw new Error(`Stripe price ${plan} failed (HTTP ${response.status})`);
+        return [plan, { amount: body.unit_amount, currency: body.currency.toLowerCase() }] as const;
+      })
+    );
+    const value = Object.fromEntries(entries) as PlanPrices;
+    pricesCache = { value, at: now };
+    return value;
+  } catch (error) {
+    console.error(`Plus prices unavailable: ${error instanceof Error ? error.message : "unknown error"}`);
+    return pricesCache?.value ?? null;
   }
 }
