@@ -22,6 +22,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Added an addon on your phone? Press Refresh addons at the bottom of Addons to see it on your TV right away.
 - Settings no longer gets cut off at the bottom: every tab scrolls fully into view with space below.
 - Settings text is a little smaller, so you can see more on screen at once.
+- Smart source picking is now a simple on/off switch, and Your stats fits much more on screen.
 
 ## 0.5.1
 

@@ -5642,3 +5642,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-152 -- TV: Smart source picking is a switch; Your stats drawn smaller
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** Smart source picking (Settings -> Plus settings) was two radio rows, "Off" and "On"; and Your stats still did not fit much on the TV screen.
+
+**Changes:**
+- `ui/settings/PlusFeatureSettingsScreen.kt`: Smart source picking is one row with a switch and an On/Off label (new reusable `SettingsSwitchRow`: the whole row is the focus target, bordered and slightly scaled up, and pressing it flips the switch); the saved setting is the same.
+- `ui/settings/StatsSettingsScreen.kt`: the stats page is drawn at 80% (`StatsScale`) of the rest of Settings, by providing a `LocalDensity` scaled to 0.8 around `StatsPanel`, so text, tiles, charts, padding and spacing all shrink together (on top of the 0.88 text scale all of Settings has).
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** a manual re-read and a brace/paren balance check. No Gradle/Android build, on-device check or screenshot-test run was possible here (no route to `dl.google.com`); `StatsScreenshotTest`, if it compares stored images, needs re-recording.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
