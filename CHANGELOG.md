@@ -5660,3 +5660,21 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-153 -- TV: real prices on the Plus plan cards (phase 1 of the Plus catch-up with the web app)
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** The web app's Settings -> Arc TV Plus plan cards show the real list prices, with Yearly's monthly equivalent struck against Monthly and a per-day figure. The TV's cards said "Price at checkout" and only learnt a price after a plan was picked. The backend already sends `prices` on `GET /user/plus` (Post-Milestone-140s); the TV ignored it.
+
+**Changes:**
+- `data/network/PlusDtos.kt`, `data/plus/PlusRepository.kt`: `PlusStatus.prices` (`PlanPrices` of monthly, yearly, lifetime), read defensively by `parsePlanPrices` (all three present, positive amounts, 3-letter currencies, else null) and kept with the rest of the status.
+- `ui/settings/PlusPrice.kt`: `planPriceText` works out each card's lines the same way the web app does: Yearly shows its price, "Save N%" and the monthly price struck through only when Yearly really is cheaper per month, and "$x/mo billed yearly, about $y a day"; Lifetime shows its price and "One payment instead of $z every year" when both are in one currency; whole amounts drop their zero cents. `formatPlusPrice` gains `dropWholeCents`.
+- `ui/settings/PlusSettingsScreen.kt`: the cards show these lines (struck-through text via `LineThrough`), falling back to "Price at checkout" with no prices; the footer says "List prices; promo codes can be applied at checkout."
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** `PlusPriceTest` gains tests for the yearly card, monthly/lifetime, no saving when Yearly is not cheaper, mixed currencies, whole amounts and no prices, and the defensive read of the backend's prices. Not run: no Gradle/Android build was possible here (no route to `dl.google.com`); a manual re-read and brace/paren balance check only. `CheckoutScreenshotTest` / any Plus screenshot test may need re-recording.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

@@ -37,7 +37,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -192,6 +196,7 @@ fun ColumnScope.PlusSettingsContent(
                         PlanCard(
                             plan = plan,
                             trialDays = status.trialDays,
+                            priceText = planPriceText(plan.id, status.prices),
                             starting = (checkout as? PlusCheckoutState.Starting)?.plan == plan.id,
                             onChoose = { viewModel.choose(plan.id) },
                             modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -211,6 +216,7 @@ fun ColumnScope.PlusSettingsContent(
         item(key = "footer") {
             Text(
                 text = if (sellPlans) {
+                    (if (status.prices != null) "List prices; promo codes can be applied at checkout. " else "") +
                     (if (status.trialDays > 0) "Yearly free trial: your card is taken at checkout but nothing is charged for ${status.trialDays} days. Cancel before then and you pay nothing. Once per account. " else "") +
                         "Payments are handled by Stripe's secure checkout page; Arc TV never sees your card."
                 } else "Plus features appear on your account by themselves.",
@@ -361,7 +367,7 @@ private fun PerkRow(perk: PlusPerk, paywall: Boolean, focusRequester: FocusReque
 }
 
 @Composable
-private fun PlanCard(plan: PlusPlan, trialDays: Int, starting: Boolean, onChoose: () -> Unit, modifier: Modifier, focusLeft: FocusRequester?) {
+private fun PlanCard(plan: PlusPlan, trialDays: Int, priceText: PlanPriceText?, starting: Boolean, onChoose: () -> Unit, modifier: Modifier, focusLeft: FocusRequester?) {
     TvFocusSurface(
         onClick = onChoose,
         modifier = modifier,
@@ -379,13 +385,37 @@ private fun PlanCard(plan: PlusPlan, trialDays: Int, starting: Boolean, onChoose
                 Spacer(Modifier.height(6.dp))
             }
             Text(text = plan.label, color = TextPrimary, style = MaterialTheme.typography.titleMedium)
+            val shownPrice = priceText?.price ?: plan.price
             Text(
-                text = plan.price ?: "Price at checkout",
-                color = if (plan.price != null) TextPrimary else TextSecondary,
+                text = shownPrice ?: "Price at checkout",
+                color = if (shownPrice != null) TextPrimary else TextSecondary,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Text(text = plan.per, color = TextTertiary, style = MaterialTheme.typography.labelSmall)
+            if (priceText?.saving != null) {
+                Spacer(Modifier.height(4.dp))
+                Pill(text = priceText.saving, container = MangoSurfaceHigh, content = ArcAccent)
+            }
+            if (priceText?.perDay != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = buildAnnotatedString {
+                        // The monthly price, struck through: what paying monthly costs against this.
+                        if (priceText.was != null) {
+                            withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) { append("${priceText.was}/mo") }
+                            append("  ")
+                        }
+                        append(priceText.perDay)
+                    },
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+            if (priceText?.versus != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(text = priceText.versus, color = TextSecondary, style = MaterialTheme.typography.labelSmall)
+            }
             Spacer(Modifier.height(6.dp))
             Text(text = plan.blurb, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(10.dp))

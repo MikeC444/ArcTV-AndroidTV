@@ -1,5 +1,10 @@
 package com.mangotv.app.ui.settings
 
+import com.mangotv.app.data.network.PlusPriceDto
+import com.mangotv.app.data.network.PlusPricesDto
+import com.mangotv.app.data.plus.PlanPrice
+import com.mangotv.app.data.plus.PlanPrices
+import com.mangotv.app.data.plus.parsePlanPrices
 import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -52,5 +57,58 @@ class PlusPriceTest {
         assertEquals("Choose Monthly", planButtonLabel("monthly", "Monthly", 5))
         assertEquals("Get Lifetime", planButtonLabel("lifetime", "Lifetime", 5))
         assertEquals(true, trialBillingNote("yearly", 5).contains("5 days"))
+    }
+
+    private val usd = PlanPrices(PlanPrice(499, "usd"), PlanPrice(3999, "usd"), PlanPrice(9999, "usd"))
+
+    @Test
+    fun `the yearly card shows the saving, the monthly price struck against it and the per day figure`() {
+        val yearly = planPriceText("yearly", usd, Locale.US)!!
+        assertEquals("$39.99", yearly.price)
+        assertEquals("$4.99", yearly.was)
+        assertEquals("Save 33%", yearly.saving)
+        assertEquals("$3.33/mo billed yearly, about $0.11 a day", yearly.perDay)
+    }
+
+    @Test
+    fun `monthly and lifetime cards say their price, and lifetime compares itself with yearly`() {
+        assertEquals("$4.99", planPriceText("monthly", usd, Locale.US)!!.price)
+        val lifetime = planPriceText("lifetime", usd, Locale.US)!!
+        assertEquals("$99.99", lifetime.price)
+        assertEquals("One payment instead of $39.99 every year", lifetime.versus)
+    }
+
+    @Test
+    fun `no saving or strike-through unless yearly really is cheaper per month`() {
+        val dearer = PlanPrices(PlanPrice(300, "usd"), PlanPrice(3999, "usd"), PlanPrice(9999, "usd"))
+        val card = planPriceText("yearly", dearer, Locale.US)!!
+        assertNull(card.saving)
+        assertNull(card.was)
+        assertEquals(true, card.perDay.orEmpty().contains("a day"))
+    }
+
+    @Test
+    fun `mixed currencies give no saving and no comparison`() {
+        val mixed = PlanPrices(PlanPrice(499, "usd"), PlanPrice(3999, "gbp"), PlanPrice(9999, "usd"))
+        assertNull(savingPercent(mixed))
+        assertNull(planPriceText("lifetime", mixed, Locale.US)!!.versus)
+    }
+
+    @Test
+    fun `a whole amount drops its zero cents and no prices means no price text`() {
+        assertEquals("$40", formatPlusPrice(4000, "usd", Locale.US, dropWholeCents = true))
+        assertEquals("$40.00", formatPlusPrice(4000, "usd", Locale.US))
+        assertNull(planPriceText("yearly", null, Locale.US))
+        assertNull(planPriceText("unknown", usd, Locale.US))
+    }
+
+    @Test
+    fun `the backend's prices are read defensively`() {
+        val good = PlusPricesDto(PlusPriceDto(499.0, "GBP"), PlusPriceDto(3999.0, "gbp"), PlusPriceDto(9999.0, "gbp"))
+        assertEquals(PlanPrice(499, "gbp"), parsePlanPrices(good)!!.monthly)
+        assertNull(parsePlanPrices(null))
+        assertNull(parsePlanPrices(good.copy(yearly = null)))
+        assertNull(parsePlanPrices(good.copy(lifetime = PlusPriceDto(0.0, "gbp"))))
+        assertNull(parsePlanPrices(good.copy(monthly = PlusPriceDto(499.0, "pounds"))))
     }
 }
