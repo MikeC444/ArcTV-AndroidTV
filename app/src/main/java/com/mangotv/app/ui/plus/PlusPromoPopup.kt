@@ -20,6 +20,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Icon
@@ -78,7 +82,10 @@ private val Benefits = listOf(
     // One short line each: on a TV a long paragraph in a pop-up is too much to read from the sofa (the web popup has the longer wording).
     PromoBenefit(Icons.Filled.Favorite, "Picked for you", "A Home row chosen from movies you like"),
     PromoBenefit(Icons.Filled.Groups, "Up to 5 profiles", "Own My List and picks, kids profiles, PINs"),
-    PromoBenefit(Icons.Filled.WorkspacePremium, "Smarter viewing", "Smart source picking and your watch stats")
+    PromoBenefit(Icons.Filled.Bolt, "Smart source picking", "Starts the best source for your device"),
+    PromoBenefit(Icons.Filled.BarChart, "Your stats", "How much you watch, and your streak"),
+    PromoBenefit(Icons.Filled.Download, "Downloads", "On the web, Mac and Windows apps"),
+    PromoBenefit(Icons.Filled.Shield, "Parental controls", "Coming soon")
 )
 
 /**
@@ -172,10 +179,10 @@ internal fun PlusPromoCard(onGo: () -> Unit, onClose: () -> Unit, onNever: () ->
 @Composable
 internal fun PlusInviteCard(headline: String, subline: String, onGo: () -> Unit, onClose: () -> Unit, onNever: (() -> Unit)?, primaryFocusRequester: FocusRequester) {
     val panelShape = RoundedCornerShape(18.dp)
-    // The same card size as the Plus welcome popup (it was once 600 dp wide and nearly the whole height of a 540 dp screen): 380 dp wide and a little over half the height.
+    // 580 dp wide with the benefits in two columns, so all six fit in three short rows and the card stays well under the height of a 540 dp screen.
     Column(
         modifier = Modifier
-            .widthIn(max = 380.dp)
+            .widthIn(max = 580.dp)
             .clip(panelShape)
             .background(MangoBackgroundElevated)
             // Two soft glows in the corners (blue top-left, violet top-right), like the web popup.
@@ -214,7 +221,12 @@ internal fun PlusInviteCard(headline: String, subline: String, onGo: () -> Unit,
         )
         Spacer(Modifier.height(10.dp))
         Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            Benefits.forEach { benefit -> BenefitRow(benefit) }
+            Benefits.chunked(2).forEach { pair ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    pair.forEach { benefit -> BenefitRow(benefit, Modifier.weight(1f)) }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
         }
         Spacer(Modifier.height(12.dp))
         // Both buttons sit together in the middle of the card.
@@ -270,8 +282,8 @@ internal fun PlusInviteCard(headline: String, subline: String, onGo: () -> Unit,
 }
 
 @Composable
-private fun BenefitRow(benefit: PromoBenefit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+private fun BenefitRow(benefit: PromoBenefit, modifier: Modifier = Modifier) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
                 .size(28.dp)
