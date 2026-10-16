@@ -27,4 +27,11 @@ class TolerantBringIntoViewTest {
         assertEquals(38f, inset.calculateScrollDistance(440f, 60f, 500f), 0.01f) // 60 + 440 - 472 + 10
         assertEquals(0f, inset.calculateScrollDistance(380f, 60f, 500f), 0f) // already clear of the inset
     }
+
+    @Test fun rowRestingOnTheTopEdgeScrollsDownByTheTopInsetWhenOneIsSet() {
+        val inset = MangoMotion.tolerantBringIntoViewSpec(slackPx = 3f, marginPx = 10f, topInsetPx = 14f)
+        assertEquals(0f, spec.calculateScrollDistance(0f, 60f, 500f), 0f) // flush with the top: fine without an inset
+        assertEquals(-14f, inset.calculateScrollDistance(0f, 60f, 500f), 0.01f)
+        assertEquals(0f, inset.calculateScrollDistance(12f, 60f, 500f), 0f) // within the slack of the inset
+    }
 }

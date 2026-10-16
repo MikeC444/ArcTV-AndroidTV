@@ -203,7 +203,7 @@ internal fun SettingsLayout(
     // bottomInsetDp: a focused row is kept clear of the bottom 64dp of the card (plus the usual margin), so its scale-up and outline are not cut by
     // the edge and a footnote that follows the last row ("Changes are saved automatically", the trial note) shows beneath it. The lists' 72dp
     // bottom padding gives the last row room to get there.
-    TolerantBringIntoView(slackDp = 3, bottomInsetDp = 64) {
+    TolerantBringIntoView(slackDp = 3, bottomInsetDp = 64, topInsetDp = 14) {
         SettingsScaffold(
             title = "Settings",
             onNavigate = onNavigate,
@@ -234,7 +234,7 @@ internal fun SettingsLayout(
                         .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
                 ) {
                   // The categories scroll; the version and update check below them stay pinned, so their result line is never cut off.
-                  Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 12.dp)) {
+                  Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 16.dp)) {
                     SettingsGroups.forEachIndexed { groupIndex, (label, categories) ->
                         Text(
                             text = label.uppercase(),
