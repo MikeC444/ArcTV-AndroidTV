@@ -11,6 +11,7 @@ file is only ever end-user-facing release notes.)
 Releasing needs nothing done to this file: add each change as a bullet under `## Unreleased` as you make it. When a release is
 published, the workflow uses what is under `## Unreleased` as that release's notes (what the app's update pop-up shows), then moves it
 under the new version heading and leaves a fresh empty `## Unreleased` above it.
+- The Arc TV Plus pop-up on Home is gone. Explore Plus any time in Settings.
 
 ## Unreleased
 
