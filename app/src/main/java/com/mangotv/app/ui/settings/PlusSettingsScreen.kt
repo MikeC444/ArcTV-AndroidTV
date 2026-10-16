@@ -198,7 +198,8 @@ fun ColumnScope.PlusSettingsContent(
             item(key = "plans") {
                 // Equal-height cards: with uneven heights the taller card's bottom edge counted as "below" the others, so Down
                 // moved sideways between cards instead of on down the tab.
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                // The top padding sets the plans apart from the perk tiles above them.
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 14.dp).fillMaxWidth().height(IntrinsicSize.Min)) {
                     PLUS_PLANS.forEachIndexed { index, plan ->
                         PlanCard(
                             plan = plan,
