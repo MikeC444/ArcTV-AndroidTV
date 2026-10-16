@@ -1,7 +1,6 @@
 package com.mangotv.app.ui.profiles
 
 import androidx.compose.runtime.withFrameNanos
-import com.mangotv.app.ui.plus.rememberPlusAskEligible
 import com.mangotv.app.ui.plus.PlusAskDialog
 import com.mangotv.app.ui.plus.PROFILES_ASK
 import androidx.activity.compose.BackHandler
@@ -113,8 +112,8 @@ fun ProfilesScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var pinError by remember { mutableStateOf<String?>(null) }
     val firstTile = remember { FocusRequester() }
-    // Without Plus, Add profile is still there: it opens the Plus invitation (never for a guest or when Plus is not a paid tier yet).
-    val plusAskEligible = rememberPlusAskEligible()
+    // Without Plus, Add profile is still there: it opens the Plus invitation. It does not wait for Plus's own status to arrive: "Who's watching?" now
+    // opens at every launch, before that status has been read, and the tile used to be missing until (or unless) it was.
     var showPlusAsk by remember { mutableStateOf(false) }
     var askClosedTick by remember { mutableStateOf(0) }
     val addTileFocus = remember { FocusRequester() }
@@ -213,7 +212,7 @@ fun ProfilesScreen(
                     if (state.supported && state.plus && state.profiles.size < state.limit) {
                         AddTile(onClick = { editing = EditTarget.New })
                     }
-                    if (state.ready && state.supported && !state.plus && plusAskEligible) {
+                    if (state.ready && state.supported && !state.plus) {
                         AddTile(onClick = { showPlusAsk = true }, focusRequester = addTileFocus)
                     }
                 }
