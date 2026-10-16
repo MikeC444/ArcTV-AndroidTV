@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -69,6 +70,8 @@ fun ColumnScope.AddonsSettingsContent(
     viewModel: AddonsViewModel = viewModel()
 ) {
     val addons by viewModel.installedAddons.collectAsStateWithLifecycle()
+    val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
+    val refreshMessage by viewModel.refreshMessage.collectAsStateWithLifecycle()
     // "Click here for help" on the debrid note: a QR code for a phone.
     var showDebridHelp by remember { mutableStateOf(false) }
     if (showDebridHelp) DebridHelpDialog(onClose = { showDebridHelp = false })
@@ -124,6 +127,28 @@ fun ColumnScope.AddonsSettingsContent(
                     onToggle = { enabled -> viewModel.setEnabled(addon.manifestUrl, enabled) },
                     onRemove = { viewModel.remove(addon.manifestUrl) }
                 )
+            }
+        }
+
+        // At the bottom, after the last addon: re-reads the account's addons, for ones added on the phone while this app was already open.
+        item(key = "refresh") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                MangoButton(
+                    text = if (refreshing) "Refreshing..." else "Refresh addons",
+                    icon = Icons.Filled.Refresh,
+                    onClick = { viewModel.refresh() },
+                    style = MangoButtonStyle.GLASS,
+                    focusLeft = sidebarFocusRequester,
+                    compact = true,
+                    borderColor = TextPrimary
+                )
+                refreshMessage?.let {
+                    Spacer(Modifier.width(16.dp))
+                    Text(text = it, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
     }

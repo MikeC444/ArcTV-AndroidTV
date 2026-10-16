@@ -74,10 +74,10 @@ class AddonSyncRepository(
         addonRepository.onLocalChange = { change -> pushToServer(change) }
     }
 
-    /** Pulls this account's active addon list and replaces the local cache with it. Called by SyncManager on login/launch. Fire-and-forget: must never delay getting the user into the app. */
-    suspend fun pullFromServer() {
+    /** Pulls this account's active addon list and replaces the local cache with it. Called by SyncManager on login/launch. Fire-and-forget: must never delay getting the user into the app. Returns whether the list was pulled and applied (false: offline, signed out or a bad answer, and the local list is left as it was). */
+    suspend fun pullFromServer(): Boolean {
         try {
-            val token = freshAccessTokenOrNull() ?: return
+            val token = freshAccessTokenOrNull() ?: return false
             val response = apiClient.getAddons(token)
             val items = response.items.mapNotNull { dto -> runCatching { dto.toInstalledAddon() }.getOrNull() }
             val userId = authRepository.getCurrentSession()?.user?.id
@@ -88,10 +88,11 @@ class AddonSyncRepository(
                 markSeeded(userId)
                 addonRepository.applyRemote(items)
                 addonRepository.addDefaultIfNoCatalog()
-                return
+                return true
             }
             if (userId != null && !noCatalog) markSeeded(userId)
             addonRepository.applyRemote(items)
+            return true
         } catch (e: ApiException) {
             if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
         } catch (e: IOException) {
@@ -103,6 +104,7 @@ class AddonSyncRepository(
             // degraded backend/database) -- degrade the same way a network
             // failure does rather than crashing the caller.
         }
+        return false
     }
 
     /**
