@@ -1,5 +1,6 @@
 package com.mangotv.app.ui.home
 
+import com.mangotv.app.data.provider.ProviderRegistry
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -69,6 +70,16 @@ private val NavFocusWash = Color(0x17FFFFFF)
 
 val MangoNavItems = listOf("Home", "Movies", "TV Shows", "Search", "My List", "Settings")
 
+/** The tab for anime, after TV Shows: it only exists while an installed addon has anime catalogues (see [navItemsWithAnime]). */
+const val ANIME_NAV_LABEL = "Anime"
+
+/** [items] with the Anime tab after TV Shows when [hasAnime]; otherwise unchanged. */
+fun navItemsWithAnime(items: List<String>, hasAnime: Boolean): List<String> {
+    if (!hasAnime || ANIME_NAV_LABEL in items) return items
+    val at = items.indexOf("TV Shows")
+    return if (at < 0) items else items.take(at + 1) + ANIME_NAV_LABEL + items.drop(at + 1)
+}
+
 /** The nav items for someone without an account: the same tabs in the same places, with Settings replaced by Sign In. */
 fun navItemsForGuest(items: List<String>): List<String> = items.map { if (it == "Settings") "Sign In" else it }
 
@@ -78,6 +89,8 @@ fun TopNavBar(
     transparentBackground: Boolean,
     modifier: Modifier = Modifier,
     selectedIndex: Int = 0,
+    // The label of the open tab. Preferred over [selectedIndex] when given: the Anime tab comes and goes, which shifts every index after TV Shows.
+    selectedLabel: String? = null,
     selectedItemFocusRequester: FocusRequester? = null,
     contentFocusRequester: FocusRequester? = null,
     onItemClick: (String) -> Unit = {},
@@ -108,7 +121,8 @@ fun TopNavBar(
         null
     }
     val baseItems = if (isGuest) navItemsForGuest(MangoNavItems) else MangoNavItems.filterNot { activeProfile?.isKids == true && it == "Settings" }
-    val navItems = baseItems
+    val providers by ProviderRegistry.providers.collectAsStateWithLifecycle()
+    val navItems = navItemsWithAnime(baseItems, ProviderRegistry.hasAnime(providers))
 
     // Over the Home / Detail picture there is no dark band behind the bar any more (only the pill and the profile chip have their own
     // frosted background); on every other screen it is the page colour, which only matters when content scrolls up under it.
@@ -197,11 +211,12 @@ fun TopNavBar(
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 itemsIndexed(navItems) { index, label ->
+                    val isSelected = if (selectedLabel != null) label == selectedLabel else index == selectedIndex
                     NavItem(
                         label = label,
-                        selected = index == selectedIndex,
+                        selected = isSelected,
                         onClick = { onItemClick(label) },
-                        focusRequester = if (index == selectedIndex) selectedItemFocusRequester else null,
+                        focusRequester = if (isSelected) selectedItemFocusRequester else null,
                         focusDown = contentFocusRequester
                     )
                 }

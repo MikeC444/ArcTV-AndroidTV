@@ -24,7 +24,8 @@ fun StremioMetaPreview.toContent(providerId: String): Content {
 
     return Content(
         id = id,
-        type = if (type == "series") ContentType.TV_SHOW else ContentType.MOVIE,
+        // An anime addon's own type ("anime") is a show here: it has episodes, and everything else in the app treats shows that way.
+        type = if (type == "series" || type == "anime") ContentType.TV_SHOW else ContentType.MOVIE,
         title = name,
         description = description.orEmpty(),
         posterUrl = poster,
@@ -50,7 +51,8 @@ fun StremioMeta.toContent(providerId: String): Content {
 
     return Content(
         id = id,
-        type = if (type == "series") ContentType.TV_SHOW else ContentType.MOVIE,
+        // An anime addon's own type ("anime") is a show here: it has episodes, and everything else in the app treats shows that way.
+        type = if (type == "series" || type == "anime") ContentType.TV_SHOW else ContentType.MOVIE,
         title = name,
         description = description.orEmpty(),
         posterUrl = poster,

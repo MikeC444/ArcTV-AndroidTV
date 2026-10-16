@@ -34,8 +34,15 @@ data class AddonCatalogDef(
     val type: String,
     val id: String,
     val name: String? = null,
-    val extra: List<AddonCatalogExtra> = emptyList()
-)
+    val extra: List<AddonCatalogExtra> = emptyList(),
+    /** The older way a manifest lists what a catalogue takes: the names it supports ([extraSupported]) and, of those, the ones it requires. */
+    val extraSupported: List<String>? = null,
+    val extraRequired: List<String>? = null
+) {
+    /** What the catalogue takes: [extra], or, for a manifest written the older way, built from [extraSupported] and [extraRequired]. */
+    val allExtras: List<AddonCatalogExtra>
+        get() = if (extra.isNotEmpty() || extraSupported.isNullOrEmpty()) extra else extraSupported.map { name -> AddonCatalogExtra(name, isRequired = extraRequired?.contains(name) == true) }
+}
 
 /**
  * Describes one filterable parameter a catalog supports (genre, skip,

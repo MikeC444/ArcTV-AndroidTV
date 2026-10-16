@@ -5863,3 +5863,23 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-164 -- TV: the Anime tab, step 1: the tab and its grid (like the web app)
+
+**Status:** Done on the branch; not built or run here. Anime titles do not play yet and Search has no anime line yet: those are the next two steps.
+
+**Context:** The web app has an Anime tab while an installed addon has catalogues of type `anime`. The TV had nothing for it.
+
+**Changes:**
+- `data/model/Addon.kt`: `AddonCatalogDef` also reads the older `extraSupported` / `extraRequired` manifest fields (`allExtras`), so addons written that way work.
+- `data/provider/CatalogProvider.kt`, `StremioAddonProvider.kt`: `hasAnime` (an `anime` catalogue that asks for nothing but, at most, a genre), `animeGenres()`, `getAnimeItems(genre)` and `getMoreAnimeItems(page, genre)` (the addon's own ranking: the catalogues that need nothing, or for a genre the ones that list it; later pages by `skip`), `hasAnimeSearch` and `searchAnime` (used by the search step). `data/addon/StremioMapper.kt`: an `anime` title is a show.
+- `data/provider/ProviderRegistry.kt`: `hasAnime(providers)`.
+- `ui/home/TopNavBar.kt`: the nav bar gets an Anime item after TV Shows while an enabled addon has anime catalogues (`navItemsWithAnime`), and comes and goes with the addons. The bar now highlights the open tab by label (`selectedLabel`) instead of by position, which would have shifted; Search, Settings and the browse screens pass their label.
+- `navigation/MangoRoutes.kt`, `MangoNavHost.kt`: the `anime` route and tab root; `ui/browse/RowsBrowseScreen.kt`, `TypeBrowseViewModel.kt`: `AnimeScreen` reuses the Movies / TV Shows grid with a genre drop-down built from the anime addons' genres (A to Z, minus blocked genres), in the addons' own order (not shuffled), with the messages "No <genre> anime found right now." and "Your anime addons didn't return any titles right now."; opening it with no anime addon goes Home. Shown to every profile, kids included, and needs no Plus (as on the web).
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** `AnimeCatalogsTest` (detection, the older manifest fields, genres, the ranked and genre catalogues and paging, anime as a show, the tab's place in the bar), written but not run; a manual re-read and brace/paren balance check. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`).
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

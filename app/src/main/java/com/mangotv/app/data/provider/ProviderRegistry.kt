@@ -22,6 +22,9 @@ object ProviderRegistry {
 
     fun activeProviders(): List<CatalogProvider> = _providers.value
 
+    /** True while an installed (enabled) addon has anime catalogues: the Anime tab exists only then. */
+    fun hasAnime(providers: List<CatalogProvider> = _providers.value): Boolean = providers.any { it.hasAnime }
+
     fun register(provider: CatalogProvider) {
         _providers.update { current ->
             if (current.any { it.id == provider.id }) {
