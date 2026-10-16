@@ -189,7 +189,7 @@ private fun PlanCardPanel(plan: String, planName: String, price: String?, trialD
                 Icon(Icons.Filled.Favorite, contentDescription = null, tint = ArcViolet, modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "Lifetime supporters can choose to be on the supporters board on arctv.org, by name or as Anonymous. You'll be asked on the payment page.",
+                    text = "Lifetime supporters can choose to be on the supporters board on ArcTV.org, by name or as Anonymous. You'll be asked on the payment page.",
                     color = TextSecondary,
                     style = MaterialTheme.typography.labelSmall
                 )

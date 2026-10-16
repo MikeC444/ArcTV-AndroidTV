@@ -37,6 +37,6 @@ val PLUS_PERKS: List<PlusPerk> = listOf(
 const val PLUS_FREE_NOTE = "Everything you use today stays free: browsing, playing, My List, Continue Watching, addons and Blocked Genres."
 
 /** Said under the plan cards: the supporters board is a choice, asked at checkout and changeable in Settings (the web app's wording). */
-const val LIFETIME_BOARD_NOTE = "Go Lifetime and you'll be asked at checkout whether you want to be on the supporters board on arctv.org, with your display name and picture or just as Anonymous, as a thank you. You can change your mind any time in Settings."
+const val LIFETIME_BOARD_NOTE = "Go Lifetime and you'll be asked at checkout whether you want to be on the supporters board on ArcTV.org, with your display name and picture or just as Anonymous, as a thank you. You can change your mind any time in Settings."
 
 const val PLUS_PROCEEDS_NOTE = "Every subscription goes straight back into building and running Arc TV: new features, faster servers and keeping the free app free."

@@ -270,7 +270,7 @@ private fun SupportersBoardOption(on: Boolean, anonymous: Boolean, busy: Boolean
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SettingsSwitchRow(
             title = "Supporters board",
-            description = "Thank you for going Lifetime! Show your display name and profile picture on the supporters board on arctv.org. It is off until you turn it on, and you can turn it off any time.",
+            description = "Thank you for going Lifetime! Show your display name and profile picture on the supporters board on ArcTV.org. It is off until you turn it on, and you can turn it off any time.",
             checked = on,
             onToggle = { if (!busy) onChange(!on, false) },
             focusLeft = focusLeft
