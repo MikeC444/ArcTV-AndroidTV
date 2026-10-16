@@ -19,6 +19,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import com.mangotv.app.ui.theme.ArcBrandGradient
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -166,15 +175,21 @@ fun ColumnScope.PlusSettingsContent(
                 modifier = Modifier.padding(top = 8.dp)
             )
         }
-        PLUS_PERKS.forEachIndexed { index, perk ->
-            item(key = "perk_${perk.title}") {
-                PerkRow(
-                    perk = perk,
-                    paywall = status.paywall,
-                    focusRequester = null,
-                    focusUp = null,
-                    focusLeft = sidebarFocusRequester
-                )
+        // Two tiles to a row (equal heights, so Down moves along the page instead of sideways between uneven tiles), each with an icon, the
+        // name, a Plus / Coming soon tag and what it does: far less scrolling than five full-width text panels.
+        PLUS_PERKS.chunked(2).forEachIndexed { rowIndex, row ->
+            item(key = "perks_row_$rowIndex") {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                    row.forEachIndexed { column, perk ->
+                        PerkTile(
+                            perk = perk,
+                            paywall = status.paywall,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            focusLeft = if (column == 0) sidebarFocusRequester else null
+                        )
+                    }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
             }
         }
 
@@ -322,25 +337,43 @@ private fun CheckoutPanel(checkout: PlusCheckoutState, onCancel: () -> Unit, foc
     }
 }
 
+/** The icon a perk is shown with. */
+private fun perkIcon(title: String): ImageVector = when (title) {
+    "Picked for you" -> Icons.Filled.Favorite
+    "Profiles" -> Icons.Filled.Groups
+    "Parental controls" -> Icons.Filled.Shield
+    "Smart source picking" -> Icons.Filled.Bolt
+    "Your stats" -> Icons.Filled.BarChart
+    else -> Icons.Filled.WorkspacePremium
+}
+
 @Composable
-private fun PerkRow(perk: PlusPerk, paywall: Boolean, focusRequester: FocusRequester?, focusUp: FocusRequester?, focusLeft: FocusRequester?) {
-    // Nothing to "click": the row is focusable so the remote can step down the tab and bring the rest into view.
+private fun PerkTile(perk: PlusPerk, paywall: Boolean, modifier: Modifier, focusLeft: FocusRequester?) {
+    // Nothing to "click": the tile is focusable so the remote can step down the tab and bring the rest into view.
     TvFocusSurface(
         onClick = {},
         clickSound = ClickSound.NONE,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
         focusedScale = 1.02f,
         backgroundColor = MangoSurface,
         borderColor = TextPrimary,
-        focusRequester = focusRequester,
-        focusUp = focusUp,
         focusLeft = focusLeft
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = perk.title, color = TextPrimary, style = MaterialTheme.typography.titleSmall)
-                Spacer(Modifier.width(10.dp))
+        Row(modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(if (perk.comingSoon) MangoSurfaceHigh else ArcBrandGradient),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(perkIcon(perk.title), contentDescription = null, tint = if (perk.comingSoon) TextSecondary else MangoBackground, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = perk.title, color = TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(3.dp))
                 Pill(
                     text = when {
                         perk.comingSoon -> "Coming soon"
@@ -350,9 +383,9 @@ private fun PerkRow(perk: PlusPerk, paywall: Boolean, focusRequester: FocusReque
                     container = MangoSurfaceHigh,
                     content = if (perk.comingSoon) TextSecondary else ArcAccent
                 )
+                Spacer(Modifier.height(6.dp))
+                Text(text = perk.detail, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
             }
-            Spacer(Modifier.height(4.dp))
-            Text(text = perk.detail, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
         }
     }
 }

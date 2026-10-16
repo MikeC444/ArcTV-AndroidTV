@@ -5692,3 +5692,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-155 -- TV: "What Plus adds" as icon tiles
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** The Plus tab listed each perk as a full-width text panel, five tall panels of small text to scroll through.
+
+**Changes:**
+- `ui/settings/PlusSettingsScreen.kt`: `PerkRow` is replaced by `PerkTile`, laid out two to a row with equal heights (so Down moves along the page): a gradient icon tile (grey for a perk that is coming soon), the name, the Plus / Coming soon / Included in early access tag under it, and the description. Left from the first column returns to the category list. The wording of every perk is unchanged.
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** a manual re-read and brace/paren balance check. No Gradle/Android build or on-device look was possible here (no route to `dl.google.com`); any screenshot test of the Plus tab needs re-recording.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
