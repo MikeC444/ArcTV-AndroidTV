@@ -383,7 +383,7 @@ fun SearchScreen(
         TopNavBar(
             transparentBackground = false,
             modifier = Modifier.align(Alignment.TopCenter),
-            selectedIndex = MangoNavItems.indexOf("Search"),
+            selectedLabel = "Search",
             selectedItemFocusRequester = navFocusRequester,
             contentFocusRequester = fieldFocusRequester,
             onItemClick = { label -> routeForNavLabel(label)?.let(onNavigate) }

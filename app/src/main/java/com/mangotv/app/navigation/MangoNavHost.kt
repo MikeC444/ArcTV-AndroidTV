@@ -43,6 +43,7 @@ import com.mangotv.app.ui.auth.GateDestination
 import com.mangotv.app.ui.auth.PasswordSignInScreen
 import com.mangotv.app.ui.auth.QrSignInScreen
 import com.mangotv.app.ui.browse.MoviesScreen
+import com.mangotv.app.ui.browse.AnimeScreen
 import com.mangotv.app.ui.browse.TvShowsScreen
 import com.mangotv.app.ui.detail.DetailScreen
 import com.mangotv.app.ui.search.SearchScreen
@@ -71,7 +72,7 @@ import kotlinx.coroutines.launch
 // HomeViewModel/MoviesViewModel/etc. from scratch, discarding all
 // already-fetched data and re-running every network fetch on every visit.
 private val TAB_ROOT_ROUTES = setOf(
-    MangoRoutes.HOME, MangoRoutes.MOVIES, MangoRoutes.TV_SHOWS,
+    MangoRoutes.HOME, MangoRoutes.MOVIES, MangoRoutes.TV_SHOWS, MangoRoutes.ANIME,
     MangoRoutes.SEARCH, MangoRoutes.MY_LIST, MangoRoutes.SETTINGS
 )
 
@@ -384,6 +385,11 @@ fun MangoNavHost() {
                 }
                 composable(MangoRoutes.TV_SHOWS) {
                     TvShowsScreen(
+                        onNavigate = ::navigateTo
+                    )
+                }
+                composable(MangoRoutes.ANIME) {
+                    AnimeScreen(
                         onNavigate = ::navigateTo
                     )
                 }

@@ -1,5 +1,6 @@
 package com.mangotv.app.ui.browse
 
+import com.mangotv.app.data.provider.ProviderRegistry
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
@@ -189,7 +190,7 @@ private fun RowsBrowseTransientState(
         TopNavBar(
             transparentBackground = false,
             modifier = Modifier.align(Alignment.TopCenter),
-            selectedIndex = MangoNavItems.indexOf(navLabel),
+            selectedLabel = navLabel,
             selectedItemFocusRequester = navFocusRequester,
             onItemClick = { label -> routeForNavLabel(label)?.let(onNavigate) }
         )
@@ -438,7 +439,7 @@ private fun RowsBrowseLoadedContent(
         TopNavBar(
             transparentBackground = false,
             modifier = Modifier.align(Alignment.TopCenter),
-            selectedIndex = MangoNavItems.indexOf(navLabel),
+            selectedLabel = navLabel,
             selectedItemFocusRequester = navFocusRequester,
             contentFocusRequester = when {
                 hasFilterBar -> filterChipFocusRequesters.getOrNull(selectedFilterIndex)
@@ -963,7 +964,7 @@ private fun RowsBrowseGridContent(
         TopNavBar(
             transparentBackground = false,
             modifier = Modifier.align(Alignment.TopCenter),
-            selectedIndex = MangoNavItems.indexOf(navLabel),
+            selectedLabel = navLabel,
             selectedItemFocusRequester = navFocusRequester,
             // Lands on the sort/filter bar, not directly on a card -- it's
             // the first focusable thing below the nav bar now. Whichever
@@ -1024,9 +1025,27 @@ fun TvShowsScreen(onNavigate: (String) -> Unit, viewModel: TvShowsViewModel = vi
     TypeBrowseScreen(title = "TV Shows", onNavigate = onNavigate, viewModel = viewModel)
 }
 
+/**
+ * The Anime tab (as on the web): the anime catalogues of every installed addon that has them, in the addons' own ranking, with a genre drop-down
+ * built from what those catalogues list. The tab only exists while such an addon is installed; opening it with none goes Home.
+ */
+@Composable
+fun AnimeScreen(onNavigate: (String) -> Unit, viewModel: AnimeViewModel = viewModel()) {
+    val providers by ProviderRegistry.providers.collectAsStateWithLifecycle()
+    LaunchedEffect(providers) {
+        if (providers.isNotEmpty() && !ProviderRegistry.hasAnime(providers)) onNavigate(MangoRoutes.HOME)
+    }
+    TypeBrowseScreen(title = "Anime", onNavigate = onNavigate, viewModel = viewModel, emptyWithoutGenre = "Your anime addons didn't return any titles right now.")
+}
+
 /** Movies and TV Shows: the same grid, with the "All genres" drop-down beside the title (as on the web). */
 @Composable
-private fun TypeBrowseScreen(title: String, onNavigate: (String) -> Unit, viewModel: TypeBrowseViewModel) {
+private fun TypeBrowseScreen(
+    title: String,
+    onNavigate: (String) -> Unit,
+    viewModel: TypeBrowseViewModel,
+    emptyWithoutGenre: String = "Nothing to show here right now."
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val genre by viewModel.selectedGenre.collectAsStateWithLifecycle()
     val genres by viewModel.genreOptions.collectAsStateWithLifecycle()
@@ -1054,7 +1073,7 @@ private fun TypeBrowseScreen(title: String, onNavigate: (String) -> Unit, viewMo
         onRetry = viewModel::load,
         layout = RowsBrowseLayout.GRID,
         onLoadMore = viewModel::loadMore,
-        emptyMessage = emptyBrowseMessage(title, genre),
+        emptyMessage = if (genre != null) emptyBrowseMessage(title, genre) else emptyWithoutGenre,
         headerAction = genreHeader
     )
 }

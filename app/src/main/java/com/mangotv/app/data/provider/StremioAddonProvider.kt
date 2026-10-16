@@ -6,6 +6,7 @@ import com.mangotv.app.data.addon.describeAddonError
 import com.mangotv.app.data.addon.toContent
 import com.mangotv.app.data.addon.toStream
 import com.mangotv.app.data.model.AddonCatalogDef
+import com.mangotv.app.data.model.AddonCatalogExtra
 import com.mangotv.app.data.model.AddonManifest
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.ContentType
@@ -25,6 +26,18 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
 private val SUPPORTED_CATALOG_TYPES = setOf("movie", "series")
+
+/** The catalogue type anime addons use. Its titles are shown on the Anime tab, which only exists while an installed addon has such a catalogue. */
+private const val ANIME_TYPE = "anime"
+
+private fun AddonCatalogDef.genreExtra(): AddonCatalogExtra? = allExtras.firstOrNull { it.name == "genre" }
+
+/** A catalogue the Anime tab can read: nothing is required of it except (at most) a genre. */
+private fun AddonCatalogDef.isUsableAnime(): Boolean = type == ANIME_TYPE && allExtras.all { !it.isRequired || it.name == "genre" }
+
+/** An anime catalogue that can be searched: it takes a "search" and asks for nothing else (a genre or paging is optional). */
+private fun AddonCatalogDef.isSearchableAnime(): Boolean =
+    type == ANIME_TYPE && allExtras.any { it.name == "search" } && allExtras.all { !it.isRequired || it.name == "search" }
 
 // Addons like Cinemeta expose only one base catalog per type and rely on a
 // "genre" extra's declared options to produce the rest (Action, Comedy,
@@ -65,6 +78,70 @@ class StremioAddonProvider(
     override val name: String = manifest.name
 
     private val supportedCatalogs = manifest.catalogs.filter { it.type in SUPPORTED_CATALOG_TYPES }
+
+    private val animeCatalogs = manifest.catalogs.filter { it.isUsableAnime() }
+    private val animeSearchCatalogs = manifest.catalogs.filter { it.isSearchableAnime() }
+
+    override val hasAnime: Boolean get() = animeCatalogs.isNotEmpty()
+
+    override val hasAnimeSearch: Boolean get() = animeCatalogs.isNotEmpty() || animeSearchCatalogs.isNotEmpty()
+
+    override fun animeGenres(): List<String> =
+        animeCatalogs.flatMap { it.genreExtra()?.options.orEmpty() }.distinct().take(MAX_GENRE_ROWS)
+
+    /** The anime catalogues for the Anime tab: the ones that need nothing (the ranked lists) or, for a chosen genre, the ones that list that genre. */
+    private fun animeCatalogsFor(genre: String?): List<AddonCatalogDef> =
+        if (genre != null) animeCatalogs.filter { genre in it.genreExtra()?.options.orEmpty() }
+        else animeCatalogs.filter { it.genreExtra()?.isRequired != true }
+
+    override suspend fun getAnimeItems(genre: String?): List<Content> = coroutineScope {
+        val extra = if (genre != null) mapOf("genre" to genre) else emptyMap()
+        val perCatalog = animeCatalogsFor(genre).map { catalogDef ->
+            async {
+                runCatching { client.fetchCatalog(manifestUrl, catalogDef.type, catalogDef.id, extra) }
+                    .getOrNull()?.map { it.toContent(providerId = id) }.orEmpty()
+            }
+        }.awaitAll()
+        interleave(perCatalog).distinctBy { it.id }
+    }
+
+    override suspend fun getMoreAnimeItems(page: Int, genre: String?): List<Content> {
+        val catalogs = animeCatalogsFor(genre)
+        if (catalogs.isEmpty()) return emptyList()
+        return fetchPage(catalogs, extra = if (genre != null) mapOf("genre" to genre) else emptyMap(), page = page)
+    }
+
+    // The addon's own search where an anime catalogue has one, else a title match over its ranked lists (the same fallback as search()).
+    override suspend fun searchAnime(query: String, onPartial: ((List<Content>) -> Unit)?): List<Content> = coroutineScope {
+        if (query.isBlank()) return@coroutineScope emptyList()
+        if (animeSearchCatalogs.isNotEmpty()) {
+            val lock = Any()
+            val answered = arrayOfNulls<List<Content>>(animeSearchCatalogs.size)
+            val perCatalog = animeSearchCatalogs.mapIndexed { index, catalogDef ->
+                async {
+                    val items = runCatching { client.fetchCatalog(manifestUrl, catalogDef.type, catalogDef.id, mapOf("search" to query)) }
+                        .getOrNull()?.map { it.toContent(providerId = id) }.orEmpty()
+                    if (onPartial != null && items.isNotEmpty()) {
+                        val soFar = synchronized(lock) {
+                            answered[index] = items
+                            interleave(answered.filterNotNull()).distinctBy { it.id }
+                        }
+                        onPartial(soFar)
+                    }
+                    items
+                }
+            }.awaitAll()
+            val serverResults = interleave(perCatalog).distinctBy { it.id }
+            if (serverResults.isNotEmpty()) return@coroutineScope serverResults
+        }
+        val perBase = animeCatalogs.filter { it.genreExtra()?.isRequired != true }.map { catalogDef ->
+            async {
+                runCatching { client.fetchCatalog(manifestUrl, catalogDef.type, catalogDef.id) }
+                    .getOrNull()?.map { it.toContent(providerId = id) }.orEmpty()
+            }
+        }.awaitAll()
+        interleave(perBase).distinctBy { it.id }.filter { it.title.contains(query, ignoreCase = true) }
+    }
 
     // Addons like Cinemeta declare a separate catalog per content type
     // (movie/top, series/top) that otherwise mirror each other -- same

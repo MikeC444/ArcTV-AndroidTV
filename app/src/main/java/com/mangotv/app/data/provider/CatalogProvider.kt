@@ -100,4 +100,22 @@ interface CatalogProvider {
      * on Genre Results.
      */
     suspend fun getMoreGenreItems(genre: String, page: Int): List<Content>
+
+    /** True when the addon has catalogues of type "anime" (the Anime tab): at least one that asks for nothing but, at most, a genre. */
+    val hasAnime: Boolean get() = false
+
+    /** The genres those anime catalogues list (read from the manifest, no request). */
+    fun animeGenres(): List<String> = emptyList()
+
+    /** The addon's anime titles in its own ranking (or, with [genre], that genre's), as the first page. */
+    suspend fun getAnimeItems(genre: String? = null): List<Content> = emptyList()
+
+    /** The following pages of [getAnimeItems]; [page] is 1-indexed as in [getMoreItemsByType]. */
+    suspend fun getMoreAnimeItems(page: Int, genre: String? = null): List<Content> = emptyList()
+
+    /** True when the addon can be searched for anime (it has anime catalogues): Search then adds an anime-only line. */
+    val hasAnimeSearch: Boolean get() = false
+
+    /** Like [search], for the anime catalogues only. */
+    suspend fun searchAnime(query: String, onPartial: ((List<Content>) -> Unit)? = null): List<Content> = emptyList()
 }

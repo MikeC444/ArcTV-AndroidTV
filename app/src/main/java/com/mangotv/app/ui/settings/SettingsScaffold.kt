@@ -66,8 +66,6 @@ fun SettingsScaffold(
     showTitle: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val selectedIndex = remember(selectedNavLabel) { MangoNavItems.indexOf(selectedNavLabel) }
-
     // Every other TopNavBar-hosting screen (Movies, TV Shows, Search, ...)
     // explicitly requests focus onto its selected nav item on first
     // composition -- without it, Compose's default initial-focus behavior
@@ -87,7 +85,7 @@ fun SettingsScaffold(
     ) {
         TopNavBar(
             transparentBackground = false,
-            selectedIndex = selectedIndex,
+            selectedLabel = selectedNavLabel,
             selectedItemFocusRequester = navFocusRequester,
             contentFocusRequester = firstContentFocusRequester,
             onItemClick = { label -> routeForNavLabel(label)?.let(onNavigate) },

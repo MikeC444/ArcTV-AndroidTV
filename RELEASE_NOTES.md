@@ -34,6 +34,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Arc TV now asks who's watching every time it opens, for everyone.
 - Your profile picture and name now show at the top of every screen, with or without Plus.
 - Plus-only tabs in Settings now explain what Plus gives you when you press them, and after you finish a movie Arc TV may suggest Plus, at most once every few days.
+- New Anime tab! If you have an anime addon, Anime appears after TV Shows with its titles and a genre picker.
 
 ## 0.5.1
 

@@ -1,5 +1,6 @@
 package com.mangotv.app.ui.browse
 
+import kotlinx.coroutines.flow.combine
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -38,7 +39,7 @@ import kotlinx.coroutines.launch
  * chosen genre keeps the providers' own (popularity) order instead of being
  * shuffled, since the point of picking one is to look through it.
  */
-open class TypeBrowseViewModel(application: Application, private val type: ContentType) : AndroidViewModel(application) {
+open class TypeBrowseViewModel(application: Application, private val type: ContentType, private val anime: Boolean = false) : AndroidViewModel(application) {
 
     private val myListRepository = (application as MangoTvApplication).container.myListRepository
     private val blockedGenresRepository = (application as MangoTvApplication).container.blockedGenresRepository
@@ -50,10 +51,20 @@ open class TypeBrowseViewModel(application: Application, private val type: Conte
     val uiState: StateFlow<RowsBrowseUiState> = _uiState.asStateFlow()
 
     /** The genres the drop-down offers (empty hides it), and the one chosen (null is "All genres"). */
-    private val bundledGenres: List<String> = bundledGenreOptions(application.assets, type)
-    val genreOptions: StateFlow<List<String>> = blockedGenresRepository.effectiveGenres
-        .map { genres -> bundledGenres.withoutBlockedNames(blockedGenreSet(genres)) }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, bundledGenres.withoutBlockedNames(blocked))
+    private val bundledGenres: List<String> = if (anime) emptyList() else bundledGenreOptions(application.assets, type)
+    val genreOptions: StateFlow<List<String>> = if (anime) {
+        // The Anime tab's genres come from the installed anime addons' own catalogues, A to Z (as on the web).
+        combine(ProviderRegistry.providers, blockedGenresRepository.effectiveGenres) { providers, genres ->
+            val blockedNames = blockedGenreSet(genres)
+            providers.filter { it.hasAnime }.flatMap { it.animeGenres() }.distinct()
+                .withoutBlockedNames(blockedNames)
+                .sortedWith(String.CASE_INSENSITIVE_ORDER)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    } else {
+        blockedGenresRepository.effectiveGenres
+            .map { genres -> bundledGenres.withoutBlockedNames(blockedGenreSet(genres)) }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, bundledGenres.withoutBlockedNames(blocked))
+    }
 
     private val _selectedGenre = MutableStateFlow<String?>(null)
     val selectedGenre: StateFlow<String?> = _selectedGenre.asStateFlow()
@@ -129,7 +140,18 @@ open class TypeBrowseViewModel(application: Application, private val type: Conte
         }
 
         val results = coroutineScope {
-            providers.map { provider -> async { runCatching { provider.getSectionsByType(type, genre) } } }.awaitAll()
+            providers.map { provider ->
+                async {
+                    runCatching {
+                        // The Anime tab asks only the addons that have anime catalogues, and keeps their own ranking.
+                        if (anime) {
+                            if (provider.hasAnime) listOf(HomeSection(id = "anime_${provider.id}", title = "", items = provider.getAnimeItems(genre))) else emptyList()
+                        } else {
+                            provider.getSectionsByType(type, genre)
+                        }
+                    }
+                }
+            }.awaitAll()
         }
         // The person changed genre again while this was loading: that newer load owns the screen.
         if (genre != _selectedGenre.value) return
@@ -142,7 +164,7 @@ open class TypeBrowseViewModel(application: Application, private val type: Conte
         // Flatten every provider's base + genre rows into one deduplicated,
         // shuffled row -- no genre breakdown here, and a fresh shuffle each
         // time this loads so the order varies on revisit.
-        val items = sections.flatMap { it.items }.distinctBy { it.id }.let { if (genre == null) it.shuffled() else it }
+        val items = sections.flatMap { it.items }.distinctBy { it.id }.let { if (genre == null && !anime) it.shuffled() else it }
         allItems += items
         seenIds += items.map { it.id }
 
@@ -166,7 +188,17 @@ open class TypeBrowseViewModel(application: Application, private val type: Conte
             val page = nextPage
             val genre = _selectedGenre.value
             val results = coroutineScope {
-                providersSnapshot.map { provider -> async { runCatching { provider.getMoreItemsByType(type, page, genre) } } }.awaitAll()
+                providersSnapshot.map { provider ->
+                    async {
+                        runCatching {
+                            if (anime) {
+                                if (provider.hasAnime) provider.getMoreAnimeItems(page, genre) else emptyList()
+                            } else {
+                                provider.getMoreItemsByType(type, page, genre)
+                            }
+                        }
+                    }
+                }.awaitAll()
             }
             // The genre changed while this page was loading: it belongs to the old list, so drop it.
             if (genre != _selectedGenre.value) {
@@ -176,7 +208,7 @@ open class TypeBrowseViewModel(application: Application, private val type: Conte
             val newItems = results.flatMap { it.getOrElse { emptyList() } }
                 .filterNot { it.id in seenIds }
                 .distinctBy { it.id }
-                .let { if (genre == null) it.shuffled() else it }
+                .let { if (genre == null && !anime) it.shuffled() else it }
 
             if (newItems.isEmpty()) {
                 hasMore = false
@@ -194,3 +226,6 @@ open class TypeBrowseViewModel(application: Application, private val type: Conte
 class MoviesViewModel(application: Application) : TypeBrowseViewModel(application, ContentType.MOVIE)
 
 class TvShowsViewModel(application: Application) : TypeBrowseViewModel(application, ContentType.TV_SHOW)
+
+/** The Anime tab: the anime catalogues of every installed addon that has them, in the order the addons rank them (not shuffled). */
+class AnimeViewModel(application: Application) : TypeBrowseViewModel(application, ContentType.TV_SHOW, anime = true)
