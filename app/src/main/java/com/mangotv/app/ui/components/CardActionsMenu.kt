@@ -1,5 +1,9 @@
 package com.mangotv.app.ui.components
 
+import com.mangotv.app.ui.settings.PendingSettingsTab
+import com.mangotv.app.ui.plus.rememberPlusAskEligible
+import com.mangotv.app.ui.plus.PlusAskDialog
+import com.mangotv.app.ui.plus.PICKED_ASK
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Brush
@@ -193,6 +197,22 @@ fun CardActionsMenuOverlay(
     val content = state.target
     BackHandler(enabled = content != null) { state.dismiss() }
 
+    // The Plus invitation opened by pressing Like / Not for me without Plus. It lives here, above the early return below, because pressing
+    // either closes the menu at once and the dialog has to outlive it.
+    var showPlusAsk by remember { mutableStateOf(false) }
+    if (showPlusAsk) {
+        PlusAskDialog(
+            ask = PICKED_ASK,
+            onClose = { showPlusAsk = false },
+            onGo = {
+                showPlusAsk = false
+                PendingSettingsTab.openPlus()
+                onNavigate(MangoRoutes.SETTINGS)
+            }
+        )
+    }
+    val plusAskEligible = rememberPlusAskEligible()
+
     // Focus back onto the card that opened the menu once the menu is gone; if that card no longer exists, onto where it was.
     val restoreTick = state.restoreTick
     LaunchedEffect(restoreTick) {
@@ -243,6 +263,7 @@ fun CardActionsMenuOverlay(
         isWatched = isWatched,
         feedback = feedback,
         plusActive = plusStatus.active,
+        plusLocked = !plusStatus.active && plusAskEligible,
         firstFocusRequester = firstRowFocusRequester,
         modifier = modifier,
         onPlay = { if (providerId != null) dismissAndNavigate(resolvePlayRoute(content)) },
@@ -257,10 +278,16 @@ fun CardActionsMenuOverlay(
             if (!guestGate.requireAccount { myListRepository.toggleWatched(content) }) state.dismiss(restoreFocus = false)
         },
         onLike = {
-            if (!guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.LIKE) } }) state.dismiss(restoreFocus = false)
+            if (plusAskEligible && !plusStatus.active) {
+                state.dismiss(restoreFocus = false)
+                showPlusAsk = true
+            } else if (!guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.LIKE) } }) state.dismiss(restoreFocus = false)
         },
         onDislike = {
-            if (!guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.DISLIKE) } }) state.dismiss(restoreFocus = false)
+            if (plusAskEligible && !plusStatus.active) {
+                state.dismiss(restoreFocus = false)
+                showPlusAsk = true
+            } else if (!guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.DISLIKE) } }) state.dismiss(restoreFocus = false)
         },
         onRemoveFromPicked = {
             coroutineScope.launch { pickedStateRepository.dismiss(content.id) }
@@ -301,6 +328,8 @@ internal fun CardActionsMenuPanel(
     isWatched: Boolean,
     feedback: Feedback?,
     plusActive: Boolean,
+    // Without Plus (and allowed to be asked): Like / Not for me still show, tagged Plus, and pressing them opens the invitation.
+    plusLocked: Boolean = false,
     firstFocusRequester: FocusRequester,
     onPlay: () -> Unit,
     onToggleMyList: () -> Unit,
@@ -380,13 +409,14 @@ internal fun CardActionsMenuPanel(
                     modifier = Modifier.weight(1f)
                 )
             }
-            if (plusActive) {
+            if (plusActive || plusLocked) {
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     GridAction(
                         icon = if (feedback == Feedback.LIKE) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
                         label = "Like",
                         on = feedback == Feedback.LIKE,
+                        tag = if (plusLocked) "Plus" else null,
                         onClick = onLike,
                         modifier = Modifier.weight(1f)
                     )
@@ -394,6 +424,7 @@ internal fun CardActionsMenuPanel(
                         icon = if (feedback == Feedback.DISLIKE) Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
                         label = "Not for me",
                         on = feedback == Feedback.DISLIKE,
+                        tag = if (plusLocked) "Plus" else null,
                         onClick = onDislike,
                         modifier = Modifier.weight(1f)
                     )
@@ -499,7 +530,7 @@ private fun PlayButton(label: String, focusRequester: FocusRequester, onClick: (
 
 /** One cell of the two-by-two grid. [on] marks a state that is set (in My List, watched, liked, not for me): a teal fill and outline, a bold label, and a tick or filled icon. Pressing it again undoes it. */
 @Composable
-private fun GridAction(icon: ImageVector, label: String, on: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun GridAction(icon: ImageVector, label: String, on: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, tag: String? = null) {
     TvFocusSurface(
         onClick = onClick,
         shape = RoundedCornerShape(11.dp),
@@ -528,6 +559,16 @@ private fun GridAction(icon: ImageVector, label: String, on: Boolean, onClick: (
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            if (tag != null) {
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = tag,
+                    color = MangoBackground,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.background(ArcAccent, RoundedCornerShape(percent = 50)).padding(horizontal = 6.dp, vertical = 1.dp)
+                )
+            }
         }
     }
 }

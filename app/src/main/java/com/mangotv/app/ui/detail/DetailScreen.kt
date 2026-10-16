@@ -1,5 +1,9 @@
 package com.mangotv.app.ui.detail
 
+import com.mangotv.app.ui.settings.PendingSettingsTab
+import com.mangotv.app.ui.plus.rememberPlusAskEligible
+import com.mangotv.app.ui.plus.PlusAskDialog
+import com.mangotv.app.ui.plus.PICKED_ASK
 import com.mangotv.app.ui.theme.MangoDimens
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.focus.onFocusChanged
@@ -95,6 +99,7 @@ fun DetailScreen(
                 val isInMyList by viewModel.isInMyList.collectAsStateWithLifecycle()
                 val feedback by viewModel.feedback.collectAsStateWithLifecycle()
                 val hasPlus by viewModel.hasPlus.collectAsStateWithLifecycle()
+                val plusAskEligible = rememberPlusAskEligible()
                 val resumeEntry by viewModel.resumeEntry.collectAsStateWithLifecycle()
                 val episodeStatuses by viewModel.episodeStatuses.collectAsStateWithLifecycle()
                 val trailerState by viewModel.trailerState.collectAsStateWithLifecycle()
@@ -109,6 +114,7 @@ fun DetailScreen(
                     onToggleWatched = viewModel::toggleWatched,
                     feedback = feedback,
                     hasPlus = hasPlus,
+                    plusAskEligible = plusAskEligible,
                     onFeedback = viewModel::toggleFeedback,
                     resumeEntry = resumeEntry,
                     episodeStatuses = episodeStatuses,
@@ -144,6 +150,7 @@ private fun DetailContent(
     onToggleWatched: () -> Unit,
     feedback: Feedback?,
     hasPlus: Boolean,
+    plusAskEligible: Boolean,
     onFeedback: (Feedback) -> Unit,
     resumeEntry: ContinueWatchingEntry?,
     episodeStatuses: Map<String, EpisodeStatus>,
@@ -155,6 +162,18 @@ private fun DetailContent(
     releaseDateState: ReleaseDateState,
     modifier: Modifier = Modifier
 ) {
+    var showPlusAsk by remember { mutableStateOf(false) }
+    if (showPlusAsk) {
+        PlusAskDialog(
+            ask = PICKED_ASK,
+            onClose = { showPlusAsk = false },
+            onGo = {
+                showPlusAsk = false
+                PendingSettingsTab.openPlus()
+                onNavigate(MangoRoutes.SETTINGS)
+            }
+        )
+    }
     // The episode Play will start (Continue Watching first, else the one after the furthest watched): the season list opens on its season.
     val startEpisode = resumeEntry?.takeIf { it.seasonNumber != null && it.episodeNumber != null }?.let { entry ->
         content.seasons.find { it.seasonNumber == entry.seasonNumber }?.episodes?.find { it.episodeNumber == entry.episodeNumber }
@@ -304,7 +323,13 @@ private fun DetailContent(
                         isInMyList = isInMyList,
                         // Like / Not for me are a movie-only, Plus-preview feature (they feed "Picked for you").
                         feedback = feedback,
-                        onFeedback = if (hasPlus) onFeedback else null,
+                        // Without Plus the two buttons still show (tagged Plus) and open the invitation; kids profiles and guests never see them.
+                        onFeedback = when {
+                            hasPlus -> onFeedback
+                            plusAskEligible -> { _ -> showPlusAsk = true }
+                            else -> null
+                        },
+                        feedbackLocked = !hasPlus && plusAskEligible,
                         onTrailer = onTrailer,
                         trailerReady = trailerReady,
                         releaseDateState = releaseDateState,
