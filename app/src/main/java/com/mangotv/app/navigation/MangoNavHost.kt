@@ -56,7 +56,6 @@ import com.mangotv.app.ui.sources.SourcesScreen
 import com.mangotv.app.ui.components.CardActionsMenuOverlay
 import com.mangotv.app.ui.components.CardActionsMenuState
 import com.mangotv.app.ui.components.LocalCardActionsMenu
-import com.mangotv.app.ui.plus.PlusWelcomeHost
 import com.mangotv.app.ui.home.TorrentIntroHost
 import com.mangotv.app.ui.settings.PendingSettingsTab
 import com.mangotv.app.ui.update.UpdatePromptHost
@@ -351,11 +350,6 @@ fun MangoNavHost() {
                     // The one-off "Torrents are here" pop-up after an update.
                     var torrentIntroOpen by remember { mutableStateOf(false) }
                     TorrentIntroHost(onOpenChanged = { torrentIntroOpen = it })
-                    // For members: the one-time "Everything in Arc TV Plus" tour (waits for the pop-up above).
-                    PlusWelcomeHost(blocked = torrentIntroOpen, onSeeSettings = {
-                        PendingSettingsTab.openPlusSettings()
-                        navigateTo(MangoRoutes.SETTINGS)
-                    })
                 }
                 composable(MangoRoutes.PROFILES) {
                     ProfilesScreen(

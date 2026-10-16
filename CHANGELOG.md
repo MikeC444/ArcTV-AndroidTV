@@ -5555,14 +5555,15 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues fixed:** the hard-to-see cursor on addon switches and the cut-off bottom of long addon lists.
 
-## Post-Milestone-147 -- TV: the Plus pop-up on Home is removed
+## Post-Milestone-147 -- TV: the Plus pop-ups on Home are removed
 
 **Status:** Done on the branch; not built or run here.
 
 **Context:** The "Get more from every movie night" Arc TV Plus invitation appeared over Home on the Fire TV and was not wanted there.
 
 **Changes:**
-- `navigation/MangoNavHost.kt`: Home no longer hosts `PlusPromoHost`, so the pop-up never shows. The popup code and `PlusPromoRepository` are left in place (unused, still cleared on account switch), so it can be brought back by re-adding the one call. Plus is still reachable in Settings -> Arc TV Plus; the members' welcome tour is unchanged.
+- `navigation/MangoNavHost.kt`: Home no longer hosts `PlusPromoHost`, so the pop-up never shows. The popup code and `PlusPromoRepository` are left in place (unused, still cleared on account switch), so it can be brought back by re-adding the one call. Plus is still reachable in Settings -> Arc TV Plus; 
+- The members' "Everything in Arc TV Plus" welcome tour is removed from Home too (`PlusWelcomeHost` is no longer called either; its code is left in place, unused).
 - RELEASE_NOTES.md: one bullet.
 
 **Tests performed:** a manual re-read of the edit and a check that nothing else references the removed import. No Gradle/Android build was possible here (no route to `dl.google.com`).
