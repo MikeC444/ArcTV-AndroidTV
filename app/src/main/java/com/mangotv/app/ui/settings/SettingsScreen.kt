@@ -1,6 +1,5 @@
 package com.mangotv.app.ui.settings
 
-import com.mangotv.app.ui.plus.STATS_ASK
 import com.mangotv.app.ui.plus.PlusAskDialog
 import com.mangotv.app.ui.plus.PlusAsk
 import com.mangotv.app.ui.plus.PLUS_SETTINGS_ASK
@@ -274,12 +273,12 @@ internal fun SettingsLayout(
                             SettingsSidebarRow(
                                 category = category,
                                 selected = category == selected,
-                                locked = (category == SettingsCategory.STATS || category == SettingsCategory.PLUS_SETTINGS || category == SettingsCategory.RECOMMENDATIONS) && !plusActive,
+                                // Your stats opens to a preview, so it carries no lock or Plus tag (the invitation is inside it).
+                                locked = (category == SettingsCategory.PLUS_SETTINGS || category == SettingsCategory.RECOMMENDATIONS) && !plusActive,
                                 onClick = {
-                                    val locked = (category == SettingsCategory.STATS || category == SettingsCategory.PLUS_SETTINGS || category == SettingsCategory.RECOMMENDATIONS) && !plusActive
-                                    if (locked && category != SettingsCategory.STATS) {
+                                    val locked = (category == SettingsCategory.PLUS_SETTINGS || category == SettingsCategory.RECOMMENDATIONS) && !plusActive
+                                    if (locked) {
                                         lockedAsk = when (category) {
-                                            SettingsCategory.STATS -> STATS_ASK
                                             SettingsCategory.RECOMMENDATIONS -> PICKED_ASK
                                             else -> PLUS_SETTINGS_ASK
                                         }
