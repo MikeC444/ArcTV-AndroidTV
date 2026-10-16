@@ -5740,6 +5740,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 - `ui/detail/DetailScreen.kt`, `DetailHeroSection.kt`: on a title's page, Like and Not for me show for an eligible account without Plus, each with a small Plus tag, and pressing one opens the ask.
 - `ui/components/CardActionsMenu.kt`: the same in the poster's long-press menu: both buttons show with a Plus tag; pressing one closes the menu and opens the ask. "Take me there" opens Settings -> Arc TV Plus.
 - Nothing is saved for someone without Plus when they press either. Accounts with Plus, guests and kids profiles see what they saw before.
+- The Plus tag is now `PlusBadge` (`ui/components/PlusBadge.kt`): the same cyan-to-violet gradient PLUS badge as the invitation's logo, instead of a flat cyan pill; used on the poster menu's buttons and the title page's buttons. The invitation card is 580dp wide with all the perks in two columns (Picked for you, Profiles, Smart source picking, Your stats, Downloads on web/Mac/Windows, and Parental controls marked coming soon).
 - RELEASE_NOTES.md: one bullet.
 
 **Tests performed:** a manual re-read and brace/paren balance check of every edited file, and a check that each file imports what it uses. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`); the existing `PlusPromoRenderTest` still draws `PlusPromoCard`, whose signature is unchanged.
@@ -5747,3 +5748,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-158 -- TV: closing a poster's menu on Home returns to that poster
+
+**Status:** Done on the branch; not built or run here, and not reproduced: a best-effort hardening.
+
+**Context:** Reported on the Fire TV: after holding OK on a Home poster and closing the menu with Back, the highlight went to the hero's Play button instead of the poster.
+
+**Changes:**
+- `ui/components/CardActionsMenu.kt` (`CardActionsMenuOverlay`): the focus restore already asked the poster for focus two frames after the menu left the screen. It now asks again a few frames later and once more shortly after, in case the page hands focus to its first button (the hero's Play) as the menu's own focused row finishes leaving; a no-op when the poster already has focus. When the poster cannot be asked at all, the existing fall back (focus the poster now at that place in the same row) still runs.
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** a manual re-read and brace/paren balance check. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`), and the failure could not be reproduced, so this is a diagnosis from the code rather than a confirmed fix.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none confirmed.

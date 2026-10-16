@@ -27,7 +27,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - The Plus plans screen is tidier, and Lifetime says you can join the supporters board, on the plan and at payment.
 - "What Plus adds" is easier to take in: neat icon tiles, two to a row, with what is coming soon last and a note that Download is on web, Mac and Windows.
 - The payment screen is roomier and lists every Plus perk with a tick.
-- Like and Not for me are now visible to everyone, with a Plus tag. Press one to see what Plus adds.
+- Like and Not for me are now visible to everyone, with a Plus badge. Press one to see everything Plus adds.
+- Closing a poster's menu on Home now puts the highlight back on that poster.
 
 ## 0.5.1
 
