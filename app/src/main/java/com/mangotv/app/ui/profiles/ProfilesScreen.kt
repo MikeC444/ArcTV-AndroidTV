@@ -90,7 +90,7 @@ import com.mangotv.app.ui.theme.TextTertiary
 
 /**
  * "Who's watching?" (ArcTV Plus profiles): pick a profile to open its library, or manage profiles (add, rename, change the picture,
- * Adult / Kids, PIN, remove). Shown at launch for an account with Plus and more than one profile, and from the nav bar's profile item.
+ * Adult / Kids, PIN, remove). Shown at every launch for a signed-in account (with Plus or without), and from the nav bar's profile item.
  *
  * [onFinished] is called once a profile is open (true when it is a different one, so Home has to reload); [onBack] is only offered when
  * the screen was opened on purpose (something was already picked since launch) so launch can't skip the question.
@@ -124,7 +124,8 @@ fun ProfilesScreen(
         withFrameNanos { }
         runCatching { addTileFocus.requestFocus() }
     }
-    val canGoBack = state.chosen || !state.plus || !state.supported
+    // Every signed-in account is asked at launch, so the screen can only be left once something has been picked (or when profiles aren't available).
+    val canGoBack = state.chosen || !state.supported
 
     BackHandler(enabled = asking == null && editing == null) {
         if (managing) managing = false else if (canGoBack) onBack()

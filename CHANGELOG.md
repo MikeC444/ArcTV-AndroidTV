@@ -5800,3 +5800,21 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-162 -- TV: "Who's watching?" at every launch, for everyone
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** Only an account with Plus and more than one profile was asked which profile to use when the app opened. Asked for: everyone, Plus or not.
+
+**Changes:**
+- `data/profile/Profiles.kt`: `needsProfilePicker(supported, profileCount, chosen)` no longer needs Plus or more than one profile: any signed-in account whose backend supports profiles, with at least one to pick, is taken to "Who's watching?" until it has chosen since launch. `navigation/MangoNavHost.kt` calls it without the Plus argument. Guests, older backends and the sign-in screens are as before.
+- `ui/profiles/ProfilesScreen.kt`: Back is only offered once something has been picked (it was also offered without Plus, which would now skip the question and be sent straight back to it). Without Plus the screen shows the account's own profile and the Add profile tile that opens the Plus invitation.
+- `ProfilesTest`: the picker test is rewritten for the new rule.
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** a manual re-read and brace/paren balance check; the unit test was updated but not run. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`).
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

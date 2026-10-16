@@ -69,12 +69,12 @@ class ProfilesTest {
     }
 
     @Test
-    fun theLaunchPickerNeedsPlusMoreThanOneProfileAndNoChoiceYet() {
-        assertTrue(needsProfilePicker(supported = true, plus = true, profileCount = 2, chosen = false))
-        assertFalse("already chose this launch", needsProfilePicker(true, true, 2, chosen = true))
-        assertFalse("only one profile", needsProfilePicker(true, true, 1, false))
-        assertFalse("no Plus", needsProfilePicker(true, false, 2, false))
-        assertFalse("older backend", needsProfilePicker(false, true, 2, false))
+    fun everySignedInAccountIsAskedAtLaunchUntilItHasChosen() {
+        assertTrue(needsProfilePicker(supported = true, profileCount = 2, chosen = false))
+        assertTrue("one profile (no Plus) is asked too", needsProfilePicker(supported = true, profileCount = 1, chosen = false))
+        assertFalse("already chose this launch", needsProfilePicker(true, 2, chosen = true))
+        assertFalse("nothing to pick", needsProfilePicker(true, 0, false))
+        assertFalse("older backend", needsProfilePicker(false, 2, false))
     }
 
     @Test
