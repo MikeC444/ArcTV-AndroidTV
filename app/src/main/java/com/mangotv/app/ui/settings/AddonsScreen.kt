@@ -1,6 +1,8 @@
 package com.mangotv.app.ui.settings
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -211,6 +213,7 @@ private fun EmptyAddonsHint() {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AddonRow(
     addon: InstalledAddon,
@@ -220,6 +223,8 @@ private fun AddonRow(
 ) {
     val titleColor = if (addon.enabled) TextPrimary else TextTertiary
     val bodyColor = if (addon.enabled) TextSecondary else TextTertiary
+    // The focused addon's description scrolls sideways so all of it can be read; the others stay cut with "..." so the list isn't all moving.
+    var focused by remember { mutableStateOf(false) }
     // Two stops per addon, side by side: the whole row is the on/off switch (a bordered, scaled-up row you can't miss, like Home rows),
     // and a separate Remove button to its right. Left always goes back to the category list.
     Row(
@@ -237,7 +242,8 @@ private fun AddonRow(
             focusedScale = 1.02f,
             backgroundColor = MangoSurface,
             borderColor = TextPrimary,
-            focusLeft = focusLeft
+            focusLeft = focusLeft,
+            onFocusChanged = { focused = it }
         ) {
             Row(
                 modifier = Modifier
@@ -258,7 +264,9 @@ private fun AddonRow(
                             color = bodyColor,
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            // Clipped (not "...") while it scrolls, so the whole text is readable.
+                            overflow = if (focused) TextOverflow.Clip else TextOverflow.Ellipsis,
+                            modifier = if (focused) Modifier.basicMarquee(iterations = Int.MAX_VALUE, initialDelayMillis = 800) else Modifier
                         )
                     }
                     if (addon.manifest.types.isNotEmpty()) {

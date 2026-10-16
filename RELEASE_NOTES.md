@@ -16,7 +16,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - Fixed an issue with searching.
 - Sign up with your name! Your display name is now needed and becomes your first profile.
-- Addons are easier to manage: a bold highlight shows which addon switch you're on.
+- Addons are easier to manage: a bold highlight shows which switch you're on, and long descriptions scroll so you can read them.
 - The Arc TV Plus pop-ups on Home are gone. Explore Plus any time in Settings.
 - Switching an addon off now sticks, instead of springing back on.
 - Added an addon on your phone? Press Refresh addons at the bottom of Addons to see it on your TV right away.
