@@ -5800,3 +5800,38 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-161 -- TV: the profile chip in the top bar for everyone (phase 4 of the Plus catch-up with the web app)
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** The web app shows the profile (picture and name) at the top right of the bar for everyone signed in. The TV showed it only for Plus members.
+
+**Changes:**
+- `ui/home/TopNavBar.kt`: the profile button now shows for any signed-in account where profiles are supported. With Plus it is the profile in use as before; without Plus it is the account's own (default) profile, the only one they can use. Pressing it opens the Profiles screen, which for someone without Plus shows their profile and the Add profile tile (Post-Milestone-160). Guests still see Sign In and no chip; kids profiles are unchanged.
+- `ui/settings/AccountScreen.kt`: Settings -> Account used the same Plus-only rule, so it said "Profiles: ArcTV Plus isn't active on this account" for a free account. It now shows "Watching as <name>" and the Switch or manage profiles button for the account's own profile too, and that message is only for an older service or a list that could not be read.
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** a manual re-read and brace/paren balance check. No Gradle/Android build or on-device look was possible here (no route to `dl.google.com`).
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
+
+## Post-Milestone-162 -- TV: "Who's watching?" at every launch, for everyone
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** Only an account with Plus and more than one profile was asked which profile to use when the app opened. Asked for: everyone, Plus or not.
+
+**Changes:**
+- `data/profile/Profiles.kt`: `needsProfilePicker(supported, profileCount, chosen)` no longer needs Plus or more than one profile: any signed-in account whose backend supports profiles, with at least one to pick, is taken to "Who's watching?" until it has chosen since launch. `navigation/MangoNavHost.kt` calls it without the Plus argument. Guests, older backends and the sign-in screens are as before.
+- `ui/profiles/ProfilesScreen.kt`: Back is only offered once something has been picked (it was also offered without Plus, which would now skip the question and be sent straight back to it). Without Plus the screen shows the account's own profile and the Add profile tile that opens the Plus invitation.
+- `ProfilesTest`: the picker test is rewritten for the new rule.
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** a manual re-read and brace/paren balance check; the unit test was updated but not run. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`).
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

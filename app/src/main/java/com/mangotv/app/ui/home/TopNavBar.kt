@@ -96,11 +96,17 @@ fun TopNavBar(
     val context = LocalContext.current
     val guestGate = remember { (context.applicationContext as MangoTvApplication).container.guestGate }
     val isGuest by guestGate.isGuest.collectAsStateWithLifecycle()
-    // ArcTV Plus profiles: the active profile's picture sits at the top right (it opens "Who's watching?", like the web app), and a kids profile has no Settings.
+    // The active profile's picture and name sit at the top right for everyone signed in (it opens "Who's watching?", like the web app), and a kids profile has no Settings.
     val container = remember { (context.applicationContext as MangoTvApplication).container }
     val profiles by container.profileRepository.state.collectAsStateWithLifecycle()
     val plus by container.plusRepository.status.collectAsStateWithLifecycle()
-    val activeProfile = if (!isGuest && plus.active && profiles.supported) profiles.active else null
+    // Everyone signed in sees their profile: with Plus the one in use, without it the account's own (default) profile, which is the only one
+    // they can use (a lapsed Plus can leave another profile as the stored choice). Pressing it opens the Profiles screen either way.
+    val activeProfile = if (!isGuest && profiles.supported) {
+        if (plus.active) profiles.active else profiles.profiles.firstOrNull { it.isDefault }
+    } else {
+        null
+    }
     val baseItems = if (isGuest) navItemsForGuest(MangoNavItems) else MangoNavItems.filterNot { activeProfile?.isKids == true && it == "Settings" }
     val navItems = baseItems
 

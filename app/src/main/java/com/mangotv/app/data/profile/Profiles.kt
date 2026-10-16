@@ -73,11 +73,12 @@ fun avatarById(id: String): Avatar = AVATARS.firstOrNull { it.id == (LEGACY_AVAT
 val KIDS_BLOCKED_GENRES: List<String> = listOf("Horror", "Thriller", "Crime", "War", "Mystery", "Film-Noir", "Adult")
 
 /**
- * Does this launch start at "Who's watching?": the account has Plus and more than one profile to choose from, and none has been
- * picked yet since the app started.
+ * Does this launch start at "Who's watching?": every signed-in account (with Plus or without) is asked which profile to use, as long as profiles are
+ * supported and there is one to pick, and none has been picked yet since the app started. Without Plus the only profile is the account's own, and the
+ * screen also offers Add profile.
  */
-fun needsProfilePicker(supported: Boolean, plus: Boolean, profileCount: Int, chosen: Boolean): Boolean =
-    supported && plus && profileCount > 1 && !chosen
+fun needsProfilePicker(supported: Boolean, profileCount: Int, chosen: Boolean): Boolean =
+    supported && profileCount >= 1 && !chosen
 
 /** What the profile list should show: everything with Plus, only the account's own profile without it (nothing is deleted when Plus lapses). */
 fun visibleProfiles(all: List<Profile>, plus: Boolean): List<Profile> = if (plus) all else all.filter { it.isDefault }

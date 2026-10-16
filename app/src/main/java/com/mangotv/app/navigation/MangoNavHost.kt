@@ -138,7 +138,7 @@ fun MangoNavHost() {
         val isPlayerActive = currentBackStackEntry?.destination?.route == MangoRoutes.PLAYER_PATTERN
         val onProfilesRoute = currentBackStackEntry?.destination?.route == MangoRoutes.PROFILES
 
-        // ArcTV Plus profiles: an account with Plus and more than one profile starts every launch at "Who's watching?" (the profile list
+        // Profiles: every signed-in account, with Plus or without, starts every launch at "Who's watching?" (the profile list
         // is read by SyncManager.syncAll just after launch, so this fires a moment after Home first appears). Not while a title is
         // playing, and not on the sign-in screens.
         val profilesState by container.profileRepository.state.collectAsStateWithLifecycle()
@@ -147,7 +147,6 @@ fun MangoNavHost() {
         val pickerWanted = !isGuestNow && profilesState.ready &&
             needsProfilePicker(
                 supported = profilesState.supported,
-                plus = plusStatus.active,
                 profileCount = visibleProfiles(profilesState.profiles, plusStatus.active).size,
                 chosen = profilesState.chosen
             )
