@@ -60,6 +60,7 @@ import com.mangotv.app.ui.components.ClickSound
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.theme.ArcAccent
+import com.mangotv.app.ui.theme.ArcWarn
 import com.mangotv.app.ui.theme.ArcViolet
 import com.mangotv.app.ui.theme.ErrorCoral
 import com.mangotv.app.ui.theme.MangoBackground
@@ -92,6 +93,8 @@ fun ColumnScope.PlusSettingsContent(
     val checkout by viewModel.checkout.collectAsStateWithLifecycle()
     val remaining by viewModel.remainingSeconds.collectAsStateWithLifecycle()
     val cancelState by viewModel.cancel.collectAsStateWithLifecycle()
+    val boardBusy by viewModel.boardBusy.collectAsStateWithLifecycle()
+    val boardError by viewModel.boardError.collectAsStateWithLifecycle()
     val showCheckout = checkout is PlusCheckoutState.Error
     val context = androidx.compose.ui.platform.LocalContext.current
     val sellPlans = status.paywall && !status.active
@@ -168,6 +171,19 @@ fun ColumnScope.PlusSettingsContent(
             }
         }
 
+        if (status.owned && status.plan == "lifetime" && status.supporterBoard != null) {
+            item(key = "supporters") {
+                SupportersBoardOption(
+                    on = status.supporterBoard == true,
+                    anonymous = status.supporterAnonymous == true,
+                    busy = boardBusy,
+                    error = boardError,
+                    onChange = viewModel::setSupporterBoard,
+                    focusLeft = sidebarFocusRequester
+                )
+            }
+        }
+
         item(key = "perks_header") {
             Text(
                 text = "What Plus adds",
@@ -215,6 +231,16 @@ fun ColumnScope.PlusSettingsContent(
             }
         }
 
+        if (sellPlans) {
+            item(key = "board_note") {
+                Row(verticalAlignment = Alignment.Top) {
+                    Icon(Icons.Filled.Favorite, contentDescription = null, tint = ArcViolet, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(text = LIFETIME_BOARD_NOTE, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+
         if (showCheckout) {
             item(key = "checkout") {
                 CheckoutPanel(checkout = checkout, onCancel = viewModel::cancelCheckout, focusLeft = sidebarFocusRequester)
@@ -232,6 +258,33 @@ fun ColumnScope.PlusSettingsContent(
                 style = MaterialTheme.typography.bodySmall
             )
         }
+    }
+}
+
+/**
+ * For a Lifetime member: the choice to be on the supporters board on arctv.org. Off until they turn it on (buying never does); once on, a second
+ * switch lists them as Anonymous (no name, no picture).
+ */
+@Composable
+private fun SupportersBoardOption(on: Boolean, anonymous: Boolean, busy: Boolean, error: String?, onChange: (Boolean, Boolean) -> Unit, focusLeft: FocusRequester) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SettingsSwitchRow(
+            title = "Supporters board",
+            description = "Thank you for going Lifetime! Show your display name and profile picture on the supporters board on arctv.org. It is off until you turn it on, and you can turn it off any time.",
+            checked = on,
+            onToggle = { if (!busy) onChange(!on, false) },
+            focusLeft = focusLeft
+        )
+        if (on) {
+            SettingsSwitchRow(
+                title = "List me as Anonymous",
+                description = "Keep your name and picture private: you still show on the board, as \"Anonymous\".",
+                checked = anonymous,
+                onToggle = { if (!busy) onChange(true, !anonymous) },
+                focusLeft = focusLeft
+            )
+        }
+        if (error != null) Text(error, color = ArcWarn, style = MaterialTheme.typography.bodySmall)
     }
 }
 

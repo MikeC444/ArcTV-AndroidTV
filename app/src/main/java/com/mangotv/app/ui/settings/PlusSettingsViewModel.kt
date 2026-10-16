@@ -47,6 +47,30 @@ class PlusSettingsViewModel(application: Application) : AndroidViewModel(applica
     private val _cancel = MutableStateFlow(CancelSubscriptionState())
     val cancel: StateFlow<CancelSubscriptionState> = _cancel.asStateFlow()
 
+    private val _boardBusy = MutableStateFlow(false)
+    val boardBusy: StateFlow<Boolean> = _boardBusy.asStateFlow()
+
+    private val _boardError = MutableStateFlow<String?>(null)
+    val boardError: StateFlow<String?> = _boardError.asStateFlow()
+
+    /** A Lifetime member's supporters-board choice (on by name, on as Anonymous, or off). */
+    fun setSupporterBoard(show: Boolean, anonymous: Boolean) {
+        if (_boardBusy.value) return
+        _boardBusy.value = true
+        _boardError.value = null
+        viewModelScope.launch {
+            try {
+                plusRepository.setSupporterBoard(show, anonymous)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _boardError.value = "Couldn't save that. Try again in a moment."
+            } finally {
+                _boardBusy.value = false
+            }
+        }
+    }
+
     fun askToCancel() { _cancel.value = CancelSubscriptionState(confirming = true) }
 
     fun keepPlus() { if (!_cancel.value.busy) _cancel.value = CancelSubscriptionState() }

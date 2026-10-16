@@ -67,7 +67,11 @@ data class PlusStatus(
     /** Free days a first monthly or yearly subscription starts with, when this account is offered them; 0 otherwise. */
     val trialDays: Int = 0,
     /** The list price of each plan, for the plan screen; null when the backend didn't send them. Promo codes can lower what checkout charges. */
-    val prices: PlanPrices? = null
+    val prices: PlanPrices? = null,
+    /** For a Lifetime member: whether they chose to be on the supporters board (off until they say so). null for everyone else. */
+    val supporterBoard: Boolean? = null,
+    /** With the board on: listed as "Anonymous" (no name, no picture). */
+    val supporterAnonymous: Boolean? = null
 ) {
     /** Paid for (as opposed to free during early access). */
     val owned: Boolean get() = paywall && active
@@ -130,7 +134,16 @@ class PlusRepository(context: Context, private val authRepository: AuthRepositor
         update(apiClient.cancelSubscription(token).toStatus())
     }
 
-    private fun PlusStatusDto.toStatus() = PlusStatus(active = active, plan = plan, validUntil = validUntil, paywall = paywall, cancelAtPeriodEnd = cancelAtPeriodEnd, trialDays = trialDays.coerceAtLeast(0), prices = parsePlanPrices(prices))
+    /** A Lifetime member's supporters-board choice. Throws [ApiException] (409: not Lifetime) or an IOException; the status updates on success. */
+    suspend fun setSupporterBoard(show: Boolean, anonymous: Boolean) {
+        val token = freshAccessTokenOrNull() ?: throw IOException("Not signed in")
+        update(apiClient.setSupporter(token, show, anonymous).toStatus())
+    }
+
+    private fun PlusStatusDto.toStatus() = PlusStatus(
+        active = active, plan = plan, validUntil = validUntil, paywall = paywall, cancelAtPeriodEnd = cancelAtPeriodEnd, trialDays = trialDays.coerceAtLeast(0),
+        prices = parsePlanPrices(prices), supporterBoard = supporterBoard, supporterAnonymous = supporterAnonymous
+    )
 
     /** Forgets this device's copy (account switching): another account must never inherit this one's Plus. */
     suspend fun clear() = update(PlusStatus())
