@@ -5587,3 +5587,21 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** a device whose clock is behind the server's could never change an addon that was last written by the server or a faster-clocked device.
 
 **Issues fixed:** the out-of-order echo overwriting a newer toggle, and a toggle losing to the server's newer stored time.
+
+## Post-Milestone-149 -- TV: a Refresh addons button on Settings -> Addons
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** Addons added or changed on another device (the phone) only reached an already-open TV app at the next launch or sign-in.
+
+**Changes:**
+- `ui/settings/AddonsScreen.kt`: a "Refresh addons" button as the last item of the Addons list (Left goes back to the category list), with a line beside it saying what it found ("2 new addons added.", "Your addons are up to date.", or that it couldn't refresh).
+- `ui/settings/AddonsViewModel.kt`: `refresh()` sends any change this TV still has queued (`retryPending`), then pulls the account's list (`pullFromServer`), so the pull can't wipe a change that hadn't reached the server; it ignores a second press while running.
+- `data/sync/AddonSyncRepository.kt`: `pullFromServer()` now returns whether it pulled and applied the list (existing callers ignore it).
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** a manual re-read and a brace/paren balance check of the three files. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`).
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
