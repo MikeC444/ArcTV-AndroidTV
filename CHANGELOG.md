@@ -5517,3 +5517,22 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** accounts that already exist without a display name are not touched (their default profile stays "Me"). The Mac, Windows and phone apps' sign-up forms do not ask for a name and will get "Enter a display name" from the server until they are updated.
 
 **Issues fixed:** none.
+
+## Post-Milestone-145 -- Plus: an opt-in supporters board for Lifetime members
+
+**Status:** Done on the branch (backend). The Settings switch, the web server route and the landing page section that use it are in `ArcTV-Web`. Not live until the backend is redeployed (the migration runs then). Nothing for RELEASE_NOTES.md (no Fire TV screen uses it yet).
+
+**Context:** The landing page should thank Lifetime supporters by name. Putting a person's name on a public page has to be their choice, so it is opt-in: nobody is listed by buying, only by switching it on.
+
+**Changes:**
+- `migrations/0035_user_plus_supporter_board.sql`: `user_plus.supporter_board` (false by default) and `supporter_since` (when they first joined, so the list keeps people in the order they joined, and coming back keeps their place).
+- `PUT /user/plus/supporter { show }` (`routes/plus.ts`, `plusService.setSupporterBoard`): an active Lifetime member switches it; anyone else gets 409. `GET /user/plus` returns `supporterBoard` (`true`/`false` for Lifetime, `null` otherwise).
+- `GET /supporters` (public, `Cache-Control: public, max-age=300`): `{ supporters: [{ name, avatar, since }], total }`: the display name (cut at 24 characters; "Anonymous supporter" when there is none), the picture id of the account's own profile (null if none yet) and the month they joined; deleted accounts left out, at most 500. Nothing else about a member leaves the backend.
+- The Lifetime Checkout page carries a line (`custom_text.submit.message`) saying the board is a choice made in Settings → ArcTV Plus. The webhook and purchases never touch the flag, so a Stripe retry can't change a choice.
+- `docs/PAYWALL.md` describes it.
+
+**Tests performed:** `tests/plus.test.ts` gains eight tests (public and empty at first; buying does not list anyone; opting in lists the display name, profile picture and month and nothing else; no display name and long names; earliest to join first and keeping a place; off and on again; subscribers, free accounts and non-booleans refused; a Stripe retry leaves the choice alone; deleted accounts not shown; the checkout line for Lifetime only) and the entitlement expectations include `supporterBoard`. The whole backend suite passed against a local Postgres 16. No Android build (the Fire TV app does not use it yet).
+
+**Issues discovered:** display names are chosen freely (up to 24 characters now), so a name on a public page could be rude; there is no filter or review step. Removing someone from the board by hand needs a database update (`supporter_board = false`).
+
+**Issues fixed:** none.

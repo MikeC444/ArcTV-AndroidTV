@@ -19,7 +19,7 @@ import { feedbackRouter } from "./routes/feedback.js";
 import { pickedDismissalsRouter } from "./routes/pickedDismissals.js";
 import { playerEventsRouter } from "./routes/playerEvents.js";
 import { featureIntrosRouter } from "./routes/featureIntros.js";
-import { plusRouter, stripeWebhookRouter } from "./routes/plus.js";
+import { plusRouter, stripeWebhookRouter, supportersRouter } from "./routes/plus.js";
 import { createProfilesRouter } from "./routes/profiles.js";
 import { settingsRouter } from "./routes/settings.js";
 import { trailersRouter } from "./routes/trailers.js";
@@ -81,6 +81,7 @@ export function createApp(): Express {
   });
 
   app.use("/health", healthRouter);
+  app.use("/supporters", supportersRouter);
   // Mounted before /auth: qr.ts's routes need per-route rate limits
   // tailored to polling vs. credential traffic, not the blanket limiter
   // createAuthRouter() applies to everything under /auth (see
