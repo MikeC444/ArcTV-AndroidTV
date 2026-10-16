@@ -5904,3 +5904,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-166 -- TV: Your stats layout, Most watched, recap and the free preview (step 2 of the stats catch-up with the web app)
+
+**Status:** Done; not built or run here.
+
+**Context:** After step 1 (real plays only, Reset stats) the TV's Your stats still lacked the web app's clearer wording, Most watched, the recap and the blurred preview for people without Plus.
+
+**Changes:**
+- `data/stats/WatchStats.kt`: `HistoryItem` carries title and poster; `WatchStats` gains `prev30DaysMs`, `topShow`, `topMovie`; new `TopTitle`, `streakNote`, `weekdayLine`, `recapOf`.
+- `StatsSettingsScreen.kt`: "On days you watch" / "N days watched", the 30-day comparison, streak note ("best 9 · 2 days to match it"), "You watch most on ...", Most watched and Your recap blocks, and `StatsPreview` (streak in plain text, the rest blurred behind a dark cover and a "See Arc TV Plus" button).
+- `StatsViewModel.kt`: reads the history for paywall accounts without Plus too (the history is not Plus-gated). `SettingsScreen.kt`: the Your stats row stays tagged as Plus but now opens; the button goes to the Arc TV Plus tab.
+
+**Tests performed:** `WatchStatsTest` (most watched, streak and weekday wording) written but not run; brace/paren balance check. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`). The blur needs Android 12+; older TVs show only the dark cover.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

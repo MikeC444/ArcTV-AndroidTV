@@ -187,7 +187,8 @@ fun SettingsScreen(
                 updateViewModel = updateViewModel,
                 onSignedOut = onSignedOut,
                 onAddAddon = onAddAddon,
-                onOpenProfiles = { onNavigate(com.mangotv.app.navigation.MangoRoutes.PROFILES) }
+                onOpenProfiles = { onNavigate(com.mangotv.app.navigation.MangoRoutes.PROFILES) },
+                onSeePlus = { selected = SettingsCategory.PLUS }
             )
         }
     )
@@ -276,7 +277,7 @@ internal fun SettingsLayout(
                                 locked = (category == SettingsCategory.STATS || category == SettingsCategory.PLUS_SETTINGS || category == SettingsCategory.RECOMMENDATIONS) && !plusActive,
                                 onClick = {
                                     val locked = (category == SettingsCategory.STATS || category == SettingsCategory.PLUS_SETTINGS || category == SettingsCategory.RECOMMENDATIONS) && !plusActive
-                                    if (locked) {
+                                    if (locked && category != SettingsCategory.STATS) {
                                         lockedAsk = when (category) {
                                             SettingsCategory.STATS -> STATS_ASK
                                             SettingsCategory.RECOMMENDATIONS -> PICKED_ASK
@@ -428,7 +429,8 @@ internal fun SettingsDetailPane(
     updateViewModel: com.mangotv.app.ui.update.UpdateViewModel,
     onSignedOut: () -> Unit,
     onAddAddon: () -> Unit,
-    onOpenProfiles: () -> Unit
+    onOpenProfiles: () -> Unit,
+    onSeePlus: () -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -502,7 +504,8 @@ internal fun SettingsDetailPane(
             )
             SettingsCategory.STATS -> StatsSettingsContent(
                 contentFocusRequester = contentFocusRequester,
-                sidebarFocusRequester = sidebarFocusRequester
+                sidebarFocusRequester = sidebarFocusRequester,
+                onSeePlus = onSeePlus
             )
             SettingsCategory.PLUS -> PlusSettingsContent(
                 navFocusRequester = navFocusRequester,

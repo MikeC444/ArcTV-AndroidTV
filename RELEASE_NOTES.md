@@ -14,6 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Your stats grew up: see what you watch most, your recap, streak and busy days, and a blurred peek if you don't have Plus yet.
 - Your stats now count only what you actually played, and you can reset them any time from Your stats.
 - Fixed an issue with searching.
 - Sign up with your name! Your display name is now needed and becomes your first profile.

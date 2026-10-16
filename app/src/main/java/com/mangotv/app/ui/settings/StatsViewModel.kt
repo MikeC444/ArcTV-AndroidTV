@@ -20,7 +20,7 @@ sealed interface StatsUiState {
     data class Ready(val stats: WatchStats, val truncated: Boolean) : StatsUiState
 }
 
-/** Backs Settings > Your stats (an Arc TV Plus feature): reads the watch history once Plus is known to be on, and again on Retry. */
+/** Backs Settings > Your stats (an Arc TV Plus feature): reads the watch history once Plus is on (or is a paid tier, for the preview without it), and again on Retry. */
 class StatsViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as MangoTvApplication).container
     val plus: StateFlow<PlusStatus> = container.plusRepository.status
@@ -33,11 +33,11 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         viewModelScope.launch {
-            plus.map { it.active }.distinctUntilChanged().collect { active -> if (active) load() }
+            plus.map { it.active || it.paywall }.distinctUntilChanged().collect { canRead -> if (canRead) load() }
         }
         // The account's reset time arriving (or another profile's), or a reset made here, changes what counts: read the numbers again.
         viewModelScope.launch {
-            resetAtMs.drop(1).distinctUntilChanged().collect { if (plus.value.active) load() }
+            resetAtMs.drop(1).distinctUntilChanged().collect { if (plus.value.active || plus.value.paywall) load() }
         }
     }
 
