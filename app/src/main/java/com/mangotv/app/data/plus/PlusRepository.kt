@@ -28,6 +28,24 @@ import java.io.IOException
 
 private val Context.plusDataStore: DataStore<Preferences> by preferencesDataStore(name = "mango_plus")
 
+/** A plan's list price: the amount in the currency's smallest unit (pence, cents) and its lower-case ISO code. */
+@Serializable
+data class PlanPrice(val amount: Long, val currency: String)
+
+@Serializable
+data class PlanPrices(val monthly: PlanPrice, val yearly: PlanPrice, val lifetime: PlanPrice)
+
+/** The backend's `prices`, read defensively: all three plans with a positive whole amount and a 3-letter currency, else null (the cards then say "Price at checkout"). */
+internal fun parsePlanPrices(dto: PlusPricesDto?): PlanPrices? {
+    fun one(p: PlusPriceDto?): PlanPrice? {
+        val amount = p?.amount ?: return null
+        val currency = p.currency?.trim().orEmpty()
+        if (!amount.isFinite() || amount <= 0.0 || currency.length != 3) return null
+        return PlanPrice(Math.round(amount), currency.lowercase())
+    }
+    return PlanPrices(one(dto?.monthly) ?: return null, one(dto.yearly) ?: return null, one(dto.lifetime) ?: return null)
+}
+
 /** What this account has, as the backend last said. */
 @Serializable
 data class PlusStatus(
@@ -40,7 +58,9 @@ data class PlusStatus(
     /** A monthly or yearly subscription that has been cancelled: Plus runs to [validUntil] and then ends. */
     val cancelAtPeriodEnd: Boolean = false,
     /** Free days a first monthly or yearly subscription starts with, when this account is offered them; 0 otherwise. */
-    val trialDays: Int = 0
+    val trialDays: Int = 0,
+    /** The list price of each plan, for the plan screen; null when the backend didn't send them. Promo codes can lower what checkout charges. */
+    val prices: PlanPrices? = null
 ) {
     /** Paid for (as opposed to free during early access). */
     val owned: Boolean get() = paywall && active
@@ -103,7 +123,7 @@ class PlusRepository(context: Context, private val authRepository: AuthRepositor
         update(apiClient.cancelSubscription(token).toStatus())
     }
 
-    private fun PlusStatusDto.toStatus() = PlusStatus(active = active, plan = plan, validUntil = validUntil, paywall = paywall, cancelAtPeriodEnd = cancelAtPeriodEnd, trialDays = trialDays.coerceAtLeast(0))
+    private fun PlusStatusDto.toStatus() = PlusStatus(active = active, plan = plan, validUntil = validUntil, paywall = paywall, cancelAtPeriodEnd = cancelAtPeriodEnd, trialDays = trialDays.coerceAtLeast(0), prices = parsePlanPrices(prices))
 
     /** Forgets this device's copy (account switching): another account must never inherit this one's Plus. */
     suspend fun clear() = update(PlusStatus())
