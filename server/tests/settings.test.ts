@@ -278,14 +278,15 @@ describe("stats reset on the account", () => {
     expect((await get(session.token)).body.statsResetAt).toBe("2025-02-01T10:00:00.000Z");
   });
 
-  it("a client that omits it leaves the stored reset alone, and a newer push of null shows all history again", async () => {
+  it("only ever moves forward: a later time replaces it, while an earlier time, a null or an omitted field leave it alone", async () => {
     const session = await createTestSession();
-    await put(session.token, validBody({ statsResetAt: "2025-02-01T10:00:00.000Z" }));
-    const { statsResetAt: _omitted, ...withoutIt } = validBody({ updatedAt: "2025-01-02T00:00:00.000Z", statsResetAt: null });
+    await put(session.token, validBody({ statsResetAt: "2025-02-01T10:00:00.000Z", updatedAt: "2025-01-01T00:00:00.000Z" }));
+    const { statsResetAt: _omitted, ...withoutIt } = validBody({ updatedAt: "2025-01-02T00:00:00.000Z" });
     expect((await put(session.token, withoutIt)).body.statsResetAt).toBe("2025-02-01T10:00:00.000Z");
-    const cleared = await put(session.token, validBody({ statsResetAt: null, updatedAt: "2025-01-03T00:00:00.000Z" }));
-    expect(cleared.body.statsResetAt).toBeNull();
-    expect((await get(session.token)).body.statsResetAt).toBeNull();
+    expect((await put(session.token, validBody({ statsResetAt: null, updatedAt: "2025-01-03T00:00:00.000Z" }))).body.statsResetAt).toBe("2025-02-01T10:00:00.000Z");
+    expect((await put(session.token, validBody({ statsResetAt: "2025-01-15T00:00:00.000Z", updatedAt: "2025-01-04T00:00:00.000Z" }))).body.statsResetAt).toBe("2025-02-01T10:00:00.000Z");
+    expect((await put(session.token, validBody({ statsResetAt: "2025-03-01T10:00:00.000Z", updatedAt: "2025-01-05T00:00:00.000Z" }))).body.statsResetAt).toBe("2025-03-01T10:00:00.000Z");
+    expect((await get(session.token)).body.statsResetAt).toBe("2025-03-01T10:00:00.000Z");
   });
 
   it("is each account's own, and a value that is not a time is a 400", async () => {

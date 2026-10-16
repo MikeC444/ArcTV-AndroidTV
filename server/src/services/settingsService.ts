@@ -13,7 +13,7 @@ export interface UserSettings {
   defaultAudioLanguage: string | null;
   /** Genre names hidden from every browse surface; empty means nothing is blocked. */
   blockedGenres: string[];
-  /** When Your stats was last reset (it then counts only what was watched after this), or null to count everything. */
+  /** When Your stats was last reset (it then counts only what was watched after this), or null if never. It only ever moves forward. */
   statsResetAt: Date | null;
   /** null only for an account that has never pushed settings from any device. */
   updatedAt: Date | null;
@@ -106,7 +106,11 @@ export async function upsertUserSettings(userId: string, profileId: string, inpu
        -- A client that didn't send the list (an older build) keeps what is stored.
        blocked_genres = COALESCE($9::jsonb, user_settings.blocked_genres),
        -- A client that didn't send it (an older build) keeps what is stored; null clears the reset.
-       stats_reset_at = CASE WHEN $13::boolean THEN EXCLUDED.stats_reset_at ELSE user_settings.stats_reset_at END,
+       -- A reset can only move forward: a later time replaces it, but an earlier one, a null or an older client that didn't send it leaves
+       -- it alone, so the old numbers can't be brought back by another device or a stale copy of the settings.
+       stats_reset_at = CASE WHEN $13::boolean AND EXCLUDED.stats_reset_at IS NOT NULL
+                             THEN GREATEST(COALESCE(user_settings.stats_reset_at, EXCLUDED.stats_reset_at), EXCLUDED.stats_reset_at)
+                             ELSE user_settings.stats_reset_at END,
        updated_at = EXCLUDED.updated_at
      WHERE EXCLUDED.updated_at > user_settings.updated_at
      RETURNING home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled, subtitles_enabled, default_subtitle_language, default_audio_language, blocked_genres, stats_reset_at, updated_at`,
