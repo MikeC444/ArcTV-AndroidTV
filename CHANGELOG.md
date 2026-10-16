@@ -5839,3 +5839,26 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-163 -- TV: capped Plus asks, after a watch and on locked Settings tabs (phase 5 of the Plus catch-up with the web app)
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** The web app asks about Plus at moments of use, never more than once every three days and each kind at most three times, and opens an ask whenever a Plus-only button is pressed (those presses are not capped). Like / Not for me and Add profile already open asks on the TV (phases 2 and 3). This adds the unprompted one, after a watch, and the locked Settings tabs.
+
+**Changes:**
+- `data/plus/PlusNudgeRepository.kt` (new): per account on this device, when the last unprompted ask was shown and how many of each kind; `nudgeDue` (pure): not before the record is read, at least `NUDGE_GAP_MS` (3 days) since any earlier ask, and the kind under `NUDGE_CAP` (3). Cleared on sign-out (`AccountSwitchCoordinator`). Created in `AppContainer`. It also carries the in-memory request `afterWatchPending`.
+- `ui/player/PlayerViewModel.kt`: `reportProgress`, which both players report through, raises that request when a movie, or the last episode of a show, has been watched through (finished, or past the 85% completion point).
+- `ui/plus/PlusNudgeHost.kt` (new), placed at the root in `navigation/MangoNavHost.kt`: once the person is back on a screen where an ask may open (not the player, the sign-in screens or Who's watching), it checks they are eligible (signed in, Plus a paid tier, no Plus, not a kids profile) and that `nudgeDue` allows it; if so it opens `AFTER_WATCH_ASK` and counts it. Either way the request is then used up. "Take me there" opens Settings -> Arc TV Plus.
+- `ui/settings/SettingsScreen.kt`: pressing the locked Your stats, Plus settings or Recommendations tab without Plus (it used to do nothing) opens an ask for it (`STATS_ASK`, `PLUS_SETTINGS_ASK`, `PICKED_ASK`); "Take me there" opens the Arc TV Plus tab. These presses are not capped.
+- `ui/plus/PlusAsk.kt`: the three new asks.
+- `PlusNudgeRulesTest`: the rules above.
+- RELEASE_NOTES.md: one bullet.
+
+**Not done:** the web app's blurred stats preview for free accounts (a separate piece of work: the TV's Your stats tab still stays locked), and an ask after rating a title (pressing Like / Not for me already opens one).
+
+**Tests performed:** a manual re-read and brace/paren balance check of every edited file; the new unit test was written but not run. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`).
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

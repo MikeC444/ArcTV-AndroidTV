@@ -1,5 +1,10 @@
 package com.mangotv.app.ui.settings
 
+import com.mangotv.app.ui.plus.STATS_ASK
+import com.mangotv.app.ui.plus.PlusAskDialog
+import com.mangotv.app.ui.plus.PlusAsk
+import com.mangotv.app.ui.plus.PLUS_SETTINGS_ASK
+import com.mangotv.app.ui.plus.PICKED_ASK
 import com.mangotv.app.ui.theme.TolerantBringIntoView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -209,6 +214,18 @@ internal fun SettingsLayout(
     // The side panel's scroll position, so reaching the first category can bring the very top (with the "You" heading above it) back into view.
     val sidebarScroll = rememberScrollState()
     val sidebarScope = rememberCoroutineScope()
+    // A Plus-only category pressed without Plus opens the invitation for it (it used to do nothing); "Take me there" opens the Arc TV Plus tab.
+    var lockedAsk by remember { mutableStateOf<PlusAsk?>(null) }
+    lockedAsk?.let { ask ->
+        PlusAskDialog(
+            ask = ask,
+            onClose = { lockedAsk = null },
+            onGo = {
+                lockedAsk = null
+                onSelect(SettingsCategory.PLUS)
+            }
+        )
+    }
     TolerantBringIntoView(slackDp = 3, bottomInsetDp = 64, topInsetDp = 14) {
         SettingsScaffold(
             title = "Settings",
@@ -257,7 +274,18 @@ internal fun SettingsLayout(
                                 category = category,
                                 selected = category == selected,
                                 locked = (category == SettingsCategory.STATS || category == SettingsCategory.PLUS_SETTINGS || category == SettingsCategory.RECOMMENDATIONS) && !plusActive,
-                                onClick = { onSelect(category) },
+                                onClick = {
+                                    val locked = (category == SettingsCategory.STATS || category == SettingsCategory.PLUS_SETTINGS || category == SettingsCategory.RECOMMENDATIONS) && !plusActive
+                                    if (locked) {
+                                        lockedAsk = when (category) {
+                                            SettingsCategory.STATS -> STATS_ASK
+                                            SettingsCategory.RECOMMENDATIONS -> PICKED_ASK
+                                            else -> PLUS_SETTINGS_ASK
+                                        }
+                                    } else {
+                                        onSelect(category)
+                                    }
+                                },
                                 focusRequester = rowFocusRequesterFor(category),
                                 focusUp = if (groupIndex == 0 && index == 0) navFocusRequester else null,
                                 focusRight = paneContentFocusRequester,
@@ -304,8 +332,8 @@ private fun SettingsSidebarRow(
     onFocused: (() -> Unit)? = null
 ) {
     TvFocusSurface(
-        // A locked (Plus-only) row can be focused, so the list moves normally, but pressing it does nothing.
-        onClick = if (locked) ({}) else onClick,
+        // A locked (Plus-only) row can be focused, so the list moves normally; pressing it opens that category's Plus invitation (the caller's onClick).
+        onClick = onClick,
         // Right moves into the open pane's first item. That item can have scrolled out of composition (scroll a tab down, go Left, then Right), and
         // pinning Right on its FocusRequester as a focus property then throws "FocusRequester is not initialized" and crashes the app. So try it
         // here instead, and when it can't be reached let the normal focus search pick whatever is on screen to the right.
