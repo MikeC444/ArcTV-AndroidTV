@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +45,7 @@ import com.mangotv.app.R
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.QrCodeImage
 import com.mangotv.app.ui.theme.ArcAccent
+import com.mangotv.app.ui.theme.ArcViolet
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoSurface
@@ -176,6 +178,18 @@ private fun PlanCardPanel(plan: String, planName: String, price: String?, trialD
         InfoRow("Billing", billingLabel(plan))
         InfoRow("Due today", if (loading) "" else if (hasTrial(plan, trialDays)) "Free" else price ?: "-")
         Text(text = if (hasTrial(plan, trialDays)) trialBillingNote(plan, trialDays) else billingNote(plan), color = TextTertiary, style = MaterialTheme.typography.labelSmall)
+        if (plan == "lifetime") {
+            // The supporters board is Lifetime-only and opt-in: the payment page asks, so say so here (same facts as the web app and the Stripe page).
+            Row(verticalAlignment = Alignment.Top) {
+                Icon(Icons.Filled.Favorite, contentDescription = null, tint = ArcViolet, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = "Lifetime supporters can choose to be on the supporters board on arctv.org, by name or as Anonymous. You'll be asked on the payment page.",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
         MangoButton(text = "Change plan", icon = Icons.Filled.ArrowBack, onClick = onChange, focusRequester = changeFocus, compact = true)
     }
 }
