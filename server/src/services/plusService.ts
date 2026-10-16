@@ -82,6 +82,8 @@ export interface PlusWrite {
   stripeSubscriptionId: string | null;
   /** Defaults to false. */
   cancelAtPeriodEnd?: boolean;
+  /** A new Lifetime purchase whose buyer answered Yes to the supporters-board question at checkout. Ignored for an account that already was Lifetime, so a retry never undoes a later choice. */
+  joinBoard?: boolean;
   /** The Stripe event's own time: a write older than what is stored is ignored, so out-of-order delivery can't undo a newer event. */
   eventAt: Date;
 }
@@ -89,8 +91,8 @@ export interface PlusWrite {
 /** Writes an account's Plus state, unless a newer Stripe event has already been applied. Returns whether it was applied. */
 export async function writePlus(write: PlusWrite): Promise<boolean> {
   const result = await pool.query(
-    `INSERT INTO user_plus (user_id, plan, status, valid_until, stripe_customer_id, stripe_subscription_id, cancel_at_period_end, last_event_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO user_plus (user_id, plan, status, valid_until, stripe_customer_id, stripe_subscription_id, cancel_at_period_end, last_event_at, supporter_board, supporter_since)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::boolean, CASE WHEN $9::boolean THEN $8::timestamptz END)
      ON CONFLICT (user_id) DO UPDATE SET
        plan = EXCLUDED.plan,
        status = EXCLUDED.status,
@@ -98,11 +100,14 @@ export async function writePlus(write: PlusWrite): Promise<boolean> {
        stripe_customer_id = COALESCE(EXCLUDED.stripe_customer_id, user_plus.stripe_customer_id),
        stripe_subscription_id = COALESCE(EXCLUDED.stripe_subscription_id, user_plus.stripe_subscription_id),
        cancel_at_period_end = EXCLUDED.cancel_at_period_end,
+       -- Joins the board only when an account becomes Lifetime and said Yes; an account that already was Lifetime keeps whatever it chose since.
+       supporter_board = user_plus.supporter_board OR (EXCLUDED.supporter_board AND user_plus.plan <> 'lifetime'),
+       supporter_since = COALESCE(user_plus.supporter_since, CASE WHEN EXCLUDED.supporter_board AND user_plus.plan <> 'lifetime' THEN EXCLUDED.supporter_since END),
        last_event_at = EXCLUDED.last_event_at,
        updated_at = now()
      WHERE EXCLUDED.last_event_at >= user_plus.last_event_at
      RETURNING user_id`,
-    [write.userId, write.plan, write.status, write.validUntil, write.stripeCustomerId, write.stripeSubscriptionId, write.cancelAtPeriodEnd ?? false, write.eventAt]
+    [write.userId, write.plan, write.status, write.validUntil, write.stripeCustomerId, write.stripeSubscriptionId, write.cancelAtPeriodEnd ?? false, write.eventAt, write.joinBoard === true]
   );
   return (result.rowCount ?? 0) > 0;
 }

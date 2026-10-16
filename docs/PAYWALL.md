@@ -37,12 +37,15 @@ not build that screen; link to it from Stripe).
   configured, or when a price can't be read, and never makes the request fail. Promo codes can lower what checkout charges, so
   these are list prices.
 - **The supporters board** (opt-in): a Lifetime member can choose to have their display name on a public list shown on the landing page.
-  `GET /user/plus` carries `supporterBoard` (`true`/`false` for an active Lifetime member, `null` for everyone else) and
-  `PUT /user/plus/supporter { show }` switches it (409 for anyone who is not an active Lifetime member). It is off until they turn it on, and
-  buying Lifetime never turns it on. `GET /supporters` (public, no sign-in, cached 5 minutes) lists `{ supporters: [{ name, avatar, since }], total }`:
+  The choice is asked on the Lifetime payment page: a required drop-down ("Put my name on the supporters board?", Stripe `custom_fields` key
+  `supporters_board`, "No thanks" listed first, nothing pre-selected). The webhook reads the answer from the completed session's `custom_fields`:
+  only a **Yes** puts the buyer on the board; No, no answer or an older session does not. (If Stripe ever refuses the question the Lifetime
+  checkout is created without it, so a purchase is never blocked; the board is then chosen later in Settings.) A member can change their mind any
+  time: `GET /user/plus` carries `supporterBoard` (`true`/`false` for an active Lifetime member, `null` for everyone else) and
+  `PUT /user/plus/supporter { show }` switches it (409 for anyone who is not an active Lifetime member). A Stripe retry of the purchase never undoes a
+  later choice. `GET /supporters` (public, no sign-in, cached 5 minutes) lists `{ supporters: [{ name, avatar, since }], total }`:
   the display name (cut at 24 characters, "Anonymous supporter" when the account has none), the picture id of the account's own profile (or null) and
   the month they joined ("2026-10"), the earliest to join first. Never an email or an id.
-  The Lifetime payment page says the board is a choice made in Settings (`custom_text.submit.message`).
 - Stripe calls `POST /stripe/webhook`. The signature is checked against the raw body (5 minute tolerance); anything else
   is refused. `checkout.session.completed` switches Plus on (a Lifetime payment only once `payment_status` is `paid`);
   `customer.subscription.updated` moves the paid period; `customer.subscription.deleted` ends it.

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { pool } from "../src/db/pool.js";
 import { computeEntitlement, writePlus, type PlusRow } from "../src/services/plusService.js";
-import { getPlanPrices, PRICES_TTL_MS, resetPricesCache, setStripeFetch, SUPPORTERS_BOARD_NOTICE, verifyStripeSignature, type StripeFetch } from "../src/services/stripe.js";
+import { getPlanPrices, PRICES_TTL_MS, resetPricesCache, setStripeFetch, SUPPORTERS_BOARD_NOTICE, SUPPORTERS_BOARD_NOTICE_LATER, SUPPORTERS_FIELD_KEY, verifyStripeSignature, type StripeFetch } from "../src/services/stripe.js";
 import { createTestSession } from "./helpers/auth.js";
 import { resetDatabase } from "./helpers/db.js";
 
@@ -500,3 +500,101 @@ describe("the supporters board (opt-in)", () => {
     expect(form!.get("custom_text[submit][message]")).toBeNull();
   });
 });
+
+describe("the supporters-board question at checkout", () => {
+  const answered = (userId: string, answer: "yes" | "no" | null, created = nowSec()) =>
+    webhook(
+      completed(
+        userId,
+        {
+          mode: "payment",
+          subscription: null,
+          metadata: { plan: "lifetime", user_id: userId },
+          custom_fields: answer === null ? [] : [{ key: SUPPORTERS_FIELD_KEY, type: "dropdown", dropdown: { value: answer } }],
+        },
+        created,
+      ),
+    );
+  const board = () => request(app).get("/supporters");
+  const toggle = (token: string, show: boolean) => request(app).put("/user/plus/supporter").set("Authorization", `Bearer ${token}`).send({ show });
+
+  it("the Lifetime payment page asks it as a required drop-down, No first and nothing pre-selected; the other plans are not asked", async () => {
+    const s = await createTestSession();
+    const forms: URLSearchParams[] = [];
+    setStripeFetch(async (_url, init) => {
+      forms.push(new URLSearchParams(init.body));
+      return { ok: true, status: 200, json: async () => ({ url: "https://checkout.stripe.test/c/x", amount_total: 1, currency: "gbp" }) };
+    });
+    const post = (plan: string) => request(app).post("/user/plus/checkout").set("Authorization", `Bearer ${s.token}`).send({ plan });
+    expect((await post("lifetime")).status).toBe(200);
+    const f = forms[0]!;
+    expect(f.get("custom_fields[0][key]")).toBe(SUPPORTERS_FIELD_KEY);
+    expect(f.get("custom_fields[0][type]")).toBe("dropdown");
+    expect(f.get("custom_fields[0][optional]")).toBe("false");
+    expect(f.get("custom_fields[0][dropdown][options][0][value]")).toBe("no"); // listed first
+    expect(f.get("custom_fields[0][dropdown][options][1][value]")).toBe("yes");
+    expect(f.get("custom_fields[0][dropdown][default_value]")).toBeNull(); // nothing is pre-selected
+    expect(f.get("custom_fields[0][label][custom]")!.length).toBeLessThanOrEqual(50); // Stripe's limit
+    expect(f.get("custom_text[submit][message]")).toBe(SUPPORTERS_BOARD_NOTICE);
+    expect((await post("monthly")).status).toBe(200);
+    expect([...forms[1]!.keys()].some((k) => k.startsWith("custom_fields"))).toBe(false);
+  });
+
+  it("answering Yes puts the buyer on the board; No, no answer or anything else does not", async () => {
+    const yes = await createTestSession({ displayName: "Yes Person" });
+    const no = await createTestSession({ displayName: "No Person" });
+    const none = await createTestSession({ displayName: "Silent Person" });
+    const odd = await createTestSession({ displayName: "Odd Person" });
+    await answered(yes.userId, "yes");
+    await answered(no.userId, "no");
+    await answered(none.userId, null);
+    await webhook(completed(odd.userId, { mode: "payment", subscription: null, metadata: { plan: "lifetime", user_id: odd.userId }, custom_fields: [{ key: SUPPORTERS_FIELD_KEY, dropdown: { value: "YES please" } }, "junk", null] }));
+    expect((await entitlement(yes.token)).body.supporterBoard).toBe(true);
+    for (const s of [no, none, odd]) expect((await entitlement(s.token)).body.supporterBoard).toBe(false);
+    expect((await board()).body.supporters.map((x: { name: string }) => x.name)).toEqual(["Yes Person"]);
+  });
+
+  it("a Stripe retry of the purchase never undoes a later choice", async () => {
+    const s = await createTestSession({ displayName: "Changed Mind" });
+    await answered(s.userId, "yes");
+    await toggle(s.token, false);
+    await answered(s.userId, "yes"); // the same purchase delivered again
+    expect((await entitlement(s.token)).body.supporterBoard).toBe(false);
+    expect((await board()).body.total).toBe(0);
+    const t = await createTestSession({ displayName: "Later Yes" });
+    await answered(t.userId, "no");
+    await toggle(t.token, true);
+    await answered(t.userId, "no"); // and a retry of a No does not take them off either
+    expect((await entitlement(t.token)).body.supporterBoard).toBe(true);
+  });
+
+  it("an upgrade from a subscription to Lifetime with Yes joins the board; a subscriber is not on it before", async () => {
+    const s = await createTestSession({ displayName: "Upgrader" });
+    await webhook(completed(s.userId)); // monthly
+    expect((await entitlement(s.token)).body.supporterBoard).toBeNull();
+    await answered(s.userId, "yes", nowSec() + 5);
+    expect((await entitlement(s.token)).body).toMatchObject({ plan: "lifetime", supporterBoard: true });
+  });
+
+  it("if Stripe refuses the question, the Lifetime checkout is created without it, so the purchase is never blocked", async () => {
+    const s = await createTestSession();
+    const forms: URLSearchParams[] = [];
+    setStripeFetch(async (_url, init) => {
+      const f = new URLSearchParams(init.body);
+      forms.push(f);
+      if (f.has("custom_fields[0][key]")) return { ok: false, status: 400, json: async () => ({ error: { message: "Invalid custom_fields" } }) };
+      return { ok: true, status: 200, json: async () => ({ url: "https://checkout.stripe.test/c/ok", amount_total: 1, currency: "gbp" }) };
+    });
+    const response = await request(app).post("/user/plus/checkout").set("Authorization", `Bearer ${s.token}`).send({ plan: "lifetime" });
+    expect(response.status).toBe(200);
+    expect(response.body.url).toBe("https://checkout.stripe.test/c/ok");
+    expect(forms).toHaveLength(2);
+    expect([...forms[1]!.keys()].some((k) => k.startsWith("custom_fields"))).toBe(false);
+    expect(forms[1]!.get("custom_text[submit][message]")).toBe(SUPPORTERS_BOARD_NOTICE_LATER); // and the note says it is chosen later in Settings
+
+    // a 400 on a plan that was never asked the question is still an error
+    setStripeFetch(async () => ({ ok: false, status: 400, json: async () => ({}) }));
+    expect((await request(app).post("/user/plus/checkout").set("Authorization", `Bearer ${s.token}`).send({ plan: "monthly" })).status).toBe(500);
+  });
+});
+
