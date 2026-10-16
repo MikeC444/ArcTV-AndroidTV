@@ -39,8 +39,9 @@ not build that screen; link to it from Stripe).
 - **The supporters board** (opt-in): a Lifetime member can choose to have their display name on a public list shown on the landing page.
   `GET /user/plus` carries `supporterBoard` (`true`/`false` for an active Lifetime member, `null` for everyone else) and
   `PUT /user/plus/supporter { show }` switches it (409 for anyone who is not an active Lifetime member). It is off until they turn it on, and
-  buying Lifetime never turns it on. `GET /supporters` (public, no sign-in, cached 5 minutes) lists `{ supporters: [{ name }], total }`:
-  display names only (cut at 24 characters, "Anonymous supporter" when the account has none), the earliest to join first, never an email or id.
+  buying Lifetime never turns it on. `GET /supporters` (public, no sign-in, cached 5 minutes) lists `{ supporters: [{ name, avatar, since }], total }`:
+  the display name (cut at 24 characters, "Anonymous supporter" when the account has none), the picture id of the account's own profile (or null) and
+  the month they joined ("2026-10"), the earliest to join first. Never an email or an id.
   The Lifetime payment page says the board is a choice made in Settings (`custom_text.submit.message`).
 - Stripe calls `POST /stripe/webhook`. The signature is checked against the raw body (5 minute tolerance); anything else
   is refused. `checkout.session.completed` switches Plus on (a Lifetime payment only once `payment_status` is `paid`);

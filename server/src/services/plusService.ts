@@ -136,9 +136,18 @@ export async function setSupporterBoard(userId: string, show: boolean): Promise<
   return (result.rowCount ?? 0) > 0;
 }
 
+export interface Supporter {
+  /** The display name, at most 24 characters. */
+  name: string;
+  /** The picture id of their own (default) profile, or null when it has none yet. */
+  avatar: string | null;
+  /** The month they joined the board, "2026-10". */
+  since: string | null;
+}
+
 export interface Supporters {
-  /** Display names only, the earliest supporters first. */
-  supporters: Array<{ name: string }>;
+  /** The earliest to join first. */
+  supporters: Supporter[];
   /** How many are on the board (the list is cut at a limit). */
   total: number;
 }
@@ -146,15 +155,24 @@ export interface Supporters {
 /** The nickname shown for a supporter whose account has no display name. */
 export const ANONYMOUS_SUPPORTER = "Anonymous supporter";
 
-/** Who is on the supporters board: active Lifetime members who are listed, by display name (at most 24 characters), earliest first. */
+/**
+ * Who is on the supporters board: active Lifetime members who chose to be listed, by display name (at most 24 characters), the picture of their
+ * own profile and the month they joined, the earliest first. Nothing else about them (no email, no id) ever leaves here.
+ */
 export async function listSupporters(limit = 500): Promise<Supporters> {
-  const result = await pool.query<{ name: string | null; total: string }>(
-    `SELECT left(btrim(u.display_name), 24) AS name, count(*) OVER () AS total
-     FROM user_plus p JOIN users u ON u.id = p.user_id
+  const result = await pool.query<{ name: string | null; avatar: string | null; since: string | null; total: string }>(
+    `SELECT left(btrim(u.display_name), 24) AS name, pr.avatar AS avatar,
+            to_char(p.supporter_since AT TIME ZONE 'UTC', 'YYYY-MM') AS since, count(*) OVER () AS total
+     FROM user_plus p
+     JOIN users u ON u.id = p.user_id
+     LEFT JOIN profiles pr ON pr.user_id = p.user_id AND pr.is_default
      WHERE p.plan = 'lifetime' AND p.status = 'active' AND p.supporter_board AND u.deleted_at IS NULL
      ORDER BY p.supporter_since ASC NULLS LAST, p.created_at ASC
      LIMIT $1`,
     [limit]
   );
-  return { supporters: result.rows.map((row) => ({ name: row.name && row.name !== "" ? row.name : ANONYMOUS_SUPPORTER })), total: result.rows[0] ? Number(result.rows[0].total) : 0 };
+  return {
+    supporters: result.rows.map((row) => ({ name: row.name && row.name !== "" ? row.name : ANONYMOUS_SUPPORTER, avatar: row.avatar, since: row.since })),
+    total: result.rows[0] ? Number(result.rows[0].total) : 0,
+  };
 }

@@ -407,7 +407,7 @@ describe("the supporters board (opt-in)", () => {
     expect(joined.status).toBe(200);
     expect(joined.body).toMatchObject({ plan: "lifetime", supporterBoard: true });
     const response = await board();
-    expect(response.body).toEqual({ supporters: [{ name: "Ada Lovelace" }], total: 1 });
+    expect(response.body).toEqual({ supporters: [{ name: "Ada Lovelace", avatar: null, since: new Date().toISOString().slice(0, 7) }], total: 1 });
     expect(JSON.stringify(response.body)).not.toContain(s.email);
     expect(JSON.stringify(response.body)).not.toContain(s.userId);
   });
@@ -420,7 +420,18 @@ describe("the supporters board (opt-in)", () => {
       await toggle(s.token, true);
       await new Promise((resolve) => setTimeout(resolve, 15));
     }
-    expect((await board()).body.supporters).toEqual([{ name: "Anonymous supporter" }, { name: "x".repeat(24) }]);
+    expect((await board()).body.supporters.map((x: { name: string }) => x.name)).toEqual(["Anonymous supporter", "x".repeat(24)]);
+  });
+
+  it("shows the picture of the member's own profile, and nothing else about them", async () => {
+    const s = await createTestSession({ displayName: "Pic" });
+    await lifetime(s.userId);
+    await toggle(s.token, true);
+    await pool.query("INSERT INTO profiles (user_id, id, name, avatar, kind, is_default) VALUES ($1, 'main', 'Pic', 'fox', 'adult', true) ON CONFLICT (user_id, id) DO UPDATE SET avatar = 'fox'", [s.userId]);
+    await pool.query("INSERT INTO profiles (user_id, id, name, avatar, kind, is_default) VALUES ($1, 'p_other', 'Kid', 'dragon', 'kids', false)", [s.userId]);
+    const entry = (await board()).body.supporters[0];
+    expect(Object.keys(entry).sort()).toEqual(["avatar", "name", "since"]);
+    expect(entry).toMatchObject({ name: "Pic", avatar: "fox" }); // the account's own profile, not another one
   });
 
   it("lists the earliest to join first", async () => {
@@ -443,7 +454,7 @@ describe("the supporters board (opt-in)", () => {
     await new Promise((resolve) => setTimeout(resolve, 15));
     await toggle(b.token, true);
     expect((await toggle(a.token, false)).body.supporterBoard).toBe(false);
-    expect((await board()).body.supporters).toEqual([{ name: "Linus" }]);
+    expect((await board()).body.supporters.map((x: { name: string }) => x.name)).toEqual(["Linus"]);
     await toggle(a.token, true);
     expect((await board()).body.supporters.map((x: { name: string }) => x.name)).toEqual(["Grace", "Linus"]); // Grace was first
   });
