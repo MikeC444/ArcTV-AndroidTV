@@ -128,6 +128,9 @@ class CardActionsMenuState {
         originFocusRequester = null
     }
 
+    /** The card that opened the menu, so something opened from the menu (the Plus invitation) can hand focus back to it when it closes. */
+    fun origin(): FocusRequester? = originFocusRequester
+
     fun armFocus(requester: FocusRequester) {
         canFocusActions = true
         originFocusRequester = requester
@@ -157,6 +160,26 @@ class CardActionsMenuState {
 }
 
 val LocalCardActionsMenu = staticCompositionLocalOf { CardActionsMenuState() }
+
+/**
+ * Puts focus back on the poster that opened the menu, once the menu (or a dialog opened from it) has left the screen. Asks two frames after, again a few
+ * frames on, and once more shortly after: the request can succeed and the page still hand focus to its first button (the hero's Play, or the nav bar's
+ * Home) as the closing window finishes leaving, and asking a poster that already has focus changes nothing. When the poster cannot be asked at all
+ * (it is gone) [fallback] focuses the poster now at that place in the same row.
+ */
+private suspend fun restoreCardFocus(requester: FocusRequester?, fallback: (() -> Unit)?) {
+    withFrameNanos { }
+    withFrameNanos { }
+    val restored = requester?.let { runCatching { it.requestFocus() }.isSuccess } ?: false
+    if (!restored) {
+        fallback?.invoke()
+        return
+    }
+    repeat(2) { attempt ->
+        repeat(if (attempt == 0) 3 else 12) { withFrameNanos { } }
+        runCatching { requester!!.requestFocus() }
+    }
+}
 
 /** The Play button's fill: the accent cyan, lightened so dark text on it reads at a distance (the web app's same tint). */
 private val PlayFill: Color get() = lerp(ArcCyan, Color.White, 0.38f)
@@ -200,10 +223,15 @@ fun CardActionsMenuOverlay(
     // The Plus invitation opened by pressing Like / Not for me without Plus. It lives here, above the early return below, because pressing
     // either closes the menu at once and the dialog has to outlive it.
     var showPlusAsk by remember { mutableStateOf(false) }
+    var askOrigin by remember { mutableStateOf<FocusRequester?>(null) }
+    var askClosedTick by remember { mutableIntStateOf(0) }
     if (showPlusAsk) {
         PlusAskDialog(
             ask = PICKED_ASK,
-            onClose = { showPlusAsk = false },
+            onClose = {
+                showPlusAsk = false
+                askClosedTick++
+            },
             onGo = {
                 showPlusAsk = false
                 PendingSettingsTab.openPlus()
@@ -217,20 +245,12 @@ fun CardActionsMenuOverlay(
     val restoreTick = state.restoreTick
     LaunchedEffect(restoreTick) {
         if (restoreTick == 0) return@LaunchedEffect
-        withFrameNanos { }
-        withFrameNanos { }
-        val requester = state.restoreRequester
-        val restored = requester?.let { runCatching { it.requestFocus() }.isSuccess } ?: false
-        if (!restored) {
-            state.fallbackFocus?.invoke()
-            return@LaunchedEffect
-        }
-        // The request can succeed and the page still hand focus to its first button (the hero's Play) a moment later, as the menu's own focused row
-        // finishes leaving. Ask again a few frames on, and once more shortly after: a no-op when the poster already has focus.
-        repeat(2) { attempt ->
-            repeat(if (attempt == 0) 3 else 12) { withFrameNanos { } }
-            runCatching { requester!!.requestFocus() }
-        }
+        restoreCardFocus(state.restoreRequester, state.fallbackFocus)
+    }
+    // The same when the Plus invitation, opened from this menu, is closed: focus goes back to the poster the menu was opened from.
+    LaunchedEffect(askClosedTick) {
+        if (askClosedTick == 0) return@LaunchedEffect
+        restoreCardFocus(askOrigin, state.fallbackFocus)
     }
 
     if (content == null) return
@@ -289,12 +309,14 @@ fun CardActionsMenuOverlay(
         },
         onLike = {
             if (plusAskEligible && !plusStatus.active) {
+                askOrigin = state.origin()
                 state.dismiss(restoreFocus = false)
                 showPlusAsk = true
             } else if (!guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.LIKE) } }) state.dismiss(restoreFocus = false)
         },
         onDislike = {
             if (plusAskEligible && !plusStatus.active) {
+                askOrigin = state.origin()
                 state.dismiss(restoreFocus = false)
                 showPlusAsk = true
             } else if (!guestGate.requireAccount { coroutineScope.launch { feedbackRepository.toggle(target, Feedback.DISLIKE) } }) state.dismiss(restoreFocus = false)

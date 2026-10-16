@@ -5741,6 +5741,8 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 - `ui/components/CardActionsMenu.kt`: the same in the poster's long-press menu: both buttons show with a Plus tag; pressing one closes the menu and opens the ask. "Take me there" opens Settings -> Arc TV Plus.
 - Nothing is saved for someone without Plus when they press either. Accounts with Plus, guests and kids profiles see what they saw before.
 - The Plus tag is now `PlusBadge` (`ui/components/PlusBadge.kt`): the same cyan-to-violet gradient PLUS badge as the invitation's logo, instead of a flat cyan pill; used on the poster menu's buttons and the title page's buttons. The invitation card is 580dp wide with all the perks in two columns (Picked for you, Profiles, Smart source picking, Your stats, Downloads on web/Mac/Windows, and Parental controls marked coming soon).
+- `PlusBadge` is kept tiny: its own text style with the line height equal to the font size (it had inherited the surrounding text's tall line height, which made it far bigger than its letters), 8sp in the poster menu and 7sp on the title page, with 4dp / 1dp padding.
+- Closing the Plus invitation that was opened from the poster menu hands focus back to the poster the menu was opened from (`CardActionsMenuState.origin()`, `restoreCardFocus`), as closing the menu itself does; before it went to the nav bar's Home tab and the page jumped to the top.
 - RELEASE_NOTES.md: one bullet.
 
 **Tests performed:** a manual re-read and brace/paren balance check of every edited file, and a check that each file imports what it uses. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`); the existing `PlusPromoRenderTest` still draws `PlusPromoCard`, whose signature is unchanged.

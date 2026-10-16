@@ -509,6 +509,6 @@ private fun PlusTagged(locked: Boolean, content: @Composable () -> Unit) {
     }
     Box {
         content()
-        PlusBadge(modifier = Modifier.align(Alignment.TopEnd).padding(top = 0.dp), fontSize = 8.sp)
+        PlusBadge(modifier = Modifier.align(Alignment.TopEnd), fontSize = 7.sp)
     }
 }
