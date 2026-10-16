@@ -22,6 +22,8 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * The fourth cloud-sync domain (Milestone 9), item-level like Watchlist:
@@ -56,6 +58,10 @@ class AddonSyncRepository(
     private val apiClient = AddonSyncApiClient(BuildConfig.API_BASE_URL)
     private val json = Json { ignoreUnknownKeys = true }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // The newest push per addon. Pushes run concurrently, so on a quick on/off/on the echo of an older push can arrive after a newer local change
+    // and would put the switch back; only the echo of the latest push for an addon is applied.
+    private val pushSeq = AtomicLong()
+    private val latestPush = ConcurrentHashMap<String, Long>()
     private val pendingStore = PendingChangeStore(context, "mango_addons_pending", AddonSyncDto.serializer())
 
     private val seedPrefs = context.applicationContext.getSharedPreferences("arctv_addon_seed", Context.MODE_PRIVATE)
@@ -192,6 +198,9 @@ class AddonSyncRepository(
         scope.launch {
             val key = change.naturalKey()
             val pendingDto = change.toPendingDto()
+            val seq = pushSeq.incrementAndGet()
+            latestPush[key] = seq
+            val isLatest = { latestPush[key] == seq }
             try {
                 val token = freshAccessTokenOrNull()
                 if (token == null) {
@@ -199,27 +208,27 @@ class AddonSyncRepository(
                     return@launch
                 }
                 when (change) {
-                    is AddonChange.Upserted -> reconcile(apiClient.upsertAddon(token, pendingDto))
+                    is AddonChange.Upserted -> apiClient.upsertAddon(token, pendingDto).let { if (isLatest()) reconcile(it) }
                     is AddonChange.Removed -> {
                         val response = apiClient.removeAddon(token, change.manifestUrl, pendingDto.updatedAt)
                         // null means this addon was never synced from any
                         // device -- nothing server-side to reconcile against.
-                        if (response != null) reconcile(response)
+                        if (response != null && isLatest()) reconcile(response)
                     }
                 }
-                pendingStore.remove(key)
+                if (isLatest()) pendingStore.remove(key)
             } catch (e: ApiException) {
-                pendingStore.put(key, pendingDto)
+                if (isLatest()) pendingStore.put(key, pendingDto)
                 if (e.statusCode == 401) authRepository.clearSessionOnConfirmedUnauthorized()
             } catch (e: IOException) {
-                pendingStore.put(key, pendingDto)
+                if (isLatest()) pendingStore.put(key, pendingDto)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 // Unexpected -- queue for retry, same as a network failure.
                 // An uncaught exception here would otherwise propagate out
                 // of this launch{} and crash the app (Milestone 13).
-                pendingStore.put(key, pendingDto)
+                if (isLatest()) pendingStore.put(key, pendingDto)
             }
         }
     }
