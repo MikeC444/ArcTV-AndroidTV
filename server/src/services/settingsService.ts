@@ -13,6 +13,8 @@ export interface UserSettings {
   defaultAudioLanguage: string | null;
   /** Genre names hidden from every browse surface; empty means nothing is blocked. */
   blockedGenres: string[];
+  /** When Your stats was last reset (it then counts only what was watched after this), or null to count everything. */
+  statsResetAt: Date | null;
   /** null only for an account that has never pushed settings from any device. */
   updatedAt: Date | null;
 }
@@ -26,6 +28,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   defaultSubtitleLanguage: null,
   defaultAudioLanguage: null,
   blockedGenres: [],
+  statsResetAt: null,
   updatedAt: null,
 };
 
@@ -38,6 +41,7 @@ interface SettingsRow {
   default_subtitle_language: string | null;
   default_audio_language: string | null;
   blocked_genres: string[];
+  stats_reset_at: Date | null;
   updated_at: Date;
 }
 
@@ -51,6 +55,7 @@ function mapRow(row: SettingsRow): UserSettings {
     defaultSubtitleLanguage: row.default_subtitle_language,
     defaultAudioLanguage: row.default_audio_language,
     blockedGenres: row.blocked_genres,
+    statsResetAt: row.stats_reset_at,
     updatedAt: row.updated_at,
   };
 }
@@ -59,7 +64,7 @@ function mapRow(row: SettingsRow): UserSettings {
 export async function getUserSettings(userId: string, profileId: string): Promise<UserSettings> {
   const result = await pool.query<SettingsRow>(
     `SELECT home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled,
-            subtitles_enabled, default_subtitle_language, default_audio_language, blocked_genres, updated_at
+            subtitles_enabled, default_subtitle_language, default_audio_language, blocked_genres, stats_reset_at, updated_at
      FROM user_settings WHERE user_id = $1 AND profile_id = $2`,
     [userId, profileId]
   );
@@ -87,8 +92,8 @@ export async function getUserSettings(userId: string, profileId: string): Promis
  */
 export async function upsertUserSettings(userId: string, profileId: string, input: SettingsInput): Promise<UserSettings> {
   const result = await pool.query<SettingsRow>(
-    `INSERT INTO user_settings (user_id, home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled, subtitles_enabled, default_subtitle_language, default_audio_language, blocked_genres, updated_at, profile_id)
-     VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7, $12::text, COALESCE($9::jsonb, '[]'::jsonb), $8, $10)
+    `INSERT INTO user_settings (user_id, home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled, subtitles_enabled, default_subtitle_language, default_audio_language, blocked_genres, updated_at, profile_id, stats_reset_at)
+     VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7, $12::text, COALESCE($9::jsonb, '[]'::jsonb), $8, $10, $14::timestamptz)
      ON CONFLICT (user_id, profile_id) DO UPDATE SET
        home_row_order = EXCLUDED.home_row_order,
        hidden_row_ids = EXCLUDED.hidden_row_ids,
@@ -100,9 +105,11 @@ export async function upsertUserSettings(userId: string, profileId: string, inpu
        default_audio_language = CASE WHEN $11::boolean THEN EXCLUDED.default_audio_language ELSE user_settings.default_audio_language END,
        -- A client that didn't send the list (an older build) keeps what is stored.
        blocked_genres = COALESCE($9::jsonb, user_settings.blocked_genres),
+       -- A client that didn't send it (an older build) keeps what is stored; null clears the reset.
+       stats_reset_at = CASE WHEN $13::boolean THEN EXCLUDED.stats_reset_at ELSE user_settings.stats_reset_at END,
        updated_at = EXCLUDED.updated_at
      WHERE EXCLUDED.updated_at > user_settings.updated_at
-     RETURNING home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled, subtitles_enabled, default_subtitle_language, default_audio_language, blocked_genres, updated_at`,
+     RETURNING home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled, subtitles_enabled, default_subtitle_language, default_audio_language, blocked_genres, stats_reset_at, updated_at`,
     [
       userId,
       JSON.stringify(input.homeRowOrder),
@@ -116,6 +123,8 @@ export async function upsertUserSettings(userId: string, profileId: string, inpu
       profileId,
       input.defaultAudioLanguage !== undefined,
       input.defaultAudioLanguage ?? null,
+      input.statsResetAt !== undefined,
+      input.statsResetAt ? new Date(input.statsResetAt) : null,
     ]
   );
 
