@@ -348,7 +348,7 @@ fun MangoNavHost() {
                         onResume = { content -> navigateTo(resolvePlayRoute(content)) },
                         viewModel = homeViewModel
                     )
-                    // The one-off "Torrents are here" pop-up after an update; 
+                    // The one-off "Torrents are here" pop-up after an update.
                     var torrentIntroOpen by remember { mutableStateOf(false) }
                     TorrentIntroHost(onOpenChanged = { torrentIntroOpen = it })
                     // For members: the one-time "Everything in Arc TV Plus" tour (waits for the pop-up above).
