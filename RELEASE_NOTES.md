@@ -16,7 +16,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - New Anime tab! If you have an anime addon, Anime appears after TV Shows with its titles and a genre picker, its episodes play, and Search finds anime first.
 - Lifetime members can join the supporters board from Plus settings, by name or as Anonymous. The plans screen now explains it.
-- Your stats grew up: see what you watch most, your recap, streak and busy days, and a blurred peek if you don't have Plus yet.
+- Your stats grew up: see what you watch most, your recap, streak and busy days.
 - Your stats now count only what you actually played, and you can reset them any time from Your stats.
 - Fixed an issue with searching.
 - Addons are easier to manage: a bold highlight shows which switch you're on, and long descriptions scroll so you can read them.
