@@ -24,7 +24,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Settings text is a little smaller, so you can see more on screen at once.
 - Smart source picking is now a simple on/off switch, and Your stats fits much more on screen.
 - Plus plans now show real prices, with how much you save on Yearly and what it costs per day.
-- The Plus plans screen is tidier, and Lifetime now says you can join the supporters board.
+- The Plus plans screen is tidier, and Lifetime says you can join the supporters board, on the plan and at payment.
 - "What Plus adds" is easier to take in: neat icon tiles, two to a row, instead of long text panels.
 
 ## 0.5.1

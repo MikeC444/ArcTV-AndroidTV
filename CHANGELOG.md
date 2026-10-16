@@ -5685,6 +5685,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Changes:**
 - `ui/settings/PlusSettingsScreen.kt`: the "How to subscribe" steps above the plan cards are removed (the cards explain themselves; the web app dropped them too). The Lifetime card gets a "Join the supporters board" tag, as on the web app: the supporters board is for Lifetime members only, so it is not on Yearly.
+- `ui/settings/PlusCheckoutPage.kt`: the Lifetime payment page (the QR screen) says, under the plan details, that Lifetime supporters can choose to be on the supporters board on arctv.org, by name or as Anonymous, and are asked on the payment page. Shown for Lifetime only.
 - RELEASE_NOTES.md: one bullet.
 
 **Tests performed:** a manual re-read and brace/paren balance check. No Gradle/Android build was possible here (no route to `dl.google.com`).
