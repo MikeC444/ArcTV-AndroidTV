@@ -14,6 +14,7 @@ import com.mangotv.app.data.auth.GuestGate
 import com.mangotv.app.data.feedback.FeedbackRepository
 import com.mangotv.app.data.history.ContinueWatchingRepository
 import com.mangotv.app.data.plus.PlusNudgeRepository
+import com.mangotv.app.data.stats.StatsResetRepository
 import com.mangotv.app.data.plus.PlusPromoRepository
 import com.mangotv.app.data.plus.PlusWelcomeRepository
 import com.mangotv.app.data.plus.PlusRepository
@@ -173,8 +174,10 @@ class AppContainer(context: Context) {
     val playerPreferencesRepository: PlayerPreferencesRepository = PlayerPreferencesRepository(context)
     val homeRowPreferencesRepository: HomeRowPreferencesRepository = HomeRowPreferencesRepository(context)
     val blockedGenresRepository: BlockedGenresRepository = BlockedGenresRepository(context)
+    /** When Your stats was last reset (per profile, mirrored to the account with the other settings). */
+    val statsResetRepository: StatsResetRepository = StatsResetRepository(context)
     val settingsSyncRepository: SettingsSyncRepository = SettingsSyncRepository(
-        context, homeRowPreferencesRepository, playerPreferencesRepository, blockedGenresRepository, authRepository
+        context, homeRowPreferencesRepository, playerPreferencesRepository, blockedGenresRepository, statsResetRepository, authRepository
     )
     val myListRepository: MyListRepository = MyListRepository(context)
     val homeCacheRepository: HomeCacheRepository by lazy { HomeCacheRepository(context) }
@@ -221,6 +224,7 @@ class AppContainer(context: Context) {
             homeRowPreferencesRepository = homeRowPreferencesRepository,
             playerPreferencesRepository = playerPreferencesRepository,
             blockedGenresRepository = blockedGenresRepository,
+            statsResetRepository = statsResetRepository,
             feedbackRepository = feedbackRepository,
             pickedStateRepository = pickedStateRepository,
             homeCacheRepository = homeCacheRepository,
@@ -264,6 +268,7 @@ class AppContainer(context: Context) {
             homeRowPreferencesRepository = homeRowPreferencesRepository,
             playerPreferencesRepository = playerPreferencesRepository,
             blockedGenresRepository = blockedGenresRepository,
+            statsResetRepository = statsResetRepository,
             feedbackRepository = feedbackRepository,
             plusRepository = plusRepository,
             profileRepository = profileRepository,
@@ -306,7 +311,7 @@ class AppContainer(context: Context) {
 
     // Both lazy: nothing torrent-related (no native library load, no socket, no folder) happens until a torrent source is played or added.
     val torrentIntroStore: TorrentIntroStore by lazy { TorrentIntroStore(context, authRepository) }
-    val watchStatsRepository: WatchStatsRepository by lazy { WatchStatsRepository(authRepository) }
+    val watchStatsRepository: WatchStatsRepository by lazy { WatchStatsRepository(authRepository, statsResetRepository) }
     val customTorrentRepository: CustomTorrentRepository by lazy { CustomTorrentRepository(context) }
     val torrentStreamManager: TorrentStreamManager by lazy {
         TorrentStreamManager(context, okhttp3.OkHttpClient(), customTorrentRepository)

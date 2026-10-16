@@ -14,6 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Your stats now count only what you actually played, and you can reset them any time from Your stats.
 - Fixed an issue with searching.
 - Sign up with your name! Your display name is now needed and becomes your first profile.
 - Addons are easier to manage: a bold highlight shows which switch you're on, and long descriptions scroll so you can read them.

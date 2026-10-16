@@ -38,21 +38,21 @@ class WatchStatsTest {
             listOf(
                 item("m1", watchedAt = "2026-10-06T20:00:00"),
                 item("m2", watchedAt = "2026-09-28T20:00:00", position = hour, duration = hour),
-                item("s1", movie = false, position = hour, duration = hour, watchedAt = "2026-10-07T10:00:00")
+                item("s1", movie = false, position = hour + 7, duration = hour + 7, watchedAt = "2026-10-07T10:00:00") // a real episode length is not a whole minute
             ),
             now, zone
         )
-        assertEquals(4 * hour, stats.totalMs)
-        assertEquals(3 * hour, stats.last7DaysMs)
+        assertEquals(4 * hour + 7, stats.totalMs)
+        assertEquals(3 * hour + 7, stats.last7DaysMs)
         assertEquals(hour, stats.prev7DaysMs)
         assertEquals(3 * hour, stats.movieMs)
-        assertEquals(hour, stats.showMs)
+        assertEquals(hour + 7, stats.showMs)
         assertEquals(2, stats.moviesFinished)
         assertEquals(1, stats.episodesWatched)
         assertEquals(1, stats.showsWatched)
         assertEquals(3, stats.activeDays)
         assertEquals(HEAT_DAYS, stats.dailyMs.size)
-        assertEquals(hour, stats.dailyMs.last())
+        assertEquals(hour + 7, stats.dailyMs.last())
         assertEquals(2 * hour, stats.dailyMs[HEAT_DAYS - 2])
     }
 
@@ -109,5 +109,45 @@ class WatchStatsTest {
         assertEquals(HeatCell(4 * hour, 4), cells.last())
         assertEquals(HeatCell(hour, 1), cells[cells.size - 2])
         assertEquals(HeatCell(0, 0), cells[pad])
+    }
+
+    // ── ticks pressed by hand, and resets ─────────────────────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `a row the account says was ticked by hand adds nothing`() {
+        val ticked = HistoryItem("p", "s", false, hour, hour, true, at("2026-10-07T10:00:00"), markedManually = true)
+        val played = item("m1", watchedAt = "2026-10-07T11:00:00")
+        val stats = computeStats(listOf(ticked, played), now, zone)
+        assertEquals(2 * hour, stats.totalMs)
+        assertEquals(0, stats.episodesWatched)
+        assertEquals(0, stats.showsWatched)
+        assertTrue(computeStats(listOf(ticked), now, zone).empty)
+    }
+
+    @Test
+    fun `an older tick is recognised by an episode's runtime used as both position and length in whole minutes`() {
+        assertTrue(isMarkedByHand(HistoryItem("p", "s", false, 45 * 60_000L, 45 * 60_000L, true, 0)))
+        assertEquals("real playback has a length from the file", false, isMarkedByHand(HistoryItem("p", "s", false, 2_700_123L, 2_700_123L, true, 0)))
+        assertEquals("a movie is never a tick", false, isMarkedByHand(HistoryItem("p", "m", true, hour, hour, true, 0)))
+        assertEquals("part-way is not a tick", false, isMarkedByHand(HistoryItem("p", "s", false, 60_000L, 45 * 60_000L, false, 0)))
+    }
+
+    @Test
+    fun `only what was watched after the last reset counts`() {
+        val before = HistoryItem("p", "a", true, hour, hour, true, at("2026-10-05T20:00:00"))
+        val after = HistoryItem("p", "b", true, hour, hour, true, at("2026-10-07T10:00:00"))
+        val resetAt = at("2026-10-06T00:00:00")
+        assertEquals(listOf(after), afterReset(listOf(before, after), resetAt))
+        assertEquals(listOf(before, after), afterReset(listOf(before, after), null))
+        assertEquals(hour, computeStats(afterReset(listOf(before, after), resetAt), now, zone).totalMs)
+    }
+
+    @Test
+    fun `a reset only ever moves forward`() {
+        assertEquals(5L, laterReset(null, 5L))
+        assertEquals(5L, laterReset(5L, null))
+        assertEquals(9L, laterReset(5L, 9L))
+        assertEquals(9L, laterReset(9L, 5L))
+        assertNull(laterReset(null, null))
     }
 }

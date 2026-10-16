@@ -25,7 +25,9 @@ data class WatchProgressRequest(
     val positionMs: Long,
     val durationMs: Long,
     val completed: Boolean,
-    val watchedAt: String
+    val watchedAt: String,
+    /** True for a tick pressed by hand ("mark as watched" on an episode or season) rather than something played: Your stats leaves those out. Omitted otherwise. */
+    val markedManually: Boolean? = null
 )
 
 @Serializable
@@ -65,7 +67,9 @@ data class WatchHistoryEntryDto(
     val positionMs: Long,
     val durationMs: Long,
     val completed: Boolean,
-    val watchedAt: String
+    val watchedAt: String,
+    /** Whether this row is only a tick pressed by hand (absent from an older backend). */
+    val markedManually: Boolean = false
 )
 
 @Serializable

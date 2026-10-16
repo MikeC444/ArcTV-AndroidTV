@@ -1,5 +1,6 @@
 package com.mangotv.app.data.sync
 
+import com.mangotv.app.data.stats.StatsResetRepository
 import android.content.Context
 import com.mangotv.app.BuildConfig
 import com.mangotv.app.data.auth.AuthRepository
@@ -46,6 +47,7 @@ class SettingsSyncRepository(
     private val homeRowPreferencesRepository: HomeRowPreferencesRepository,
     private val playerPreferencesRepository: PlayerPreferencesRepository,
     private val blockedGenresRepository: BlockedGenresRepository,
+    private val statsResetRepository: StatsResetRepository,
     private val authRepository: AuthRepository
 ) {
     private val apiClient = SettingsApiClient(BuildConfig.API_BASE_URL)
@@ -65,6 +67,7 @@ class SettingsSyncRepository(
         homeRowPreferencesRepository.onLocalChange = { pushToServer() }
         playerPreferencesRepository.onLocalChange = { pushToServer() }
         blockedGenresRepository.onLocalChange = { pushToServer() }
+        statsResetRepository.onLocalChange = { pushToServer() }
     }
 
     /**
@@ -160,6 +163,8 @@ class SettingsSyncRepository(
             defaultSubtitleLanguage = player.defaultSubtitleLanguage,
             defaultAudioLanguage = player.defaultAudioLanguage,
             blockedGenres = blockedGenresRepository.genres.value,
+            // Sent only once Your stats has been reset; the account only ever moves it forward.
+            statsResetAt = statsResetRepository.isoOrNull(),
             updatedAt = Iso8601.format(SettingsStamp.next(System.currentTimeMillis(), accountUpdatedAtMs))
         )
         try {
@@ -202,6 +207,7 @@ class SettingsSyncRepository(
 
     private suspend fun applyRemote(response: SettingsResponse) {
         if (response.blockedGenres != null) blockedGenresRepository.applyRemote(response.blockedGenres)
+        statsResetRepository.applyRemote(response.statsResetAt)
         homeRowPreferencesRepository.applyRemote(HomeRowPreferences(order = response.homeRowOrder, hiddenRowIds = response.hiddenRowIds.toSet()))
         playerPreferencesRepository.applyRemote(
             PlayerPreferences(

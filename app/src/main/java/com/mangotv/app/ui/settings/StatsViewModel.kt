@@ -1,5 +1,6 @@
 package com.mangotv.app.ui.settings
 
+import kotlinx.coroutines.flow.drop
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -24,6 +25,9 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as MangoTvApplication).container
     val plus: StateFlow<PlusStatus> = container.plusRepository.status
 
+    /** When Your stats was last reset (null: never). */
+    val resetAtMs: StateFlow<Long?> = container.statsResetRepository.resetAtMs
+
     private val _state = MutableStateFlow<StatsUiState>(StatsUiState.Loading)
     val state: StateFlow<StatsUiState> = _state.asStateFlow()
 
@@ -31,7 +35,14 @@ class StatsViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             plus.map { it.active }.distinctUntilChanged().collect { active -> if (active) load() }
         }
+        // The account's reset time arriving (or another profile's), or a reset made here, changes what counts: read the numbers again.
+        viewModelScope.launch {
+            resetAtMs.drop(1).distinctUntilChanged().collect { if (plus.value.active) load() }
+        }
     }
+
+    /** "Reset stats": from now on only what is watched after this moment counts. Final: there is no way back to the old numbers in the app. */
+    fun reset() = container.statsResetRepository.reset()
 
     fun load() {
         _state.value = StatsUiState.Loading

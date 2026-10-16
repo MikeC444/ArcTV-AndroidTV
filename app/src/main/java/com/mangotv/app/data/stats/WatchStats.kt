@@ -19,7 +19,9 @@ data class HistoryItem(
     val positionMs: Long,
     val durationMs: Long,
     val completed: Boolean,
-    val watchedAtMs: Long
+    val watchedAtMs: Long,
+    /** The account says this row is only a tick pressed by hand (an episode or a season marked watched), not something played. */
+    val markedManually: Boolean = false
 )
 
 data class WatchStats(
@@ -53,6 +55,20 @@ const val HEAT_DAYS = 91
 val WEEKDAYS = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 private const val DAY_MS = 24L * 3600_000
 
+/**
+ * Whether a history row is only a tick the person pressed ("mark as watched" on an episode or a season) and not something that was played. New rows say
+ * so themselves. Older ones were written with the show's listed runtime as both the position and the length, in whole minutes, which real playback (a
+ * length in milliseconds, from the file) essentially never is, so those are recognised that way (the web app's `isMarkedByHand`).
+ */
+fun isMarkedByHand(item: HistoryItem): Boolean {
+    if (item.markedManually) return true
+    return !item.isMovie && item.completed && item.durationMs > 0 && item.positionMs == item.durationMs && item.durationMs % 60_000L == 0L
+}
+
+/** The history from the moment Your stats was last reset onwards (all of it when it never was). */
+fun afterReset(items: List<HistoryItem>, resetAtMs: Long?): List<HistoryItem> =
+    if (resetAtMs == null) items else items.filter { it.watchedAtMs >= resetAtMs }
+
 /** How much of one row counts as watched: all of it when finished, otherwise how far in it got (never more than its length). */
 fun watchedMsOf(item: HistoryItem): Long {
     val position = max(0L, item.positionMs)
@@ -67,7 +83,9 @@ fun emptyStats() = WatchStats(
 
 private fun localDay(ms: Long, zone: ZoneId): Long = Instant.ofEpochMilli(ms).atZone(zone).toLocalDate().toEpochDay()
 
-fun computeStats(items: List<HistoryItem>, nowMs: Long = System.currentTimeMillis(), zone: ZoneId = ZoneId.systemDefault()): WatchStats {
+fun computeStats(allItems: List<HistoryItem>, nowMs: Long = System.currentTimeMillis(), zone: ZoneId = ZoneId.systemDefault()): WatchStats {
+    // Only what was played counts: a tick pressed by hand is not time watched, an episode watched, a day on the streak or anything else here.
+    val items = allItems.filterNot(::isMarkedByHand)
     if (items.isEmpty()) return emptyStats()
     val today = localDay(nowMs, zone)
     var total = 0L

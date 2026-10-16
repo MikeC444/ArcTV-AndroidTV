@@ -1,5 +1,11 @@
 package com.mangotv.app.ui.settings
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -86,6 +92,8 @@ fun ColumnScope.StatsSettingsContent(
 ) {
     val plus by viewModel.plus.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val resetAtMs by viewModel.resetAtMs.collectAsStateWithLifecycle()
+    var asking by remember { mutableStateOf(false) }
     when {
         // The tab can't be opened without Plus; this only guards a stale selection.
         !plus.active -> Column(Modifier.weight(1f)) {
@@ -105,18 +113,39 @@ fun ColumnScope.StatsSettingsContent(
             val density = LocalDensity.current
             val compact = remember(density) { Density(density.density * StatsScale, density.fontScale) }
             CompositionLocalProvider(LocalDensity provides compact) {
-                StatsPanel(ready.stats, ready.truncated, contentFocusRequester, sidebarFocusRequester, Modifier.weight(1f))
+                StatsPanel(ready.stats, ready.truncated, contentFocusRequester, sidebarFocusRequester, Modifier.weight(1f), resetSinceMs = resetAtMs, onReset = { asking = true })
             }
         }
     }
+    if (asking) {
+        ResetStatsDialog(
+            onConfirm = {
+                asking = false
+                viewModel.reset()
+            },
+            onCancel = { asking = false }
+        )
+    }
 }
 
-/** The stats themselves, as a scrolling page; separate from the view model so it can be rendered on its own. */
+/** The stats themselves, as a scrolling page; separate from the view model so it can be rendered on its own. [onReset] null hides the Reset stats button. */
 @Composable
-fun StatsPanel(stats: WatchStats, truncated: Boolean, contentFocusRequester: FocusRequester, sidebarFocusRequester: FocusRequester, modifier: Modifier = Modifier) {
+fun StatsPanel(
+    stats: WatchStats,
+    truncated: Boolean,
+    contentFocusRequester: FocusRequester,
+    sidebarFocusRequester: FocusRequester,
+    modifier: Modifier = Modifier,
+    resetSinceMs: Long? = null,
+    onReset: (() -> Unit)? = null
+) {
     if (stats.empty) {
         Column(modifier) {
             Text("Nothing here yet. Watch something and your stats will appear.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+            if (resetSinceMs != null) {
+                Spacer(Modifier.height(6.dp))
+                Text("Your stats count from ${resetDate(resetSinceMs)}.", color = TextTertiary, style = MaterialTheme.typography.labelSmall)
+            }
         }
         return
     }
@@ -131,6 +160,16 @@ fun StatsPanel(stats: WatchStats, truncated: Boolean, contentFocusRequester: Foc
         if (stats.movieMs + stats.showMs > 0) item(key = "split") { StatBlock(null, sidebarFocusRequester) { SplitBlock(stats) } }
         item(key = "heat") { StatBlock(null, sidebarFocusRequester) { HeatBlock(stats) } }
         item(key = "bars") { StatBlock(null, sidebarFocusRequester) { WeekdayBlock(stats) } }
+        if (onReset != null) {
+            item(key = "reset") {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(horizontal = 4.dp)) {
+                    if (resetSinceMs != null) {
+                        Text("Counting from ${resetDate(resetSinceMs)}.", color = TextTertiary, style = MaterialTheme.typography.labelSmall)
+                    }
+                    MangoButton(text = "Reset stats", icon = Icons.Filled.RestartAlt, onClick = onReset, focusLeft = sidebarFocusRequester, compact = true)
+                }
+            }
+        }
         item(key = "note") {
             Text(
                 text = "Counted from your watch history${if (truncated) " (the most recent part of it)" else ""}. A title you watch again counts once, on the day you last watched it.",
@@ -138,6 +177,35 @@ fun StatsPanel(stats: WatchStats, truncated: Boolean, contentFocusRequester: Foc
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
+        }
+    }
+}
+
+private fun resetDate(ms: Long): String = DateFormat.getDateInstance(DateFormat.LONG).format(Date(ms))
+
+/** "Reset your stats?": final, so it says so; Cancel is focused first so a stray press never resets. */
+@Composable
+internal fun ResetStatsDialog(onConfirm: () -> Unit, onCancel: () -> Unit) {
+    val cancelFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { cancelFocus.requestFocus() } }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onCancel) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = 480.dp)
+                .background(MangoSurfaceHigh, RoundedCornerShape(18.dp))
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("Reset your stats?", color = TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "Your stats start counting again from today. This can't be undone. Continue Watching and your watched ticks are not affected.",
+                color = TextSecondary,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                MangoButton(text = "Cancel", icon = Icons.Filled.Close, onClick = onCancel, focusRequester = cancelFocus, compact = true)
+                MangoButton(text = "Yes, reset", icon = Icons.Filled.RestartAlt, onClick = onConfirm, compact = true)
+            }
         }
     }
 }
