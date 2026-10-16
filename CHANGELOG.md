@@ -5710,3 +5710,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-156 -- TV: a roomier checkout plan card with every Plus perk ticked
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** The "Your plan" card on the Plus payment screen (every plan) was squeezed: it was only as tall as its content and everything was packed together; it also listed just four perks.
+
+**Changes:**
+- `ui/settings/PlusCheckoutPage.kt`: the card is now as tall as the QR panel beside it, with 12dp between its sections and thin dividers: plan name and price; then every Plus perk, two to a row, each with a tick (Download carries "Web, Mac and Windows" under it because it is not on the TV; Parental controls, still coming soon, is dimmed with a clock and "Coming soon" instead of a tick); then Billing, Due today and the billing note; the supporters-board line (Lifetime only); and Change plan. It still scrolls as a safety net if a screen is shorter.
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** a manual re-read and brace/paren balance check. No Gradle/Android build or on-device look was possible here (no route to `dl.google.com`); `CheckoutScreenshotTest`, if it compares stored images, needs re-recording.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
