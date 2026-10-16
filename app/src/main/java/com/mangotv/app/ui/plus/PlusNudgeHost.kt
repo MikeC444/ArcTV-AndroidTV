@@ -1,5 +1,6 @@
 package com.mangotv.app.ui.plus
 
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,9 +34,12 @@ fun PlusNudgeHost(blocked: Boolean, onGo: () -> Unit) {
     var open by remember { mutableStateOf(false) }
 
     LaunchedEffect(pending, blocked, record, eligible) {
+        if (pending) Log.d("PlusNudge", "host: pending blocked=$blocked recordRead=${record != null} eligible=$eligible")
         if (!pending || blocked || record == null) return@LaunchedEffect
         delay(AFTER_WATCH_DELAY_MS)
-        if (eligible && nudgeDue(record, NudgeTrigger.AFTER_WATCH, System.currentTimeMillis())) {
+        val due = nudgeDue(record, NudgeTrigger.AFTER_WATCH, System.currentTimeMillis())
+        Log.d("PlusNudge", "host: deciding eligible=$eligible due=$due record=$record")
+        if (eligible && due) {
             repository.markShown(NudgeTrigger.AFTER_WATCH)
             open = true
         }
