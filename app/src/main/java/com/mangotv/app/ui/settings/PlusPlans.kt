@@ -30,7 +30,7 @@ val PLUS_PERKS: List<PlusPerk> = listOf(
     PlusPerk("Profiles", "Up to 5 profiles on one account, each with its own My List, Continue Watching, settings and recommendations. Add kids profiles, and lock any profile with a PIN.", comingSoon = false),
     PlusPerk("Smart source picking", "Skips Select a Source and starts the best source for your device, once every addon has answered. Turn it on under Settings > Plus settings.", comingSoon = false),
     PlusPerk("Your stats", "How much you watch, how this week compares, your streak, a map of your last 13 weeks and your busiest day, under Settings > Your stats.", comingSoon = false),
-    PlusPerk("Download", "With Plus you can download movies and episodes from your debrid service on the web, Mac and Windows apps. Not on this TV.", comingSoon = false, otherDevicesOnly = true),
+    PlusPerk("Download", "With Plus you can download movies and episodes from your debrid service on the web, Mac and Windows apps.", comingSoon = false, otherDevicesOnly = true),
     PlusPerk("Parental controls", "Locks on individual genres and titles, built on kids profiles and Blocked Genres.")
 )
 
