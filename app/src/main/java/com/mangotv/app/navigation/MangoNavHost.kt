@@ -359,8 +359,11 @@ fun MangoNavHost() {
                         },
                         onBack = { navController.popBackStack() },
                         onSignOut = { navigateClearingBackStack(MangoRoutes.AUTH_START) },
-                        onOpenPlus = {
+                        onOpenPlus = { switched ->
+                            // The account's own profile is open by now: leave the picker for Home, then go on to Settings -> Arc TV Plus on top of it.
+                            if (switched) homeViewModel.load()
                             PendingSettingsTab.openPlus()
+                            navigateClearingBackStack(MangoRoutes.HOME)
                             navigateTo(MangoRoutes.SETTINGS)
                         }
                     )
