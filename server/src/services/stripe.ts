@@ -36,6 +36,9 @@ export const setStripeFetch = (impl: StripeFetch | null): void => {
   stripeFetch = impl ?? ((url, init) => fetch(url, init));
 };
 
+/** What the Lifetime payment page says about the supporters board: it is the member's choice, made afterwards in Settings. */
+export const SUPPORTERS_BOARD_NOTICE = "As a Lifetime supporter you can choose to have your display name on the supporters board on arctv.org. It is off unless you turn it on in Settings → ArcTV Plus.";
+
 /** Free days on a first monthly or yearly subscription: Stripe takes the card now and bills when they end. */
 export const PLUS_TRIAL_DAYS = 5;
 
@@ -87,6 +90,8 @@ export async function createCheckoutSession(input: CheckoutInput): Promise<Check
       form.set("metadata[trial_days]", String(input.trialDays));
     }
   }
+  // Said on the payment page itself, before anyone pays: Lifetime members may choose to be on the supporters board (off unless they turn it on in Settings).
+  if (input.plan === "lifetime") form.set("custom_text[submit][message]", SUPPORTERS_BOARD_NOTICE);
   if (input.stripeCustomerId) form.set("customer", input.stripeCustomerId);
   else form.set("customer_email", input.email);
   form.set("allow_promotion_codes", "true");

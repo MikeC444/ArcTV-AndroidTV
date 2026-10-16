@@ -4,8 +4,8 @@ import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { pool } from "../src/db/pool.js";
-import { computeEntitlement, type PlusRow } from "../src/services/plusService.js";
-import { getPlanPrices, PRICES_TTL_MS, resetPricesCache, setStripeFetch, verifyStripeSignature, type StripeFetch } from "../src/services/stripe.js";
+import { computeEntitlement, writePlus, type PlusRow } from "../src/services/plusService.js";
+import { getPlanPrices, PRICES_TTL_MS, resetPricesCache, setStripeFetch, SUPPORTERS_BOARD_NOTICE, verifyStripeSignature, type StripeFetch } from "../src/services/stripe.js";
 import { createTestSession } from "./helpers/auth.js";
 import { resetDatabase } from "./helpers/db.js";
 
@@ -74,9 +74,9 @@ const completed = (userId: string, over: Record<string, unknown> = {}, created =
 const subscriptionEvent = (type: string, over: Record<string, unknown>, created = nowSec()) => ({ id: "evt_s", type, created, data: { object: { id: "sub_1", customer: "cus_1", status: "active", current_period_end: nowSec() + 30 * 86400, metadata: { plan: "monthly" }, ...over } } });
 
 describe("computeEntitlement", () => {
-  const row = (over: Partial<PlusRow> = {}): PlusRow => ({ plan: "monthly", status: "active", validUntil: new Date(Date.now() + 86_400_000), stripeCustomerId: null, stripeSubscriptionId: null, cancelAtPeriodEnd: false, lastEventAt: new Date(), ...over });
+  const row = (over: Partial<PlusRow> = {}): PlusRow => ({ plan: "monthly", status: "active", validUntil: new Date(Date.now() + 86_400_000), stripeCustomerId: null, stripeSubscriptionId: null, cancelAtPeriodEnd: false, supporterBoard: false, lastEventAt: new Date(), ...over });
   it("everyone has Plus while the paywall is off (early access)", () => {
-    expect(computeEntitlement(null, false)).toEqual({ active: true, plan: "early_access", validUntil: null, cancelAtPeriodEnd: false, paywall: false });
+    expect(computeEntitlement(null, false)).toEqual({ active: true, plan: "early_access", validUntil: null, cancelAtPeriodEnd: false, paywall: false, supporterBoard: null });
   });
   it("with the paywall on, only a paid account has it", () => {
     expect(computeEntitlement(null, true)).toMatchObject({ active: false, plan: null, paywall: true });
@@ -108,7 +108,7 @@ describe("GET /user/plus", () => {
   it("is active for everyone while the paywall is off, and inactive without a payment once it is on", async () => {
     const s = await createTestSession();
     paywall(false);
-    expect((await entitlement(s.token)).body).toEqual({ active: true, plan: "early_access", validUntil: null, cancelAtPeriodEnd: false, paywall: false, trialDays: 0, prices: null });
+    expect((await entitlement(s.token)).body).toEqual({ active: true, plan: "early_access", validUntil: null, cancelAtPeriodEnd: false, paywall: false, supporterBoard: null, trialDays: 0, prices: null });
     paywall(true);
     expect((await entitlement(s.token)).body).toEqual({
       active: false,
@@ -116,6 +116,7 @@ describe("GET /user/plus", () => {
       validUntil: null,
       cancelAtPeriodEnd: false,
       paywall: true,
+      supporterBoard: null,
       trialDays: 5,
       prices: { monthly: { amount: 499, currency: "gbp" }, yearly: { amount: 3999, currency: "gbp" }, lifetime: { amount: 9999, currency: "gbp" } },
     });
@@ -376,5 +377,115 @@ describe("POST /user/plus/cancel", () => {
     expect(failed.status).toBe(500);
     expect(JSON.stringify(failed.body)).not.toContain("secret detail");
     expect((await entitlement(s.token)).body).toMatchObject({ active: true, cancelAtPeriodEnd: false });
+  });
+});
+
+describe("the supporters board (opt-in)", () => {
+  const lifetime = (userId: string, created = nowSec()) => webhook(completed(userId, { mode: "payment", subscription: null, metadata: { plan: "lifetime", user_id: userId } }, created));
+  const board = () => request(app).get("/supporters");
+  const toggle = (token: string, show: unknown) => request(app).put("/user/plus/supporter").set("Authorization", `Bearer ${token}`).send({ show });
+
+  it("is public, shows display names only, and starts empty", async () => {
+    const response = await board();
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ supporters: [], total: 0 });
+    expect(response.headers["cache-control"]).toContain("max-age=300");
+  });
+
+  it("buying Lifetime does not put anyone on it: they are off until they say so", async () => {
+    const s = await createTestSession({ displayName: "Ada Lovelace" });
+    expect((await entitlement(s.token)).body.supporterBoard).toBeNull(); // not Lifetime yet
+    await lifetime(s.userId);
+    expect((await entitlement(s.token)).body).toMatchObject({ plan: "lifetime", supporterBoard: false });
+    expect((await board()).body).toEqual({ supporters: [], total: 0 });
+  });
+
+  it("a Lifetime member who opts in is listed by display name, with nothing else", async () => {
+    const s = await createTestSession({ displayName: "  Ada Lovelace  " });
+    await lifetime(s.userId);
+    const joined = await toggle(s.token, true);
+    expect(joined.status).toBe(200);
+    expect(joined.body).toMatchObject({ plan: "lifetime", supporterBoard: true });
+    const response = await board();
+    expect(response.body).toEqual({ supporters: [{ name: "Ada Lovelace" }], total: 1 });
+    expect(JSON.stringify(response.body)).not.toContain(s.email);
+    expect(JSON.stringify(response.body)).not.toContain(s.userId);
+  });
+
+  it("an account with no display name shows as an anonymous supporter, and a long name is cut at 24 characters", async () => {
+    const plain = await createTestSession();
+    const long = await createTestSession({ displayName: "x".repeat(60) });
+    for (const s of [plain, long]) {
+      await lifetime(s.userId);
+      await toggle(s.token, true);
+      await new Promise((resolve) => setTimeout(resolve, 15));
+    }
+    expect((await board()).body.supporters).toEqual([{ name: "Anonymous supporter" }, { name: "x".repeat(24) }]);
+  });
+
+  it("lists the earliest to join first", async () => {
+    const first = await createTestSession({ displayName: "First" });
+    const second = await createTestSession({ displayName: "Second" });
+    await lifetime(first.userId);
+    await lifetime(second.userId);
+    await toggle(second.token, true);
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    await toggle(first.token, true);
+    expect((await board()).body.supporters.map((x: { name: string }) => x.name)).toEqual(["Second", "First"]);
+  });
+
+  it("a member can take their name off and put it back; coming back keeps their place", async () => {
+    const a = await createTestSession({ displayName: "Grace" });
+    const b = await createTestSession({ displayName: "Linus" });
+    await lifetime(a.userId);
+    await lifetime(b.userId);
+    await toggle(a.token, true);
+    await new Promise((resolve) => setTimeout(resolve, 15));
+    await toggle(b.token, true);
+    expect((await toggle(a.token, false)).body.supporterBoard).toBe(false);
+    expect((await board()).body.supporters).toEqual([{ name: "Linus" }]);
+    await toggle(a.token, true);
+    expect((await board()).body.supporters.map((x: { name: string }) => x.name)).toEqual(["Grace", "Linus"]); // Grace was first
+  });
+
+  it("subscribers can't be on it, only an active Lifetime member can switch it, and a deleted account is not shown", async () => {
+    expect((await request(app).put("/user/plus/supporter").send({ show: true })).status).toBe(401);
+    const monthly = await createTestSession({ displayName: "Monthly" });
+    await webhook(completed(monthly.userId));
+    expect((await toggle(monthly.token, true)).status).toBe(409);
+    const free = await createTestSession();
+    expect((await toggle(free.token, true)).status).toBe(409);
+    const s = await createTestSession({ displayName: "Gone" });
+    expect((await toggle(s.token, "yes")).status).toBe(400);
+    await lifetime(s.userId);
+    await toggle(s.token, true);
+    await pool.query("UPDATE users SET deleted_at = now() WHERE id = $1", [s.userId]);
+    expect((await board()).body.total).toBe(0);
+  });
+
+  it("a Stripe retry of the purchase does not change what the member chose", async () => {
+    const s = await createTestSession({ displayName: "Ada" });
+    await lifetime(s.userId);
+    await toggle(s.token, true);
+    await lifetime(s.userId); // the same purchase delivered again
+    expect((await entitlement(s.token)).body.supporterBoard).toBe(true);
+    await toggle(s.token, false);
+    await lifetime(s.userId);
+    expect((await entitlement(s.token)).body.supporterBoard).toBe(false);
+  });
+
+  it("the Lifetime payment page says the board is a choice made in Settings; the other plans do not mention it", async () => {
+    const s = await createTestSession();
+    let form: URLSearchParams | null = null;
+    setStripeFetch(async (_url, init) => {
+      form = new URLSearchParams(init.body);
+      return { ok: true, status: 200, json: async () => ({ url: "https://checkout.stripe.test/c/x", amount_total: 1, currency: "gbp" }) };
+    });
+    const post = (plan: string) => request(app).post("/user/plus/checkout").set("Authorization", `Bearer ${s.token}`).send({ plan });
+    await post("lifetime");
+    expect(form!.get("custom_text[submit][message]")).toBe(SUPPORTERS_BOARD_NOTICE);
+    expect(SUPPORTERS_BOARD_NOTICE).toMatch(/choose/);
+    await post("monthly");
+    expect(form!.get("custom_text[submit][message]")).toBeNull();
   });
 });

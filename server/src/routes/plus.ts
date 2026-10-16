@@ -4,7 +4,7 @@ import { getPlusConfig } from "../config/env.js";
 import { HttpError } from "../lib/httpError.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
-import { getEntitlement, getPlusRow, writePlus } from "../services/plusService.js";
+import { getEntitlement, getPlusRow, listSupporters, setSupporterBoard, writePlus } from "../services/plusService.js";
 import { cancelSubscriptionAtPeriodEnd, createCheckoutSession, getPlanPrices, PLUS_TRIAL_DAYS, verifyStripeSignature } from "../services/stripe.js";
 import { handleStripeEvent, type StripeEvent } from "../services/stripeWebhook.js";
 
@@ -39,6 +39,36 @@ plusRouter.post("/plus/checkout", requireAuth, validate({ body: checkoutBody }),
     const session = await createCheckoutSession({ userId: req.user!.id, email: req.user!.email, plan, stripeCustomerId: row?.stripeCustomerId ?? null, trialDays });
     // The page to open, plus what it will charge (after any trial) so a TV can show the price next to the QR code, and the free days.
     res.json({ url: session.url, amountTotal: session.amountTotal, currency: session.currency, trialDays });
+  } catch (error) {
+    next(error);
+  }
+});
+
+const supporterBody = z.object({ show: z.boolean() });
+
+/**
+ * A Lifetime member puts their display name on the supporters board, or takes it off. Only an active Lifetime member can be on it (409
+ * otherwise). Answers with the account's new entitlement.
+ */
+plusRouter.put("/plus/supporter", requireAuth, validate({ body: supporterBody }), async (req, res, next) => {
+  try {
+    const { show } = req.validated!.body as z.infer<typeof supporterBody>;
+    if (!(await setSupporterBoard(req.user!.id, show))) throw new HttpError(409, "Only Lifetime supporters can be on the supporters board");
+    res.json(await getEntitlement(req.user!.id));
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * The supporters board: who has chosen (or been told at checkout) to be listed. Public, no sign-in: it is what the landing page shows. Display names
+ * only, never an email or an id. Cached for a few minutes by anything in front of it.
+ */
+export const supportersRouter = Router();
+supportersRouter.get("/", async (_req, res, next) => {
+  try {
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(await listSupporters());
   } catch (error) {
     next(error);
   }
