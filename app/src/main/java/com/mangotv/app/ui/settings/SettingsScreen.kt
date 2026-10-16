@@ -200,9 +200,10 @@ internal fun SettingsLayout(
     rowFocusRequesterFor: (SettingsCategory) -> FocusRequester,
     pane: @Composable (SettingsCategory, FocusRequester) -> Unit
 ) {
-    // bottomInsetDp: a focused row is kept clear of the bottom 28dp (plus the usual margin) so its scale-up and outline are not cut by the card edge; the lists'
-    // 72dp bottom padding gives the last row room to get there.
-    TolerantBringIntoView(slackDp = 3, bottomInsetDp = 28) {
+    // bottomInsetDp: a focused row is kept clear of the bottom 64dp of the card (plus the usual margin), so its scale-up and outline are not cut by
+    // the edge and a footnote that follows the last row ("Changes are saved automatically", the trial note) shows beneath it. The lists' 72dp
+    // bottom padding gives the last row room to get there.
+    TolerantBringIntoView(slackDp = 3, bottomInsetDp = 64) {
         SettingsScaffold(
             title = "Settings",
             onNavigate = onNavigate,
