@@ -365,7 +365,7 @@ private fun PerkTile(perk: PlusPerk, paywall: Boolean, modifier: Modifier, focus
                 modifier = Modifier
                     .size(36.dp)
                     .clip(RoundedCornerShape(11.dp))
-                    .background(if (perk.comingSoon) MangoSurfaceHigh else ArcBrandGradient),
+                    .let { if (perk.comingSoon) it.background(MangoSurfaceHigh) else it.background(ArcBrandGradient) },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(perkIcon(perk.title), contentDescription = null, tint = if (perk.comingSoon) TextSecondary else MangoBackground, modifier = Modifier.size(20.dp))
