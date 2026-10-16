@@ -5914,7 +5914,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Changes:**
 - `data/stats/WatchStats.kt`: `HistoryItem` carries title and poster; `WatchStats` gains `prev30DaysMs`, `topShow`, `topMovie`; new `TopTitle`, `streakNote`, `weekdayLine`, `recapOf`.
 - `StatsSettingsScreen.kt`: "On days you watch" / "N days watched", the 30-day comparison, streak note ("best 9 · 2 days to match it"), "You watch most on ...", Most watched and Your recap blocks, and `StatsPreview` (streak in plain text, the rest blurred behind a dark cover and a "See Arc TV Plus" button; the button sits at the top of the blurred part and takes focus, so it is on screen when the tab opens).
-- `StatsViewModel.kt`: reads the history for paywall accounts without Plus too (the history is not Plus-gated). `SettingsScreen.kt`: the Your stats row stays tagged as Plus but now opens; the button goes to the Arc TV Plus tab.
+- `StatsViewModel.kt`: reads the history for paywall accounts without Plus too (the history is not Plus-gated). `SettingsScreen.kt`: the Your stats row has no lock or Plus tag any more (the invitation is inside it, as on the web) and opens; the button goes to the Arc TV Plus tab.
 
 **Tests performed:** `WatchStatsTest` (most watched, streak and weekday wording) written but not run; brace/paren balance check. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`). The blur needs Android 12+; older TVs show only the dark cover.
 
