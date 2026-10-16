@@ -26,6 +26,9 @@ sealed interface PasswordAuthUiState {
 }
 
 private const val MIN_PASSWORD_LENGTH = 8
+
+/** The longest display name an account can be created with: it is also the account's first profile, whose name has the same limit (the server enforces both). */
+private const val MAX_DISPLAY_NAME_LENGTH = 24
 private val EMAIL_PATTERN = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+\$")
 
 /**
@@ -42,6 +45,13 @@ internal fun validateCredentials(email: String, password: String): String? = whe
     email.isBlank() -> "Enter your email address."
     !EMAIL_PATTERN.matches(email.trim()) -> "Enter a valid email address."
     password.length < MIN_PASSWORD_LENGTH -> "Password must be at least $MIN_PASSWORD_LENGTH characters."
+    else -> null
+}
+
+/** Creating an account needs a display name, which becomes its first profile; null when this one is fine. */
+internal fun validateDisplayName(displayName: String?): String? = when {
+    displayName.isNullOrBlank() -> "Enter a display name."
+    displayName.trim().length > MAX_DISPLAY_NAME_LENGTH -> "Display name can be at most $MAX_DISPLAY_NAME_LENGTH characters."
     else -> null
 }
 
@@ -96,7 +106,9 @@ class PasswordSignInViewModel(
     }
 
     fun submit(email: String, password: String, displayName: String?) {
-        val validationError = validateCredentials(email, password)
+        // Creating an account needs a display name (it becomes the account's first profile, which is at most 24 characters long).
+        val nameError = if (_mode.value == PasswordAuthMode.Register) validateDisplayName(displayName) else null
+        val validationError = nameError ?: validateCredentials(email, password)
         if (validationError != null) {
             _uiState.value = PasswordAuthUiState.Error(validationError)
             return
@@ -105,7 +117,7 @@ class PasswordSignInViewModel(
             _uiState.value = PasswordAuthUiState.Loading
             val result = when (_mode.value) {
                 PasswordAuthMode.Login -> authRepository.loginWithPassword(email.trim(), password)
-                PasswordAuthMode.Register -> authRepository.registerWithPassword(email.trim(), password, displayName?.takeIf { it.isNotBlank() })
+                PasswordAuthMode.Register -> authRepository.registerWithPassword(email.trim(), password, displayName?.trim()?.takeIf { it.isNotEmpty() })
             }
             result.fold(
                 onSuccess = { onAuthenticatedSession() },

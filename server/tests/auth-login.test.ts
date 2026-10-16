@@ -15,7 +15,7 @@ beforeEach(async () => {
 });
 
 async function registerUser(email: string, password: string) {
-  return request(app).post("/auth/register").send({ email, password, deviceId: randomUUID() });
+  return request(app).post("/auth/register").send({ displayName: "Tester", email, password, deviceId: randomUUID() });
 }
 
 describe("POST /auth/login", () => {

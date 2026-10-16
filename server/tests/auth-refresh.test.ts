@@ -19,7 +19,7 @@ describe("POST /auth/refresh", () => {
   it("rotates both tokens and the new access token works", async () => {
     const registered = await request(app)
       .post("/auth/register")
-      .send({ email: "gina@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
+      .send({ displayName: "Tester", email: "gina@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
 
     const refreshed = await request(app).post("/auth/refresh").send({ refreshToken: registered.body.refreshToken });
 
@@ -34,7 +34,7 @@ describe("POST /auth/refresh", () => {
   it("invalidates the previous access token immediately, not just at its own natural expiry", async () => {
     const registered = await request(app)
       .post("/auth/register")
-      .send({ email: "irene@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
+      .send({ displayName: "Tester", email: "irene@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
 
     await request(app).post("/auth/refresh").send({ refreshToken: registered.body.refreshToken });
 
@@ -47,7 +47,7 @@ describe("POST /auth/refresh", () => {
   it("rejects reuse of an already-rotated (old) refresh token — replay prevention", async () => {
     const registered = await request(app)
       .post("/auth/register")
-      .send({ email: "harry@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
+      .send({ displayName: "Tester", email: "harry@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
 
     await request(app).post("/auth/refresh").send({ refreshToken: registered.body.refreshToken });
     const replay = await request(app).post("/auth/refresh").send({ refreshToken: registered.body.refreshToken });
