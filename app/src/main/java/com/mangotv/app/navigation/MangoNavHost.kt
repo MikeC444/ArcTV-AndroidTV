@@ -57,6 +57,7 @@ import com.mangotv.app.ui.components.CardActionsMenuOverlay
 import com.mangotv.app.ui.components.CardActionsMenuState
 import com.mangotv.app.ui.components.LocalCardActionsMenu
 import com.mangotv.app.ui.home.TorrentIntroHost
+import com.mangotv.app.ui.plus.PlusNudgeHost
 import com.mangotv.app.ui.settings.PendingSettingsTab
 import com.mangotv.app.ui.update.UpdatePromptHost
 import com.mangotv.app.ui.update.UpdateViewModel
@@ -489,6 +490,14 @@ fun MangoNavHost() {
             pickedStateRepository = container.pickedStateRepository,
             onNavigate = ::navigateTo,
             resolvePlayRoute = ::resolvePlayRoute
+        )
+        // Unprompted Plus asks (after a title has been watched through): never over the player, the sign-in screens or "Who's watching?".
+        PlusNudgeHost(
+            blocked = isPlayerActive || onProfilesRoute || currentRoute == MangoRoutes.AUTH_GATE || currentRoute?.startsWith("auth/") == true,
+            onGo = {
+                PendingSettingsTab.openPlus()
+                navigateTo(MangoRoutes.SETTINGS)
+            }
         )
         } // Box
     }

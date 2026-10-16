@@ -8,6 +8,7 @@ import com.mangotv.app.data.player.PlayerPreferencesRepository
 import com.mangotv.app.data.feedback.FeedbackRepository
 import com.mangotv.app.data.plus.PlusRepository
 import com.mangotv.app.data.profile.ProfileRepository
+import com.mangotv.app.data.plus.PlusNudgeRepository
 import com.mangotv.app.data.plus.PlusPromoRepository
 import com.mangotv.app.data.recommend.PickedStateRepository
 import com.mangotv.app.data.search.SearchHistoryRepository
@@ -73,6 +74,7 @@ class AccountSwitchCoordinator(
     private val pickedStateRepository: PickedStateRepository,
     private val searchHistoryRepository: SearchHistoryRepository,
     private val plusPromoRepository: PlusPromoRepository,
+    private val plusNudgeRepository: PlusNudgeRepository,
     private val settingsSyncRepository: SettingsSyncRepository,
     private val watchlistSyncRepository: WatchlistSyncRepository,
     private val continueWatchingSyncRepository: ContinueWatchingSyncRepository,
@@ -130,6 +132,7 @@ class AccountSwitchCoordinator(
             launch { pickedStateRepository.clear() }
             launch { searchHistoryRepository.clear() }
             launch { plusPromoRepository.clear() }
+            launch { plusNudgeRepository.clear() }
             launch { feedbackRepository.clearPending() }
             launch { pickedStateRepository.clearPending() }
             launch { settingsSyncRepository.clearPending() }

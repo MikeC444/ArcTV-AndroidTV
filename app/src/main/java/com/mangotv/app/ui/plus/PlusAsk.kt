@@ -26,6 +26,24 @@ val PICKED_ASK = PlusAsk(
     subline = "Like and Not for me are part of Plus. Everything you use today stays free."
 )
 
+/** Opened by itself, once in a while, after a title has been watched through (see [PlusNudgeHost]). */
+val AFTER_WATCH_ASK = PlusAsk(
+    headline = "Enjoyed that? Get picks like it.",
+    subline = "Plus chooses what to watch next from what you like. Everything you use today stays free."
+)
+
+/** Opened when someone without Plus presses the locked Your stats tab in Settings. */
+val STATS_ASK = PlusAsk(
+    headline = "See what you've been watching.",
+    subline = "Your hours, streak and busiest day are part of Plus. Everything you use today stays free."
+)
+
+/** Opened when someone without Plus presses the locked Plus settings tab in Settings. */
+val PLUS_SETTINGS_ASK = PlusAsk(
+    headline = "Smart source picking, and more.",
+    subline = "Plus settings are part of Plus. Everything you use today stays free."
+)
+
 /** Opened when someone without Plus presses Add profile. */
 val PROFILES_ASK = PlusAsk(
     headline = "Give everyone their own profile.",
