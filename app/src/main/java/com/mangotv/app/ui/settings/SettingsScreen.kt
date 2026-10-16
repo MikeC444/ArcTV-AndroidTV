@@ -225,7 +225,7 @@ internal fun SettingsLayout(
                     modifier = Modifier
                         .width(252.dp)
                         .fillMaxHeight()
-                        .padding(end = 16.dp, bottom = 8.dp)
+                        .padding(end = 16.dp, bottom = SettingsCardBottomGap)
                         .clip(RoundedCornerShape(18.dp))
                         .background(MangoBackgroundElevated)
                         .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
@@ -264,7 +264,7 @@ internal fun SettingsLayout(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .padding(bottom = 8.dp)
+                        .padding(bottom = SettingsCardBottomGap)
                         .clip(RoundedCornerShape(18.dp))
                         .background(MangoBackgroundElevated)
                         .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
@@ -470,8 +470,11 @@ internal fun SettingsDetailPane(
     }
 }
 
-/** Room inside every Settings list for a focused row's outline and scale-up, and (bottom) for the card's former bottom padding. */
-internal val SettingsListPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 24.dp)
+/** The gap between the bottom of the side panel and the open card and the bottom edge of the screen (a TV can overscan its edges). */
+private val SettingsCardBottomGap = 24.dp
+
+/** Room inside every Settings list for a focused row's outline and scale-up, and at the bottom (72dp) so the last item scrolls fully clear of the card's edge instead of being cut by it. */
+internal val SettingsListPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 72.dp)
 
 /** The small glowing "Plus" tag on a feature only Arc TV Plus has: a brand-gradient rim and glow, same as the web app's. */
 @Composable
