@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
@@ -53,6 +54,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.draw.clip
+import kotlinx.coroutines.launch
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -203,6 +205,9 @@ internal fun SettingsLayout(
     // bottomInsetDp: a focused row is kept clear of the bottom 64dp of the card (plus the usual margin), so its scale-up and outline are not cut by
     // the edge and a footnote that follows the last row ("Changes are saved automatically", the trial note) shows beneath it. The lists' 72dp
     // bottom padding gives the last row room to get there.
+    // The side panel's scroll position, so reaching the first category can bring the very top (with the "You" heading above it) back into view.
+    val sidebarScroll = rememberScrollState()
+    val sidebarScope = rememberCoroutineScope()
     TolerantBringIntoView(slackDp = 3, bottomInsetDp = 64, topInsetDp = 14) {
         SettingsScaffold(
             title = "Settings",
@@ -234,7 +239,7 @@ internal fun SettingsLayout(
                         .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
                 ) {
                   // The categories scroll; the version and update check below them stay pinned, so their result line is never cut off.
-                  Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 10.dp, vertical = 16.dp)) {
+                  Column(modifier = Modifier.weight(1f).verticalScroll(sidebarScroll).padding(horizontal = 10.dp, vertical = 16.dp)) {
                     SettingsGroups.forEachIndexed { groupIndex, (label, categories) ->
                         Text(
                             text = label.uppercase(),
@@ -252,7 +257,8 @@ internal fun SettingsLayout(
                                 onClick = { onSelect(category) },
                                 focusRequester = rowFocusRequesterFor(category),
                                 focusUp = if (groupIndex == 0 && index == 0) navFocusRequester else null,
-                                focusRight = paneContentFocusRequester
+                                focusRight = paneContentFocusRequester,
+                                onFocused = if (groupIndex == 0 && index == 0) ({ sidebarScope.launch { sidebarScroll.animateScrollTo(0) } }) else null
                             )
                             if (index != categories.lastIndex) {
                                 Spacer(Modifier.height(4.dp))
@@ -290,7 +296,8 @@ private fun SettingsSidebarRow(
     onClick: () -> Unit,
     focusRequester: FocusRequester? = null,
     focusUp: FocusRequester? = null,
-    focusRight: FocusRequester? = null
+    focusRight: FocusRequester? = null,
+    onFocused: (() -> Unit)? = null
 ) {
     TvFocusSurface(
         // A locked (Plus-only) row can be focused, so the list moves normally, but pressing it does nothing.
@@ -314,7 +321,8 @@ private fun SettingsSidebarRow(
         backgroundColor = if (selected) MangoSurfaceHigh else Color.Transparent,
         borderColor = TextPrimary,
         focusRequester = focusRequester,
-        focusUp = focusUp
+        focusUp = focusUp,
+        onFocusChanged = { hasFocus -> if (hasFocus) onFocused?.invoke() }
     ) {
         Row(
             modifier = Modifier
