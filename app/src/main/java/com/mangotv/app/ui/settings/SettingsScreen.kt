@@ -65,6 +65,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.mangotv.app.ui.components.TvFocusSurface
+import com.mangotv.app.ui.theme.scaled
 import com.mangotv.app.ui.theme.ArcBrandGradient
 import com.mangotv.app.ui.theme.DividerSubtle
 import com.mangotv.app.ui.theme.MangoBackground
@@ -221,6 +222,8 @@ internal fun SettingsLayout(
             verticalPadding = 8.dp,
             titleGap = 0.dp
         ) {
+            // Smaller type across the whole page (the side panel, every tab and their dialogs), so more fits on the 540dp-tall screen at once.
+            MaterialTheme(colorScheme = MaterialTheme.colorScheme, shapes = MaterialTheme.shapes, typography = MaterialTheme.typography.scaled(SettingsTextScale)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -283,6 +286,7 @@ internal fun SettingsLayout(
                 ) {
                     pane(selected, rowFocusRequesterFor(selected))
                 }
+            }
             }
         }
 }
@@ -480,6 +484,9 @@ internal fun SettingsDetailPane(
         }
     }
 }
+
+/** How much smaller Settings text is than the rest of the app (every size times this, never below 10sp), to fit more on screen at once. */
+private const val SettingsTextScale = 0.88f
 
 /** The gap between the bottom of the side panel and the open card and the bottom edge of the screen (a TV can overscan its edges). */
 private val SettingsCardBottomGap = 24.dp

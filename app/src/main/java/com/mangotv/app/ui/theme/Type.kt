@@ -4,6 +4,7 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 
 // System sans-serif is used deliberately: Fire TV devices lack Google Play
@@ -82,3 +83,22 @@ val MangoTypography = Typography(
         letterSpacing = 0.5.sp
     )
 )
+
+/**
+ * This typography with every size (and line height) multiplied by [factor], and no size below [minSp] so small print stays readable from the
+ * sofa. Used to fit more of a busy page (Settings) on a 540dp-tall TV screen without touching every Text on it.
+ */
+fun Typography.scaled(factor: Float, minSp: Float = 10f): Typography {
+    fun TextStyle.s(): TextStyle {
+        val size = if (fontSize.isSpecified) maxOf(fontSize.value * factor, minOf(fontSize.value, minSp)).sp else fontSize
+        val line = if (lineHeight.isSpecified && fontSize.isSpecified) (lineHeight.value * (size.value / fontSize.value)).sp else lineHeight
+        return copy(fontSize = size, lineHeight = line)
+    }
+    return copy(
+        displayLarge = displayLarge.s(), displayMedium = displayMedium.s(), displaySmall = displaySmall.s(),
+        headlineLarge = headlineLarge.s(), headlineMedium = headlineMedium.s(), headlineSmall = headlineSmall.s(),
+        titleLarge = titleLarge.s(), titleMedium = titleMedium.s(), titleSmall = titleSmall.s(),
+        bodyLarge = bodyLarge.s(), bodyMedium = bodyMedium.s(), bodySmall = bodySmall.s(),
+        labelLarge = labelLarge.s(), labelMedium = labelMedium.s(), labelSmall = labelSmall.s()
+    )
+}

@@ -5624,3 +5624,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** the cut-off bottom of Settings tabs.
+
+## Post-Milestone-151 -- TV: smaller text in Settings
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** Settings on the 540dp-tall TV screen showed too little at once.
+
+**Changes:**
+- `ui/theme/Type.kt`: `Typography.scaled(factor, minSp = 10f)` multiplies every text size and line height by a factor, never taking a size below 10sp (sizes already below that are left alone), so small print stays readable.
+- `ui/settings/SettingsScreen.kt`: the page below the nav bar (the side panel, every tab and their dialogs) is wrapped in a `MaterialTheme` whose typography is scaled by `SettingsTextScale` = 0.88, so no individual screen changed (none sets its own font size). The nav bar and the rest of the app keep their sizes.
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** a manual re-read and a brace/paren balance check. No Gradle/Android build, on-device check or screenshot-test run was possible here (no route to `dl.google.com`); the Settings screenshot tests, if they compare stored images, need re-recording. Rows keep their padding, so text is smaller but rows are only slightly shorter: if more still needs to fit, tighten the row padding next.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
