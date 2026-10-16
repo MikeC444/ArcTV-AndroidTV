@@ -359,7 +359,11 @@ fun MangoNavHost() {
                             navigateClearingBackStack(MangoRoutes.HOME)
                         },
                         onBack = { navController.popBackStack() },
-                        onSignOut = { navigateClearingBackStack(MangoRoutes.AUTH_START) }
+                        onSignOut = { navigateClearingBackStack(MangoRoutes.AUTH_START) },
+                        onOpenPlus = {
+                            PendingSettingsTab.openPlus()
+                            navigateTo(MangoRoutes.SETTINGS)
+                        }
                     )
                 }
                 composable(MangoRoutes.SETTINGS) {
