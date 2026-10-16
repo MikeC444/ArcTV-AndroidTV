@@ -15,29 +15,15 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 ## Unreleased
 
 - Lifetime members can join the supporters board from Plus settings, by name or as Anonymous. The plans screen now explains it.
+- New Anime tab! If you have an anime addon, Anime appears after TV Shows with its titles and a genre picker, its episodes play, and Search finds anime first.
 - Your stats grew up: see what you watch most, your recap, streak and busy days, and a blurred peek if you don't have Plus yet.
 - Your stats now count only what you actually played, and you can reset them any time from Your stats.
 - Fixed an issue with searching.
-- Sign up with your name! Your display name is now needed and becomes your first profile.
 - Addons are easier to manage: a bold highlight shows which switch you're on, and long descriptions scroll so you can read them.
-- The Arc TV Plus pop-ups on Home are gone. Explore Plus any time in Settings.
-- Switching an addon off now sticks, instead of springing back on.
 - Added an addon on your phone? Press Refresh addons at the bottom of Addons to see it on your TV right away.
 - Settings no longer gets cut off at the bottom: every tab scrolls fully into view with space below.
 - Settings text is a little smaller, so you can see more on screen at once.
 - Smart source picking is now a simple on/off switch, and Your stats fits much more on screen.
-- Plus plans now show real prices, with how much you save on Yearly and what it costs per day.
-- The Plus plans screen is tidier, and Lifetime says you can join the supporters board, on the plan and at payment.
-- "What Plus adds" is easier to take in: neat icon tiles, two to a row, with what is coming soon last and a note that Download is on web, Mac and Windows.
-- The payment screen is roomier and lists every Plus perk with a tick.
-- Like and Not for me are now visible to everyone, with a Plus badge. Press one to see everything Plus adds.
-- Closing a poster's menu on Home now puts the highlight back on that poster.
-- A show's page is tighter: the title and Play sit right above Seasons, clear of the Arc TV logo.
-- Add profile now shows for everyone. Press it to see what Plus adds.
-- Arc TV now asks who's watching every time it opens, for everyone.
-- Your profile picture and name now show at the top of every screen, with or without Plus.
-- Plus-only tabs in Settings now explain what Plus gives you when you press them, and after you finish a movie Arc TV may suggest Plus, at most once every few days.
-- New Anime tab! If you have an anime addon, Anime appears after TV Shows with its titles and a genre picker, its episodes play, and Search finds anime first.
 
 ## 0.5.1
 
