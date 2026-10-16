@@ -66,4 +66,18 @@ class PasswordSignInViewModelTest {
     fun `email is validated before password`() {
         assertEquals("Enter a valid email address.", validateCredentials("not-an-email", "short"))
     }
+
+    @Test
+    fun `a missing or blank display name is rejected when creating an account`() {
+        assertEquals("Enter a display name.", validateDisplayName(null))
+        assertEquals("Enter a display name.", validateDisplayName(""))
+        assertEquals("Enter a display name.", validateDisplayName("   "))
+    }
+
+    @Test
+    fun `a display name longer than 24 characters is rejected, 24 is fine`() {
+        assertEquals("Display name can be at most 24 characters.", validateDisplayName("x".repeat(25)))
+        assertNull(validateDisplayName("x".repeat(24)))
+        assertNull(validateDisplayName("  Alex  "))
+    }
 }

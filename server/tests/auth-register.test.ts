@@ -20,7 +20,7 @@ describe("POST /auth/register", () => {
     const deviceId = randomUUID();
     const response = await request(app)
       .post("/auth/register")
-      .send({ email: "Alice@Example.com", password: "correct-horse-battery", deviceId, deviceName: "Living Room" });
+      .send({ displayName: "Tester", email: "Alice@Example.com", password: "correct-horse-battery", deviceId, deviceName: "Living Room" });
 
     expect(response.status).toBe(201);
     expect(response.body.user.email).toBe("alice@example.com"); // normalized to lowercase
@@ -37,7 +37,7 @@ describe("POST /auth/register", () => {
   it("never stores the plaintext password", async () => {
     const response = await request(app)
       .post("/auth/register")
-      .send({ email: "bob@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
+      .send({ displayName: "Tester", email: "bob@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
     expect(response.status).toBe(201);
 
     const row = await pool.query("SELECT password_hash FROM users WHERE id = $1", [response.body.user.id]);
@@ -48,11 +48,11 @@ describe("POST /auth/register", () => {
 
   it("rejects a duplicate email with 409, without ever touching the first account", async () => {
     const deviceId = randomUUID();
-    await request(app).post("/auth/register").send({ email: "dup@example.com", password: "correct-horse-battery", deviceId });
+    await request(app).post("/auth/register").send({ displayName: "Tester", email: "dup@example.com", password: "correct-horse-battery", deviceId });
 
     const second = await request(app)
       .post("/auth/register")
-      .send({ email: "dup@example.com", password: "a-different-password", deviceId: randomUUID() });
+      .send({ displayName: "Tester", email: "dup@example.com", password: "a-different-password", deviceId: randomUUID() });
 
     expect(second.status).toBe(409);
 
@@ -63,21 +63,51 @@ describe("POST /auth/register", () => {
   it("rejects a password shorter than 8 characters", async () => {
     const response = await request(app)
       .post("/auth/register")
-      .send({ email: "short@example.com", password: "short", deviceId: randomUUID() });
+      .send({ displayName: "Tester", email: "short@example.com", password: "short", deviceId: randomUUID() });
     expect(response.status).toBe(400);
   });
 
   it("rejects an invalid email", async () => {
     const response = await request(app)
       .post("/auth/register")
-      .send({ email: "not-an-email", password: "correct-horse-battery", deviceId: randomUUID() });
+      .send({ displayName: "Tester", email: "not-an-email", password: "correct-horse-battery", deviceId: randomUUID() });
     expect(response.status).toBe(400);
   });
 
   it("rejects a non-UUID deviceId", async () => {
     const response = await request(app)
       .post("/auth/register")
-      .send({ email: "device@example.com", password: "correct-horse-battery", deviceId: "not-a-uuid" });
+      .send({ displayName: "Tester", email: "device@example.com", password: "correct-horse-battery", deviceId: "not-a-uuid" });
     expect(response.status).toBe(400);
   });
 });
+
+describe("the display name on sign-up", () => {
+  const register = (over: Record<string, unknown>) =>
+    request(app).post("/auth/register").send({ email: "name@example.com", password: "correct-horse-battery", deviceId: randomUUID(), ...over });
+
+  it("is required: missing, empty and blank are all refused with a plain message", async () => {
+    for (const over of [{}, { displayName: "" }, { displayName: "   " }]) {
+      const response = await register(over);
+      expect(response.status).toBe(400);
+      expect(JSON.stringify(response.body)).toContain("display name");
+    }
+    expect((await pool.query("SELECT 1 FROM users WHERE email = 'name@example.com'")).rowCount).toBe(0);
+  });
+
+  it("is at most 24 characters, the length of a profile name, so the two are always the same", async () => {
+    expect((await register({ displayName: "x".repeat(25) })).status).toBe(400);
+    expect((await register({ displayName: "x".repeat(24) })).status).toBe(201);
+  });
+
+  it("is kept (trimmed) on the account and becomes its default profile", async () => {
+    const response = await register({ displayName: "  Alex  " });
+    expect(response.status).toBe(201);
+    expect(response.body.user.displayName).toBe("Alex");
+    const profiles = await request(app).get("/user/profiles").set("Authorization", `Bearer ${response.body.accessToken}`);
+    expect(profiles.status).toBe(200);
+    expect(profiles.body.profiles).toHaveLength(1);
+    expect(profiles.body.profiles[0]).toMatchObject({ name: "Alex", isDefault: true });
+  });
+});
+

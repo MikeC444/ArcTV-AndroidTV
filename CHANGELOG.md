@@ -5497,3 +5497,23 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** rows written before this have no way to say they were hand-marked; the web app recognises the old ones by their shape (an episode whose length is a whole number of minutes with the position exactly at the end), which real playback almost never has.
 
 **Issues fixed:** hand-marked episodes inflating Your stats.
+
+## Post-Milestone-144 -- Sign-up: a display name is required, and it is the default profile
+
+**Status:** Done on the branch. The backend and the phone sign-up page are tested; the Fire TV app change is not built or run. New accounts on the Mac, Windows and phone apps are refused until those apps ask for a name (see Issues discovered).
+
+**Context:** The display name was optional at sign-up, so many accounts had none and their default profile was just "Me". The name is wanted on every account and is what the default profile is called.
+
+**Changes:**
+- `schemas/auth.ts`: `displayName` is required on `POST /auth/register` (trimmed, 1 to 24 characters, the same limit as a profile name so the two are always identical); the error says "Enter a display name" or "Display name can be at most 24 characters". `DISPLAY_NAME_MAX` and the `displayName` schema are shared.
+- `schemas/qr.ts`: creating an account through the phone page (`mode: "register"`) needs the same name; signing in (`mode: "login"`) does not.
+- The default profile already took its name from the display name (`profileService.ensureDefaultProfile`, cut to 24 characters, "Me" only when there was none), so with a required name it is always the name the person typed.
+- `public/activate.html`: the phone page's name field is limited to 24 characters and says it is also the profile name (it was already required in the page).
+- Fire TV app: `PasswordSignInViewModel.kt` refuses to create an account without a display name (`validateDisplayName`: blank, or over 24 characters) and trims it; `PasswordSignInScreen.kt` no longer says "(optional)".
+- `RELEASE_NOTES.md`: one bullet.
+
+**Tests performed:** backend: every test that signs up now sends a name; new tests for a missing, empty or blank name (400, nothing created), 25 vs 24 characters, a trimmed name stored and becoming the default profile, and the QR sign-up needing a name while sign-in does not. The whole suite passed against a local Postgres 16 (316 tests). Fire TV: `PasswordSignInViewModelTest.kt` gains two tests for `validateDisplayName`; a manual re-read and a structural brace/paren balance check of the three Kotlin files only. No Gradle/Android build was possible here (no route to dl.google.com), so the Kotlin changes and the new tests were not compiled or run.
+
+**Issues discovered:** accounts that already exist without a display name are not touched (their default profile stays "Me"). The Mac, Windows and phone apps' sign-up forms do not ask for a name and will get "Enter a display name" from the server until they are updated.
+
+**Issues fixed:** none.

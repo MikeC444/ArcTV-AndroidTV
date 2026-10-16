@@ -15,6 +15,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 ## Unreleased
 
 - Fixed an issue with searching.
+- Sign up with your name! Your display name is now needed and becomes your first profile.
 
 ## 0.5.1
 

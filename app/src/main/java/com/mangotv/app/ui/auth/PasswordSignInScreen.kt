@@ -173,7 +173,7 @@ fun PasswordSignInScreen(
                 TextField(
                     value = displayName,
                     onValueChange = { displayName = it },
-                    placeholder = { Text("Display name (optional)") },
+                    placeholder = { Text("Display name (also your profile name)") },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()

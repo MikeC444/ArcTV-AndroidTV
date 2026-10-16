@@ -14,10 +14,19 @@ const deviceId = z.uuid("deviceId must be a UUID");
 const deviceName = z.string().trim().min(1).max(100).optional();
 const platform = z.string().trim().min(1).max(50).optional();
 
+// The name an account is created with. It is also the account's default profile (profiles are named at most 24 characters, see
+// services/profileService.ts), so it is required and no longer than that.
+export const DISPLAY_NAME_MAX = 24;
+export const displayName = z
+  .string("Enter a display name")
+  .trim()
+  .min(1, "Enter a display name")
+  .max(DISPLAY_NAME_MAX, `Display name can be at most ${DISPLAY_NAME_MAX} characters`);
+
 export const registerSchema = z.object({
   email,
   password,
-  displayName: z.string().trim().min(1).max(100).optional(),
+  displayName,
   deviceId,
   deviceName,
   platform,

@@ -67,7 +67,7 @@ describe("the full QR flow — account creation", () => {
 
     const complete = await request(app)
       .post("/auth/qr/complete")
-      .send({ token, mode: "register", email: "newuser@example.com", password: "correct-horse-battery" });
+      .send({ token, mode: "register", displayName: "Tester", email: "newuser@example.com", password: "correct-horse-battery" });
     expect(complete.status).toBe(204);
 
     const firstPoll = await request(app).get("/auth/qr/status").query({ token });
@@ -91,12 +91,12 @@ describe("the full QR flow — account creation", () => {
   it("rejects creating an account with an email that's already registered", async () => {
     await request(app)
       .post("/auth/register")
-      .send({ email: "taken@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
+      .send({ displayName: "Tester", email: "taken@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
 
     const created = await request(app).post("/auth/qr/create").send({ deviceId: randomUUID() });
     const complete = await request(app)
       .post("/auth/qr/complete")
-      .send({ token: created.body.token, mode: "register", email: "taken@example.com", password: "another-password" });
+      .send({ token: created.body.token, mode: "register", displayName: "Tester", email: "taken@example.com", password: "another-password" });
 
     expect(complete.status).toBe(409);
   });
@@ -106,7 +106,7 @@ describe("the full QR flow — existing account sign-in", () => {
   it("signs in to an existing account via QR", async () => {
     await request(app)
       .post("/auth/register")
-      .send({ email: "existing@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
+      .send({ displayName: "Tester", email: "existing@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
 
     const created = await request(app).post("/auth/qr/create").send({ deviceId: randomUUID(), deviceName: "Office" });
     const complete = await request(app)
@@ -122,7 +122,7 @@ describe("the full QR flow — existing account sign-in", () => {
   it("rejects the wrong password", async () => {
     await request(app)
       .post("/auth/register")
-      .send({ email: "haswrongpw@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
+      .send({ displayName: "Tester", email: "haswrongpw@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
 
     const created = await request(app).post("/auth/qr/create").send({ deviceId: randomUUID() });
     const complete = await request(app)
@@ -143,7 +143,7 @@ describe("QR expiration, replay, and invalid tokens", () => {
     const qr = await createTestQrSession({ expiresInMs: -1000 });
     const response = await request(app)
       .post("/auth/qr/complete")
-      .send({ token: qr.token, mode: "register", email: "toolate@example.com", password: "correct-horse-battery" });
+      .send({ token: qr.token, mode: "register", displayName: "Tester", email: "toolate@example.com", password: "correct-horse-battery" });
     expect(response.status).toBe(410);
   });
 
@@ -151,7 +151,7 @@ describe("QR expiration, replay, and invalid tokens", () => {
     const qr = await createTestQrSession({ status: "completed" });
     const response = await request(app)
       .post("/auth/qr/complete")
-      .send({ token: qr.token, mode: "register", email: "toolate2@example.com", password: "correct-horse-battery" });
+      .send({ token: qr.token, mode: "register", displayName: "Tester", email: "toolate2@example.com", password: "correct-horse-battery" });
     expect(response.status).toBe(410);
   });
 
@@ -186,10 +186,10 @@ describe("multiple simultaneous devices", () => {
 
     await request(app)
       .post("/auth/qr/complete")
-      .send({ token: createdA.body.token, mode: "register", email: "devicea@example.com", password: "correct-horse-battery" });
+      .send({ token: createdA.body.token, mode: "register", displayName: "Tester", email: "devicea@example.com", password: "correct-horse-battery" });
     await request(app)
       .post("/auth/qr/complete")
-      .send({ token: createdB.body.token, mode: "register", email: "deviceb@example.com", password: "correct-horse-battery" });
+      .send({ token: createdB.body.token, mode: "register", displayName: "Tester", email: "deviceb@example.com", password: "correct-horse-battery" });
 
     const pollA = await request(app).get("/auth/qr/status").query({ token: createdA.body.token });
     const pollB = await request(app).get("/auth/qr/status").query({ token: createdB.body.token });
@@ -220,3 +220,18 @@ describe("the activation page itself", () => {
     expect(response.headers["content-type"]).toContain("javascript");
   });
 });
+
+describe("QR sign-up needs a display name too", () => {
+  it("refuses to create an account without one (signing in to an existing account, covered above, needs none)", async () => {
+    const app2 = createApp();
+    const created = await request(app2).post("/auth/qr/create").send({ deviceId: randomUUID() });
+    const missing = await request(app2).post("/auth/qr/complete").send({ token: created.body.token, mode: "register", email: "noname@example.com", password: "correct-horse-battery" });
+    expect(missing.status).toBe(400);
+    expect(JSON.stringify(missing.body)).toContain("display name");
+    const tooLong = await request(app2).post("/auth/qr/complete").send({ token: created.body.token, mode: "register", displayName: "y".repeat(25), email: "noname@example.com", password: "correct-horse-battery" });
+    expect(tooLong.status).toBe(400);
+    const ok = await request(app2).post("/auth/qr/complete").send({ token: created.body.token, mode: "register", displayName: "Sam", email: "noname@example.com", password: "correct-horse-battery" });
+    expect(ok.status).toBe(204);
+  });
+});
+
