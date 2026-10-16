@@ -5448,3 +5448,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** while the keyboard is open the system keyboard may take D-pad keys before the app sees them; DOWN on the field is handled once the keyboard is closed or passes the key through. Needs a check on a real TV device.
 
 **Issues fixed:** DOWN from Search going nowhere or to the top bar.
+
+## Post-Milestone-141 -- Plus: the plan prices in GET /user/plus
+
+**Status:** Done on the branch (backend); the web app's anchored plan cards that use it are in `ArcTV-Web`. Not live until the backend is redeployed. Nothing for RELEASE_NOTES.md (the Fire TV app doesn't show it yet).
+
+**Context:** No endpoint told an app what the Plus plans cost, so the plan cards could only say "Price at checkout" and could not compare plans.
+
+**Changes:**
+- `services/stripe.ts`: `getPlanPrices()` reads each configured plan's list price from Stripe (`GET /v1/prices/{id}`), keeps it for six hours, serves the last good answer if a refresh fails and never throws. `StripeFetch`'s `body` is now optional (the price reads are GETs).
+- `routes/plus.ts`: `GET /user/plus` answers with `prices` (`{ monthly, yearly, lifetime }`, each `{ amount, currency }` in the smallest unit), or `null` with the paywall off or when unavailable.
+- `docs/PAYWALL.md` describes the field.
+
+**Tests performed:** `tests/plus.test.ts` gains tests for the field (present with the paywall on and null off), one Stripe read per plan across two requests, a Stripe outage leaving the request a 200 with `prices: null`, the last good prices kept when a refresh fails, and nothing shown when a plan has no price id; the existing "GET /user/plus" test now expects the field. The whole backend suite passed against a local Postgres 16 (305 tests). No Android build (not relevant to this change); the Fire TV and phone plan screens don't use `prices` yet.
+
+**Issues discovered:** promo codes (`allow_promotion_codes`) mean the list price may differ from what is charged, so apps should say it is a list price.
+
+**Issues fixed:** none.

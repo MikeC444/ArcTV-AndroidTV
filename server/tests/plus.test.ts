@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { pool } from "../src/db/pool.js";
 import { computeEntitlement, type PlusRow } from "../src/services/plusService.js";
-import { setStripeFetch, verifyStripeSignature } from "../src/services/stripe.js";
+import { getPlanPrices, PRICES_TTL_MS, resetPricesCache, setStripeFetch, verifyStripeSignature, type StripeFetch } from "../src/services/stripe.js";
 import { createTestSession } from "./helpers/auth.js";
 import { resetDatabase } from "./helpers/db.js";
 
@@ -25,8 +25,25 @@ function paywall(on: boolean) {
   process.env.API_BASE_URL = "https://api.example.test";
 }
 
+/** The list prices the default Stripe stub answers with, by price id. */
+const LIST_PRICES: Record<string, { unit_amount: number; currency: string }> = {
+  price_monthly: { unit_amount: 499, currency: "GBP" },
+  price_yearly: { unit_amount: 3999, currency: "GBP" },
+  price_lifetime: { unit_amount: 9999, currency: "GBP" },
+};
+let priceReads = 0;
+const priceStub: StripeFetch = async (url) => {
+  const id = decodeURIComponent(url.split("/v1/prices/")[1] ?? "");
+  priceReads += 1;
+  const price = LIST_PRICES[id];
+  return price ? { ok: true, status: 200, json: async () => price } : { ok: false, status: 404, json: async () => ({}) };
+};
+
 beforeEach(async () => {
   for (const key of envKeys) saved[key] = process.env[key];
+  resetPricesCache();
+  priceReads = 0;
+  setStripeFetch(priceStub);
   app = createApp();
   await resetDatabase();
   paywall(true);
@@ -91,9 +108,42 @@ describe("GET /user/plus", () => {
   it("is active for everyone while the paywall is off, and inactive without a payment once it is on", async () => {
     const s = await createTestSession();
     paywall(false);
-    expect((await entitlement(s.token)).body).toEqual({ active: true, plan: "early_access", validUntil: null, cancelAtPeriodEnd: false, paywall: false, trialDays: 0 });
+    expect((await entitlement(s.token)).body).toEqual({ active: true, plan: "early_access", validUntil: null, cancelAtPeriodEnd: false, paywall: false, trialDays: 0, prices: null });
     paywall(true);
-    expect((await entitlement(s.token)).body).toEqual({ active: false, plan: null, validUntil: null, cancelAtPeriodEnd: false, paywall: true, trialDays: 5 });
+    expect((await entitlement(s.token)).body).toEqual({
+      active: false,
+      plan: null,
+      validUntil: null,
+      cancelAtPeriodEnd: false,
+      paywall: true,
+      trialDays: 5,
+      prices: { monthly: { amount: 499, currency: "gbp" }, yearly: { amount: 3999, currency: "gbp" }, lifetime: { amount: 9999, currency: "gbp" } },
+    });
+  });
+
+  it("reads each list price from Stripe once and reuses it, and never fails the request when Stripe does", async () => {
+    const s = await createTestSession();
+    await entitlement(s.token);
+    await entitlement(s.token);
+    expect(priceReads).toBe(3); // one read per plan, not per request
+
+    resetPricesCache();
+    setStripeFetch(async () => ({ ok: false, status: 500, json: async () => ({}) }));
+    const down = await entitlement(s.token);
+    expect(down.status).toBe(200);
+    expect(down.body.prices).toBeNull();
+    expect(down.body.active).toBe(false);
+  });
+
+  it("keeps showing the last good prices when a refresh fails, and shows none when a plan has no price configured", async () => {
+    const t0 = 1_000_000;
+    expect((await getPlanPrices(t0))?.yearly.amount).toBe(3999);
+    setStripeFetch(async () => ({ ok: false, status: 503, json: async () => ({}) }));
+    expect((await getPlanPrices(t0 + PRICES_TTL_MS + 1))?.yearly.amount).toBe(3999);
+
+    resetPricesCache();
+    delete process.env.STRIPE_PRICE_LIFETIME;
+    expect(await getPlanPrices(t0)).toBeNull();
   });
 });
 

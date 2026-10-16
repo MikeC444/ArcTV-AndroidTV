@@ -5,7 +5,7 @@ import { HttpError } from "../lib/httpError.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { getEntitlement, getPlusRow, writePlus } from "../services/plusService.js";
-import { cancelSubscriptionAtPeriodEnd, createCheckoutSession, PLUS_TRIAL_DAYS, verifyStripeSignature } from "../services/stripe.js";
+import { cancelSubscriptionAtPeriodEnd, createCheckoutSession, getPlanPrices, PLUS_TRIAL_DAYS, verifyStripeSignature } from "../services/stripe.js";
 import { handleStripeEvent, type StripeEvent } from "../services/stripeWebhook.js";
 
 export const plusRouter = Router();
@@ -16,7 +16,9 @@ plusRouter.get("/plus", requireAuth, async (req, res, next) => {
     const entitlement = await getEntitlement(req.user!.id);
     // The free trial on offer for this account (days; it applies to the yearly plan only), so apps can say so before checkout: only with the paywall on and no Plus ever.
     const trialDays = entitlement.paywall && !(await getPlusRow(req.user!.id)) ? PLUS_TRIAL_DAYS : 0;
-    res.json({ ...entitlement, trialDays });
+    // The list price of each plan (from Stripe, cached) so apps can show it before checkout; null when it isn't available.
+    const prices = entitlement.paywall ? await getPlanPrices() : null;
+    res.json({ ...entitlement, trialDays, prices });
   } catch (error) {
     next(error);
   }

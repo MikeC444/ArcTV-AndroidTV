@@ -31,6 +31,11 @@ not build that screen; link to it from Stripe).
 
 - `POST /user/plus/checkout` creates a Stripe Checkout Session with the account id as `client_reference_id` and the plan
   as metadata, and returns its URL. The web app opens it; the TV shows it as a QR code.
+- `GET /user/plus` also carries `prices`: the list price of each plan (`{ monthly, yearly, lifetime }`, each `{ amount, currency }`
+  with the amount in pence/cents), read from Stripe's `GET /v1/prices/{id}` for the configured `STRIPE_PRICE_*` ids and kept in
+  memory for six hours (a failed refresh serves the last good answer). It is `null` with the paywall off, when Stripe isn't
+  configured, or when a price can't be read, and never makes the request fail. Promo codes can lower what checkout charges, so
+  these are list prices.
 - Stripe calls `POST /stripe/webhook`. The signature is checked against the raw body (5 minute tolerance); anything else
   is refused. `checkout.session.completed` switches Plus on (a Lifetime payment only once `payment_status` is `paid`);
   `customer.subscription.updated` moves the paid period; `customer.subscription.deleted` ends it.
