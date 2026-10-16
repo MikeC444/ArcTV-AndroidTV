@@ -339,7 +339,9 @@ class ContinueWatchingSyncRepository(
                     positionMs = if (watched) durationMs else 0L,
                     durationMs = durationMs,
                     completed = watched,
-                    watchedAt = Iso8601.format(at)
+                    watchedAt = Iso8601.format(at),
+                    // A tick pressed by hand, not something played: Your stats leaves it out (hours, episodes, days and streak).
+                    markedManually = true
                 )
             )
             if (restore != null) {

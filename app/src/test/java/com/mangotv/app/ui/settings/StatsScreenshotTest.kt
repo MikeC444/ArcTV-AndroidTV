@@ -42,7 +42,7 @@ class StatsScreenshotTest {
             val movie = i % 3 == 0
             HistoryItem(
                 providerId = "p", contentId = "c$i", isMovie = movie,
-                positionMs = if (movie) 6_300_000L else 2_700_000L, durationMs = if (movie) 6_300_000L else 2_700_000L,
+                positionMs = if (movie) 6_300_123L else 2_700_321L, durationMs = if (movie) 6_300_123L else 2_700_321L, // not whole minutes: those read as ticks
                 completed = true, watchedAtMs = now - ((i * 7L + (i % 5)) % 80) * day - (i % 4) * 3_600_000L
             )
         }

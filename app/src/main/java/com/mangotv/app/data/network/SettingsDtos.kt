@@ -19,6 +19,8 @@ data class SettingsRequest(
     val defaultAudioLanguage: String?,
     /** Genres hidden everywhere; always sent, so the account's list follows the latest push. */
     val blockedGenres: List<String> = emptyList(),
+    /** When Your stats was last reset (ISO), only sent once it was: absent leaves the account's as it is, and the account only moves it forward. */
+    val statsResetAt: String? = null,
     val updatedAt: String
 )
 
@@ -34,6 +36,8 @@ data class SettingsResponse(
     val defaultAudioLanguage: String? = AUDIO_LANGUAGE_ABSENT,
     /** null when the backend predates blocked genres, so an older server never wipes the local list. */
     val blockedGenres: List<String>? = null,
+    /** When Your stats was last reset, or null (also from a backend that predates it). */
+    val statsResetAt: String? = null,
     /** null only for an account that has never pushed settings from any device. */
     val updatedAt: String? = null
 )

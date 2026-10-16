@@ -5885,3 +5885,22 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-165 -- TV: Your stats counts real plays only, and can be reset (step 1 of the stats catch-up with the web app)
+
+**Status:** Step 1 done; not built or run here. Step 2 (layout, Most watched, free preview) not started.
+
+**Context:** The web app ignores episodes ticked as watched by hand (they have no real watch time) and has a Reset stats button. The TV counted ticks and had no reset.
+
+**Changes:**
+- `data/stats/WatchStats.kt`: `isMarkedByHand`, `afterReset`, `laterReset`; `computeStats` skips hand-ticked rows.
+- `data/stats/StatsResetRepository.kt` (new): the reset time, cleared on sign-out and profile switch; synced through `SettingsRequest.statsResetAt` (only sent once reset) and read back, taking the later of local and remote.
+- `WatchProgressRequest.markedManually` is sent when an episode is ticked by hand; `ContinueWatchingSyncRepository` and the history DTOs read it back.
+- `StatsViewModel` / `StatsSettingsScreen`: Reset stats button with a confirmation dialog.
+- `AccountSwitchCoordinator`, `ProfileSwitcher`, `AppContainer`: wiring.
+
+**Tests performed:** `WatchStatsTest` (hand ticks, older whole-minute ticks, reset only counting later plays, reset moving only forward; old episode fixtures changed to non-whole-minute durations) and `StatsScreenshotTest` fixtures, written but not run; brace balance check. No Gradle/Android build or on-device run was possible here (no route to `dl.google.com`).
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.

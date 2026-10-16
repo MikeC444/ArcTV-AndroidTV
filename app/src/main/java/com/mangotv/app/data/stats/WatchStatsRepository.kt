@@ -10,7 +10,7 @@ import java.time.Instant
 data class LoadedStats(val stats: WatchStats, val truncated: Boolean)
 
 /** Reads the signed-in profile's whole watch history, a page at a time (GET /user/history, newest first), and works out the stats. */
-class WatchStatsRepository(private val authRepository: AuthRepository) {
+class WatchStatsRepository(private val authRepository: AuthRepository, private val statsResetRepository: StatsResetRepository) {
     private val client = PlaybackProgressApiClient(BuildConfig.API_BASE_URL)
 
     /** Throws [IOException] (or an ApiException) when it can't be read. */
@@ -26,12 +26,13 @@ class WatchStatsRepository(private val authRepository: AuthRepository) {
                 val type = entry.contentType
                 if (type != "MOVIE" && type != "TV_SHOW") return@forEach
                 val at = runCatching { Instant.parse(entry.watchedAt).toEpochMilli() }.getOrNull() ?: return@forEach
-                items.add(HistoryItem(entry.providerId, entry.contentId, type == "MOVIE", entry.positionMs, entry.durationMs, entry.completed, at))
+                items.add(HistoryItem(entry.providerId, entry.contentId, type == "MOVIE", entry.positionMs, entry.durationMs, entry.completed, at, entry.markedManually))
             }
             if (result.size < PAGE) { truncated = false; break }
             before = result.last().watchedAt
         }
-        return LoadedStats(computeStats(items), truncated)
+        // Only what was watched after the last reset counts (the watch history itself is untouched).
+        return LoadedStats(computeStats(afterReset(items, statsResetRepository.resetAtMs.value)), truncated)
     }
 
     private companion object {

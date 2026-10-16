@@ -1,5 +1,6 @@
 package com.mangotv.app.data.sync
 
+import com.mangotv.app.data.stats.StatsResetRepository
 import com.mangotv.app.data.addon.AddonRepository
 import com.mangotv.app.data.auth.AuthRepository
 import com.mangotv.app.data.history.ContinueWatchingRepository
@@ -68,6 +69,7 @@ class AccountSwitchCoordinator(
     private val homeRowPreferencesRepository: HomeRowPreferencesRepository,
     private val playerPreferencesRepository: PlayerPreferencesRepository,
     private val blockedGenresRepository: BlockedGenresRepository,
+    private val statsResetRepository: StatsResetRepository,
     private val feedbackRepository: FeedbackRepository,
     private val plusRepository: PlusRepository,
     private val profileRepository: ProfileRepository,
@@ -125,6 +127,7 @@ class AccountSwitchCoordinator(
             launch { homeRowPreferencesRepository.clear() }
             launch { playerPreferencesRepository.clear() }
             launch { blockedGenresRepository.clear() }
+            launch { statsResetRepository.clear() }
             launch { feedbackRepository.clear() }
             launch { plusRepository.clear() }
             // Back to the account's own profile (the next account starts there too), and the saved list of profiles goes.
