@@ -5537,3 +5537,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the question could not be tried against the live Stripe page from here (no route to it), so its shape follows Stripe's documentation and the fallback above protects the purchase if Stripe disagrees; please check the Lifetime checkout page once. Display names are chosen freely (up to 24 characters now), so a name on a public page could be rude; there is no filter or review step. Removing someone from the board by hand needs a database update (`supporter_board = false`).
 
 **Issues fixed:** none.
+
+## Post-Milestone-146 -- TV: Settings -> Addons is easier to navigate
+
+**Status:** Done on the branch; not built or run here.
+
+**Context:** On the Fire TV the addon on/off switch was a bare Material switch, so the remote's cursor showed only as a faint ring and was hard to find, and with a long addon list the last rows could be cut off at the bottom of the page.
+
+**Changes:**
+- `ui/settings/AddonsScreen.kt`: each addon row is now a single `TvFocusSurface` (the same bordered, slightly scaled-up focus every other Settings row has) that toggles the addon; the switch inside is display-only, with high-contrast colours and an On/Off label, and a disabled addon's text is dimmed. The Remove button stays a separate stop to its right. Left from any row goes straight back to the category list.
+- Descriptions are one line so more addons fit on screen; the list has 96dp of bottom padding (was 24dp) so the last row, with its outline and scale-up, scrolls fully clear of the screen edge.
+- RELEASE_NOTES.md: one bullet.
+
+**Tests performed:** a manual re-read and a brace/paren balance check of the edited file. No Gradle/Android build or on-device check was possible here (no route to `dl.google.com`), so the layout and focus behaviour are unverified until it is built and tried on a Fire TV.
+
+**Issues discovered:** none.
+
+**Issues fixed:** the hard-to-see cursor on addon switches and the cut-off bottom of long addon lists.

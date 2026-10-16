@@ -16,6 +16,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - Fixed an issue with searching.
 - Sign up with your name! Your display name is now needed and becomes your first profile.
+- Addons are easier to manage: a bold highlight on each addon's switch, and long lists now scroll fully into view.
 
 ## 0.5.1
 
