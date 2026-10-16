@@ -5546,7 +5546,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Changes:**
 - `ui/settings/AddonsScreen.kt`: each addon row is now a single `TvFocusSurface` (the same bordered, slightly scaled-up focus every other Settings row has) that toggles the addon; the switch inside is display-only, with high-contrast colours and an On/Off label, and a disabled addon's text is dimmed. The Remove button stays a separate stop to its right. Left from any row goes straight back to the category list.
-- Descriptions are one line so more addons fit on screen; the list has 96dp of bottom padding (was 24dp) so the last row, with its outline and scale-up, scrolls fully clear of the screen edge.
+- Descriptions are one line so more addons fit on screen, and the focused addon's description scrolls sideways (clipped instead of "..." while it does) so all of it can be read; the list has 96dp of bottom padding (was 24dp) so the last row, with its outline and scale-up, scrolls fully clear of the screen edge.
 - RELEASE_NOTES.md: one bullet.
 
 **Tests performed:** a manual re-read and a brace/paren balance check of the edited file. No Gradle/Android build or on-device check was possible here (no route to `dl.google.com`), so the layout and focus behaviour are unverified until it is built and tried on a Fire TV.
