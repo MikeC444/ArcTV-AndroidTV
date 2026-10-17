@@ -6033,3 +6033,22 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the web app's pointer tilt (mouse only) has no TV equivalent and was left out. Not done in this change: the web app's continuation past the addon's ~200 titles with TMDB (`GET /user/streaming-titles`) and grey placeholders, which the owner asked to follow in a second step.
 
 **Issues fixed:** none beyond the above.
+
+## Post-Milestone-173 -- TV: service pages carry on past the addon's titles, the title logo on Continue Watching, and Home polish
+
+**Status:** Done on a branch (the same one as Post-Milestone-172); not built here, not merged. Ports of the web app's PRs for the same.
+
+**Context:** Three more pieces of the web app's Home, after the streaming-service tiles (Post-Milestone-172): a service page that goes on past the ~200 titles its addon lists, the title's logo on Continue Watching posters, and the Home polish (poster rim and lift, the hero's colour wash).
+
+**Changes:**
+- Service pages: `StreamingViewModel.loadMore` carries on with `GET /user/streaming-titles` (movies and series, a page of each at a time, most popular first, for the device's country, else GB) once the addons have no more, stops at the last page, and exposes `moreComing`; new `data/network/StreamingTitlesApiClient.kt` and `data/streaming/StreamingTitlesRepository.kt` (never throws: signed out or an error means "not available" and the page stops at the addon's titles). The grid (`RowsBrowseGridContent`) shows grey poster shapes (`PosterPlaceholder`: a poster and two caption lines) in the cells right after the last title and three rows more while `moreComing`; the next page starts loading as they come into view.
+- Continue Watching posters: `ui/components/TitleLogo.kt` looks a title's logo up once through `loadDetails` (Cinemeta first, as the details page; remembered for the session, nothing remembered while addons are loading or when the look-up fails) and `ContentCard` draws it small (at most a third of the width and 18% of the height) in the top left over a soft darkening.
+- Home polish: posters get a faint light rim at rest (gone while focused) and lift 4dp when focused, as well as the existing growth (`ContentCard`); the hero's colour wash: `ui/home/WashColor.kt` takes the title's artwork down to one colour (port of the web's `washColor.ts`, decoded small through Coil) and `HomeScreen` draws it as one wide eased ellipse from the hero's lower edge onto the first rows, fading over 0.9 s between titles; none when the picture has no colour. The "Streaming services" heading was already left out (Post-Milestone-172).
+- Tests: `WashColorTest`, `StreamingTitlesRepositoryTest`.
+- `RELEASE_NOTES.md`: the tiles bullet now says the pages hold far more titles; two new bullets (logos; Home look).
+
+**Tests performed:** manual re-read against the web files and a structural brace / paren / bracket balance check of each changed Kotlin file. No Gradle/Android build or unit-test run was possible here (no route to `dl.google.com`), so the Kotlin is uncompiled, the new tests have not run, and none of it has been seen on a screen. The TMDB continuation needs the server's `/user/streaming-titles`, which is deployed (Post-Milestone-169), and its TMDB provider ids are unchecked against live TMDB.
+
+**Issues discovered:** the wash is drawn from the hero's list item beyond its own bounds (the rows are drawn after it); if the list clips that, it will show only over the hero's lower part.
+
+**Issues fixed:** none beyond the above.

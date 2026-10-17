@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -39,6 +40,7 @@ import coil.compose.AsyncImage
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.RowStyle
 import com.mangotv.app.ui.theme.MangoDimens
+import com.mangotv.app.ui.theme.MangoMotion
 import com.mangotv.app.ui.theme.MangoSurface
 import com.mangotv.app.ui.theme.ProgressFill
 import com.mangotv.app.ui.theme.ProgressTrack
@@ -81,6 +83,7 @@ fun ContentCard(
     val width = (if (isContinueWatching) MangoDimens.ContinueWatchingWidth else MangoDimens.PosterWidth) * scale
     val height = (if (isContinueWatching) MangoDimens.ContinueWatchingHeight else MangoDimens.PosterHeight) * scale
     var focused by remember { mutableStateOf(false) }
+    val lift = animateFloatAsState(targetValue = if (focused) 1f else 0f, animationSpec = MangoMotion.focusTween, label = "posterLift")
     val imageUrl = if (isContinueWatching) content.backdropUrl else content.posterUrl
     val titleStyle = if (scale < 0.85f) {
         androidx.compose.material3.MaterialTheme.typography.labelMedium
@@ -101,7 +104,11 @@ fun ContentCard(
             onClick = onClick,
             onLongClick = { cardActionsMenu.open(content) },
             onLongClickKeyReleased = { requester -> cardActionsMenu.armFocus(requester) },
-            modifier = Modifier.width(width).height(height),
+            modifier = Modifier
+                .width(width)
+                .height(height)
+                // A focused poster lifts a little as well as growing (like the web app's posters); Continue Watching keeps its own look
+                .graphicsLayer { translationY = if (isContinueWatching) 0f else -4.dp.toPx() * lift.value },
             shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
             backgroundColor = MangoSurface,
             focusRequester = focusRequester,
@@ -123,6 +130,21 @@ fun ContentCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
+
+            // A faint light rim at rest, so a light poster sits on the dark page instead of glaring (the web app's poster rim); gone while focused, when the
+            // focus ring takes over. Continue Watching cards are 16:9 backdrops with their own look.
+            if (!isContinueWatching) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { alpha = 1f - lift.value }
+                        .border(
+                            1.dp,
+                            Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.08f))),
+                            RoundedCornerShape(MangoDimens.CardCornerRadius)
+                        )
+                )
+            }
 
             // Always visible (not gated on focus like the rating/progress
             // overlays below) -- a solid-filled circle rather than a

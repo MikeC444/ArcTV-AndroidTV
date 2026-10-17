@@ -107,13 +107,20 @@ fun HeroSection(
     navUpFocusRequester: FocusRequester? = null,
     onNavigateUpPastHero: () -> Unit = {},
     onNavigateDownFromHero: () -> Unit = {},
-    savedIds: Set<String> = emptySet()
+    savedIds: Set<String> = emptySet(),
+    // The colour of the title on show's artwork (null when it has none), for the soft light Home casts from the hero's lower edge onto the rows
+    onBackdropColor: (Color?) -> Unit = {}
 ) {
     if (items.isEmpty()) return
 
     var index by remember { mutableIntStateOf(0) }
     val current = items[index % items.size]
     val context = LocalContext.current
+
+    LaunchedEffect(current.backdropUrl) {
+        val url = current.backdropUrl
+        onBackdropColor(if (url == null) null else backdropWashColor(context, url))
+    }
 
     // Fetch every picture the hero will show now, in rotation order, so each slide appears instantly instead of
     // loading as it arrives. Only warms Coil's caches; nothing is drawn from here.

@@ -17,6 +17,17 @@ import androidx.compose.runtime.Composable
 import com.mangotv.app.ui.components.LocalCardActionsMenu
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.scale
+import kotlin.math.exp
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import com.mangotv.app.data.model.RowStyle
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -313,6 +324,15 @@ private fun HomeContent(
         onNavigate(MangoRoutes.detail(providerId, target.type, target.id))
     }
 
+    // The soft colour wash behind the hero (as on the web app): the colour of the title on show's artwork, glowing from the hero's lower edge onto the first
+    // rows and fading between titles; none while the picture has no colour to take.
+    var washTarget by remember { mutableStateOf<Color?>(null) }
+    var lastWash by remember { mutableStateOf(Color.Transparent) }
+    LaunchedEffect(washTarget) { washTarget?.let { lastWash = it } }
+    val heroWashColor by animateColorAsState(lastWash, animationSpec = tween(900), label = "heroWashColor")
+    val washAlpha by animateFloatAsState(if (washTarget != null) 0.3f else 0f, animationSpec = tween(900), label = "heroWashAlpha")
+    val screenHeightPx = with(LocalDensity.current) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
+
     // A streaming-service tile opens that service's page
     fun openStreamingService(tile: Content) {
         serviceOfTileId(tile.id)?.let { onNavigate(MangoRoutes.streaming(it)) }
@@ -333,7 +353,13 @@ private fun HomeContent(
                     .fillMaxSize()
             ) {
                 item(key = "hero") {
+                    // The hero is drawn first and the rows after it, so a light cast from the hero's lower edge lies behind the rows' pictures and text
+                    Box(modifier = Modifier.drawWithContent {
+                        drawContent()
+                        drawHeroWash(heroWashColor, washAlpha, screenHeightPx)
+                    }) {
                     HeroSection(
+                        onBackdropColor = { washTarget = it },
                         items = state.heroItems,
                         playFocusRequester = playFocusRequester,
                         onPlay = { content ->
@@ -367,6 +393,7 @@ private fun HomeContent(
                             heroRegionFocused = false
                         }
                     )
+                    }
                 }
                 itemsIndexed(state.sections, key = { _, section -> section.id }) { index, section ->
                     ContentRow(
@@ -439,5 +466,26 @@ private fun HomeContent(
                 }
             }
         )
+    }
+}
+
+/**
+ * The hero's colour wash (the web app's `.home__wash`): one wide ellipse of [color] centred a little under the hero's lower edge, strongest in the middle and
+ * fading smoothly to nothing at its rim (many eased stops, so there is no visible edge), drawn over the hero's bottom and the first rows' background. The rows
+ * are drawn after it.
+ */
+private fun DrawScope.drawHeroWash(color: Color, alpha: Float, screenHeightPx: Float) {
+    if (alpha <= 0.001f || color.alpha == 0f) return
+    val top = size.height - screenHeightPx * 0.34f
+    val height = screenHeightPx * 0.78f
+    val centre = Offset(size.width / 2f, top + height / 2f)
+    val radiusX = size.width * 0.8f
+    val radiusY = height / 2f
+    val stops = Array(9) { i ->
+        val t = i / 8f
+        t to color.copy(alpha = if (i == 8) 0f else alpha * exp(-3f * t * t))
+    }
+    scale(scaleX = 1f, scaleY = radiusY / radiusX, pivot = centre) {
+        drawCircle(brush = Brush.radialGradient(colorStops = stops, center = centre, radius = radiusX), radius = radiusX, center = centre)
     }
 }
