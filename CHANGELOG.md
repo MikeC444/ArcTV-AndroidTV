@@ -6009,3 +6009,27 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the phone, Mac and Windows apps send other platform names (not checked here), so they do not get the addon until their platform is added to the table, which is the safe default. The web app's device is "web".
 
 **Issues fixed:** none beyond the above.
+
+## Post-Milestone-172 -- TV: streaming-service tiles on Home, switched and ordered in Home Rows, and a page per service
+
+**Status:** Done on a branch; not built here, not merged. The web app's tiles, ported.
+
+**Context:** The web app shows a "Streaming services" row on Home (Netflix, Disney+ ...): one tile per service an installed addon has a catalogue for, with default order and on/off rules, switches and ordering in Settings > Home Rows, a page per service and a glass 3D look. The Fire TV had none of it, so the Streaming Catalogs addon (given to every account by the server) showed nothing there. This copies the web app's behaviour (`domain/streamingServices.ts`, `StreamingTiles.tsx`, `.row--streaming` in `components.css`, `Settings.tsx` HomeRowsPane, `StreamingServiceScreen`).
+
+**Changes:**
+- `data/provider/StreamingServices.kt`: the 36 services with names, default order and `off` flags, plus the rules (`isServiceVisible`, `withServiceVisible`, `visibleServices`, `inUserOrder`, `moveService`, `withServiceOrder`, `orderServices`, `orderKeepingServices`) and `serviceCatalogsByService`. Same ids in the same synced lists as the web app (`streaming:<id>` hidden or ordered, `streaming-on:<id>` turned on), so the choices follow the account to the web app and back with no backend change.
+- `CatalogProvider` / `StremioAddonProvider` / `ProviderRegistry`: `streamingServices()`, `getServiceItems(service)`, `getMoreServiceItems(page, service)` (more pages only from a catalogue that declares `skip`, as on the web).
+- `HomeRowPreferencesRepository`: `setServiceVisible`, `setServiceOrder`; reordering rows no longer drops the `streaming:` entries of the order list.
+- Home: a `RowStyle.STREAMING_SERVICES` row (`ui/home/StreamingTilesRow.kt`, `streamingTilesSection`) between Continue Watching and Picked for you, with no heading; a tile opens `streaming/{service}`.
+- `ui/components/StreamingTile.kt` (+ `ui/home/StreamingLogos.kt`, 17 logo files in `res/drawable-nodpi`): five tiles across, each service's own colour or gradient, logo tinted white or black where the web does, the glass overlay and bright top rim, a coloured light beneath at the web's per-service strengths (quiet at rest, full when focused), and a lift, tip and scale on focus. The light is drawn (radial gradient), not a blurred shadow, because of minSdk 23.
+- Settings > Home Rows: a "Streaming services" group above the rows with a switch and the reorder handle for each service (the screen's own control in place of the web's arrows).
+- `StreamingScreen` / `StreamingViewModel` (`ui/browse`): the service's page, a grid that loads more as it scrolls, back to Home when no addon has the service. Route `streaming/{service}`.
+- Server guard (`addonCompatibility.ts`): Streaming Catalogs is sent to the Fire TV from **0.7.0** (was 0.6.1), the version assumed to ship these tiles; the 0.6.x apps have no tiles, so they are not sent it. Change the number to match the real release before deploying the server.
+- Tests: `StreamingServicesTest` (rules, provider methods), `StreamingTilesRowTest`; server `addon-compatibility.test.ts` updated.
+- `RELEASE_NOTES.md`: one bullet under Unreleased.
+
+**Tests performed:** the server suite parts touched (13 tests passing against a local Postgres) and `tsc --noEmit`. For the app: manual re-read of every diff against the web files and a structural brace / paren / bracket balance check of each changed Kotlin file. No Gradle/Android build or unit-test run was possible here (no route to `dl.google.com`), so the Kotlin is uncompiled, the new tests have not run, and the tile look has not been seen on a screen.
+
+**Issues discovered:** the web app's pointer tilt (mouse only) has no TV equivalent and was left out. Not done in this change: the web app's continuation past the addon's ~200 titles with TMDB (`GET /user/streaming-titles`) and grey placeholders, which the owner asked to follow in a second step.
+
+**Issues fixed:** none beyond the above.
