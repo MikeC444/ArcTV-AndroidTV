@@ -180,13 +180,13 @@ fun StreamingTile(
                 // the light beneath the tile: a soft ellipse under its lower edge (drawn, not a blurred shadow, which older Android versions do not do)
                 .drawBehind {
                     val radius = size.width * 0.5f
-                    withTransform({
-                        scale(scaleX = 1f, scaleY = 0.28f, pivot = Offset(size.width / 2f, size.height + 4.dp.toPx()))
-                    }) {
+                    // worked out here: inside withTransform's own block Dp.toPx() has no receiver to use
+                    val center = Offset(size.width / 2f, size.height + 4.dp.toPx())
+                    withTransform({ scale(scaleX = 1f, scaleY = 0.28f, pivot = center) }) {
                         drawCircle(
-                            brush = Brush.radialGradient(listOf(glow.copy(alpha = glowAlpha), glow.copy(alpha = 0f)), center = Offset(size.width / 2f, size.height + 4.dp.toPx()), radius = radius),
+                            brush = Brush.radialGradient(listOf(glow.copy(alpha = glowAlpha), glow.copy(alpha = 0f)), center = center, radius = radius),
                             radius = radius,
-                            center = Offset(size.width / 2f, size.height + 4.dp.toPx())
+                            center = center
                         )
                     }
                 }
