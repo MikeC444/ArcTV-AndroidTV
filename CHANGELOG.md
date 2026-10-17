@@ -6110,7 +6110,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Status:** Done on a branch (the same one as Post-Milestone-171 to 176); not merged or deployed.
 
 **Context:** An audit of the API against every app: the web app, the Fire TV app (0.6.x and the new build), the phone app (0.5.x, platform `android_mobile`), the Mac app (0.2.x, `macos`) and the Windows app (`windows`). Two ways a server that is ahead already hurt apps that are behind:
-1. `POST /auth/register` required a `displayName` (Post-Milestone-159 era, #59), but the phone, Mac and Windows sign-up forms still say "Display name (optional)" and send none when it is empty, so a new account could not be created on those three ("Enter a display name").
+1. `POST /auth/register` required a `displayName` (#59), but the phone, Mac and Windows sign-up forms still say "Display name (optional)" and send none when it is empty, so a new account could not be created on those three ("Enter a display name").
 2. The streaming tiles' order is stored in `homeRowOrder` as `streaming:<id>` entries. Every older app rewrites that list from just the rows it knows when the person reorders rows, so the order set on the web or the Fire TV was silently reset.
 
 **Changes:**
