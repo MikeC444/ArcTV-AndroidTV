@@ -38,6 +38,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mangotv.app.data.model.Content
@@ -154,7 +155,9 @@ fun StreamingTile(
     focusRequester: FocusRequester? = null,
     onFocusChanged: (Boolean) -> Unit = {},
     // Home shrinks its poster rows with this (see ContentCard); it is only needed here for the gap between tiles
-    posterScale: Float = 1f
+    posterScale: Float = 1f,
+    // The width of the row the tile is in (five tiles fit it exactly); the screen's configured width until it is known
+    rowWidth: Dp? = null
 ) {
     val service = content.id.removePrefix("streaming:")
     val brand = BRANDS[service]
@@ -162,7 +165,7 @@ fun StreamingTile(
     var focused by remember { mutableStateOf(false) }
     val focus by animateFloatAsState(targetValue = if (focused) 1f else 0f, animationSpec = MangoMotion.focusTween, label = "tileFocus")
 
-    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    val screenWidth = rowWidth ?: LocalConfiguration.current.screenWidthDp.dp
     val gap = MangoDimens.CardSpacing * posterScale
     val width = (screenWidth - MangoDimens.ScreenPaddingHorizontal * 2 - gap * (TILES_ACROSS - 1)) / TILES_ACROSS
     val height = width * (MangoDimens.ContinueWatchingHeight.value / MangoDimens.ContinueWatchingWidth.value)

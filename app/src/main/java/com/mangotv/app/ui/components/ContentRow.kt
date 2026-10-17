@@ -16,7 +16,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
@@ -84,8 +88,13 @@ fun ContentRow(
     // callers wrap it in runCatching), leaving focus stuck wherever it was.
     listState: LazyListState = rememberLazyListState()
 ) {
+    // The row's real width, for the streaming tiles (five across exactly fits it; the screen's configured width can differ from what is drawn)
+    var rowWidthPx by remember { mutableIntStateOf(0) }
+    val rowWidth = with(LocalDensity.current) { rowWidthPx.toDp() }
     Column(
-        modifier = modifier.onFocusChanged { onFocusChanged(it.hasFocus) }
+        modifier = modifier
+            .onSizeChanged { rowWidthPx = it.width }
+            .onFocusChanged { onFocusChanged(it.hasFocus) }
     ) {
         if (section.style == RowStyle.STREAMING_SERVICES) {
             // The streaming-service tiles have no heading (as on the web app); keep a little room above them
@@ -143,6 +152,7 @@ fun ContentRow(
                         onClick = { onItemClick(content) },
                         compact = compact,
                         posterScale = posterScale,
+                        rowWidth = rowWidth.takeIf { rowWidthPx > 0 },
                         focusRequester = if (index == targetItemIndex) firstItemFocusRequester else null,
                         onFocusChanged = { isFocused -> if (isFocused) onItemFocusChanged(index) }
                     )

@@ -62,6 +62,8 @@ fun ContentCard(
     // e.g. Home shrinking its poster rows. Defaults to 1f so every other
     // existing caller is unaffected.
     posterScale: Float = 1f,
+    // The width of the row this card is in, when known: the streaming tiles (five across) are sized from it.
+    rowWidth: androidx.compose.ui.unit.Dp? = null,
     // Reports this specific card's own focus state, distinct from a row's
     // aggregate "is any card in me focused" (see ContentRow.onFocusChanged)
     // -- e.g. My List uses this to remember exactly which title the user
@@ -69,7 +71,7 @@ fun ContentCard(
     onFocusChanged: (Boolean) -> Unit = {}
 ) {
     if (style == RowStyle.STREAMING_SERVICES) {
-        StreamingTile(content = content, onClick = onClick, modifier = modifier, focusRequester = focusRequester, onFocusChanged = onFocusChanged, posterScale = posterScale)
+        StreamingTile(content = content, onClick = onClick, modifier = modifier, focusRequester = focusRequester, onFocusChanged = onFocusChanged, posterScale = posterScale, rowWidth = rowWidth)
         return
     }
     val isContinueWatching = style == RowStyle.CONTINUE_WATCHING
