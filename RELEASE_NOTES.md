@@ -14,7 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
-- Netflix, Disney+ and more now get their own tiles on Home, opening pages with far more titles. Switch them on, off or reorder in Home Rows.
+- Home now shows your streaming services (Netflix, Disney+ and more) as tiles by default, opening pages with far more titles. Turn them off in Settings.
 - Home looks richer: a soft colour glow behind the hero, a subtle rim on posters, and a gentle lift when you select one.
 - Continue Watching posters now show each title's logo.
 - Your stats now marks today in the busiest-day bars.
