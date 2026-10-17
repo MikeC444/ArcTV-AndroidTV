@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { pool } from "../src/db/pool.js";
 import { cleanAppVersion } from "../src/middleware/auth.js";
-import { addonsFromRows, buildGrowth, describeAddonUrl, describeManifest, GROWTH_DAYS, resetAddonsCache } from "../src/services/adminService.js";
+import { addonsFromRows, buildGrowth, buildHourlyGrowth, describeAddonUrl, describeManifest, GROWTH_DAYS, HOURLY_GROWTH_HOURS, resetAddonsCache } from "../src/services/adminService.js";
 import { createTestSession, type TestSession } from "./helpers/auth.js";
 import { resetDatabase } from "./helpers/db.js";
 
@@ -249,6 +249,38 @@ describe("the user growth series", () => {
     expect(growth[growth.length - 1]).toMatchObject({ newUsers: 1, total: res.body.users }); // the admin signed up today; the deleted account is nowhere
     expect(res.body.users).toBe(2);
     expect(growth.reduce((sum, p) => sum + p.newUsers, 0)).toBe(1);
+  });
+});
+
+describe("the hourly user growth series", () => {
+  it("lists every hour up to the current one, with the running total, even hours nobody signed up", () => {
+    const points = buildHourlyGrowth(10, { "2026-10-10T13:00Z": 2, "2026-10-10T15:00Z": 5 }, new Date("2026-10-10T15:40:00Z"), 4);
+    expect(points).toEqual([
+      { hour: "2026-10-10T12:00Z", newUsers: 0, total: 10 },
+      { hour: "2026-10-10T13:00Z", newUsers: 2, total: 12 },
+      { hour: "2026-10-10T14:00Z", newUsers: 0, total: 12 },
+      { hour: "2026-10-10T15:00Z", newUsers: 5, total: 17 },
+    ]);
+  });
+
+  it("crosses midnight and ignores sign-ups outside the window", () => {
+    const points = buildHourlyGrowth(0, { "2026-10-09T20:00Z": 9, "2026-10-10T00:00Z": 1 }, new Date("2026-10-10T01:05:00Z"), 3);
+    expect(points.map((p) => p.hour)).toEqual(["2026-10-09T23:00Z", "2026-10-10T00:00Z", "2026-10-10T01:00Z"]);
+    expect(points.map((p) => p.newUsers)).toEqual([0, 1, 0]);
+  });
+
+  it("the summary carries it, ending on the current total and counting only accounts that still exist", async () => {
+    const admin = await createTestSession({ isAdmin: true });
+    const old = await createTestSession();
+    const gone = await createTestSession();
+    await pool.query("UPDATE users SET created_at = now() - interval '400 days' WHERE id = $1", [old.userId]);
+    await pool.query("UPDATE users SET created_at = now() - interval '2 hours', deleted_at = now() WHERE id = $1", [gone.userId]);
+    const res = await request(app).get("/admin/summary").set(auth(admin));
+    const hourly = res.body.userGrowthHourly as Array<{ hour: string; newUsers: number; total: number }>;
+    expect(hourly).toHaveLength(HOURLY_GROWTH_HOURS);
+    expect(hourly[0]).toMatchObject({ newUsers: 0, total: 1 }); // the account from over a year ago is the baseline
+    expect(hourly[hourly.length - 1]).toMatchObject({ total: res.body.users }); // ends on today's total; the deleted account is nowhere
+    expect(hourly.reduce((sum, p) => sum + p.newUsers, 0)).toBe(1); // the admin, just now
   });
 });
 

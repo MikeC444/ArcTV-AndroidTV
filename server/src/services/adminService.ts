@@ -199,6 +199,50 @@ export async function userGrowth(days = GROWTH_DAYS): Promise<GrowthPoint[]> {
   return buildGrowth(before.rows[0]!.n, Object.fromEntries(daily.rows.map((r) => [r.day, r.n])), new Date(), days);
 }
 
+/** How many hours of hourly growth the panel's chart gets (its range buttons pick 24, 48 or all 72). */
+export const HOURLY_GROWTH_HOURS = 72;
+
+export interface HourlyGrowthPoint {
+  /** The start of the hour, UTC, as YYYY-MM-DDTHH:00Z. */
+  hour: string;
+  /** Accounts created in that hour. */
+  newUsers: number;
+  /** Accounts that existed by the end of that hour (deleted accounts are not counted in any hour). */
+  total: number;
+}
+
+/**
+ * A continuous hourly series ending at the hour [now] is in: [baseline] accounts existed before the first hour, and [perHour] (the hour as
+ * YYYY-MM-DDTHH:00Z to count) says how many were created in each hour after; quiet hours are still listed, so the chart has no gaps. Pure, so it
+ * is tested without a database.
+ */
+export function buildHourlyGrowth(baseline: number, perHour: Record<string, number>, now: Date, hours: number): HourlyGrowthPoint[] {
+  const thisHour = Math.floor(now.getTime() / 3_600_000) * 3_600_000;
+  const points: HourlyGrowthPoint[] = [];
+  let total = baseline;
+  for (let i = 0; i < hours; i++) {
+    const hour = `${new Date(thisHour - (hours - 1 - i) * 3_600_000).toISOString().slice(0, 13)}:00Z`;
+    const newUsers = perHour[hour] ?? 0;
+    total += newUsers;
+    points.push({ hour, newUsers, total });
+  }
+  return points;
+}
+
+/** Sign-ups per hour for the last [hours] hours with the running total, for the developer panel's hourly growth chart. */
+export async function userGrowthHourly(hours = HOURLY_GROWTH_HOURS): Promise<HourlyGrowthPoint[]> {
+  const since = `date_trunc('hour', now() AT TIME ZONE 'UTC') - make_interval(hours => $1 - 1)`;
+  const [before, hourly] = await Promise.all([
+    pool.query<{ n: number }>(`SELECT count(*)::int AS n FROM users WHERE deleted_at IS NULL AND (created_at AT TIME ZONE 'UTC') < ${since}`, [hours]),
+    pool.query<{ hour: string; n: number }>(
+      `SELECT to_char(date_trunc('hour', created_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD"T"HH24":00Z"') AS hour, count(*)::int AS n FROM users
+       WHERE deleted_at IS NULL AND (created_at AT TIME ZONE 'UTC') >= ${since} GROUP BY 1`,
+      [hours]
+    ),
+  ]);
+  return buildHourlyGrowth(before.rows[0]!.n, Object.fromEntries(hourly.rows.map((r) => [r.hour, r.n])), new Date(), hours);
+}
+
 /**
  * The operating system of a web browser, read from the device name the web app saves when someone signs in ("Chrome on Android (Web)" gives
  * "Android"; a name without one gives "Other"). Web devices only.
@@ -293,7 +337,7 @@ export function resetAddonsCache(): void {
 }
 
 export async function summary() {
-  const [users, active, plans, versions, external, live, growth, systems, playback, downloads, activity, addons, appPromos] = await Promise.all([
+  const [users, active, plans, versions, external, live, growth, growthHourly, systems, playback, downloads, activity, addons, appPromos] = await Promise.all([
     pool.query<{ total: number; new7d: number }>(`SELECT count(*)::int AS total, count(*) FILTER (WHERE created_at > now() - interval '7 days')::int AS new7d FROM users WHERE deleted_at IS NULL`),
     pool.query<{ n: number }>(`SELECT count(DISTINCT d.user_id)::int AS n FROM devices d JOIN users u ON u.id = d.user_id WHERE d.revoked_at IS NULL AND u.deleted_at IS NULL AND d.last_seen_at > now() - interval '7 days'`),
     pool.query<{ plan: string; n: number }>(`SELECT ${ACTIVE_PLAN} AS plan, count(*)::int AS n FROM user_plus p JOIN users u ON u.id = p.user_id WHERE u.deleted_at IS NULL GROUP BY 1`),
@@ -305,6 +349,7 @@ export async function summary() {
     externalPlayerSummary(),
     liveSummary(),
     userGrowth(),
+    userGrowthHourly(),
     webSystems(),
     playbackSummary(),
     downloadsSummary(),
@@ -314,7 +359,7 @@ export async function summary() {
   ]);
   const plus: Record<string, number> = { monthly: 0, yearly: 0, lifetime: 0 };
   for (const row of plans.rows) if (row.plan) plus[row.plan] = row.n;
-  return { users: users.rows[0]!.total, newLast7Days: users.rows[0]!.new7d, activeLast7Days: active.rows[0]!.n, plus, versions: versions.rows, externalPlayer: external, live, userGrowth: growth, webSystems: systems, playback, downloads, activity, addons, appPromos };
+  return { users: users.rows[0]!.total, newLast7Days: users.rows[0]!.new7d, activeLast7Days: active.rows[0]!.n, plus, versions: versions.rows, externalPlayer: external, live, userGrowth: growth, userGrowthHourly: growthHourly, webSystems: systems, playback, downloads, activity, addons, appPromos };
 }
 
 /** How often people hand a title to another player (another app, or VLC's engine inside the app; `opens7d` counts the apps, `vlc7d` the engine): a lot of "after an error" points at the built-in player, not at taste. */
