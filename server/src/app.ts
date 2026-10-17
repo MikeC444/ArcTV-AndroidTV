@@ -22,6 +22,7 @@ import { featureIntrosRouter } from "./routes/featureIntros.js";
 import { plusRouter, stripeWebhookRouter, supportersRouter } from "./routes/plus.js";
 import { createProfilesRouter } from "./routes/profiles.js";
 import { settingsRouter } from "./routes/settings.js";
+import { streamingTitlesRouter } from "./routes/streamingTitles.js";
 import { trailersRouter } from "./routes/trailers.js";
 import { watchlistRouter } from "./routes/watchlist.js";
 
@@ -100,6 +101,7 @@ export function createApp(): Express {
   app.use("/user", trailersRouter);
   app.use("/user", releaseDatesRouter);
   app.use("/user", castRouter);
+  app.use("/user", streamingTitlesRouter);
   app.use("/user", plusRouter);
   app.use("/user", createProfilesRouter());
   app.use("/admin", adminRouter);
