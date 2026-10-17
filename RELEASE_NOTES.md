@@ -14,6 +14,10 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Netflix, Disney+ and more now get their own tiles on Home. Switch them on or off and put them in your order in Home Rows.
+
+## 0.6.1
+
 - Bug fixes.
 
 ## 0.6.0
