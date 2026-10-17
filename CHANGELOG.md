@@ -5955,3 +5955,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** on an app that does not show the tiles yet (the Fire TV, phone, Mac and Windows apps for now) the addon appears as one extra merged Home row of titles from every service. The web app shows the tiles for it.
 
 **Issues fixed:** none.
+
+## Post-Milestone-169 -- Server: `GET /user/streaming-titles` (more titles for a streaming service than its addon lists)
+
+**Status:** Done on a branch; not merged or deployed.
+
+**Context:** The Streaming Catalogs addon returns at most about 100 titles per catalogue and has no paging, so a web service page (Netflix, Disney+ ...) held about 200 titles. The server already has a TMDB token (`TMDB_READ_ACCESS_TOKEN`) for trailers, release dates and cast.
+
+**Changes:**
+- `src/services/streamingTitlesService.ts` (new): one page (about 20) of what a service carries in a country, most popular first, from TMDB discover with the service's watch-provider id (`TMDB_PROVIDER_IDS`, 20 services), each result given its IMDb id (the apps open titles by IMDb id; ones without are left out). Pages are cached 6 hours, IMDb ids 30 days. Returns null when TMDB isn't configured, doesn't answer, or the service has no provider id.
+- `src/routes/streamingTitles.ts`, `src/schemas/streamingTitles.ts`: `GET /user/streaming-titles?service=&type=MOVIE|TV_SHOW&page=&region=`, signed-in only; answers `{ available, items, page, totalPages }` (`available: false` with no items when there is no TMDB source, so an app keeps to the addon's titles). Registered in `src/app.ts`.
+- Tests: new `tests/streaming-titles.test.ts` (auth, bad input never reaches TMDB, no token / unknown service, a page with IMDb ids and the dropped ones, series and the cache, TMDB failing).
+
+**Tests performed:** the new test file against a local disposable Postgres (6 tests, passing) and `tsc --noEmit`. The TMDB provider ids were written from memory and **not checked against live TMDB** (no TMDB key in this sandbox); a wrong id would show as a service whose extra titles are the wrong service's or empty.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none.
