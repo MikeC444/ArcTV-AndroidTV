@@ -138,11 +138,11 @@ fun ContentCard(
 
             // A faint light rim at rest, so a light poster sits on the dark page instead of glaring (the web app's poster rim); gone while focused, when the
             // focus ring takes over. Continue Watching cards are 16:9 backdrops with their own look.
-            if (!isContinueWatching) {
+            if (!isContinueWatching && !focused) {
+                // (not faded with a layer of its own per card: a grid has dozens of cards on screen, and a layer each made scrolling heavy)
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .graphicsLayer { alpha = 1f - lift.value }
                         .border(
                             1.dp,
                             Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.08f))),
