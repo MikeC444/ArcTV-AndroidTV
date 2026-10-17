@@ -6123,3 +6123,18 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered (nothing to change on the server):** every route the phone, Mac, Windows and Fire TV apps call exists with the same shape; unknown JSON keys are ignored by all of them (Kotlin `ignoreUnknownKeys`, Swift `Codable`, `System.Text.Json` Web defaults), so added response fields are safe; every app sends `X-ArcTV-App-Version` and its platform at sign-in, which the guard (Post-Milestone-171) keys on, and the Streaming Catalogs addon is therefore held back from `android_mobile`, `macos` and `windows` until they are added to `ADDON_SUPPORT`; `PUT /user/settings` limits (500 entries of 200 characters) leave plenty of room for the tiles' entries. Devices that signed in before the `platform` column existed have the column's default (`fire_tv`); the phone is on 0.5.x so the version check still holds them back, but a phone that reached 0.7.0 under that default would be sent the addon. The web app's `app-promo` reports were never forwarded by the web server (fixed in the web repo).
 
 **Issues fixed:** the two above.
+
+## Post-Milestone-178 -- TV: bigger Settings side panel and card
+
+**Status:** Done on a branch (the same one as Post-Milestone-171 to 177); not built here, not merged.
+
+**Context:** The owner asked for the two Settings boxes (side menu, then the settings card) to be bigger.
+
+**Changes:**
+- `SettingsScreen.kt`: side panel 252dp to 300dp; screen margins 32dp/8dp to 16dp/4dp; gap under the boxes 24dp to 10dp; card inner padding 22/16dp to 28/20dp.
+
+**Tests performed:** manual re-read; no Gradle/Android build was possible here (no route to `dl.google.com`), so it is uncompiled and the layout has not been seen on a screen.
+
+**Issues discovered:** the lists' bottom padding and the focus bring-into-view insets were sized for the old 24dp gap; the last row may sit a little closer to the card edge.
+
+**Issues fixed:** none beyond the above.

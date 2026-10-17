@@ -20,6 +20,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Fixed Remove from Continue Watching: the title now stays gone instead of coming straight back.
 - Holding up or down on the remote now scrolls at a comfortable speed on Home and catalogs.
 - Home Rows is tidier: Streaming tiles and each addon get their own page.
+- Settings is roomier: a wider side menu and a bigger panel for your settings.
 
 ## 0.6.1
 
