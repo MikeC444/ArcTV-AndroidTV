@@ -6138,3 +6138,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the lists' bottom padding and the focus bring-into-view insets were sized for the old 24dp gap; the last row may sit a little closer to the card edge.
 
 **Issues fixed:** none beyond the above.
+
+## Post-Milestone-179 -- TV: Your stats marks today on the busiest-day bars
+
+**Status:** Done on a branch (the same one as Post-Milestone-171 to 178); not built here, not merged.
+
+**Context:** The parity log listed "weekday bars mark today" (web, 16 Oct) as open for the TV; the other parts of that row were already on the TV.
+
+**Changes:** `StatsSettingsScreen.kt` `WeekdayBlock`: today's weekday name is bold and bright with a small dot after it (the web's marker).
+
+**Tests performed:** manual re-read and a brace / paren balance check; no Gradle/Android build was possible here (no route to `dl.google.com`), so it is uncompiled and not seen on a screen.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none beyond the above.

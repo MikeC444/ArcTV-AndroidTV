@@ -21,6 +21,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Holding up or down on the remote now scrolls at a comfortable speed on Home and catalogs.
 - Home Rows is tidier: Streaming tiles and each addon get their own page.
 - Settings is roomier: a wider side menu and a bigger panel for your settings.
+- Your stats now marks today in the busiest-day bars.
 
 ## 0.6.1
 
