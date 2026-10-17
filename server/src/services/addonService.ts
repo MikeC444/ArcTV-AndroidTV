@@ -1,6 +1,7 @@
 import { pool } from "../db/pool.js";
 import { OPENSUBTITLES_ADDON_ID, OPENSUBTITLES_MANIFEST, OPENSUBTITLES_MANIFEST_URL } from "../data/openSubtitlesManifest.js";
 import { CINEMETA_ADDON_ID, CINEMETA_MANIFEST, CINEMETA_MANIFEST_URL } from "../data/cinemetaManifest.js";
+import { STREAMING_CATALOGS_ADDON_ID, STREAMING_CATALOGS_MANIFEST, STREAMING_CATALOGS_MANIFEST_URL } from "../data/streamingCatalogsManifest.js";
 import type { AddonDeleteInput, AddonInput } from "../schemas/addons.js";
 
 export interface UserAddon {
@@ -133,6 +134,54 @@ export async function seedSubtitlesAddon(userId: string, profileId: string, addo
   return readActiveAddons(userId, profileId);
 }
 
+/**
+ * Gives every adult profile the Streaming Catalogs addon once, new and existing, so Home can show the streaming-service tiles. The same rules as the
+ * OpenSubtitles addon ([seedSubtitlesAddon]): decided on the server, once per profile, so every app version and every device agrees; the mark is
+ * written either way, so a person who removes it (now, or before this existed: a removed row counts) is not given it back, and an account that
+ * installed the addon itself (any link, the addon's id decides) keeps what it has. A kids profile is left out and not marked. Returns the list to send
+ * (re-read when it was added).
+ */
+export async function seedStreamingCatalogsAddon(userId: string, profileId: string, addons: UserAddon[]): Promise<UserAddon[]> {
+  const marked = await pool.query(`SELECT 1 FROM streaming_catalogs_addon_marks WHERE user_id = $1 AND profile_id = $2`, [userId, profileId]);
+  if (marked.rows.length > 0) return addons;
+
+  const kind = await pool.query<{ kind: string }>(`SELECT kind FROM profiles WHERE user_id = $1 AND id = $2`, [userId, profileId]);
+  if (kind.rows[0]?.kind === "kids") return addons;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    // The first request to write the mark decides; a concurrent one finds the mark and does nothing.
+    const claimed = await client.query(`INSERT INTO streaming_catalogs_addon_marks (user_id, profile_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING 1`, [userId, profileId]);
+    let added = false;
+    if (claimed.rows.length > 0) {
+      // Any row for it, removed or not, means the person has already decided.
+      const known = await client.query(
+        `SELECT 1 FROM user_addons WHERE user_id = $1 AND profile_id = $2 AND (manifest_url = $3 OR addon_id = $4)`,
+        [userId, profileId, STREAMING_CATALOGS_MANIFEST_URL, STREAMING_CATALOGS_ADDON_ID]
+      );
+      if (known.rows.length === 0) {
+        const next = addons.reduce((max, addon) => Math.max(max, addon.sortOrder), -1) + 1;
+        await client.query(
+          `INSERT INTO user_addons (user_id, manifest_url, addon_id, name, manifest_json, enabled, sort_order, updated_at, deleted_at, profile_id)
+           VALUES ($1, $2, $3, 'Streaming Catalogs', $4::jsonb, true, $5, now(), NULL, $6)
+           ON CONFLICT (user_id, profile_id, manifest_url) DO NOTHING`,
+          [userId, STREAMING_CATALOGS_MANIFEST_URL, STREAMING_CATALOGS_ADDON_ID, JSON.stringify(STREAMING_CATALOGS_MANIFEST), next, profileId]
+        );
+        added = true;
+      }
+    }
+    await client.query("COMMIT");
+    if (!added) return addons;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+  return readActiveAddons(userId, profileId);
+}
+
 async function readActiveAddons(userId: string, profileId: string): Promise<UserAddon[]> {
   const result = await pool.query<AddonRow>(
     `SELECT ${ROW_COLUMNS} FROM user_addons
@@ -143,9 +192,9 @@ async function readActiveAddons(userId: string, profileId: string): Promise<User
   return result.rows.map(mapRow);
 }
 
-/** This account's currently-installed addons, in display order -- what a fresh sign-in or app launch pulls down to seed/replace ProviderRegistry. Never includes soft-deleted rows. A profile with nothing to browse is given Cinemeta first (see [seedDefaultAddon]), and every profile is given OpenSubtitles once (see [seedSubtitlesAddon]). */
+/** This account's currently-installed addons, in display order -- what a fresh sign-in or app launch pulls down to seed/replace ProviderRegistry. Never includes soft-deleted rows. A profile with nothing to browse is given Cinemeta first (see [seedDefaultAddon]), every profile is given OpenSubtitles once (see [seedSubtitlesAddon]), and every adult profile Streaming Catalogs once (see [seedStreamingCatalogsAddon]). */
 export async function listActiveAddons(userId: string, profileId: string): Promise<UserAddon[]> {
-  return seedSubtitlesAddon(userId, profileId, await seedDefaultAddon(userId, profileId, await readActiveAddons(userId, profileId)));
+  return seedStreamingCatalogsAddon(userId, profileId, await seedSubtitlesAddon(userId, profileId, await seedDefaultAddon(userId, profileId, await readActiveAddons(userId, profileId))));
 }
 
 /**
