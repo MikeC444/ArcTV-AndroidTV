@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -171,6 +173,28 @@ fun ContentCard(
             }
 
             if (isContinueWatching) {
+                // The title's logo, small, in the top left corner over a soft darkening so a white logo reads on a pale picture (as the web app's Continue Watching poster)
+                val logoUrl by rememberTitleLogo(content, enabled = true)
+                logoUrl?.let { url ->
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .fillMaxWidth()
+                            .height(height * 0.36f)
+                            .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.55f), Color.Transparent)))
+                    )
+                    AsyncImage(
+                        model = url,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        alignment = Alignment.TopStart,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(start = 8.dp * scale.coerceAtLeast(0.7f), top = 6.dp * scale.coerceAtLeast(0.7f))
+                            .widthIn(max = width * 0.34f)
+                            .heightIn(max = height * 0.18f)
+                    )
+                }
                 val progressGradient = remember {
                     Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f)))
                 }

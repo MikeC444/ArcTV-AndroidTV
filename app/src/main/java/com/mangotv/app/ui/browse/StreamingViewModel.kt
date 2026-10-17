@@ -6,6 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.mangotv.app.MangoTvApplication
 import com.mangotv.app.data.model.Content
+import com.mangotv.app.data.model.ContentType
 import com.mangotv.app.data.model.HomeSection
 import com.mangotv.app.data.provider.CatalogProvider
 import com.mangotv.app.data.provider.ProviderRegistry
@@ -32,6 +33,7 @@ class StreamingViewModel(application: Application, savedStateHandle: SavedStateH
 
     private val myListRepository = (application as MangoTvApplication).container.myListRepository
     private val blockedGenresRepository = (application as MangoTvApplication).container.blockedGenresRepository
+    private val streamingTitlesRepository = (application as MangoTvApplication).container.streamingTitlesRepository
 
     private var blocked: Set<String> = blockedGenreSet(blockedGenresRepository.effectiveGenres.value)
 
@@ -42,8 +44,15 @@ class StreamingViewModel(application: Application, savedStateHandle: SavedStateH
     private val seenIds = mutableSetOf<String>()
     private var providersSnapshot: List<CatalogProvider> = emptyList()
     private var nextPage = 1
+    // The next page of TMDB titles to read once the addons have no more (see loadMore)
+    private var nextTmdbPage = 1
     private var hasMore = true
     private var isLoadingMore = false
+
+    private val _moreComing = MutableStateFlow(true)
+
+    /** True while more titles may still arrive by scrolling: the grid shows grey poster shapes after the last title, so the page can be scrolled ahead of what has loaded. */
+    val moreComing: StateFlow<Boolean> = _moreComing.asStateFlow()
     private var watchedIds: Set<String> = emptySet()
 
     init {
@@ -77,7 +86,9 @@ class StreamingViewModel(application: Application, savedStateHandle: SavedStateH
         _uiState.value = RowsBrowseUiState.Loading
         providersSnapshot = providers
         nextPage = 1
+        nextTmdbPage = 1
         hasMore = true
+        _moreComing.value = true
         isLoadingMore = false
         allItems.clear()
         seenIds.clear()
@@ -112,7 +123,30 @@ class StreamingViewModel(application: Application, savedStateHandle: SavedStateH
             val results = coroutineScope {
                 providersSnapshot.filter { service in it.streamingServices() }.map { provider -> async { runCatching { provider.getMoreServiceItems(page, service) } } }.awaitAll()
             }
-            val newItems = results.flatMap { it.getOrElse { emptyList() } }.filterNot { it.id in seenIds }.distinctBy { it.id }
+            var newItems = results.flatMap { it.getOrElse { emptyList() } }.filterNot { it.id in seenIds }.distinctBy { it.id }
+            var exhausted = false
+            if (newItems.isEmpty()) {
+                // The addons have no more (Streaming Catalogs lists about 100 a catalogue), so carry on with TMDB's list for the service, a page of
+                // movies and of series at a time (as the web app's service page does).
+                val providerId = providersSnapshot.firstOrNull { service in it.streamingServices() }?.id
+                var tries = 0
+                while (tries < 4 && newItems.isEmpty() && providerId != null) {
+                    tries++
+                    val at = nextTmdbPage
+                    val (movies, shows) = coroutineScope {
+                        val m = async { streamingTitlesRepository.page(service, ContentType.MOVIE, at, providerId) }
+                        val t = async { streamingTitlesRepository.page(service, ContentType.TV_SHOW, at, providerId) }
+                        m.await() to t.await()
+                    }
+                    if (!movies.available && !shows.available) break
+                    nextTmdbPage++
+                    newItems = interleaveTwo(movies.items, shows.items).filterNot { it.id in seenIds }.distinctBy { it.id }
+                    if (at >= maxOf(movies.totalPages, shows.totalPages)) {
+                        exhausted = true
+                        break
+                    }
+                }
+            }
             if (newItems.isEmpty()) {
                 hasMore = false
             } else {
@@ -120,8 +154,20 @@ class StreamingViewModel(application: Application, savedStateHandle: SavedStateH
                 allItems += newItems
                 seenIds += newItems.map { it.id }
                 _uiState.value = RowsBrowseUiState.Loaded(listOf(currentSection()))
+                if (exhausted) hasMore = false
             }
+            _moreComing.value = hasMore
             isLoadingMore = false
         }
+    }
+
+    /** Two lists taken turn about (a movie, a series, a movie ...), as the web app's interleave does for the two kinds. */
+    private fun <T> interleaveTwo(a: List<T>, b: List<T>): List<T> {
+        val out = ArrayList<T>(a.size + b.size)
+        for (i in 0 until maxOf(a.size, b.size)) {
+            a.getOrNull(i)?.let(out::add)
+            b.getOrNull(i)?.let(out::add)
+        }
+        return out
     }
 }
