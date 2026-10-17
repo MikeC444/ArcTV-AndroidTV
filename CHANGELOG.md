@@ -6069,4 +6069,4 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues fixed:** the removal coming back.
 
-**Addendum (same branch):** going UP from the first Home row to the hero used to snap (`scrollToItem(0, 0)` with `heroRegionFocused` already set, which also makes the list's watchdog jump it at once). `HomeScreen` now glides with `animateScrollToItem(0, 0)` first and sets `heroRegionFocused` and focuses Play afterwards. Not built or tried here, as above.
+**Addendum to Post-Milestone-172 (streaming tiles, same branch):** going UP from the first Home row to the hero used to snap (`scrollToItem(0, 0)` with `heroRegionFocused` already set, which also makes the list's watchdog jump it at once). `HomeScreen` now glides with `animateScrollToItem(0, 0)` first and sets `heroRegionFocused` and focuses Play afterwards. Not built or tried here, as above.
