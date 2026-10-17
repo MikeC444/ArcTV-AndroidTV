@@ -40,6 +40,14 @@ describe("addonSupportedBy", () => {
     expect(addonSupportedBy(STREAMING, "fire_tv", null)).toBe(false);
   });
 
+  it("lists it to the phone app from 0.6.0 (its tiles and service pages), not to the 0.5.x phone, which would show it as one giant row", () => {
+    expect(addonSupportedBy(STREAMING, "android_mobile", "0.6.0")).toBe(true);
+    expect(addonSupportedBy(STREAMING, "android_mobile", "0.7.2")).toBe(true);
+    expect(addonSupportedBy(STREAMING, "android_mobile", "0.5.1")).toBe(false);
+    expect(addonSupportedBy(STREAMING, "android_mobile", "0.1.0")).toBe(false);
+    expect(addonSupportedBy(STREAMING, "android_mobile", null)).toBe(false);
+  });
+
   it("does not list it to an app that is not named (until it ships support)", () => {
     expect(addonSupportedBy(STREAMING, "android", "9.9.9")).toBe(false);
     expect(addonSupportedBy(STREAMING, "windows", "1.0.0")).toBe(false);

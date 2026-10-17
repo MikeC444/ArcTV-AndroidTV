@@ -6152,3 +6152,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none beyond the above.
+
+## Post-Milestone-180 -- Server: Streaming Catalogs is also given to the phone app from 0.6.0
+
+**Status:** Done on branch `claude/phone-addon-guard`; not merged or deployed.
+
+**Context:** The phone app (`android_mobile`) had no entry in `ADDON_SUPPORT`, so `GET /user/addons` never listed Streaming Catalogs to it and a phone that had it dropped it on sync (the owner's account has it, and it showed on web and the TV but not on the phone). The phone now has the tiles and service pages (`ArcTV-MobileAPK` branch `claude/brave-davinci-fig1jp`).
+
+**Changes:** `addonCompatibility.ts`: `android_mobile: "0.6.0"` added to the Streaming Catalogs entry (the first phone release with the tiles; 0.5.x has no tiles and would show it as one giant row); a test for it.
+
+**Tests performed:** `tsc` clean; `addon-compatibility.test.ts` passes (9 tests) against the local Postgres. The rest of the suite was not re-run for this one-line table change.
+
+**Issues discovered:** a hand-built or CI debug phone APK reports versionName 0.1.0, so it will not be sent the addon whatever the minimum is; a person testing before the release has to install it by link, and a sync would then drop it (the list is replaced by the server's).
+
+**Issues fixed:** none beyond the above. Deploy only with or after the phone release; the number must match the real release (0.6.0 assumed).

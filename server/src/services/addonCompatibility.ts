@@ -9,11 +9,12 @@ import { STREAMING_CATALOGS_ADDON_ID } from "../data/streamingCatalogsManifest.j
  *
  * Whenever the server starts giving every account something an older app can't handle (a catalogue-only addon, a new kind of addon), add it here
  * with the first version of each app that handles it, and add an app to its entry only once that app has shipped the support. Platforms are what the
- * apps send at sign-in: "web", "fire_tv"; the phone, Mac and Windows apps are added when they support the addon.
+ * apps send at sign-in: "web", "fire_tv", "android_mobile"; the Mac and Windows apps are added when they support the addon.
  */
 export const ADDON_SUPPORT: Record<string, Record<string, string>> = {
   // Catalogue-only (no details of its own): titles open through other addons, the web app always has; the Fire TV app shows it through its Home tiles and service pages from 0.7.0 (0.6.1 opens its titles but has no tiles, so it is not sent it).
-  [STREAMING_CATALOGS_ADDON_ID]: { web: "any", fire_tv: "0.7.0" },
+  // The phone app shows it the same way from 0.6.0 (the tiles and service pages; an older phone has no tiles and would show it as one giant row).
+  [STREAMING_CATALOGS_ADDON_ID]: { web: "any", fire_tv: "0.7.0", android_mobile: "0.6.0" },
 };
 
 /** Numeric compare of dotted versions ("0.6.1" < "0.10.0"); anything after a non-digit in a part is ignored. */
