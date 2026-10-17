@@ -107,7 +107,12 @@ class StremioAddonProvider(
     override val id: String = manifest.id
     override val name: String = manifest.name
 
-    private val supportedCatalogs = manifest.catalogs.filter { it.type in SUPPORTED_CATALOG_TYPES }
+    // An addon made of streaming-service catalogues (Streaming Catalogs) is not turned into rows: all its catalogues would merge into one huge row
+    // named after the first ("Netflix, 2431 titles") that is not Netflix at all. Its titles are for the service tiles, which the TV does not have yet.
+    private val supportedCatalogs = manifest.catalogs.filter { it.type in SUPPORTED_CATALOG_TYPES }.let { all ->
+        val serviceCatalogs = streamingServiceCatalogs(all)
+        if (serviceCatalogs.isEmpty()) all else all.filter { catalog -> serviceCatalogs.none { it === catalog } }
+    }
 
     private val animeCatalogs = manifest.catalogs.filter { it.isUsableAnime() }
     private val animeSearchCatalogs = manifest.catalogs.filter { it.isSearchableAnime() }

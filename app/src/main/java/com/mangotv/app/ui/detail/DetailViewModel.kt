@@ -18,6 +18,7 @@ import com.mangotv.app.data.recommend.Feedback
 import com.mangotv.app.data.provider.blockedGenreSet
 import com.mangotv.app.data.provider.withoutBlocked
 import com.mangotv.app.data.provider.ProviderRegistry
+import com.mangotv.app.data.provider.loadDetails
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -286,13 +287,15 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
             _trailerState.value = TrailerState.Idle
             _releaseDateState.value = ReleaseDateState.Idle
 
-            val provider = ProviderRegistry.activeProviders().find { it.id == providerId }
-            if (provider == null) {
+            val providers = ProviderRegistry.activeProviders()
+            val provider = providers.find { it.id == providerId }
+            if (provider == null && providers.isEmpty()) {
                 _uiState.value = DetailUiState.Error("This addon is no longer installed.")
                 return@launch
             }
 
-            val detail = runCatching { provider.getDetails(contentType, contentId) }.getOrNull()
+            // Cinemeta first, then the addon the title came from, then the rest: a catalogue-only addon lists titles it has no details for.
+            val detail = loadDetails(providers, providerId, contentType, contentId)
             if (detail == null) {
                 _uiState.value = DetailUiState.Error("Couldn't load details for this title.")
                 return@launch
@@ -312,7 +315,7 @@ class DetailViewModel(application: Application, private val savedStateHandle: Sa
             loadReleaseDate(detail)
             loadCast(detail)
 
-            val similar = runCatching { loadSimilar(provider, detail) }.getOrDefault(emptyList())
+            val similar = runCatching { loadSimilar(provider ?: providers.first(), detail) }.getOrDefault(emptyList())
             if (similar.isNotEmpty()) {
                 rawSimilar = similar
                 publish()

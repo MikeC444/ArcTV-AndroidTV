@@ -18,6 +18,7 @@ import com.mangotv.app.data.network.ExternalPlayerEventDto
 import com.mangotv.app.data.network.PlaybackOutcomeDto
 import com.mangotv.app.data.player.StreamHandoff
 import com.mangotv.app.data.provider.ProviderRegistry
+import com.mangotv.app.data.provider.loadDetails
 import com.mangotv.app.ui.sources.pickByAudio
 import com.mangotv.app.ui.sources.recommendedStreamId
 import kotlinx.coroutines.async
@@ -106,8 +107,7 @@ class PlayerViewModel(
             _playbackPhase.value = PlaybackPhase.Loading
 
             val providers = ProviderRegistry.activeProviders()
-            val owningProvider = providers.find { it.id == providerId }
-            val content = owningProvider?.let { runCatching { it.getDetails(contentType, contentId) }.getOrNull() }
+            val content = loadDetails(providers, providerId, contentType, contentId)
             if (content == null) {
                 reportNeverStarted("details did not load")
                 _uiState.value = PlayerScreenUiState.Error("Couldn't load details for this title.")
