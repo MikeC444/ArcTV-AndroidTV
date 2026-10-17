@@ -38,7 +38,9 @@ fun FilterPill(
     // LazyColumn sibling default focus search already handles on its own.
     focusUp: FocusRequester? = null,
     focusDown: FocusRequester? = null,
-    focusLeft: FocusRequester? = null
+    focusLeft: FocusRequester? = null,
+    // A number shown after the label, bigger and bolder than it (the "On Home  10" tabs of Home Rows)
+    count: Int? = null
 ) {
     var focused by remember { mutableStateOf(false) }
     val contentColor = when {
@@ -60,14 +62,28 @@ fun FilterPill(
         focusedElevation = 0f,
         bringIntoViewOnFocus = false
     ) {
-        Text(
-            text = label,
-            color = contentColor,
-            fontWeight = if (focused || selected) FontWeight.Bold else FontWeight.Medium,
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Clip,
-            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp)
-        )
+        androidx.compose.foundation.layout.Row(
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = if (count != null) 4.dp else 6.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                color = contentColor,
+                fontWeight = if (focused || selected) FontWeight.Bold else FontWeight.Medium,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Clip
+            )
+            if (count != null) {
+                androidx.compose.foundation.layout.Spacer(Modifier.padding(start = 8.dp))
+                Text(
+                    text = count.toString(),
+                    color = contentColor,
+                    fontWeight = FontWeight.ExtraBold,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1
+                )
+            }
+        }
     }
 }

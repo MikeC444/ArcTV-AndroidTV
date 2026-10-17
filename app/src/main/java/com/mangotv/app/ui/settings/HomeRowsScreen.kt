@@ -73,7 +73,7 @@ private class HubCard(val key: String, val title: String, val subtitle: String)
 
 /** "10 of 36 on · Netflix, Prime Video, Shudder ..." */
 private fun summary(on: List<String>, total: Int): String {
-    val counts = "${on.size} of $total shown"
+    val counts = "${on.size} of $total on"
     if (on.isEmpty()) return counts
     val more = if (on.size > 4) " …" else ""
     return "$counts · ${on.take(4).joinToString(", ")}$more"
@@ -81,8 +81,8 @@ private fun summary(on: List<String>, total: Int): String {
 
 /**
  * Settings > Home Rows, as a short hub plus a page for each thing that can be switched and ordered, so no list is long: "Streaming tiles", and one page
- * for every installed addon that has rows (a new addon the person installs gets its own page by itself). Each page has two tabs, "Shown on Home" (the ones that
- * are shown, in their order, two across; press OK on the handle to pick one up and move it with the arrows) and "Hidden" (the rest, three across; switching one
+ * for every installed addon that has rows (a new addon the person installs gets its own page by itself). Each page has two tabs, "On Home" (the ones that
+ * are shown, in their order, two across; press OK on the handle to pick one up and move it with the arrows) and "Off" (the rest, three across; switching one
  * on shows it again). Hosted by SettingsScreen's detail pane -- see AccountSettingsContent's kdoc for why this isn't its own screen.
  */
 @Composable
@@ -287,7 +287,7 @@ private fun ColumnScope.ListPage(
     contentFocusRequester: FocusRequester,
     sidebarFocusRequester: FocusRequester
 ) {
-    // 0 = Shown, 1 = Hidden. It opens on Shown, or on Hidden when nothing is shown yet (so the first thing seen is not an empty list)
+    // 0 = On Home, 1 = Off. It opens on On Home, or on Off when nothing is on yet (so the first thing seen is not an empty list)
     var tab by remember { mutableIntStateOf(if (on.isEmpty() && off.isNotEmpty()) 1 else 0) }
     val shownPill = remember { FocusRequester() }
     val hiddenPill = remember { FocusRequester() }
@@ -319,16 +319,16 @@ private fun ColumnScope.ListPage(
     Text(text = subtitle, color = TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 8.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 6.dp)) {
         FilterPill(label = "‹ Back", selected = false, onClick = onBack, focusRequester = contentFocusRequester, focusUp = navFocusRequester, focusLeft = sidebarFocusRequester)
-        FilterPill(label = "Shown on Home · ${on.size}", selected = tab == 0, onClick = { tab = 0 }, focusRequester = shownPill, focusUp = navFocusRequester)
-        FilterPill(label = "Hidden · ${off.size}", selected = tab == 1, onClick = { tab = 1 }, focusRequester = hiddenPill, focusUp = navFocusRequester)
+        FilterPill(label = "On Home", count = on.size, selected = tab == 0, onClick = { tab = 0 }, focusRequester = shownPill, focusUp = navFocusRequester)
+        FilterPill(label = "Off", count = off.size, selected = tab == 1, onClick = { tab = 1 }, focusRequester = hiddenPill, focusUp = navFocusRequester)
     }
     // One plain line on what the tab is and what OK does
     Text(
         text = when {
-            tab == 0 && on.isEmpty() -> "No $noun from here is shown on Home. Open Hidden and press OK on one to show it."
-            tab == 0 -> "These are shown on Home, in this order. Press OK to hide one, or OK on ≡ to pick it up and move it with the arrows."
-            off.isEmpty() -> "Nothing is hidden: every $noun here is shown on Home."
-            else -> "These are not shown on Home. Press OK to show one."
+            tab == 0 && on.isEmpty() -> "No $noun from here is on Home. Open the Off tab and press OK on one to turn it on."
+            tab == 0 -> "These are on Home, in this order. Press OK to turn one off, or OK on ≡ to pick it up and move it with the arrows."
+            off.isEmpty() -> "Nothing is off: every $noun here is on Home."
+            else -> "These are not on Home. Press OK to turn one on."
         },
         color = TextTertiary,
         style = MaterialTheme.typography.bodySmall,
