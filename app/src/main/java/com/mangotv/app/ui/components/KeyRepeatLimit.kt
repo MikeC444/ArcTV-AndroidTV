@@ -13,7 +13,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 
 /** The shortest time between two up / down moves while a D-pad key is held (a press that is not a repeat is never held back). */
-const val VERTICAL_REPEAT_INTERVAL_MS = 220L
+const val VERTICAL_REPEAT_INTERVAL_MS = 120L
 
 /**
  * Whether a D-pad up / down key event may move focus: always for a fresh press ([repeatCount] 0), and for a held key's repeats only once [intervalMs] has passed

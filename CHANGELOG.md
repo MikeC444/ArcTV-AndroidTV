@@ -6078,10 +6078,10 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Context:** Holding the D-pad up or down on Home or a catalogue grid fires a focus move every few milliseconds, so the page flew past rows and, on a Fire TV, stalled.
 
 **Changes:**
-- `ui/components/KeyRepeatLimit.kt`: `Modifier.limitVerticalKeyRepeat()` swallows the repeats of a held up / down key that come less than 220 ms after the last move it let through (a fresh press, and left / right, are never held back); the rule is the pure `allowVerticalMove`. Applied to Home's root (`HomeScreen`) and the catalogue grid (`RowsBrowseGridContent`: Movies, TV Shows, Anime, a streaming service's page, My List).
+- `ui/components/KeyRepeatLimit.kt`: `Modifier.limitVerticalKeyRepeat()` swallows the repeats of a held up / down key that come less than 120 ms after the last move it let through (a fresh press, and left / right, are never held back); the rule is the pure `allowVerticalMove`. Applied to Home's root (`HomeScreen`) and the catalogue grid (`RowsBrowseGridContent`: Movies, TV Shows, Anime, a streaming service's page, My List).
 - Test: `KeyRepeatLimitTest`. `RELEASE_NOTES.md`: one bullet.
 
-**Tests performed:** manual re-read and a structural brace / paren check of the changed Kotlin; no Gradle/Android build or unit-test run was possible here (no route to `dl.google.com`), so it is uncompiled, the test has not run and the speed has not been felt on a device. The interval (220 ms, about four to five rows a second) is a guess to be tuned by hand.
+**Tests performed:** manual re-read and a structural brace / paren check of the changed Kotlin; no Gradle/Android build or unit-test run was possible here (no route to `dl.google.com`), so it is uncompiled, the test has not run and the speed has not been felt on a device. The interval (120 ms, about eight rows a second; 220 ms felt too slow) is a guess to be tuned by hand.
 
 **Issues discovered:** none.
 
