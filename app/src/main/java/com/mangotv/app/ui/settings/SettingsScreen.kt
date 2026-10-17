@@ -235,8 +235,8 @@ internal fun SettingsLayout(
             // The screen is only 540 dp tall: no big title (the nav bar already shows Settings as the open tab) and slim margins, so the side
             // panel shows every category and the card has the height left for its settings.
             showTitle = false,
-            horizontalPadding = 32.dp,
-            verticalPadding = 8.dp,
+            horizontalPadding = 16.dp,
+            verticalPadding = 4.dp,
             titleGap = 0.dp
         ) {
             // Smaller type across the whole page (the side panel, every tab and their dialogs), so more fits on the 540dp-tall screen at once.
@@ -251,7 +251,7 @@ internal fun SettingsLayout(
                 // focused row's scale-up and outline, so the padding sits inside the scroll area (outside it the scroll area would clip them at its edges).
                 Column(
                     modifier = Modifier
-                        .width(252.dp)
+                        .width(300.dp)
                         .fillMaxHeight()
                         .padding(end = 16.dp, bottom = SettingsCardBottomGap)
                         .clip(RoundedCornerShape(18.dp))
@@ -310,7 +310,7 @@ internal fun SettingsLayout(
                         .border(1.dp, DividerSubtle, RoundedCornerShape(18.dp))
                         // No bottom padding: the lists inside end at the card's own edge (SettingsListPadding leaves the room), so a row that is
                         // part-way into view is cut by the card, not by an invisible line above it.
-                        .padding(start = 22.dp, end = 22.dp, top = 16.dp)
+                        .padding(start = 28.dp, end = 28.dp, top = 20.dp)
                 ) {
                     pane(selected, rowFocusRequesterFor(selected))
                 }
@@ -519,7 +519,7 @@ internal fun SettingsDetailPane(
 private const val SettingsTextScale = 0.88f
 
 /** The gap between the bottom of the side panel and the open card and the bottom edge of the screen (a TV can overscan its edges). */
-private val SettingsCardBottomGap = 24.dp
+private val SettingsCardBottomGap = 10.dp
 
 /** Room inside every Settings list for a focused row's outline and scale-up, and at the bottom (72dp) so the last item scrolls fully clear of the card's edge instead of being cut by it. */
 internal val SettingsListPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 72.dp)
