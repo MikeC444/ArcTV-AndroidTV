@@ -14,6 +14,13 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Home now shows your streaming services (Netflix, Disney+ and more) as tiles by default, opening pages with far more titles. Turn them off in Settings.
+- Home looks richer: a soft colour glow behind the hero, a subtle rim on posters, and a gentle lift when you select one.
+- Continue Watching posters now show each title's logo.
+- Your stats now marks today in the busiest-day bars.
+- Home Rows is tidier: Streaming tiles and each addon get their own page.
+- Settings is roomier: a wider side menu and a bigger panel for your settings.
+
 ## 0.6.1
 
 - Bug fixes.

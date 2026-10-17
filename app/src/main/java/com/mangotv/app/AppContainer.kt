@@ -32,6 +32,7 @@ import com.mangotv.app.data.provider.HomeCacheRepository
 import com.mangotv.app.data.provider.HomeRowPreferencesRepository
 import com.mangotv.app.data.provider.MyListRepository
 import com.mangotv.app.data.cast.CastRepository
+import com.mangotv.app.data.streaming.StreamingTitlesRepository
 import com.mangotv.app.data.releasedate.ReleaseDateRepository
 import com.mangotv.app.data.sync.AccountSwitchCoordinator
 import com.mangotv.app.data.sync.AddonSyncRepository
@@ -301,6 +302,7 @@ class AppContainer(context: Context) {
     // Lazy, same reasoning as releaseDateRepository: no side effect to arm early, and nothing needs it before a
     // Detail page is actually opened.
     val castRepository: CastRepository by lazy { CastRepository(authRepository) }
+    val streamingTitlesRepository: StreamingTitlesRepository by lazy { StreamingTitlesRepository(authRepository) }
 
     // Both lazy, same reasoning as trailerRepository above: no side effect
     // to arm early, and UpdateViewModel (the only caller of either) isn't

@@ -4,12 +4,15 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,7 +30,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -37,6 +42,7 @@ import coil.compose.AsyncImage
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.RowStyle
 import com.mangotv.app.ui.theme.MangoDimens
+import com.mangotv.app.ui.theme.MangoMotion
 import com.mangotv.app.ui.theme.MangoSurface
 import com.mangotv.app.ui.theme.ProgressFill
 import com.mangotv.app.ui.theme.ProgressTrack
@@ -62,17 +68,24 @@ fun ContentCard(
     // e.g. Home shrinking its poster rows. Defaults to 1f so every other
     // existing caller is unaffected.
     posterScale: Float = 1f,
+    // The width of the row this card is in, when known: the streaming tiles (five across) are sized from it.
+    rowWidth: androidx.compose.ui.unit.Dp? = null,
     // Reports this specific card's own focus state, distinct from a row's
     // aggregate "is any card in me focused" (see ContentRow.onFocusChanged)
     // -- e.g. My List uses this to remember exactly which title the user
     // was last hovering so returning from the nav bar re-lands on it.
     onFocusChanged: (Boolean) -> Unit = {}
 ) {
+    if (style == RowStyle.STREAMING_SERVICES) {
+        StreamingTile(content = content, onClick = onClick, modifier = modifier, focusRequester = focusRequester, onFocusChanged = onFocusChanged, posterScale = posterScale, rowWidth = rowWidth)
+        return
+    }
     val isContinueWatching = style == RowStyle.CONTINUE_WATCHING
     val scale = (if (compact) 2f / 3f else 1f) * posterScale
     val width = (if (isContinueWatching) MangoDimens.ContinueWatchingWidth else MangoDimens.PosterWidth) * scale
     val height = (if (isContinueWatching) MangoDimens.ContinueWatchingHeight else MangoDimens.PosterHeight) * scale
     var focused by remember { mutableStateOf(false) }
+    val lift = animateFloatAsState(targetValue = if (focused) 1f else 0f, animationSpec = MangoMotion.focusTween, label = "posterLift")
     val imageUrl = if (isContinueWatching) content.backdropUrl else content.posterUrl
     val titleStyle = if (scale < 0.85f) {
         androidx.compose.material3.MaterialTheme.typography.labelMedium
@@ -93,7 +106,14 @@ fun ContentCard(
             onClick = onClick,
             onLongClick = { cardActionsMenu.open(content) },
             onLongClickKeyReleased = { requester -> cardActionsMenu.armFocus(requester) },
-            modifier = Modifier.width(width).height(height),
+            modifier = Modifier
+                .width(width)
+                .height(height)
+                // A focused poster lifts a little as well as growing (like the web app's posters); Continue Watching keeps its own look
+                // (only the drawing moves, not the card's place, so the remote's focus search is not thrown off by a card that has really moved)
+                .drawWithContent {
+                    translate(top = if (isContinueWatching) 0f else -4.dp.toPx() * lift.value) { this@drawWithContent.drawContent() }
+                },
             shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
             backgroundColor = MangoSurface,
             focusRequester = focusRequester,
@@ -115,6 +135,21 @@ fun ContentCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
+
+            // A faint light rim at rest, so a light poster sits on the dark page instead of glaring (the web app's poster rim); gone while focused, when the
+            // focus ring takes over. Continue Watching cards are 16:9 backdrops with their own look.
+            if (!isContinueWatching && !focused) {
+                // (not faded with a layer of its own per card: a grid has dozens of cards on screen, and a layer each made scrolling heavy)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .border(
+                            1.dp,
+                            Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.08f))),
+                            RoundedCornerShape(MangoDimens.CardCornerRadius)
+                        )
+                )
+            }
 
             // Always visible (not gated on focus like the rating/progress
             // overlays below) -- a solid-filled circle rather than a
@@ -165,6 +200,28 @@ fun ContentCard(
             }
 
             if (isContinueWatching) {
+                // The title's logo, small, in the top left corner over a soft darkening so a white logo reads on a pale picture (as the web app's Continue Watching poster)
+                val logoUrl by rememberTitleLogo(content, enabled = true)
+                logoUrl?.let { url ->
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .fillMaxWidth()
+                            .height(height * 0.36f)
+                            .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.55f), Color.Transparent)))
+                    )
+                    AsyncImage(
+                        model = url,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        alignment = Alignment.TopStart,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(start = 8.dp * scale.coerceAtLeast(0.7f), top = 6.dp * scale.coerceAtLeast(0.7f))
+                            .widthIn(max = width * 0.34f)
+                            .heightIn(max = height * 0.18f)
+                    )
+                }
                 val progressGradient = remember {
                     Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f)))
                 }

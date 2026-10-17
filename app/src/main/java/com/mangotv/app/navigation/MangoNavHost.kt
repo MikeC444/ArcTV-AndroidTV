@@ -44,6 +44,7 @@ import com.mangotv.app.ui.auth.PasswordSignInScreen
 import com.mangotv.app.ui.auth.QrSignInScreen
 import com.mangotv.app.ui.browse.MoviesScreen
 import com.mangotv.app.ui.browse.AnimeScreen
+import com.mangotv.app.ui.browse.StreamingScreen
 import com.mangotv.app.ui.browse.TvShowsScreen
 import com.mangotv.app.ui.detail.DetailScreen
 import com.mangotv.app.ui.search.SearchScreen
@@ -390,6 +391,11 @@ fun MangoNavHost() {
                 }
                 composable(MangoRoutes.ANIME) {
                     AnimeScreen(
+                        onNavigate = ::navigateTo
+                    )
+                }
+                composable(MangoRoutes.STREAMING_PATTERN) {
+                    StreamingScreen(
                         onNavigate = ::navigateTo
                     )
                 }

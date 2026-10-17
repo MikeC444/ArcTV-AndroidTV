@@ -94,7 +94,9 @@ data class Content(
 
 enum class RowStyle {
     STANDARD,
-    CONTINUE_WATCHING
+    CONTINUE_WATCHING,
+    // Home's streaming-service tiles (Netflix, Disney+ ...): each item is a stand-in whose id is `streaming:<service>`.
+    STREAMING_SERVICES
 }
 
 data class HomeSection(

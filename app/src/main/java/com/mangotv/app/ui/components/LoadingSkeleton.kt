@@ -204,3 +204,25 @@ fun ShimmerBox(
             .background(MangoSurfaceHigh.copy(alpha = alpha))
     )
 }
+
+/**
+ * One grey poster with two grey caption lines under it, the size of a card (see ContentCard): a grid shows these after its last title while more are still to
+ * come, so the page can be scrolled ahead of what has loaded. Same job as the web app's `PosterPlaceholder`. Deliberately still, not a pulsing [ShimmerBox]:
+ * dozens of them are on screen at once while the person scrolls, and that many separate animations stalled the Fire TV's drawing (the page froze, then jumped).
+ */
+@Composable
+fun PosterPlaceholder(posterScale: Float = 1f, modifier: Modifier = Modifier) {
+    val color = MangoSurfaceHigh.copy(alpha = 0.5f)
+    androidx.compose.foundation.layout.Column(modifier = modifier.width(MangoDimens.PosterWidth * posterScale)) {
+        androidx.compose.foundation.layout.Box(
+            Modifier
+                .width(MangoDimens.PosterWidth * posterScale)
+                .height(MangoDimens.PosterHeight * posterScale)
+                .background(color, RoundedCornerShape(MangoDimens.CardCornerRadius))
+        )
+        androidx.compose.foundation.layout.Spacer(Modifier.height(if (posterScale < 0.85f) 6.dp else 8.dp))
+        androidx.compose.foundation.layout.Box(Modifier.width(MangoDimens.PosterWidth * posterScale * 0.7f).height(12.dp).background(color, RoundedCornerShape(4.dp)))
+        androidx.compose.foundation.layout.Spacer(Modifier.height(5.dp))
+        androidx.compose.foundation.layout.Box(Modifier.width(MangoDimens.PosterWidth * posterScale * 0.32f).height(9.dp).background(color, RoundedCornerShape(4.dp)))
+    }
+}

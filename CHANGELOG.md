@@ -5991,3 +5991,164 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** for a title whose owner is the catalogue-only addon, "You may also like" is empty (that addon has no rows now); it fills in once the TV has service tiles.
 
 **Issues fixed:** posters from a catalogue-only addon failing to open.
+
+## Post-Milestone-171 -- Server: a server-given addon is only listed to apps that can cope with it
+
+**Status:** Done on a branch; not merged or deployed.
+
+**Context:** Deploying Post-Milestone-168 gave every adult profile the Streaming Catalogs addon, a catalogue-only addon whose titles an app can only open if it looks details up in other addons. The Fire TV 0.6.0 app does not (fixed in 0.6.1, Post-Milestone-170), so every poster from it failed to open. The server changes for everyone at once, while an app changes only when its user updates.
+
+**Changes:**
+- `src/services/addonCompatibility.ts` (new): `ADDON_SUPPORT` says, per addon id, which platforms can cope with it and from which app version (Streaming Catalogs: `web` any, `fire_tv` 0.6.1); `addonSupportedBy` and `compareVersions`. An addon not in the table is listed to everyone; a platform not named, or a version not known, is not sent it.
+- `src/routes/addons.ts`: `GET /user/addons` leaves out the addons the device's app can't cope with, using the platform on record and the app version the request sends (else the one on record). A device that already has such an addon drops it on its next pull, so Fire TVs on 0.6.0 are repaired without updating. The seeding itself is unchanged, so the addon appears for a device the moment its app qualifies.
+- Tests: new `tests/addon-compatibility.test.ts`; `createTestSession` can set a device's platform and app version (default Fire TV, as the table does); the Streaming Catalogs seed tests sign in as web.
+- `CLAUDE.md`: a rule to gate any new server-given default by app version before deploying.
+
+**Tests performed:** the whole server suite against a local disposable Postgres (28 files, 351 tests, all passing) and `tsc --noEmit`.
+
+**Issues discovered:** the phone, Mac and Windows apps send other platform names (not checked here), so they do not get the addon until their platform is added to the table, which is the safe default. The web app's device is "web".
+
+**Issues fixed:** none beyond the above.
+
+## Post-Milestone-172 -- TV: streaming-service tiles on Home, switched and ordered in Home Rows, and a page per service
+
+**Status:** Done on a branch; not built here, not merged. The web app's tiles, ported.
+
+**Context:** The web app shows a "Streaming services" row on Home (Netflix, Disney+ ...): one tile per service an installed addon has a catalogue for, with default order and on/off rules, switches and ordering in Settings > Home Rows, a page per service and a glass 3D look. The Fire TV had none of it, so the Streaming Catalogs addon (given to every account by the server) showed nothing there. This copies the web app's behaviour (`domain/streamingServices.ts`, `StreamingTiles.tsx`, `.row--streaming` in `components.css`, `Settings.tsx` HomeRowsPane, `StreamingServiceScreen`).
+
+**Changes:**
+- `data/provider/StreamingServices.kt`: the 36 services with names, default order and `off` flags, plus the rules (`isServiceVisible`, `withServiceVisible`, `visibleServices`, `inUserOrder`, `moveService`, `withServiceOrder`, `orderServices`, `orderKeepingServices`) and `serviceCatalogsByService`. Same ids in the same synced lists as the web app (`streaming:<id>` hidden or ordered, `streaming-on:<id>` turned on), so the choices follow the account to the web app and back with no backend change.
+- `CatalogProvider` / `StremioAddonProvider` / `ProviderRegistry`: `streamingServices()`, `getServiceItems(service)`, `getMoreServiceItems(page, service)` (more pages only from a catalogue that declares `skip`, as on the web).
+- `HomeRowPreferencesRepository`: `setServiceVisible`, `setServiceOrder`; reordering rows no longer drops the `streaming:` entries of the order list.
+- Home: a `RowStyle.STREAMING_SERVICES` row (`ui/home/StreamingTilesRow.kt`, `streamingTilesSection`) between Continue Watching and Picked for you, with no heading; a tile opens `streaming/{service}`.
+- `ui/components/StreamingTile.kt` (+ `ui/home/StreamingLogos.kt`, 17 logo files in `res/drawable-nodpi`): five tiles across, each service's own colour or gradient, logo tinted white or black where the web does, the glass overlay and bright top rim, a coloured light beneath at the web's per-service strengths (quiet at rest, full when focused), and a lift and scale on focus (the lift is drawn only, the tile's place does not move, so the remote's focus search is not thrown off; the web's slight tip back is left out for the same reason). The light is drawn (radial gradient), not a blurred shadow, because of minSdk 23.
+- Settings > Home Rows: a "Streaming services" group above the rows with a switch and the reorder handle for each service (the screen's own control in place of the web's arrows).
+- `StreamingScreen` / `StreamingViewModel` (`ui/browse`): the service's page, a grid that loads more as it scrolls, back to Home when no addon has the service. Route `streaming/{service}`.
+- Server guard (`addonCompatibility.ts`): Streaming Catalogs is sent to the Fire TV from **0.7.0** (was 0.6.1), the version assumed to ship these tiles; the 0.6.x apps have no tiles, so they are not sent it. Change the number to match the real release before deploying the server.
+- Tests: `StreamingServicesTest` (rules, provider methods), `StreamingTilesRowTest`; server `addon-compatibility.test.ts` updated.
+- `RELEASE_NOTES.md`: one bullet under Unreleased.
+
+**Tests performed:** the server suite parts touched (13 tests passing against a local Postgres) and `tsc --noEmit`. For the app: manual re-read of every diff against the web files and a structural brace / paren / bracket balance check of each changed Kotlin file. No Gradle/Android build or unit-test run was possible here (no route to `dl.google.com`), so the Kotlin is uncompiled, the new tests have not run, and the tile look has not been seen on a screen.
+
+**Issues discovered:** the web app's pointer tilt (mouse only) has no TV equivalent and was left out. Not done in this change: the web app's continuation past the addon's ~200 titles with TMDB (`GET /user/streaming-titles`) and grey placeholders, which the owner asked to follow in a second step.
+
+**Issues fixed:** none beyond the above.
+
+## Post-Milestone-173 -- TV: service pages carry on past the addon's titles, the title logo on Continue Watching, and Home polish
+
+**Status:** Done on a branch (the same one as Post-Milestone-172); not built here, not merged. Ports of the web app's PRs for the same.
+
+**Context:** Three more pieces of the web app's Home, after the streaming-service tiles (Post-Milestone-172): a service page that goes on past the ~200 titles its addon lists, the title's logo on Continue Watching posters, and the Home polish (poster rim and lift, the hero's colour wash).
+
+**Changes:**
+- Service pages: `StreamingViewModel.loadMore` carries on with `GET /user/streaming-titles` (movies and series, a page of each at a time, most popular first, for the device's country, else GB) once the addons have no more, stops at the last page, and exposes `moreComing`; new `data/network/StreamingTitlesApiClient.kt` and `data/streaming/StreamingTitlesRepository.kt` (never throws: signed out or an error means "not available" and the page stops at the addon's titles). The grid (`RowsBrowseGridContent`) shows grey poster shapes (`PosterPlaceholder`: a poster and two caption lines) in the cells right after the last title and three rows more while `moreComing`; the next page starts loading as they come into view.
+- Continue Watching posters: `ui/components/TitleLogo.kt` looks a title's logo up once through `loadDetails` (Cinemeta first, as the details page; remembered for the session, nothing remembered while addons are loading or when the look-up fails) and `ContentCard` draws it small (at most a third of the width and 18% of the height) in the top left over a soft darkening.
+- Home polish: posters get a faint light rim at rest (gone while focused) and lift 4dp when focused (drawn only, the card's place does not move), as well as the existing growth (`ContentCard`); the hero's colour wash: `ui/home/WashColor.kt` takes the title's artwork down to one colour (port of the web's `washColor.ts`, decoded small through Coil) and `HomeScreen` draws it as one wide eased ellipse from the hero's lower edge onto the first rows, fading over 0.9 s between titles; none when the picture has no colour. The "Streaming services" heading was already left out (Post-Milestone-172).
+- Tests: `WashColorTest`, `StreamingTitlesRepositoryTest`.
+- `RELEASE_NOTES.md`: the tiles bullet now says the pages hold far more titles; two new bullets (logos; Home look).
+
+**Tests performed:** manual re-read against the web files and a structural brace / paren / bracket balance check of each changed Kotlin file. No Gradle/Android build or unit-test run was possible here (no route to `dl.google.com`), so the Kotlin is uncompiled, the new tests have not run, and none of it has been seen on a screen. The TMDB continuation needs the server's `/user/streaming-titles`, which is deployed (Post-Milestone-169), and its TMDB provider ids are unchecked against live TMDB.
+
+**Issues discovered:** the wash is drawn from the hero's list item beyond its own bounds (the rows are drawn after it); if the list clips that, it will show only over the hero's lower part.
+
+**Issues fixed:** none beyond the above.
+
+## Post-Milestone-174 -- TV: Remove from Continue Watching no longer comes straight back
+
+**Status:** Done on a branch (the same one as Post-Milestone-172 / 173); not built here, not merged.
+
+**Context:** Pressing Remove from Continue Watching on the TV made the poster flash away and come straight back. The server takes a removal only when its timestamp is later than the entry's own (`UPDATE ... WHERE updated_at < $5`, last write wins) and otherwise answers with the entry unchanged; `ContinueWatchingSyncRepository.reconcile` then put that entry back. The removal is stamped with the TV's clock, so a clock behind the time the entry was last written (the entry's `updated_at` is the `watchedAt` of its last progress report) loses every time. Cause read from the code and the server query, not reproduced on a device.
+
+**Changes:**
+- `ContinueWatchingSyncRepository.sendRemoval`: when the server's answer still holds the entry, the removal is sent once more, stamped just after that entry's `lastWatchedAt` (and never earlier than now), through the new pure `removalRetryTime`. Used for a fresh removal and for queued ones retried later. A play on another device after the press is still beaten only by the person's own, newer press; the server's rule is unchanged.
+- Test: `RemovalRetryTimeTest`. `RELEASE_NOTES.md`: one bullet.
+
+**Tests performed:** manual re-read and a structural brace / paren check of the changed Kotlin; no Gradle/Android build or unit-test run was possible here (no route to `dl.google.com`), so it is uncompiled, the test has not run and the fix has not been tried on a device.
+
+**Issues discovered:** the web app stamps removals with `monotonicIso` (strictly after its own previous stamp for the entry), which does not help when the clock itself is behind the entry; it would fail the same way on a browser with a wrong clock.
+
+**Issues fixed:** the removal coming back.
+
+**Addendum to Post-Milestone-172 (streaming tiles, same branch):** going UP from the first Home row to the hero used to snap (`scrollToItem(0, 0)` with `heroRegionFocused` already set, which also makes the list's watchdog jump it at once). `HomeScreen` now glides with `animateScrollToItem(0, 0)` first and sets `heroRegionFocused` and focuses Play afterwards. Not built or tried here, as above.
+
+## Post-Milestone-175 -- TV: a held up / down key scrolls at a limited speed
+
+**Status:** Done on a branch (the same one as Post-Milestone-172 to 174); not built here, not merged.
+
+**Context:** Holding the D-pad up or down on Home or a catalogue grid fires a focus move every few milliseconds, so the page flew past rows and, on a Fire TV, stalled.
+
+**Changes:**
+- `ui/components/KeyRepeatLimit.kt`: `Modifier.limitVerticalKeyRepeat()` swallows the repeats of a held up / down key that come less than 120 ms after the last move it let through (a fresh press, and left / right, are never held back); the rule is the pure `allowVerticalMove`. Applied to Home's root (`HomeScreen`) and the catalogue grid (`RowsBrowseGridContent`: Movies, TV Shows, Anime, a streaming service's page, My List).
+- Test: `KeyRepeatLimitTest`. `RELEASE_NOTES.md`: one bullet.
+
+**Tests performed:** manual re-read and a structural brace / paren check of the changed Kotlin; no Gradle/Android build or unit-test run was possible here (no route to `dl.google.com`), so it is uncompiled, the test has not run and the speed has not been felt on a device. The interval (120 ms, about eight rows a second; 220 ms felt too slow) is a guess to be tuned by hand.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none beyond the above.
+
+## Post-Milestone-176 -- TV: Home Rows as a short hub with a page for the streaming tiles and one for each addon
+
+**Status:** Done on a branch (the same one as Post-Milestone-172 to 175); not built here, not merged.
+
+**Context:** Settings > Home Rows had become one very long list (the streaming services, then every addon's rows, 60-odd lines), hard to move through with a remote. The owner picked a hub layout from a mock-up and asked that any addon installed later get its own page.
+
+**Changes:**
+- `HomeRowsScreen.kt` rewritten: a short hub with a card for "Streaming tiles" and one card per installed addon that has rows (an addon installed later gets its own card by itself; one with no rows, such as a stream-only addon, has none). A card opens a page with a Back pill and every item in one list, in its order: each line is compact (about 28dp, so roughly twice as many fit on screen) and has its place number, a name with a small custom switch (OK turns it on or off; one that is off is dimmed) and two buttons, ▲ and ▼, that move it up or down one place (dimmed at the ends; the cursor stays on the button pressed, so a row can be moved several places by pressing again). One line says how many are on and what OK does; the cursor starts on the first item (not on the top bar the page was opened from). The remote's Back goes from a page to the hub, which re-focuses the card that was opened; an addon removed while its page is open sends the page back to the hub; an item stays in its place when switched, so focus is never lost.
+- `HomeRowsViewModel`: `AddonRows` (rows kept per addon), `moveRowWithin`, `moveServiceWithin`; a service turned on stays where it is in the list.
+- `reorderWithin` (pure) moves an item among a page's items while every other row keeps its place in Home's single order list; `HomeRowPreferencesRepository.setRowOrder` saves it (the `streaming:` entries are kept). `FilterPill` gained `focusLeft`.
+- Test: `ReorderWithinTest`. `RELEASE_NOTES.md`: one bullet.
+
+**Tests performed:** manual re-read and a structural brace / paren check of the changed Kotlin; no Gradle/Android build or unit-test run was possible here (no route to `dl.google.com`), so it is uncompiled, the test has not run and the pages have not been tried with a remote.
+
+**Issues discovered:** a row switched back on keeps its old place in Home's order (only a streaming service goes to the end), since rows have no fixed default end.
+
+**Issues fixed:** none beyond the above.
+
+## Post-Milestone-177 -- Server: an older app's sign-up and settings no longer fail or reset things
+
+**Status:** Done on a branch (the same one as Post-Milestone-171 to 176); not merged or deployed.
+
+**Context:** An audit of the API against every app: the web app, the Fire TV app (0.6.x and the new build), the phone app (0.5.x, platform `android_mobile`), the Mac app (0.2.x, `macos`) and the Windows app (`windows`). Two ways a server that is ahead already hurt apps that are behind:
+1. `POST /auth/register` required a `displayName` (#59), but the phone, Mac and Windows sign-up forms still say "Display name (optional)" and send none when it is empty, so a new account could not be created on those three ("Enter a display name").
+2. The streaming tiles' order is stored in `homeRowOrder` as `streaming:<id>` entries. Every older app rewrites that list from just the rows it knows when the person reorders rows, so the order set on the web or the Fire TV was silently reset.
+
+**Changes:**
+- `schemas/auth.ts`: `displayName` is optional on register; one that is sent must still be real (empty or blank is refused). `services/authService.ts`: `defaultDisplayName` takes the name from the email (first word before the @, capitalised, at most 24 characters, else "Me") when none is sent; it is also the default profile's name.
+- `services/settingsService.ts`: `keepServiceOrder`: when a pushed `homeRowOrder` has no `streaming:` entries the stored ones are kept (after the rows); one that has any replaces them.
+- Tests: `auth-register.test.ts` updated (missing name now works, blank still refused), new `auth-default-name.test.ts` and `settings-streaming-order.test.ts`.
+
+**Tests performed:** the whole server suite against a local disposable Postgres (30 files, 360 tests, all passing) and `tsc --noEmit`.
+
+**Issues discovered (nothing to change on the server):** every route the phone, Mac, Windows and Fire TV apps call exists with the same shape; unknown JSON keys are ignored by all of them (Kotlin `ignoreUnknownKeys`, Swift `Codable`, `System.Text.Json` Web defaults), so added response fields are safe; every app sends `X-ArcTV-App-Version` and its platform at sign-in, which the guard (Post-Milestone-171) keys on, and the Streaming Catalogs addon is therefore held back from `android_mobile`, `macos` and `windows` until they are added to `ADDON_SUPPORT`; `PUT /user/settings` limits (500 entries of 200 characters) leave plenty of room for the tiles' entries. Devices that signed in before the `platform` column existed have the column's default (`fire_tv`); the phone is on 0.5.x so the version check still holds them back, but a phone that reached 0.7.0 under that default would be sent the addon. The web app's `app-promo` reports were never forwarded by the web server (fixed in the web repo).
+
+**Issues fixed:** the two above.
+
+## Post-Milestone-178 -- TV: bigger Settings side panel and card
+
+**Status:** Done on a branch (the same one as Post-Milestone-171 to 177); not built here, not merged.
+
+**Context:** The owner asked for the two Settings boxes (side menu, then the settings card) to be bigger.
+
+**Changes:**
+- `SettingsScreen.kt`: side panel 252dp to 300dp; screen margins 32dp/8dp to 16dp/4dp; gap under the boxes 24dp to 10dp; card inner padding 22/16dp to 28/20dp.
+
+**Tests performed:** manual re-read; no Gradle/Android build was possible here (no route to `dl.google.com`), so it is uncompiled and the layout has not been seen on a screen.
+
+**Issues discovered:** the lists' bottom padding and the focus bring-into-view insets were sized for the old 24dp gap; the last row may sit a little closer to the card edge.
+
+**Issues fixed:** none beyond the above.
+
+## Post-Milestone-179 -- TV: Your stats marks today on the busiest-day bars
+
+**Status:** Done on a branch (the same one as Post-Milestone-171 to 178); not built here, not merged.
+
+**Context:** The parity log listed "weekday bars mark today" (web, 16 Oct) as open for the TV; the other parts of that row were already on the TV.
+
+**Changes:** `StatsSettingsScreen.kt` `WeekdayBlock`: today's weekday name is bold and bright with a small dot after it (the web's marker).
+
+**Tests performed:** manual re-read and a brace / paren balance check; no Gradle/Android build was possible here (no route to `dl.google.com`), so it is uncompiled and not seen on a screen.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none beyond the above.

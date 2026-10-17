@@ -1,6 +1,7 @@
 package com.mangotv.app.ui.browse
 
 import com.mangotv.app.data.provider.ProviderRegistry
+import com.mangotv.app.data.provider.streamingServiceById
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
@@ -63,6 +64,8 @@ import com.mangotv.app.ui.components.DropdownPicker
 import com.mangotv.app.ui.components.FilterPill
 import com.mangotv.app.ui.components.FullScreenErrorState
 import com.mangotv.app.ui.components.GridLoadingSkeleton
+import com.mangotv.app.ui.components.PosterPlaceholder
+import com.mangotv.app.ui.components.limitVerticalKeyRepeat
 import com.mangotv.app.ui.components.RowsLoadingSkeleton
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.detail.PendingDetailCache
@@ -136,7 +139,9 @@ fun RowsBrowseContent(
     // A drop-down beside the screen title (GRID layout only): "All genres" on Movies / TV Shows, "Sort by" on My List,
     // as on the web. Null by default, so every other screen is unchanged. The lambda is given the focus wiring that
     // joins it to the nav bar above and the filter / sort pills (or the grid) below.
-    headerAction: (@Composable (BrowseHeaderFocus) -> Unit)? = null
+    headerAction: (@Composable (BrowseHeaderFocus) -> Unit)? = null,
+    // Grey poster shapes after the last title while more are still to come (GRID layout only; a streaming service's page)
+    placeholders: Boolean = false
 ) {
     Box(Modifier.fillMaxSize().background(MangoBackground)) {
         when (uiState) {
@@ -163,7 +168,7 @@ fun RowsBrowseContent(
                 RowsBrowseGridContent(
                     screenTitle, navLabel, uiState.sections.flatMap { it.items }, onNavigate, emptyMessage, onLoadMore,
                     filterOptions, selectedFilterIndex, onFilterSelected,
-                    headerAction
+                    headerAction, placeholders
                 )
             } else {
                 RowsBrowseLoadedContent(
@@ -598,6 +603,9 @@ private fun CatalogSortPill(
 // it so the loading skeleton's column count matches the real grid exactly.
 const val GRID_COLUMNS = 7
 
+/** Rows of grey poster shapes shown after the last title while more are still to come. */
+private const val PLACEHOLDER_ROWS = 3
+
 /**
  * Vertical, multi-column poster grid -- Movies, TV Shows, Genre Results, and
  * My List. Deliberately NOT LazyVerticalGrid: ContentCard sizes itself with
@@ -632,7 +640,8 @@ private fun RowsBrowseGridContent(
     filterOptions: List<String> = emptyList(),
     selectedFilterIndex: Int = 0,
     onFilterSelected: (Int) -> Unit = {},
-    headerAction: (@Composable (BrowseHeaderFocus) -> Unit)? = null
+    headerAction: (@Composable (BrowseHeaderFocus) -> Unit)? = null,
+    placeholders: Boolean = false
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -785,7 +794,7 @@ private fun RowsBrowseGridContent(
         onNavigate(MangoRoutes.detail(providerId, target.type, target.id))
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize().limitVerticalKeyRepeat()) {
         // Driven by width only: the scale that makes exactly GRID_COLUMNS
         // columns fill the available width edge-to-edge within the existing
         // screen margins/card spacing. An earlier version also computed a
@@ -933,6 +942,8 @@ private fun RowsBrowseGridContent(
                                 },
                             horizontalArrangement = Arrangement.spacedBy(MangoDimens.CardSpacing)
                         ) {
+                            // the grey shapes carry on in the cells right after the last title
+                            val fillers = if (placeholders && rowIndex == rows.lastIndex) GRID_COLUMNS - rowItems.size else 0
                             rowItems.forEachIndexed { colIndex, content ->
                                 ContentCard(
                                     content = content,
@@ -951,6 +962,18 @@ private fun RowsBrowseGridContent(
                                         }
                                     }
                                 )
+                            }
+                            repeat(fillers) { PosterPlaceholder(posterScale = posterScale) }
+                        }
+                    }
+                    if (placeholders) {
+                        // three more rows of grey shapes, so the page can be scrolled ahead of what has loaded
+                        items(PLACEHOLDER_ROWS, key = { "grid_placeholder_$it" }) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = MangoDimens.ScreenPaddingHorizontal, vertical = MangoDimens.RowSpacing / 2),
+                                horizontalArrangement = Arrangement.spacedBy(MangoDimens.CardSpacing)
+                            ) {
+                                repeat(GRID_COLUMNS) { PosterPlaceholder(posterScale = posterScale) }
                             }
                         }
                     }
@@ -1036,6 +1059,33 @@ fun AnimeScreen(onNavigate: (String) -> Unit, viewModel: AnimeViewModel = viewMo
         if (providers.isNotEmpty() && !ProviderRegistry.hasAnime(providers)) onNavigate(MangoRoutes.HOME)
     }
     TypeBrowseScreen(title = "Anime", onNavigate = onNavigate, viewModel = viewModel, emptyWithoutGenre = "Your anime addons didn't return any titles right now.")
+}
+
+/**
+ * A streaming service's page, opened from its Home tile: that service's titles from the installed addons (see [StreamingViewModel]). Back goes to Home, whose
+ * tab stays highlighted. Goes back to Home when no installed addon has the service any more.
+ */
+@Composable
+fun StreamingScreen(onNavigate: (String) -> Unit, viewModel: StreamingViewModel = viewModel()) {
+    val providers by ProviderRegistry.providers.collectAsStateWithLifecycle()
+    LaunchedEffect(providers) {
+        if (providers.isNotEmpty() && viewModel.service !in ProviderRegistry.streamingServices(providers)) onNavigate(MangoRoutes.HOME)
+    }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val moreComing by viewModel.moreComing.collectAsStateWithLifecycle()
+    val name = streamingServiceById(viewModel.service)?.name ?: "Streaming"
+    RowsBrowseContent(
+        screenTitle = name,
+        navLabel = "Home",
+        uiState = uiState,
+        onNavigate = onNavigate,
+        onRetry = viewModel::load,
+        layout = RowsBrowseLayout.GRID,
+        onLoadMore = viewModel::loadMore,
+        emptyMessage = "Your addons didn't return any $name titles right now.",
+        headerAction = null,
+        placeholders = moreComing
+    )
 }
 
 /** Movies and TV Shows: the same grid, with the "All genres" drop-down beside the title (as on the web). */

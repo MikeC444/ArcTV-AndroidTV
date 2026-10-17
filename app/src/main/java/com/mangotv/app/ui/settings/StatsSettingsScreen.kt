@@ -494,6 +494,8 @@ private fun RecapBlock(stats: WatchStats) {
 @Composable
 private fun WeekdayBlock(stats: WatchStats) {
     val peak = (stats.byWeekdayMs.maxOrNull() ?: 1L).coerceAtLeast(1L)
+    // Monday is 0, as in WEEKDAYS (Calendar counts Sunday as 1)
+    val today = (java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK) + 5) % 7
     Column {
         Text(
             text = "Busiest day" + (stats.busiestWeekday?.let { ": ${WEEKDAYS[it]}" } ?: ""),
@@ -520,7 +522,14 @@ private fun WeekdayBlock(stats: WatchStats) {
                             )
                         )
                     }
-                    Text(day.take(3), color = TextSecondary, style = MaterialTheme.typography.labelSmall.copy(shadow = Shadow(ArcCyan.copy(alpha = 0.4f), blurRadius = 12f)))
+                    // today's name is bold and bright, with a small dot (the web's marker)
+                    val isToday = i == today
+                    Text(
+                        day.take(3) + if (isToday) " •" else "",
+                        color = if (isToday) TextPrimary else TextSecondary,
+                        fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                        style = MaterialTheme.typography.labelSmall.copy(shadow = Shadow(ArcCyan.copy(alpha = 0.4f), blurRadius = 12f))
+                    )
                 }
             }
         }

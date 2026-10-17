@@ -118,4 +118,13 @@ interface CatalogProvider {
 
     /** Like [search], for the anime catalogues only. */
     suspend fun searchAnime(query: String, onPartial: ((List<Content>) -> Unit)? = null): List<Content> = emptyList()
+
+    /** The streaming services (Netflix, Disney+ ...) this addon has catalogues for, read from the manifest with no request. */
+    fun streamingServices(): List<String> = emptyList()
+
+    /** One service's titles (movies and series together) as the first page; [getMoreServiceItems] reads the following pages. */
+    suspend fun getServiceItems(service: String): List<Content> = emptyList()
+
+    /** The following pages of [getServiceItems]; [page] is 1-indexed as in [getMoreItemsByType]. */
+    suspend fun getMoreServiceItems(page: Int, service: String): List<Content> = emptyList()
 }

@@ -141,7 +141,28 @@ class HomeRowPreferencesRepository(context: Context) {
         if (newIndex == index) return@withContext
         ids.removeAt(index)
         ids.add(newIndex, rowId)
-        update(_preferences.value.copy(order = ids))
+        // The streaming-service tiles keep their own order in the same list (`streaming:<id>`), which Settings does not show among the rows: keep it.
+        update(_preferences.value.copy(order = orderKeepingServices(ids, _preferences.value.order)))
+        onLocalChange?.invoke()
+    }
+
+    /** Saves the order of the ordinary rows as Settings shows them ([displayed], every addon's rows); the streaming services' entries are kept as they were. */
+    suspend fun setRowOrder(displayed: List<String>) = withContext(Dispatchers.IO) {
+        update(_preferences.value.copy(order = orderKeepingServices(displayed, _preferences.value.order)))
+        onLocalChange?.invoke()
+    }
+
+    /** Shows or hides one streaming-service tile (a service that is off by default needs a "turned on" marker, see [isServiceVisible]). */
+    suspend fun setServiceVisible(service: String, visible: Boolean) = withContext(Dispatchers.IO) {
+        val current = _preferences.value
+        update(current.copy(hiddenRowIds = withServiceVisible(current.hiddenRowIds, service, visible)))
+        onLocalChange?.invoke()
+    }
+
+    /** Puts the streaming-service tiles in [services]' order (kept in the same list as the rows' order, as `streaming:<id>`). */
+    suspend fun setServiceOrder(services: List<String>) = withContext(Dispatchers.IO) {
+        val current = _preferences.value
+        update(current.copy(order = withServiceOrder(current.order, services)))
         onLocalChange?.invoke()
     }
 
@@ -173,4 +194,21 @@ class HomeRowPreferencesRepository(context: Context) {
     companion object {
         private val PREFS_KEY = stringPreferencesKey("home_row_prefs_json")
     }
+}
+
+/**
+ * [globalOrder] (every row, in the order Home uses) after [rowId] moved [delta] places among [subset] (the rows one Settings page shows, in their order): the
+ * other rows keep their places, and the subset's rows take the subset's places in the new order. Null when it cannot move that way.
+ */
+fun reorderWithin(globalOrder: List<String>, subset: List<String>, rowId: String, delta: Int): List<String>? {
+    val moved = subset.toMutableList()
+    val at = moved.indexOf(rowId)
+    if (at < 0) return null
+    val to = (at + delta).coerceIn(0, moved.lastIndex)
+    if (to == at) return null
+    moved.removeAt(at)
+    moved.add(to, rowId)
+    val inSubset = subset.toSet()
+    var next = 0
+    return globalOrder.map { if (it in inSubset) moved[next++] else it }
 }
