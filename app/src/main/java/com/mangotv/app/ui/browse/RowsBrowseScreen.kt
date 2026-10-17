@@ -65,6 +65,7 @@ import com.mangotv.app.ui.components.FilterPill
 import com.mangotv.app.ui.components.FullScreenErrorState
 import com.mangotv.app.ui.components.GridLoadingSkeleton
 import com.mangotv.app.ui.components.PosterPlaceholder
+import com.mangotv.app.ui.components.limitVerticalKeyRepeat
 import com.mangotv.app.ui.components.RowsLoadingSkeleton
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.detail.PendingDetailCache
@@ -793,7 +794,7 @@ private fun RowsBrowseGridContent(
         onNavigate(MangoRoutes.detail(providerId, target.type, target.id))
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize().limitVerticalKeyRepeat()) {
         // Driven by width only: the scale that makes exactly GRID_COLUMNS
         // columns fill the available width edge-to-edge within the existing
         // screen margins/card spacing. An earlier version also computed a

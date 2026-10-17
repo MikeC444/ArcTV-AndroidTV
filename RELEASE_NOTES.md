@@ -18,6 +18,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Continue Watching posters now show each title's logo.
 - Home looks richer: a soft colour glow behind the hero, a subtle rim on posters, and a gentle lift when you select one.
 - Fixed Remove from Continue Watching: the title now stays gone instead of coming straight back.
+- Holding up or down on the remote now scrolls at a comfortable speed on Home and catalogs.
 
 ## 0.6.1
 

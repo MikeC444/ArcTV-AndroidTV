@@ -29,6 +29,7 @@ import kotlin.math.exp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import com.mangotv.app.data.model.RowStyle
+import com.mangotv.app.ui.components.limitVerticalKeyRepeat
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -338,7 +339,7 @@ private fun HomeContent(
         serviceOfTileId(tile.id)?.let { onNavigate(MangoRoutes.streaming(it)) }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize().limitVerticalKeyRepeat()) {
         // The outer list is scrolled exclusively by the explicit
         // centering LaunchedEffect above now -- disabling Compose's own
         // automatic bring-into-view here stops it from also reacting to a

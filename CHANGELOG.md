@@ -6070,3 +6070,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues fixed:** the removal coming back.
 
 **Addendum to Post-Milestone-172 (streaming tiles, same branch):** going UP from the first Home row to the hero used to snap (`scrollToItem(0, 0)` with `heroRegionFocused` already set, which also makes the list's watchdog jump it at once). `HomeScreen` now glides with `animateScrollToItem(0, 0)` first and sets `heroRegionFocused` and focuses Play afterwards. Not built or tried here, as above.
+
+## Post-Milestone-175 -- TV: a held up / down key scrolls at a limited speed
+
+**Status:** Done on a branch (the same one as Post-Milestone-172 to 174); not built here, not merged.
+
+**Context:** Holding the D-pad up or down on Home or a catalogue grid fires a focus move every few milliseconds, so the page flew past rows and, on a Fire TV, stalled.
+
+**Changes:**
+- `ui/components/KeyRepeatLimit.kt`: `Modifier.limitVerticalKeyRepeat()` swallows the repeats of a held up / down key that come less than 220 ms after the last move it let through (a fresh press, and left / right, are never held back); the rule is the pure `allowVerticalMove`. Applied to Home's root (`HomeScreen`) and the catalogue grid (`RowsBrowseGridContent`: Movies, TV Shows, Anime, a streaming service's page, My List).
+- Test: `KeyRepeatLimitTest`. `RELEASE_NOTES.md`: one bullet.
+
+**Tests performed:** manual re-read and a structural brace / paren check of the changed Kotlin; no Gradle/Android build or unit-test run was possible here (no route to `dl.google.com`), so it is uncompiled, the test has not run and the speed has not been felt on a device. The interval (220 ms, about four to five rows a second) is a guess to be tuned by hand.
+
+**Issues discovered:** none.
+
+**Issues fixed:** none beyond the above.
