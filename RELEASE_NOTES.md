@@ -14,7 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
-- Fixed posters that wouldn't open: every title now finds its details, and the big mixed-up streaming row is gone.
+- Bug fixes.
 
 ## 0.6.0
 
