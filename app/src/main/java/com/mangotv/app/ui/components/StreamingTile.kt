@@ -33,7 +33,6 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -172,7 +171,6 @@ fun StreamingTile(
     val height = width * (MangoDimens.ContinueWatchingHeight.value / MangoDimens.ContinueWatchingWidth.value)
     val corner = 14.dp
     val shape = RoundedCornerShape(corner)
-    val density = LocalDensity.current
     val glow = brand?.glow ?: Color.White.copy(alpha = 0.25f)
     val glowAlpha = if (brand != null) brand.rest + (brand.hover - brand.rest) * focus else 0.12f + 0.13f * focus
 
@@ -196,11 +194,10 @@ fun StreamingTile(
                         drawCircle(brush = Brush.radialGradient(colorStops = stops, center = centre, radius = radius), radius = radius, center = centre)
                     }
                 }
-                // focused: lifts and tips back a little (the web's translateY(-6px) rotateX(4deg))
+                // focused: lifts a little (the web's translateY(-6px)); the web's slight tip back is left out, because a rotated tile reports distorted bounds
+                // to the remote's focus search, which can leave focus unable to move on to the next tile
                 .graphicsLayer {
                     translationY = -6.dp.toPx() * focus
-                    rotationX = 4f * focus
-                    cameraDistance = 16f * density.density
                 }
         ) {
             TvFocusSurface(
