@@ -5972,3 +5972,22 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-170 -- TV: titles open again (details from any addon) and a streaming-catalogue addon is no longer one giant row
+
+**Status:** Done on a branch; not built here, not merged.
+
+**Context:** After the server began giving every adult profile the Streaming Catalogs addon (Post-Milestone-168), clicking posters on the Fire TV showed "Something went wrong · Couldn't load details for this title." The TV asked only the addon a poster came from for its details (`DetailViewModel`, `SourcesViewModel`, `PlayerViewModel`), and Streaming Catalogs is catalogue-only (no `meta` resource), so every title it listed failed. With no service tiles on the TV yet, its ~70 catalogues were also merged into one Home row named after the first ("Netflix", about 2,400 mixed titles). Cause read from the code; not reproduced on a device.
+
+**Changes:**
+- `data/provider/DetailSource.kt` (new): `detailOrder` (Cinemeta first for an IMDb id while installed and on, then the owning addon, then the rest in the person's order) and `loadDetails` (first addon to answer wins; a failure moves on; the result stays filed under the owner so Continue Watching, last source and My List are unchanged). Same rule as the web app's `domain/detailSource.ts`.
+- `DetailViewModel`, `SourcesViewModel`, `PlayerViewModel` use `loadDetails`. The Detail screen's "This addon is no longer installed" now shows only when no addon is installed at all; its "You may also like" row uses the owner, else the first addon.
+- `data/provider/StreamingServices.kt` (new): the web app's service word list and matching (`serviceOfCatalog`) and `streamingServiceCatalogs` (an addon with catalogues for three or more services). `StremioAddonProvider` leaves those catalogues out of its rows, so no merged row. The service tiles themselves are not part of this change.
+- Tests: new `DetailSourceTest.kt` (order, falling through a null and a throw, owner kept, none answering) and `StreamingServicesTest.kt` (matching, no rows for a three-service addon, a lone "Netflix Originals" catalogue keeps its row).
+- `RELEASE_NOTES.md`: one bullet under Unreleased.
+
+**Tests performed:** manual re-read of the diff and a structural brace / paren / bracket balance check of every changed Kotlin file. No Gradle/Android build or unit-test run was possible here (no route to `dl.google.com`), so the Kotlin is uncompiled and the new tests have not run.
+
+**Issues discovered:** for a title whose owner is the catalogue-only addon, "You may also like" is empty (that addon has no rows now); it fills in once the TV has service tiles.
+
+**Issues fixed:** posters from a catalogue-only addon failing to open.

@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Fixed posters that wouldn't open: every title now finds its details, and the big mixed-up streaming row is gone.
+
 ## 0.6.0
 
 - New Anime tab! If you have an anime addon, Anime appears after TV Shows with its titles and a genre picker, its episodes play, and Search finds anime first.
