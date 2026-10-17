@@ -5937,3 +5937,21 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none.
+
+## Post-Milestone-168 -- Server: every adult profile is given the Streaming Catalogs addon once
+
+**Status:** Done on a branch; not merged or deployed. Needs the owner's go-ahead because, once deployed, it adds an addon to every existing account.
+
+**Context:** The web app now shows streaming-service tiles (Netflix, Disney+ ...) on Home while an installed addon has catalogues for those services. The owner asked for the Streaming Catalogs addon to be a default like Cinemeta, for new and existing accounts on all apps, and the addon's author agreed. The server already does this for Cinemeta and OpenSubtitles (once per profile, so every app and device agrees and a removal sticks), so it is done the same way here and no app needs to change for the addon itself to appear.
+
+**Changes:**
+- `src/data/streamingCatalogsManifest.ts` (new): the addon's id, the owner's configured link (35 platforms, region GB) and its manifest (catalogue-only: resources are just `catalog`, ids are IMDb ids).
+- `migrations/0037_streaming_catalogs_addon_marks.sql` (new): one row per (account, profile) once it has been dealt with.
+- `src/services/addonService.ts`: `seedStreamingCatalogsAddon`, chained after Cinemeta and OpenSubtitles in `listActiveAddons`. Added once per profile, after the addons it already has. Not added, and not marked, for a kids profile. An account that already has the addon (any link: the addon id decides), or had it and removed it, is left alone and marked.
+- Tests: new `tests/addon-streaming-catalogs-seed.test.ts` (brand-new account, existing account, removal sticks, own link / removed before, each profile and kids). The older seed and profile tests were adjusted to leave this row out of what they compare, as they already do for OpenSubtitles.
+
+**Tests performed:** the whole server suite against a local disposable Postgres (26 files, 337 tests, all passing) and `tsc --noEmit`. The addon's live manifest was fetched once to build the data file; not tried against a deployed server.
+
+**Issues discovered:** on an app that does not show the tiles yet (the Fire TV, phone, Mac and Windows apps for now) the addon appears as one extra merged Home row of titles from every service. The web app shows the tiles for it.
+
+**Issues fixed:** none.

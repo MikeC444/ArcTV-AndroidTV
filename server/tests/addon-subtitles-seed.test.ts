@@ -14,8 +14,11 @@ beforeEach(async () => {
 
 const OPENSUBTITLES_URL = "https://opensubtitles-v3.strem.io/manifest.json";
 const auth = (s: TestSession, profile?: string) => ({ Authorization: `Bearer ${s.token}`, ...(profile ? { "X-ArcTV-Profile": profile } : {}) });
+// Streaming Catalogs is added to every profile too (see addon-streaming-catalogs-seed.test.ts); these tests are about OpenSubtitles, so that row is left out.
 const list = async (s: TestSession, profile?: string) =>
-  (await request(app).get("/user/addons").set(auth(s, profile))).body.items as Array<{ manifestUrl: string; name: string; addonId: string; enabled: boolean; manifestJson: { resources: unknown[] } }>;
+  ((await request(app).get("/user/addons").set(auth(s, profile))).body.items as Array<{ manifestUrl: string; name: string; addonId: string; enabled: boolean; manifestJson: { resources: unknown[] } }>).filter(
+    (a) => !a.manifestUrl.includes("baby-beamup.club")
+  );
 
 describe("the server gives every profile the OpenSubtitles addon once", () => {
   it("adds it next to Cinemeta for a brand-new account, with the subtitles resource, and not twice", async () => {
