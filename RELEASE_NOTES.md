@@ -19,7 +19,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Home looks richer: a soft colour glow behind the hero, a subtle rim on posters, and a gentle lift when you select one.
 - Fixed Remove from Continue Watching: the title now stays gone instead of coming straight back.
 - Holding up or down on the remote now scrolls at a comfortable speed on Home and catalogs.
-- Home Rows is tidier: Streaming tiles and each addon get their own page, split into On Home and Off.
+- Home Rows is tidier: Streaming tiles and each addon get their own page, split into Shown and Hidden.
 
 ## 0.6.1
 

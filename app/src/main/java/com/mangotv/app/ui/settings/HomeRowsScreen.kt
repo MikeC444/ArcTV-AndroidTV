@@ -36,6 +36,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -72,7 +73,7 @@ private class HubCard(val key: String, val title: String, val subtitle: String)
 
 /** "10 of 36 on · Netflix, Prime Video, Shudder ..." */
 private fun summary(on: List<String>, total: Int): String {
-    val counts = "${on.size} of $total on"
+    val counts = "${on.size} of $total shown"
     if (on.isEmpty()) return counts
     val more = if (on.size > 4) " …" else ""
     return "$counts · ${on.take(4).joinToString(", ")}$more"
@@ -80,9 +81,9 @@ private fun summary(on: List<String>, total: Int): String {
 
 /**
  * Settings > Home Rows, as a short hub plus a page for each thing that can be switched and ordered, so no list is long: "Streaming tiles", and one page
- * for every installed addon that has rows (a new addon the person installs gets its own page by itself). Each page has two tabs, "On Home" (the ones that
- * are shown, in their order, two across; press OK on the handle to pick one up and move it with the arrows) and "Off" (the rest, three across; switching one
- * on adds it back). Hosted by SettingsScreen's detail pane -- see AccountSettingsContent's kdoc for why this isn't its own screen.
+ * for every installed addon that has rows (a new addon the person installs gets its own page by itself). Each page has two tabs, "Shown on Home" (the ones that
+ * are shown, in their order, two across; press OK on the handle to pick one up and move it with the arrows) and "Hidden" (the rest, three across; switching one
+ * on shows it again). Hosted by SettingsScreen's detail pane -- see AccountSettingsContent's kdoc for why this isn't its own screen.
  */
 @Composable
 fun ColumnScope.HomeRowsSettingsContent(
@@ -124,6 +125,7 @@ fun ColumnScope.HomeRowsSettingsContent(
             ListPage(
                 title = "Streaming tiles",
                 subtitle = "The order here is the order of the tiles on Home",
+                noun = "tile",
                 on = on.map { ListEntry(it, streamingServiceById(it)?.name ?: it) },
                 off = off.map { ListEntry(it, streamingServiceById(it)?.name ?: it) },
                 onToggle = { id, visible -> viewModel.setServiceVisible(id, visible) },
@@ -143,6 +145,7 @@ fun ColumnScope.HomeRowsSettingsContent(
             ListPage(
                 title = addon.name,
                 subtitle = "The order here is the order of these rows on Home",
+                noun = "row",
                 on = on.map { ListEntry(it, rowTitles[it] ?: it) },
                 off = off.map { ListEntry(it, rowTitles[it] ?: it) },
                 onToggle = { id, visible -> viewModel.setRowVisible(id, visible) },
@@ -273,6 +276,8 @@ private fun HubCardRow(
 private fun ColumnScope.ListPage(
     title: String,
     subtitle: String,
+    /** What the items are called in the page's sentences: "tile" or "row". */
+    noun: String,
     on: List<ListEntry>,
     off: List<ListEntry>,
     onToggle: (id: String, visible: Boolean) -> Unit,
@@ -282,7 +287,10 @@ private fun ColumnScope.ListPage(
     contentFocusRequester: FocusRequester,
     sidebarFocusRequester: FocusRequester
 ) {
-    var tab by remember { mutableIntStateOf(0) } // 0 = On Home, 1 = Off
+    // 0 = Shown, 1 = Hidden. It opens on Shown, or on Hidden when nothing is shown yet (so the first thing seen is not an empty list)
+    var tab by remember { mutableIntStateOf(if (on.isEmpty() && off.isNotEmpty()) 1 else 0) }
+    val shownPill = remember { FocusRequester() }
+    val hiddenPill = remember { FocusRequester() }
     // Which item is "picked up" for moving (its handle then takes the arrows); cleared when the tab changes
     var grabbedId by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(tab) { grabbedId = null }
@@ -297,27 +305,37 @@ private fun ColumnScope.ListPage(
     LaunchedEffect(shown.size, refocus) {
         if (refocus) {
             refocus = false
-            runCatching { if (shown.isEmpty()) contentFocusRequester.requestFocus() else cellFocus.requestFocus() }
+            runCatching { if (shown.isEmpty()) (if (tab == 0) shownPill else hiddenPill).requestFocus() else cellFocus.requestFocus() }
         }
+    }
+
+    // The cursor starts on the tab that is showing, not on the top bar the page was opened from
+    LaunchedEffect(Unit) {
+        delay(60)
+        runCatching { (if (tab == 0) shownPill else hiddenPill).requestFocus() }
     }
 
     Text(text = title, color = TextPrimary, style = MaterialTheme.typography.titleMedium)
     Text(text = subtitle, color = TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 8.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 8.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 6.dp)) {
         FilterPill(label = "‹ Back", selected = false, onClick = onBack, focusRequester = contentFocusRequester, focusUp = navFocusRequester, focusLeft = sidebarFocusRequester)
-        FilterPill(label = "On Home · ${on.size}", selected = tab == 0, onClick = { tab = 0 }, focusUp = navFocusRequester)
-        FilterPill(label = "Off · ${off.size}", selected = tab == 1, onClick = { tab = 1 }, focusUp = navFocusRequester)
+        FilterPill(label = "Shown on Home · ${on.size}", selected = tab == 0, onClick = { tab = 0 }, focusRequester = shownPill, focusUp = navFocusRequester)
+        FilterPill(label = "Hidden · ${off.size}", selected = tab == 1, onClick = { tab = 1 }, focusRequester = hiddenPill, focusUp = navFocusRequester)
     }
+    // One plain line on what the tab is and what OK does
+    Text(
+        text = when {
+            tab == 0 && on.isEmpty() -> "No $noun from here is shown on Home. Open Hidden and press OK on one to show it."
+            tab == 0 -> "These are shown on Home, in this order. Press OK to hide one, or OK on ≡ to pick it up and move it with the arrows."
+            off.isEmpty() -> "Nothing is hidden: every $noun here is shown on Home."
+            else -> "These are not shown on Home. Press OK to show one."
+        },
+        color = TextTertiary,
+        style = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.padding(bottom = 8.dp)
+    )
 
-    if (shown.isEmpty()) {
-        Text(
-            text = if (tab == 0) "Nothing is on Home from here. Turn something on in the Off tab." else "Everything here is on Home.",
-            color = TextSecondary,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(top = 8.dp)
-        )
-        return
-    }
+    if (shown.isEmpty()) return
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
