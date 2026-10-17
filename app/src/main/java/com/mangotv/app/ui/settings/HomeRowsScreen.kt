@@ -66,7 +66,7 @@ private const val STREAMING = "streaming"
 private const val ADDON_PREFIX = "addon:"
 
 /** One line of a list page: a streaming service or a row. */
-private data class ListEntry(val id: String, val title: String)
+private data class ListEntry(val id: String, val title: String, val on: Boolean)
 
 /** One card on the hub page: the streaming tiles, or one installed addon's rows. */
 private class HubCard(val key: String, val title: String, val subtitle: String)
@@ -81,9 +81,8 @@ private fun summary(on: List<String>, total: Int): String {
 
 /**
  * Settings > Home Rows, as a short hub plus a page for each thing that can be switched and ordered, so no list is long: "Streaming tiles", and one page
- * for every installed addon that has rows (a new addon the person installs gets its own page by itself). Each page has two tabs, "On Home" (the ones that
- * are shown, in their order, two across; press OK on the handle to pick one up and move it with the arrows) and "Off" (the rest, three across; switching one
- * on shows it again). Hosted by SettingsScreen's detail pane -- see AccountSettingsContent's kdoc for why this isn't its own screen.
+ * for every installed addon that has rows (a new addon the person installs gets its own page by itself). A page lists everything it has in one grid, in order,
+ * each with a switch and a handle to move it. Hosted by SettingsScreen's detail pane -- see AccountSettingsContent's kdoc for why this isn't its own screen.
  */
 @Composable
 fun ColumnScope.HomeRowsSettingsContent(
@@ -120,16 +119,14 @@ fun ColumnScope.HomeRowsSettingsContent(
 
     when {
         page == STREAMING && services.isNotEmpty() -> {
-            val on = services.filter { isServiceVisible(it, hidden) }
-            val off = services.filter { it !in on }
+            val on = services.filter { isServiceVisible(it, hidden) }.toSet()
             ListPage(
                 title = "Streaming tiles",
                 subtitle = "The order here is the order of the tiles on Home",
                 noun = "tile",
-                on = on.map { ListEntry(it, streamingServiceById(it)?.name ?: it) },
-                off = off.map { ListEntry(it, streamingServiceById(it)?.name ?: it) },
+                entries = services.map { ListEntry(it, streamingServiceById(it)?.name ?: it, it in on) },
                 onToggle = { id, visible -> viewModel.setServiceVisible(id, visible) },
-                onMove = { id, delta -> viewModel.moveServiceWithin(services, on, id, delta) },
+                onMove = { id, delta -> viewModel.moveServiceWithin(services, services, id, delta) },
                 onBack = { page = HUB },
                 navFocusRequester = navFocusRequester,
                 contentFocusRequester = contentFocusRequester,
@@ -140,16 +137,13 @@ fun ColumnScope.HomeRowsSettingsContent(
             val addon = loaded.addons.first { ADDON_PREFIX + it.providerId == page }
             val ids = addon.rows.map { it.id }.toSet()
             val ordered = allOrdered.filter { it in ids }
-            val on = ordered.filter { it !in hidden }
-            val off = ordered.filter { it in hidden }
             ListPage(
                 title = addon.name,
                 subtitle = "The order here is the order of these rows on Home",
                 noun = "row",
-                on = on.map { ListEntry(it, rowTitles[it] ?: it) },
-                off = off.map { ListEntry(it, rowTitles[it] ?: it) },
+                entries = ordered.map { ListEntry(it, rowTitles[it] ?: it, it !in hidden) },
                 onToggle = { id, visible -> viewModel.setRowVisible(id, visible) },
-                onMove = { id, delta -> viewModel.moveRowWithin(allOrdered, on, id, delta) },
+                onMove = { id, delta -> viewModel.moveRowWithin(allOrdered, ordered, id, delta) },
                 onBack = { page = HUB },
                 navFocusRequester = navFocusRequester,
                 contentFocusRequester = contentFocusRequester,
@@ -271,15 +265,17 @@ private fun HubCardRow(
     }
 }
 
-/** A list page (a service list or one addon's rows): a Back pill and the two tabs, then the shown tab's items as a grid. */
+/**
+ * A list page (the streaming tiles, or one addon's rows): every item in one grid, in its order, two across, each with a switch (OK turns it on or off; one
+ * that is off is dimmed) and the reorder handle (OK picks it up; then Left / Right move it a place, Up / Down a row).
+ */
 @Composable
 private fun ColumnScope.ListPage(
     title: String,
     subtitle: String,
     /** What the items are called in the page's sentences: "tile" or "row". */
     noun: String,
-    on: List<ListEntry>,
-    off: List<ListEntry>,
+    entries: List<ListEntry>,
     onToggle: (id: String, visible: Boolean) -> Unit,
     onMove: (id: String, delta: Int) -> Unit,
     onBack: () -> Unit,
@@ -287,58 +283,33 @@ private fun ColumnScope.ListPage(
     contentFocusRequester: FocusRequester,
     sidebarFocusRequester: FocusRequester
 ) {
-    // 0 = On Home, 1 = Off. It opens on On Home, or on Off when nothing is on yet (so the first thing seen is not an empty list)
-    var tab by remember { mutableIntStateOf(if (on.isEmpty() && off.isNotEmpty()) 1 else 0) }
-    val shownPill = remember { FocusRequester() }
-    val hiddenPill = remember { FocusRequester() }
-    // Which item is "picked up" for moving (its handle then takes the arrows); cleared when the tab changes
+    // Which item is "picked up" for moving (its handle then takes the arrows)
     var grabbedId by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(tab) { grabbedId = null }
-
-    val shown = if (tab == 0) on else off
-    val columns = if (tab == 0) ON_COLUMNS else OFF_COLUMNS
-
-    // When an item leaves the shown list (switched on or off) focus would be lost with it: the cell at the same place takes it over
-    var lastFocusedIndex by remember { mutableIntStateOf(0) }
-    val cellFocus = remember { FocusRequester() }
-    var refocus by remember { mutableStateOf(false) }
-    LaunchedEffect(shown.size, refocus) {
-        if (refocus) {
-            refocus = false
-            runCatching { if (shown.isEmpty()) (if (tab == 0) shownPill else hiddenPill).requestFocus() else cellFocus.requestFocus() }
-        }
-    }
-
-    // The cursor starts on the tab that is showing, not on the top bar the page was opened from
+    // The cursor starts on the first item, not on the top bar the page was opened from
+    val firstCell = remember { FocusRequester() }
     LaunchedEffect(Unit) {
         delay(60)
-        runCatching { (if (tab == 0) shownPill else hiddenPill).requestFocus() }
+        runCatching { firstCell.requestFocus() }
     }
 
     Text(text = title, color = TextPrimary, style = MaterialTheme.typography.titleMedium)
     Text(text = subtitle, color = TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 8.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 6.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 6.dp)) {
         FilterPill(label = "‹ Back", selected = false, onClick = onBack, focusRequester = contentFocusRequester, focusUp = navFocusRequester, focusLeft = sidebarFocusRequester)
-        FilterPill(label = "On Home", count = on.size, selected = tab == 0, onClick = { tab = 0 }, focusRequester = shownPill, focusUp = navFocusRequester)
-        FilterPill(label = "Off", count = off.size, selected = tab == 1, onClick = { tab = 1 }, focusRequester = hiddenPill, focusUp = navFocusRequester)
+        Text(
+            text = "${entries.count { it.on }} of ${entries.size} on Home. Press OK to turn one on or off, or OK on ≡ to pick it up and move it with the arrows.",
+            color = TextTertiary,
+            style = MaterialTheme.typography.bodySmall
+        )
     }
-    // One plain line on what the tab is and what OK does
-    Text(
-        text = when {
-            tab == 0 && on.isEmpty() -> "No $noun from here is on Home. Open the Off tab and press OK on one to turn it on."
-            tab == 0 -> "These are on Home, in this order. Press OK to turn one off, or OK on ≡ to pick it up and move it with the arrows."
-            off.isEmpty() -> "Nothing is off: every $noun here is on Home."
-            else -> "These are not on Home. Press OK to turn one on."
-        },
-        color = TextTertiary,
-        style = MaterialTheme.typography.bodySmall,
-        modifier = Modifier.padding(bottom = 8.dp)
-    )
 
-    if (shown.isEmpty()) return
+    if (entries.isEmpty()) {
+        Text(text = "Nothing to show here.", color = TextSecondary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+        return
+    }
 
     LazyVerticalGrid(
-        columns = GridCells.Fixed(columns),
+        columns = GridCells.Fixed(COLUMNS),
         modifier = Modifier
             .fillMaxWidth()
             .weight(1f),
@@ -346,41 +317,22 @@ private fun ColumnScope.ListPage(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        itemsIndexed(shown, key = { _, entry -> entry.id }) { index, entry ->
-            val focusIndex = lastFocusedIndex.coerceAtMost(shown.lastIndex)
-            val requester = if (index == focusIndex) cellFocus else null
-            if (tab == 0) {
-                OnCell(
-                    position = index + 1,
-                    entry = entry,
-                    grabbed = grabbedId == entry.id,
-                    focusRequester = requester,
-                    onToggleOff = {
-                        refocus = true
-                        onToggle(entry.id, false)
-                    },
-                    onToggleGrabbed = { grabbedId = if (grabbedId == entry.id) null else entry.id },
-                    onMove = { delta -> onMove(entry.id, delta) },
-                    onHandleFocusLost = { if (grabbedId == entry.id) grabbedId = null },
-                    onFocused = { lastFocusedIndex = index }
-                )
-            } else {
-                OffCell(
-                    entry = entry,
-                    focusRequester = requester,
-                    onToggleOn = {
-                        refocus = true
-                        onToggle(entry.id, true)
-                    },
-                    onFocused = { lastFocusedIndex = index }
-                )
-            }
+        itemsIndexed(entries, key = { _, entry -> entry.id }) { index, entry ->
+            ItemCell(
+                position = index + 1,
+                entry = entry,
+                grabbed = grabbedId == entry.id,
+                focusRequester = if (index == 0) firstCell else null,
+                onToggle = { onToggle(entry.id, !entry.on) },
+                onToggleGrabbed = { grabbedId = if (grabbedId == entry.id) null else entry.id },
+                onMove = { delta -> onMove(entry.id, delta) },
+                onHandleFocusLost = { if (grabbedId == entry.id) grabbedId = null }
+            )
         }
     }
 }
 
-private const val ON_COLUMNS = 2
-private const val OFF_COLUMNS = 3
+private const val COLUMNS = 2
 
 @Composable
 private fun RowSwitch(checked: Boolean) {
@@ -398,18 +350,17 @@ private fun RowSwitch(checked: Boolean) {
     )
 }
 
-/** An item that is on Home: its place in the order, a switch (OK turns it off) and a handle (OK picks it up; then Left / Right move it one place, Up / Down one row). */
+/** One item: its place in the order, a switch (OK turns it on or off; dimmed when off) and a handle (OK picks it up; then Left / Right move it a place, Up / Down a row). */
 @Composable
-private fun OnCell(
+private fun ItemCell(
     position: Int,
     entry: ListEntry,
     grabbed: Boolean,
     focusRequester: FocusRequester?,
-    onToggleOff: () -> Unit,
+    onToggle: () -> Unit,
     onToggleGrabbed: () -> Unit,
     onMove: (Int) -> Unit,
-    onHandleFocusLost: () -> Unit,
-    onFocused: () -> Unit
+    onHandleFocusLost: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -417,14 +368,13 @@ private fun OnCell(
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         TvFocusSurface(
-            onClick = onToggleOff,
+            onClick = onToggle,
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
             focusedScale = 1.02f,
             backgroundColor = MangoSurface,
             borderColor = TextPrimary,
-            focusRequester = focusRequester,
-            onFocusChanged = { if (it) onFocused() }
+            focusRequester = focusRequester
         ) {
             Row(
                 modifier = Modifier
@@ -435,14 +385,14 @@ private fun OnCell(
                 Text(text = position.toString(), color = TextTertiary, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(22.dp))
                 Text(
                     text = entry.title,
-                    color = TextPrimary,
+                    color = if (entry.on) TextPrimary else TextTertiary,
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(Modifier.width(8.dp))
-                RowSwitch(checked = true)
+                RowSwitch(checked = entry.on)
             }
         }
         TvFocusSurface(
@@ -454,8 +404,8 @@ private fun OnCell(
                         val delta = when (event.key) {
                             Key.DirectionLeft -> -1
                             Key.DirectionRight -> 1
-                            Key.DirectionUp -> -ON_COLUMNS
-                            Key.DirectionDown -> ON_COLUMNS
+                            Key.DirectionUp -> -COLUMNS
+                            Key.DirectionDown -> COLUMNS
                             else -> 0
                         }
                         if (delta != 0) {
@@ -472,9 +422,7 @@ private fun OnCell(
             backgroundColor = MangoSurface,
             alwaysShowBorder = grabbed,
             borderColor = TextPrimary,
-            onFocusChanged = { hasFocus ->
-                if (hasFocus) onFocused() else onHandleFocusLost()
-            }
+            onFocusChanged = { hasFocus -> if (!hasFocus) onHandleFocusLost() }
         ) {
             Icon(
                 imageVector = Icons.Filled.Menu,
@@ -484,44 +432,6 @@ private fun OnCell(
                     .padding(6.dp)
                     .size(18.dp)
             )
-        }
-    }
-}
-
-/** An item that is not on Home: a switch (OK turns it on). */
-@Composable
-private fun OffCell(
-    entry: ListEntry,
-    focusRequester: FocusRequester?,
-    onToggleOn: () -> Unit,
-    onFocused: () -> Unit
-) {
-    TvFocusSurface(
-        onClick = onToggleOn,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
-        focusedScale = 1.02f,
-        backgroundColor = MangoSurface,
-        borderColor = TextPrimary,
-        focusRequester = focusRequester,
-        onFocusChanged = { if (it) onFocused() }
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = entry.title,
-                color = TextSecondary,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            Spacer(Modifier.width(8.dp))
-            RowSwitch(checked = false)
         }
     }
 }

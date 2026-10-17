@@ -109,11 +109,7 @@ class HomeRowsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun setServiceVisible(service: String, visible: Boolean) {
-        viewModelScope.launch {
-            homeRowPreferences.setServiceVisible(service, visible)
-            // A service turned on joins the end of the tiles (as on the web's Off list), not wherever it happened to be in the default order
-            if (visible) homeRowPreferences.setServiceOrder(services.value.filter { it != service } + service)
-        }
+        viewModelScope.launch { homeRowPreferences.setServiceVisible(service, visible) }
     }
 
     /** Moves one service's tile [delta] places among [on] (the services shown, in their order); [all] is every service in the person's order. */
