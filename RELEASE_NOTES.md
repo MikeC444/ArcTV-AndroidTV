@@ -17,6 +17,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 - Netflix, Disney+ and more now get their own tiles on Home, opening pages with far more titles. Switch them on, off or reorder in Home Rows.
 - Continue Watching posters now show each title's logo.
 - Home looks richer: a soft colour glow behind the hero, a subtle rim on posters, and a gentle lift when you select one.
+- Fixed Remove from Continue Watching: the title now stays gone instead of coming straight back.
 
 ## 0.6.1
 

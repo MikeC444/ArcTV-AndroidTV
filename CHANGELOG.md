@@ -6052,3 +6052,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the wash is drawn from the hero's list item beyond its own bounds (the rows are drawn after it); if the list clips that, it will show only over the hero's lower part.
 
 **Issues fixed:** none beyond the above.
+
+## Post-Milestone-174 -- TV: Remove from Continue Watching no longer comes straight back
+
+**Status:** Done on a branch (the same one as Post-Milestone-172 / 173); not built here, not merged.
+
+**Context:** Pressing Remove from Continue Watching on the TV made the poster flash away and come straight back. The server takes a removal only when its timestamp is later than the entry's own (`UPDATE ... WHERE updated_at < $5`, last write wins) and otherwise answers with the entry unchanged; `ContinueWatchingSyncRepository.reconcile` then put that entry back. The removal is stamped with the TV's clock, so a clock behind the time the entry was last written (the entry's `updated_at` is the `watchedAt` of its last progress report) loses every time. Cause read from the code and the server query, not reproduced on a device.
+
+**Changes:**
+- `ContinueWatchingSyncRepository.sendRemoval`: when the server's answer still holds the entry, the removal is sent once more, stamped just after that entry's `lastWatchedAt` (and never earlier than now), through the new pure `removalRetryTime`. Used for a fresh removal and for queued ones retried later. A play on another device after the press is still beaten only by the person's own, newer press; the server's rule is unchanged.
+- Test: `RemovalRetryTimeTest`. `RELEASE_NOTES.md`: one bullet.
+
+**Tests performed:** manual re-read and a structural brace / paren check of the changed Kotlin; no Gradle/Android build or unit-test run was possible here (no route to `dl.google.com`), so it is uncompiled, the test has not run and the fix has not been tried on a device.
+
+**Issues discovered:** the web app stamps removals with `monotonicIso` (strictly after its own previous stamp for the entry), which does not help when the clock itself is behind the entry; it would fail the same way on a browser with a wrong clock.
+
+**Issues fixed:** the removal coming back.

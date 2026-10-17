@@ -203,6 +203,20 @@ class ContinueWatchingSyncRepository(
         scope.launch { removeNow(providerId, contentId, contentType, Iso8601.nowString()) }
     }
 
+    /**
+     * Sends one removal. The server only takes it when its timestamp is later than the entry's own (a play on another device must beat an older
+     * removal); an answer that still holds the entry means this one lost, which happens when this device's clock is behind the time the entry was last
+     * written. The person pressed Remove just now, so it is sent once more, stamped just after that entry -- otherwise the entry came straight back.
+     */
+    private suspend fun sendRemoval(token: String, removal: PendingContinueWatchingRemoval): ContinueWatchingItemDto? {
+        val first = apiClient.removeContinueWatching(token, removal.providerId, removal.contentId, removal.contentType, removal.updatedAt)
+        if (first == null || first.deletedAt != null) return first
+        val sentAt = runCatching { Iso8601.parseToEpochMillis(removal.updatedAt) }.getOrNull() ?: return first
+        val wroteAt = runCatching { Iso8601.parseToEpochMillis(first.lastWatchedAt) }.getOrNull() ?: return first
+        val retryAt = removalRetryTime(nowMs = System.currentTimeMillis(), sentAtMs = sentAt, entryWrittenAtMs = wroteAt) ?: return first
+        return apiClient.removeContinueWatching(token, removal.providerId, removal.contentId, removal.contentType, Iso8601.format(retryAt))
+    }
+
     private suspend fun removeNow(providerId: String, contentId: String, contentType: ContentType, updatedAt: String) {
         val key = "$providerId|$contentId|${contentType.name}"
         val removal = PendingContinueWatchingRemoval(providerId, contentId, contentType.name, updatedAt)
@@ -214,7 +228,7 @@ class ContinueWatchingSyncRepository(
                 removalStore.put(key, removal)
                 return
             }
-            val response = apiClient.removeContinueWatching(token, providerId, contentId, contentType.name, removal.updatedAt)
+            val response = sendRemoval(token, removal)
             reconcile(providerId, contentId, contentType, response)
             removalStore.remove(key)
         } catch (e: ApiException) {
@@ -242,7 +256,7 @@ class ContinueWatchingSyncRepository(
         val token = freshAccessTokenOrNull() ?: return
         for ((key, removal) in pending) {
             try {
-                val response = apiClient.removeContinueWatching(token, removal.providerId, removal.contentId, removal.contentType, removal.updatedAt)
+                val response = sendRemoval(token, removal)
                 reconcile(removal.providerId, removal.contentId, ContentType.valueOf(removal.contentType), response)
                 removalStore.remove(key)
             } catch (e: ApiException) {
@@ -457,4 +471,13 @@ class ContinueWatchingSyncRepository(
         durationMs = durationMs,
         lastWatchedAt = lastWatchedAt
     )
+}
+
+/**
+ * When to stamp a removal that the server turned down because the entry had been written later than it: just after the entry (and never earlier than now).
+ * Null when that would not be later than the stamp already sent, so there is nothing to gain by asking again.
+ */
+internal fun removalRetryTime(nowMs: Long, sentAtMs: Long, entryWrittenAtMs: Long): Long? {
+    val retryAt = maxOf(nowMs, entryWrittenAtMs + 1)
+    return retryAt.takeIf { it > sentAtMs }
 }
