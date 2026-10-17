@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+## 0.6.1
+
 - Bug fixes.
 
 ## 0.6.0
