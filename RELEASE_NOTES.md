@@ -14,7 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
-- Bug fixes: every poster opens again, and the mixed-up streaming row is gone.
+- Bug fixes.
 
 ## 0.6.0
 
