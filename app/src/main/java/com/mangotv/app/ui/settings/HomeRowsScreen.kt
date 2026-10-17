@@ -1,7 +1,10 @@
 package com.mangotv.app.ui.settings
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
@@ -23,8 +27,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -300,7 +302,7 @@ private fun ColumnScope.ListPage(
             .fillMaxWidth()
             .weight(1f),
         contentPadding = SettingsListPadding,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
         itemsIndexed(entries, key = { _, entry -> entry.id }) { index, entry ->
             ItemLine(
@@ -318,18 +320,17 @@ private fun ColumnScope.ListPage(
 
 @Composable
 private fun RowSwitch(checked: Boolean) {
-    Switch(
-        checked = checked,
-        onCheckedChange = null,
-        colors = SwitchDefaults.colors(
-            checkedThumbColor = MangoBackground,
-            checkedTrackColor = TextPrimary,
-            checkedBorderColor = TextPrimary,
-            uncheckedThumbColor = TextTertiary,
-            uncheckedTrackColor = MangoBackground,
-            uncheckedBorderColor = TextTertiary
-        )
-    )
+    // a small pill (the stock Switch is 48dp tall, which would make every line tall)
+    Box(
+        modifier = Modifier
+            .size(width = 34.dp, height = 18.dp)
+            .background(if (checked) TextPrimary else MangoBackground, RoundedCornerShape(9.dp))
+            .border(1.5.dp, if (checked) TextPrimary else TextTertiary, RoundedCornerShape(9.dp))
+            .padding(2.dp),
+        contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart
+    ) {
+        Box(Modifier.size(12.dp).background(if (checked) MangoBackground else TextTertiary, CircleShape))
+    }
 }
 
 /** One line: its place in the order, a switch (OK on the name turns it on or off; dimmed when off) and the two arrows that move it. */
@@ -352,7 +353,7 @@ private fun ItemLine(
             onClick = onToggle,
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
-            focusedScale = 1.02f,
+            focusedScale = 1.01f,
             backgroundColor = MangoSurface,
             borderColor = TextPrimary,
             focusRequester = focusRequester
@@ -360,10 +361,11 @@ private fun ItemLine(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                    .padding(horizontal = 12.dp, vertical = 2.dp)
+                    .height(28.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = position.toString(), color = TextTertiary, style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(30.dp))
+                Text(text = position.toString(), color = TextTertiary, style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(28.dp))
                 Text(
                     text = entry.title,
                     color = if (entry.on) TextPrimary else TextTertiary,
@@ -386,7 +388,7 @@ private fun ItemLine(
 private fun ArrowButton(up: Boolean, enabled: Boolean, label: String, onClick: () -> Unit) {
     TvFocusSurface(
         onClick = { if (enabled) onClick() },
-        modifier = Modifier.size(width = 52.dp, height = 40.dp),
+        modifier = Modifier.size(width = 44.dp, height = 32.dp),
         shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
         backgroundColor = MangoSurface,
         borderColor = TextPrimary
@@ -397,7 +399,7 @@ private fun ArrowButton(up: Boolean, enabled: Boolean, label: String, onClick: (
             tint = if (enabled) TextPrimary else TextTertiary.copy(alpha = 0.35f),
             modifier = Modifier
                 .align(Alignment.Center)
-                .size(28.dp)
+                .size(22.dp)
         )
     }
 }
