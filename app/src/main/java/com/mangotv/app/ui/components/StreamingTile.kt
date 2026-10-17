@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -30,7 +31,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
@@ -194,10 +195,10 @@ fun StreamingTile(
                         drawCircle(brush = Brush.radialGradient(colorStops = stops, center = centre, radius = radius), radius = radius, center = centre)
                     }
                 }
-                // focused: lifts a little (the web's translateY(-6px)); the web's slight tip back is left out, because a rotated tile reports distorted bounds
-                // to the remote's focus search, which can leave focus unable to move on to the next tile
-                .graphicsLayer {
-                    translationY = -6.dp.toPx() * focus
+                // focused: lifts a little (the web's translateY(-6px)). Only the drawing moves, not the tile's place: the remote's focus search goes by the
+                // places, and a tile that really moved up made its neighbour look "below" it, so DOWN went sideways between two tiles instead of to the next row
+                .drawWithContent {
+                    translate(top = -6.dp.toPx() * focus) { this@drawWithContent.drawContent() }
                 }
         ) {
             TvFocusSurface(

@@ -30,7 +30,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -108,7 +110,10 @@ fun ContentCard(
                 .width(width)
                 .height(height)
                 // A focused poster lifts a little as well as growing (like the web app's posters); Continue Watching keeps its own look
-                .graphicsLayer { translationY = if (isContinueWatching) 0f else -4.dp.toPx() * lift.value },
+                // (only the drawing moves, not the card's place, so the remote's focus search is not thrown off by a card that has really moved)
+                .drawWithContent {
+                    translate(top = if (isContinueWatching) 0f else -4.dp.toPx() * lift.value) { this@drawWithContent.drawContent() }
+                },
             shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
             backgroundColor = MangoSurface,
             focusRequester = focusRequester,
