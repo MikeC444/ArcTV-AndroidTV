@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -48,6 +49,7 @@ import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.exp
 import kotlin.math.hypot
 import kotlin.math.sin
 
@@ -179,23 +181,19 @@ fun StreamingTile(
             modifier = Modifier
                 .width(width)
                 .height(height)
-                // the light beneath the tile (the web's `0 28px 38px -16px glow`): a soft, rounded glow hugging the tile's lower edge, built from a few rounded
-                // rectangles that grow and fade, because a blurred shadow is not available on older Android versions
+                // the light beneath the tile (the web's soft `0 28px 38px -16px glow`): one smooth, wide ellipse of light centred on the tile's lower edge, half
+                // behind the tile, fading out like a blur (many eased stops, so there are no visible bands); drawn because blurred shadows are not
+                // available on older Android versions
                 .drawBehind {
-                    val blur = 24.dp.toPx()
-                    val inset = 12.dp.toPx()
-                    val down = 14.dp.toPx()
-                    val top = size.height * 0.5f
-                    val passes = 12
-                    for (i in 0 until passes) {
-                        val t = i / (passes - 1f)
-                        val grow = blur * t
-                        drawRoundRect(
-                            color = glow.copy(alpha = (glowAlpha * 0.16f * (1f - t)).coerceIn(0f, 1f)),
-                            topLeft = Offset(inset - grow, top - grow),
-                            size = Size(size.width - inset * 2f + grow * 2f, size.height + down - top + grow * 2f),
-                            cornerRadius = CornerRadius(20.dp.toPx() + grow, 20.dp.toPx() + grow)
-                        )
+                    val centre = Offset(size.width / 2f, size.height - 4.dp.toPx())
+                    val radius = size.width * 0.62f
+                    val strength = (glowAlpha * 1.1f).coerceIn(0f, 1f)
+                    val stops = Array(9) { i ->
+                        val t = i / 8f
+                        t to glow.copy(alpha = if (i == 8) 0f else strength * exp(-4f * t * t))
+                    }
+                    scale(scaleX = 1f, scaleY = 0.42f, pivot = centre) {
+                        drawCircle(brush = Brush.radialGradient(colorStops = stops, center = centre, radius = radius), radius = radius, center = centre)
                     }
                 }
                 // focused: lifts and tips back a little (the web's translateY(-6px) rotateX(4deg))
