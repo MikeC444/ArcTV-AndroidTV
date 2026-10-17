@@ -6104,3 +6104,22 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** a row switched back on keeps its old place in Home's order (only a streaming service goes to the end), since rows have no fixed default end.
 
 **Issues fixed:** none beyond the above.
+
+## Post-Milestone-177 -- Server: an older app's sign-up and settings no longer fail or reset things
+
+**Status:** Done on a branch (the same one as Post-Milestone-171 to 176); not merged or deployed.
+
+**Context:** An audit of the API against every app: the web app, the Fire TV app (0.6.x and the new build), the phone app (0.5.x, platform `android_mobile`), the Mac app (0.2.x, `macos`) and the Windows app (`windows`). Two ways a server that is ahead already hurt apps that are behind:
+1. `POST /auth/register` required a `displayName` (Post-Milestone-159 era, #59), but the phone, Mac and Windows sign-up forms still say "Display name (optional)" and send none when it is empty, so a new account could not be created on those three ("Enter a display name").
+2. The streaming tiles' order is stored in `homeRowOrder` as `streaming:<id>` entries. Every older app rewrites that list from just the rows it knows when the person reorders rows, so the order set on the web or the Fire TV was silently reset.
+
+**Changes:**
+- `schemas/auth.ts`: `displayName` is optional on register; one that is sent must still be real (empty or blank is refused). `services/authService.ts`: `defaultDisplayName` takes the name from the email (first word before the @, capitalised, at most 24 characters, else "Me") when none is sent; it is also the default profile's name.
+- `services/settingsService.ts`: `keepServiceOrder`: when a pushed `homeRowOrder` has no `streaming:` entries the stored ones are kept (after the rows); one that has any replaces them.
+- Tests: `auth-register.test.ts` updated (missing name now works, blank still refused), new `auth-default-name.test.ts` and `settings-streaming-order.test.ts`.
+
+**Tests performed:** the whole server suite against a local disposable Postgres (30 files, 360 tests, all passing) and `tsc --noEmit`.
+
+**Issues discovered (nothing to change on the server):** every route the phone, Mac, Windows and Fire TV apps call exists with the same shape; unknown JSON keys are ignored by all of them (Kotlin `ignoreUnknownKeys`, Swift `Codable`, `System.Text.Json` Web defaults), so added response fields are safe; every app sends `X-ArcTV-App-Version` and its platform at sign-in, which the guard (Post-Milestone-171) keys on, and the Streaming Catalogs addon is therefore held back from `android_mobile`, `macos` and `windows` until they are added to `ADDON_SUPPORT`; `PUT /user/settings` limits (500 entries of 200 characters) leave plenty of room for the tiles' entries. Devices that signed in before the `platform` column existed have the column's default (`fire_tv`); the phone is on 0.5.x so the version check still holds them back, but a phone that reached 0.7.0 under that default would be sent the addon. The web app's `app-promo` reports were never forwarded by the web server (fixed in the web repo).
+
+**Issues fixed:** the two above.
