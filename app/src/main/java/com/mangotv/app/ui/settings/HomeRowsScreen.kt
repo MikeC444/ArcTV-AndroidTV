@@ -11,16 +11,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,7 +29,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,11 +37,6 @@ import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -82,7 +74,7 @@ private fun summary(on: List<String>, total: Int): String {
 /**
  * Settings > Home Rows, as a short hub plus a page for each thing that can be switched and ordered, so no list is long: "Streaming tiles", and one page
  * for every installed addon that has rows (a new addon the person installs gets its own page by itself). A page lists everything it has in one grid, in order,
- * each with a switch and a handle to move it. Hosted by SettingsScreen's detail pane -- see AccountSettingsContent's kdoc for why this isn't its own screen.
+ * each with a switch and an up and a down arrow to move it. Hosted by SettingsScreen's detail pane -- see AccountSettingsContent's kdoc for why this isn't its own screen.
  */
 @Composable
 fun ColumnScope.HomeRowsSettingsContent(
@@ -123,7 +115,6 @@ fun ColumnScope.HomeRowsSettingsContent(
             ListPage(
                 title = "Streaming tiles",
                 subtitle = "The order here is the order of the tiles on Home",
-                noun = "tile",
                 entries = services.map { ListEntry(it, streamingServiceById(it)?.name ?: it, it in on) },
                 onToggle = { id, visible -> viewModel.setServiceVisible(id, visible) },
                 onMove = { id, delta -> viewModel.moveServiceWithin(services, services, id, delta) },
@@ -140,7 +131,6 @@ fun ColumnScope.HomeRowsSettingsContent(
             ListPage(
                 title = addon.name,
                 subtitle = "The order here is the order of these rows on Home",
-                noun = "row",
                 entries = ordered.map { ListEntry(it, rowTitles[it] ?: it, it !in hidden) },
                 onToggle = { id, visible -> viewModel.setRowVisible(id, visible) },
                 onMove = { id, delta -> viewModel.moveRowWithin(allOrdered, ordered, id, delta) },
@@ -266,15 +256,14 @@ private fun HubCardRow(
 }
 
 /**
- * A list page (the streaming tiles, or one addon's rows): every item in one grid, in its order, two across, each with a switch (OK turns it on or off; one
- * that is off is dimmed) and the reorder handle (OK picks it up; then Left / Right move it a place, Up / Down a row).
+ * A list page (the streaming tiles, or one addon's rows): everything it has in one list, in its order. Each line has its place number, a switch (OK on the
+ * name turns it on or off; one that is off is dimmed) and two arrow buttons: OK on the up arrow moves it one place up, OK on the down arrow one place down.
+ * The cursor stays on the arrow that was pressed, so pressing OK again moves it on.
  */
 @Composable
 private fun ColumnScope.ListPage(
     title: String,
     subtitle: String,
-    /** What the items are called in the page's sentences: "tile" or "row". */
-    noun: String,
     entries: List<ListEntry>,
     onToggle: (id: String, visible: Boolean) -> Unit,
     onMove: (id: String, delta: Int) -> Unit,
@@ -283,8 +272,6 @@ private fun ColumnScope.ListPage(
     contentFocusRequester: FocusRequester,
     sidebarFocusRequester: FocusRequester
 ) {
-    // Which item is "picked up" for moving (its handle then takes the arrows)
-    var grabbedId by remember { mutableStateOf<String?>(null) }
     // The cursor starts on the first item, not on the top bar the page was opened from
     val firstCell = remember { FocusRequester() }
     LaunchedEffect(Unit) {
@@ -297,7 +284,7 @@ private fun ColumnScope.ListPage(
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 6.dp)) {
         FilterPill(label = "‹ Back", selected = false, onClick = onBack, focusRequester = contentFocusRequester, focusUp = navFocusRequester, focusLeft = sidebarFocusRequester)
         Text(
-            text = "${entries.count { it.on }} of ${entries.size} on Home. Press OK to turn one on or off, or OK on ≡ to pick it up and move it with the arrows.",
+            text = "${entries.count { it.on }} of ${entries.size} on Home. OK on a name turns it on or off; OK on ▲ or ▼ moves it up or down.",
             color = TextTertiary,
             style = MaterialTheme.typography.bodySmall
         )
@@ -308,31 +295,26 @@ private fun ColumnScope.ListPage(
         return
     }
 
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(COLUMNS),
+    LazyColumn(
         modifier = Modifier
             .fillMaxWidth()
             .weight(1f),
         contentPadding = SettingsListPadding,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         itemsIndexed(entries, key = { _, entry -> entry.id }) { index, entry ->
-            ItemCell(
+            ItemLine(
                 position = index + 1,
                 entry = entry,
-                grabbed = grabbedId == entry.id,
+                canMoveUp = index > 0,
+                canMoveDown = index < entries.lastIndex,
                 focusRequester = if (index == 0) firstCell else null,
                 onToggle = { onToggle(entry.id, !entry.on) },
-                onToggleGrabbed = { grabbedId = if (grabbedId == entry.id) null else entry.id },
-                onMove = { delta -> onMove(entry.id, delta) },
-                onHandleFocusLost = { if (grabbedId == entry.id) grabbedId = null }
+                onMove = { delta -> onMove(entry.id, delta) }
             )
         }
     }
 }
-
-private const val COLUMNS = 2
 
 @Composable
 private fun RowSwitch(checked: Boolean) {
@@ -350,22 +332,21 @@ private fun RowSwitch(checked: Boolean) {
     )
 }
 
-/** One item: its place in the order, a switch (OK turns it on or off; dimmed when off) and a handle (OK picks it up; then Left / Right move it a place, Up / Down a row). */
+/** One line: its place in the order, a switch (OK on the name turns it on or off; dimmed when off) and the two arrows that move it. */
 @Composable
-private fun ItemCell(
+private fun ItemLine(
     position: Int,
     entry: ListEntry,
-    grabbed: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
     focusRequester: FocusRequester?,
     onToggle: () -> Unit,
-    onToggleGrabbed: () -> Unit,
-    onMove: (Int) -> Unit,
-    onHandleFocusLost: () -> Unit
+    onMove: (Int) -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         TvFocusSurface(
             onClick = onToggle,
@@ -379,10 +360,10 @@ private fun ItemCell(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = position.toString(), color = TextTertiary, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(22.dp))
+                Text(text = position.toString(), color = TextTertiary, style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(30.dp))
                 Text(
                     text = entry.title,
                     color = if (entry.on) TextPrimary else TextTertiary,
@@ -391,47 +372,32 @@ private fun ItemCell(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(10.dp))
                 RowSwitch(checked = entry.on)
             }
         }
-        TvFocusSurface(
-            onClick = onToggleGrabbed,
+        ArrowButton(up = true, enabled = canMoveUp, label = entry.title, onClick = { onMove(-1) })
+        ArrowButton(up = false, enabled = canMoveDown, label = entry.title, onClick = { onMove(1) })
+    }
+}
+
+/** A button that moves a line one place up or down; dimmed (and doing nothing) at the top or bottom of the list. */
+@Composable
+private fun ArrowButton(up: Boolean, enabled: Boolean, label: String, onClick: () -> Unit) {
+    TvFocusSurface(
+        onClick = { if (enabled) onClick() },
+        modifier = Modifier.size(width = 52.dp, height = 40.dp),
+        shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
+        backgroundColor = MangoSurface,
+        borderColor = TextPrimary
+    ) {
+        Icon(
+            imageVector = if (up) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+            contentDescription = if (up) "Move $label up" else "Move $label down",
+            tint = if (enabled) TextPrimary else TextTertiary.copy(alpha = 0.35f),
             modifier = Modifier
-                .size(34.dp)
-                .onPreviewKeyEvent { event ->
-                    if (grabbed && event.type == KeyEventType.KeyDown) {
-                        val delta = when (event.key) {
-                            Key.DirectionLeft -> -1
-                            Key.DirectionRight -> 1
-                            Key.DirectionUp -> -COLUMNS
-                            Key.DirectionDown -> COLUMNS
-                            else -> 0
-                        }
-                        if (delta != 0) {
-                            onMove(delta)
-                            true
-                        } else {
-                            false
-                        }
-                    } else {
-                        false
-                    }
-                },
-            shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
-            backgroundColor = MangoSurface,
-            alwaysShowBorder = grabbed,
-            borderColor = TextPrimary,
-            onFocusChanged = { hasFocus -> if (!hasFocus) onHandleFocusLost() }
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Menu,
-                contentDescription = if (grabbed) "Stop moving ${entry.title}" else "Reorder ${entry.title}",
-                tint = if (grabbed) TextPrimary else TextSecondary,
-                modifier = Modifier
-                    .padding(6.dp)
-                    .size(18.dp)
-            )
-        }
+                .align(Alignment.Center)
+                .size(28.dp)
+        )
     }
 }
