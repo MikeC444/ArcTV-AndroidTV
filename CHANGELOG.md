@@ -6068,3 +6068,5 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the web app stamps removals with `monotonicIso` (strictly after its own previous stamp for the entry), which does not help when the clock itself is behind the entry; it would fail the same way on a browser with a wrong clock.
 
 **Issues fixed:** the removal coming back.
+
+**Addendum (same branch):** going UP from the first Home row to the hero used to snap (`scrollToItem(0, 0)` with `heroRegionFocused` already set, which also makes the list's watchdog jump it at once). `HomeScreen` now glides with `animateScrollToItem(0, 0)` first and sets `heroRegionFocused` and focuses Play afterwards. Not built or tried here, as above.

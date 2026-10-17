@@ -431,9 +431,13 @@ private fun HomeContent(
                                 // Hero buttons no longer auto-scroll into view
                                 // (see HeroSection) — returning to them from the
                                 // first content row needs to be explicit too.
-                                heroRegionFocused = true
+                                // The list glides back up to the hero first, and only then is
+                                // it pinned to the top (heroRegionFocused is what holds it
+                                // there, and would jump it at once, as it used to) and the
+                                // Play button focused.
                                 coroutineScope.launch {
-                                    listState.scrollToItem(0, 0)
+                                    listState.animateScrollToItem(0, 0)
+                                    heroRegionFocused = true
                                     runCatching { playFocusRequester.requestFocus() }
                                 }
                             }
