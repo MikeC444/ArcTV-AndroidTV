@@ -6166,3 +6166,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** a hand-built or CI debug phone APK reports versionName 0.1.0, so it will not be sent the addon whatever the minimum is; a person testing before the release has to install it by link, and a sync would then drop it (the list is replaced by the server's).
 
 **Issues fixed:** none beyond the above. Deploy only with or after the phone release; the number must match the real release (0.6.0 assumed).
+
+## Post-Milestone-181 -- Server: the admin summary carries hourly user growth
+
+**Status:** Done on branch `claude/hourly-growth`; not merged or deployed. The developer panel's chart is in `ArcTV-Web`.
+
+**Context:** The developer panel's User growth chart is one point per day. An hourly view shows the rate of sign-ups as they happen (launch days, release spikes).
+
+**Changes:**
+- `adminService.ts`: `buildHourlyGrowth(baseline, perHour, now, hours)` (pure: a continuous hourly series ending at the current hour, quiet hours listed, running total) and `userGrowthHourly()` (the count before the window and the per-hour counts, deleted accounts left out); `summary()` returns it as `userGrowthHourly` (the last `HOURLY_GROWTH_HOURS` = 72 hours, `hour` as `YYYY-MM-DDTHH:00Z`).
+- Tests in `admin.test.ts`: the builder (gaps filled, midnight, outside-window sign-ups ignored) and the summary field.
+
+**Tests performed:** `tsc` clean; the whole server suite against a local Postgres (30 files, 364 tests passing).
+
+**Issues discovered:** none. The field is additive and read only by the admin panel, so no app version is affected.
+
+**Issues fixed:** none beyond the above.
