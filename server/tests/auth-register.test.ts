@@ -86,13 +86,21 @@ describe("the display name on sign-up", () => {
   const register = (over: Record<string, unknown>) =>
     request(app).post("/auth/register").send({ email: "name@example.com", password: "correct-horse-battery", deviceId: randomUUID(), ...over });
 
-  it("is required: missing, empty and blank are all refused with a plain message", async () => {
-    for (const over of [{}, { displayName: "" }, { displayName: "   " }]) {
+  it("when sent must be a real name: empty and blank are refused with a plain message", async () => {
+    for (const over of [{ displayName: "" }, { displayName: "   " }]) {
       const response = await register(over);
       expect(response.status).toBe(400);
       expect(JSON.stringify(response.body)).toContain("display name");
     }
     expect((await pool.query("SELECT 1 FROM users WHERE email = 'name@example.com'")).rowCount).toBe(0);
+  });
+
+  it("may be left out by an older app (the phone, Mac and Windows apps once had it optional): the name is then taken from the email", async () => {
+    const response = await register({ email: "alex.smith@example.com" });
+    expect(response.status).toBe(201);
+    expect(response.body.user.displayName).toBe("Alex");
+    const profiles = await request(app).get("/user/profiles").set("Authorization", `Bearer ${response.body.accessToken}`);
+    expect(profiles.body.profiles[0]).toMatchObject({ name: "Alex", isDefault: true });
   });
 
   it("is at most 24 characters, the length of a profile name, so the two are always the same", async () => {
@@ -110,4 +118,3 @@ describe("the display name on sign-up", () => {
     expect(profiles.body.profiles[0]).toMatchObject({ name: "Alex", isDefault: true });
   });
 });
-

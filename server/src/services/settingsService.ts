@@ -90,7 +90,22 @@ export async function getUserSettings(userId: string, profileId: string): Promis
  * it lost -- so a caller can simply persist the response as its new local
  * cache either way, without needing to know which one happened.
  */
+/** The streaming-service tiles' order is kept in the same list as the rows' order, as `streaming:<id>` entries. */
+const isServiceOrderEntry = (id: string): boolean => id.startsWith("streaming:");
+
+/**
+ * The order to store when [incoming] arrives: an app that predates the streaming tiles (the phone, Mac and Windows apps, the Fire TV before 0.7.0) pushes the
+ * row order back without the tiles' `streaming:` entries, which would silently reset the tile order the person chose on the web or the TV. So when the incoming
+ * list has none, the stored ones are kept (after the rows). A list that has any is the person's own choice and replaces them.
+ */
+export function keepServiceOrder(incoming: string[], stored: string[]): string[] {
+  if (incoming.some(isServiceOrderEntry)) return incoming;
+  return [...incoming, ...stored.filter(isServiceOrderEntry)];
+}
+
 export async function upsertUserSettings(userId: string, profileId: string, input: SettingsInput): Promise<UserSettings> {
+  const existing = await pool.query<{ home_row_order: string[] }>("SELECT home_row_order FROM user_settings WHERE user_id = $1 AND profile_id = $2", [userId, profileId]);
+  const homeRowOrder = keepServiceOrder(input.homeRowOrder, existing.rows[0]?.home_row_order ?? []);
   const result = await pool.query<SettingsRow>(
     `INSERT INTO user_settings (user_id, home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled, subtitles_enabled, default_subtitle_language, default_audio_language, blocked_genres, updated_at, profile_id, stats_reset_at)
      VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7, $12::text, COALESCE($9::jsonb, '[]'::jsonb), $8, $10, $14::timestamptz)
@@ -116,7 +131,7 @@ export async function upsertUserSettings(userId: string, profileId: string, inpu
      RETURNING home_row_order, hidden_row_ids, autoplay_next_episode, skip_intro_enabled, subtitles_enabled, default_subtitle_language, default_audio_language, blocked_genres, stats_reset_at, updated_at`,
     [
       userId,
-      JSON.stringify(input.homeRowOrder),
+      JSON.stringify(homeRowOrder),
       JSON.stringify(input.hiddenRowIds),
       input.autoplayNextEpisode,
       input.skipIntroEnabled,

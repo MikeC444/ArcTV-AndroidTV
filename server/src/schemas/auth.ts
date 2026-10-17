@@ -26,7 +26,9 @@ export const displayName = z
 export const registerSchema = z.object({
   email,
   password,
-  displayName,
+  // Required of the apps that ask for it, but not of an older build that has no such field: the name is then taken from the email (see authService.defaultDisplayName),
+  // so signing up from those still works. A name that IS sent must still be a real one.
+  displayName: displayName.optional(),
   deviceId,
   deviceName,
   platform,

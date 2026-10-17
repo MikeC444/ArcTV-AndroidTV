@@ -146,11 +146,21 @@ export async function createSessionForDevice(
   return { accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt };
 }
 
+/**
+ * A name for an account whose app did not send one (an older build: the phone, Mac and Windows apps once had the field as optional): the first word of the
+ * part of the email before the @, capitalised and at most 24 characters, or "Me". It is also the account's default profile name.
+ */
+export function defaultDisplayName(email: string): string {
+  const word = (email.split("@")[0] ?? "").split(/[^A-Za-z0-9]+/).find((part) => part.length > 0) ?? "";
+  const name = word.slice(0, 24);
+  return name ? name.charAt(0).toUpperCase() + name.slice(1) : "Me";
+}
+
 export async function register(input: RegisterInput): Promise<AuthResult> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const user = await insertUser(client, input.email, input.password, input.displayName);
+    const user = await insertUser(client, input.email, input.password, input.displayName ?? defaultDisplayName(input.email));
     const tokens = await createSessionForDevice(client, user.id, input.deviceId, input.deviceName, input.platform);
     await client.query("COMMIT");
     return { ...tokens, user };
