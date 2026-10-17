@@ -31,10 +31,11 @@ describe("addonSupportedBy", () => {
     expect(addonSupportedBy("com.linvo.cinemeta", "fire_tv", "0.1.0")).toBe(true);
   });
 
-  it("lists a catalogue-only addon to the web app, and to the Fire TV from 0.6.1", () => {
+  it("lists a catalogue-only addon to the web app, and to the Fire TV from 0.7.0 (the first version with its Home tiles)", () => {
     expect(addonSupportedBy(STREAMING, "web", null)).toBe(true);
-    expect(addonSupportedBy(STREAMING, "fire_tv", "0.6.1")).toBe(true);
     expect(addonSupportedBy(STREAMING, "fire_tv", "0.7.0")).toBe(true);
+    expect(addonSupportedBy(STREAMING, "fire_tv", "0.7.1")).toBe(true);
+    expect(addonSupportedBy(STREAMING, "fire_tv", "0.6.1")).toBe(false);
     expect(addonSupportedBy(STREAMING, "fire_tv", "0.6.0")).toBe(false);
     expect(addonSupportedBy(STREAMING, "fire_tv", null)).toBe(false);
   });
@@ -62,10 +63,10 @@ describe("GET /user/addons keeps the Streaming Catalogs addon from apps that are
     expect(list).toContain("https://v3-cinemeta.strem.io/manifest.json");
   });
 
-  it("sends it to a Fire TV that says it is on 0.6.1 (the version it sends now wins over the one on record), and not to one that sends nothing newer", async () => {
+  it("sends it to a Fire TV that says it is on 0.7.0 (the version it sends now wins over the one on record), and not to one that is still on 0.6.1", async () => {
     const s = await createTestSession({ platform: "fire_tv", appVersion: "0.6.0" });
-    expect(await urls(s.token, { "X-ArcTV-App-Version": "0.6.1" })).toContain(STREAMING_CATALOGS_MANIFEST_URL);
-    expect(await urls(s.token, { "X-ArcTV-App-Version": "0.6.0" })).not.toContain(STREAMING_CATALOGS_MANIFEST_URL);
+    expect(await urls(s.token, { "X-ArcTV-App-Version": "0.7.0" })).toContain(STREAMING_CATALOGS_MANIFEST_URL);
+    expect(await urls(s.token, { "X-ArcTV-App-Version": "0.6.1" })).not.toContain(STREAMING_CATALOGS_MANIFEST_URL);
   });
 
   it("does not send it to a Fire TV (the default platform) that never said which version it is", async () => {

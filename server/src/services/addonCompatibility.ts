@@ -12,8 +12,8 @@ import { STREAMING_CATALOGS_ADDON_ID } from "../data/streamingCatalogsManifest.j
  * apps send at sign-in: "web", "fire_tv"; the phone, Mac and Windows apps are added when they support the addon.
  */
 export const ADDON_SUPPORT: Record<string, Record<string, string>> = {
-  // Catalogue-only (no details of its own): titles open through other addons, which the Fire TV app only does from 0.6.1; the web app always has.
-  [STREAMING_CATALOGS_ADDON_ID]: { web: "any", fire_tv: "0.6.1" },
+  // Catalogue-only (no details of its own): titles open through other addons, the web app always has; the Fire TV app shows it through its Home tiles and service pages from 0.7.0 (0.6.1 opens its titles but has no tiles, so it is not sent it).
+  [STREAMING_CATALOGS_ADDON_ID]: { web: "any", fire_tv: "0.7.0" },
 };
 
 /** Numeric compare of dotted versions ("0.6.1" < "0.10.0"); anything after a non-digit in a part is ignored. */

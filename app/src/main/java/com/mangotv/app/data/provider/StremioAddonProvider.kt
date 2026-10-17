@@ -107,11 +107,16 @@ class StremioAddonProvider(
     override val id: String = manifest.id
     override val name: String = manifest.name
 
+    private val usableCatalogs = manifest.catalogs.filter { it.type in SUPPORTED_CATALOG_TYPES }
+
+    // The catalogues this addon has for each streaming service (for the Home tiles and the service pages).
+    private val serviceCatalogs: Map<String, List<AddonCatalogDef>> = serviceCatalogsByService(usableCatalogs)
+
     // An addon made of streaming-service catalogues (Streaming Catalogs) is not turned into rows: all its catalogues would merge into one huge row
-    // named after the first ("Netflix, 2431 titles") that is not Netflix at all. Its titles are for the service tiles, which the TV does not have yet.
-    private val supportedCatalogs = manifest.catalogs.filter { it.type in SUPPORTED_CATALOG_TYPES }.let { all ->
-        val serviceCatalogs = streamingServiceCatalogs(all)
-        if (serviceCatalogs.isEmpty()) all else all.filter { catalog -> serviceCatalogs.none { it === catalog } }
+    // named after the first ("Netflix, 2431 titles") that is not Netflix at all. Its titles are for the service tiles and pages.
+    private val supportedCatalogs = usableCatalogs.let { all ->
+        val serviceOnly = streamingServiceCatalogs(all)
+        if (serviceOnly.isEmpty()) all else all.filter { catalog -> serviceOnly.none { it === catalog } }
     }
 
     private val animeCatalogs = manifest.catalogs.filter { it.isUsableAnime() }
@@ -144,6 +149,25 @@ class StremioAddonProvider(
         val catalogs = animeCatalogsFor(genre)
         if (catalogs.isEmpty()) return emptyList()
         return fetchPage(catalogs, extra = if (genre != null) mapOf("genre" to genre) else emptyMap(), page = page)
+    }
+
+    override fun streamingServices(): List<String> = serviceCatalogs.keys.toList()
+
+    override suspend fun getServiceItems(service: String): List<Content> = coroutineScope {
+        val perCatalog = serviceCatalogs[service].orEmpty().map { catalogDef ->
+            async {
+                runCatching { client.fetchCatalog(manifestUrl, catalogDef.type, catalogDef.id, emptyMap()) }
+                    .getOrNull()?.map { it.toContent(providerId = id) }.orEmpty()
+            }
+        }.awaitAll()
+        interleave(perCatalog).distinctBy { it.id }
+    }
+
+    override suspend fun getMoreServiceItems(page: Int, service: String): List<Content> {
+        // Only a catalogue that declares "skip" has more pages (the Streaming Catalogs addon's take no extras at all: its one page is all there is).
+        val catalogs = serviceCatalogs[service].orEmpty().filter { catalogDef -> catalogDef.allExtras.any { it.name == "skip" } }
+        if (catalogs.isEmpty()) return emptyList()
+        return fetchPage(catalogs, extra = emptyMap(), page = page)
     }
 
     // The addon's own search where an anime catalogue has one, else a title match over its ranked lists (the same fallback as search()).

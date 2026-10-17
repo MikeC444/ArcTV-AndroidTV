@@ -141,7 +141,22 @@ class HomeRowPreferencesRepository(context: Context) {
         if (newIndex == index) return@withContext
         ids.removeAt(index)
         ids.add(newIndex, rowId)
-        update(_preferences.value.copy(order = ids))
+        // The streaming-service tiles keep their own order in the same list (`streaming:<id>`), which Settings does not show among the rows: keep it.
+        update(_preferences.value.copy(order = orderKeepingServices(ids, _preferences.value.order)))
+        onLocalChange?.invoke()
+    }
+
+    /** Shows or hides one streaming-service tile (a service that is off by default needs a "turned on" marker, see [isServiceVisible]). */
+    suspend fun setServiceVisible(service: String, visible: Boolean) = withContext(Dispatchers.IO) {
+        val current = _preferences.value
+        update(current.copy(hiddenRowIds = withServiceVisible(current.hiddenRowIds, service, visible)))
+        onLocalChange?.invoke()
+    }
+
+    /** Puts the streaming-service tiles in [services]' order (kept in the same list as the rows' order, as `streaming:<id>`). */
+    suspend fun setServiceOrder(services: List<String>) = withContext(Dispatchers.IO) {
+        val current = _preferences.value
+        update(current.copy(order = withServiceOrder(current.order, services)))
         onLocalChange?.invoke()
     }
 

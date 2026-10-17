@@ -25,6 +25,8 @@ object MangoRoutes {
     const val ANIME = "anime"
     const val SEARCH = "search"
     const val MY_LIST = "my_list"
+    /** A streaming service's page (Netflix, Disney+ ...), opened from its tile on Home. */
+    const val STREAMING_PATTERN = "streaming/{service}"
     const val DETAIL_PATTERN = "detail/{providerId}/{type}/{id}"
     const val SOURCES_PATTERN = "sources/{providerId}/{type}/{id}/{season}/{episode}/{skipAutoSelect}?auto={auto}"
     const val PLAYER_PATTERN = "player/{providerId}/{type}/{id}/{season}/{episode}/{streamId}"
@@ -37,6 +39,8 @@ object MangoRoutes {
 
     /** See [authQr]'s kdoc -- same display-only [intent] contract, carried through AuthMethodScreen. */
     fun authPassword(intent: String): String = "auth/password/$intent"
+
+    fun streaming(service: String): String = "streaming/${URLEncoder.encode(service, "UTF-8")}"
 
     fun detail(providerId: String, type: ContentType, id: String): String {
         val encodedProviderId = URLEncoder.encode(providerId, "UTF-8")

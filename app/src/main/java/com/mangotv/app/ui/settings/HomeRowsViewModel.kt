@@ -8,11 +8,17 @@ import com.mangotv.app.data.model.HomeSection
 import com.mangotv.app.data.provider.CatalogProvider
 import com.mangotv.app.data.provider.HomeRowPreferences
 import com.mangotv.app.data.provider.ProviderRegistry
+import com.mangotv.app.data.provider.inUserOrder
+import com.mangotv.app.data.provider.moveService
+import com.mangotv.app.data.provider.orderServices
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -45,6 +51,11 @@ class HomeRowsViewModel(application: Application) : AndroidViewModel(application
     private val homeRowPreferences = (application as MangoTvApplication).container.homeRowPreferencesRepository
 
     val preferences: StateFlow<HomeRowPreferences> = homeRowPreferences.preferences
+
+    /** The streaming services (Netflix, Disney+ ...) the installed addons have catalogues for, in the person's own order: Home's tiles, switched and ordered here. */
+    val services: StateFlow<List<String>> = combine(ProviderRegistry.providers, homeRowPreferences.preferences) { providers, prefs ->
+        inUserOrder(orderServices(providers.flatMap { it.streamingServices() }), prefs.order)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _uiState = MutableStateFlow<HomeRowsUiState>(HomeRowsUiState.Loading)
     val uiState: StateFlow<HomeRowsUiState> = _uiState.asStateFlow()
@@ -82,5 +93,15 @@ class HomeRowsViewModel(application: Application) : AndroidViewModel(application
     /** [displayOrder] is the full list of row ids exactly as Settings is currently rendering them. */
     fun moveRow(displayOrder: List<String>, rowId: String, delta: Int) {
         viewModelScope.launch { homeRowPreferences.moveRow(displayOrder, rowId, delta) }
+    }
+
+    fun setServiceVisible(service: String, visible: Boolean) {
+        viewModelScope.launch { homeRowPreferences.setServiceVisible(service, visible) }
+    }
+
+    /** Moves one service's tile up or down among [current] (the services as Settings shows them). */
+    fun reorderService(current: List<String>, service: String, delta: Int) {
+        val next = moveService(current, service, delta) ?: return
+        viewModelScope.launch { homeRowPreferences.setServiceOrder(next) }
     }
 }

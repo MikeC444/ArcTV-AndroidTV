@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mangotv.app.data.model.HomeSection
+import com.mangotv.app.data.provider.isServiceVisible
+import com.mangotv.app.data.provider.streamingServiceById
 import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.MangoBackground
@@ -67,6 +70,7 @@ fun ColumnScope.HomeRowsSettingsContent(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val preferences by viewModel.preferences.collectAsStateWithLifecycle()
+    val services by viewModel.services.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
 
     // Which row is currently "picked up" for reordering, keyed by its id —
@@ -109,6 +113,45 @@ fun ColumnScope.HomeRowsSettingsContent(
             )
         }
 
+        // The streaming-service tiles on Home: a switch and a handle for each service an addon has (copied from the web app's "Streaming services" group)
+        if (services.isNotEmpty()) {
+            item(key = "streaming_header") {
+                Text(
+                    text = "Streaming services",
+                    color = TextPrimary,
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            item(key = "streaming_note") {
+                Text(
+                    text = "Your addons offer these. Turn off the ones you don't want as tiles on Home, and use the handle to put them in your order.",
+                    color = TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+            itemsIndexed(services, key = { _, service -> "streaming:$service" }) { index, service ->
+                val visible = isServiceVisible(service, preferences.hiddenRowIds)
+                val name = streamingServiceById(service)?.name ?: service
+                val grabKey = "streaming:$service"
+                HomeRowToggleRow(
+                    title = name,
+                    subtitle = null,
+                    visible = visible,
+                    grabbed = grabbedRowId == grabKey,
+                    onToggleVisible = { viewModel.setServiceVisible(service, !visible) },
+                    onToggleGrabbed = { grabbedRowId = if (grabbedRowId == grabKey) null else grabKey },
+                    onMove = { delta -> viewModel.reorderService(services, service, delta) },
+                    onHandleFocusLost = { if (grabbedRowId == grabKey) grabbedRowId = null },
+                    focusRequester = if (index == 0) contentFocusRequester else null,
+                    focusUp = if (index == 0) navFocusRequester else null,
+                    focusLeft = if (index == 0) sidebarFocusRequester else null
+                )
+            }
+            item(key = "streaming_gap") { Spacer(Modifier.height(14.dp)) }
+        }
+
         when (val state = uiState) {
             is HomeRowsUiState.Loading -> item(key = "loading") {
                 CircularProgressIndicator(color = ArcAccent)
@@ -133,7 +176,8 @@ fun ColumnScope.HomeRowsSettingsContent(
                     itemsIndexed(orderedRows, key = { _, row -> row.id }) { index, row ->
                         val visible = row.id !in preferences.hiddenRowIds
                         HomeRowToggleRow(
-                            row = row,
+                            title = row.title,
+                            subtitle = rowSubtitle(row),
                             visible = visible,
                             grabbed = grabbedRowId == row.id,
                             onToggleVisible = { viewModel.setRowVisible(row.id, !visible) },
@@ -142,9 +186,10 @@ fun ColumnScope.HomeRowsSettingsContent(
                             },
                             onMove = { delta -> viewModel.moveRow(displayOrder, row.id, delta) },
                             onHandleFocusLost = { if (grabbedRowId == row.id) grabbedRowId = null },
-                            focusRequester = if (index == 0) contentFocusRequester else null,
-                            focusUp = if (index == 0) navFocusRequester else null,
-                            focusLeft = if (index == 0) sidebarFocusRequester else null
+                            // the first control on the page takes the focus: a streaming service when there are any, else the first row
+                            focusRequester = if (index == 0 && services.isEmpty()) contentFocusRequester else null,
+                            focusUp = if (index == 0 && services.isEmpty()) navFocusRequester else null,
+                            focusLeft = if (index == 0 && services.isEmpty()) sidebarFocusRequester else null
                         )
                     }
 
@@ -183,7 +228,8 @@ private fun rowSubtitle(row: HomeSection): String {
 
 @Composable
 private fun HomeRowToggleRow(
-    row: HomeSection,
+    title: String,
+    subtitle: String?,
     visible: Boolean,
     grabbed: Boolean,
     onToggleVisible: () -> Unit,
@@ -229,14 +275,16 @@ private fun HomeRowToggleRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = row.title,
+                    text = title,
                     color = titleColor,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(Modifier.width(10.dp))
-                Text(text = rowSubtitle(row), color = subtitleColor, style = MaterialTheme.typography.labelSmall)
-                Spacer(Modifier.width(12.dp))
+                if (subtitle != null) {
+                    Text(text = subtitle, color = subtitleColor, style = MaterialTheme.typography.labelSmall)
+                    Spacer(Modifier.width(12.dp))
+                }
                 Switch(
                     checked = visible,
                     onCheckedChange = null,
@@ -274,7 +322,7 @@ private fun HomeRowToggleRow(
         ) {
             Icon(
                 imageVector = Icons.Filled.Menu,
-                contentDescription = if (grabbed) "Stop moving ${row.title}" else "Reorder ${row.title}",
+                contentDescription = if (grabbed) "Stop moving $title" else "Reorder $title",
                 tint = if (grabbed) TextPrimary else TextSecondary,
                 modifier = Modifier
                     .padding(6.dp)

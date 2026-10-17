@@ -68,6 +68,10 @@ fun ContentCard(
     // was last hovering so returning from the nav bar re-lands on it.
     onFocusChanged: (Boolean) -> Unit = {}
 ) {
+    if (style == RowStyle.STREAMING_SERVICES) {
+        StreamingTile(content = content, onClick = onClick, modifier = modifier, focusRequester = focusRequester, onFocusChanged = onFocusChanged, posterScale = posterScale)
+        return
+    }
     val isContinueWatching = style == RowStyle.CONTINUE_WATCHING
     val scale = (if (compact) 2f / 3f else 1f) * posterScale
     val width = (if (isContinueWatching) MangoDimens.ContinueWatchingWidth else MangoDimens.PosterWidth) * scale

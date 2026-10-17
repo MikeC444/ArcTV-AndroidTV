@@ -1,6 +1,7 @@
 package com.mangotv.app.ui.browse
 
 import com.mangotv.app.data.provider.ProviderRegistry
+import com.mangotv.app.data.provider.streamingServiceById
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
@@ -1036,6 +1037,31 @@ fun AnimeScreen(onNavigate: (String) -> Unit, viewModel: AnimeViewModel = viewMo
         if (providers.isNotEmpty() && !ProviderRegistry.hasAnime(providers)) onNavigate(MangoRoutes.HOME)
     }
     TypeBrowseScreen(title = "Anime", onNavigate = onNavigate, viewModel = viewModel, emptyWithoutGenre = "Your anime addons didn't return any titles right now.")
+}
+
+/**
+ * A streaming service's page, opened from its Home tile: that service's titles from the installed addons (see [StreamingViewModel]). Back goes to Home, whose
+ * tab stays highlighted. Goes back to Home when no installed addon has the service any more.
+ */
+@Composable
+fun StreamingScreen(onNavigate: (String) -> Unit, viewModel: StreamingViewModel = viewModel()) {
+    val providers by ProviderRegistry.providers.collectAsStateWithLifecycle()
+    LaunchedEffect(providers) {
+        if (providers.isNotEmpty() && viewModel.service !in ProviderRegistry.streamingServices(providers)) onNavigate(MangoRoutes.HOME)
+    }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val name = streamingServiceById(viewModel.service)?.name ?: "Streaming"
+    RowsBrowseContent(
+        screenTitle = name,
+        navLabel = "Home",
+        uiState = uiState,
+        onNavigate = onNavigate,
+        onRetry = viewModel::load,
+        layout = RowsBrowseLayout.GRID,
+        onLoadMore = viewModel::loadMore,
+        emptyMessage = "Your addons didn't return any $name titles right now.",
+        headerAction = null
+    )
 }
 
 /** Movies and TV Shows: the same grid, with the "All genres" drop-down beside the title (as on the web). */

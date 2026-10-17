@@ -370,7 +370,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val continueWatching = continueWatchingSection
         updatePickedInputs()
         val picked = if (pickedAvailable()) pickedSection(pickedResult, pickedMovies.withoutBlocked(blockedGenres), feedbackEntries, dismissedIds) else null
-        val sections = listOfNotNull(continueWatching?.withWatchedFlags()) + listOfNotNull(picked?.withWatchedFlags()) + visibleSections
+        // The streaming-service tiles sit between Continue Watching and Picked for you (like the web app), shown while an installed addon has a catalogue for
+        // a service the person has not turned off; not subject to the row order / hidden lists, which have their own entries for the tiles.
+        val tiles = streamingTilesSection(ProviderRegistry.streamingServices(), rowPreferences)
+        val sections = listOfNotNull(continueWatching?.withWatchedFlags()) + listOfNotNull(tiles) + listOfNotNull(picked?.withWatchedFlags()) + visibleSections
 
         // HERO_POOL_SIZE random titles drawn from every visible row (not
         // just the first one), respecting manual reordering and hidden rows

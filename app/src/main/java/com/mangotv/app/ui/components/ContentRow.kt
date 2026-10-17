@@ -5,6 +5,8 @@ import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
@@ -27,6 +29,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.mangotv.app.data.model.Content
 import com.mangotv.app.data.model.HomeSection
+import com.mangotv.app.data.model.RowStyle
 import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoMotion
 import com.mangotv.app.ui.theme.TextPrimary
@@ -84,15 +87,20 @@ fun ContentRow(
     Column(
         modifier = modifier.onFocusChanged { onFocusChanged(it.hasFocus) }
     ) {
-        Text(
-            text = section.title,
-            color = TextPrimary,
-            style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(
-                horizontal = MangoDimens.ScreenPaddingHorizontal,
-                vertical = if (compact) 6.dp else 12.dp
+        if (section.style == RowStyle.STREAMING_SERVICES) {
+            // The streaming-service tiles have no heading (as on the web app); keep a little room above them
+            Spacer(Modifier.height(12.dp))
+        } else {
+            Text(
+                text = section.title,
+                color = TextPrimary,
+                style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(
+                    horizontal = MangoDimens.ScreenPaddingHorizontal,
+                    vertical = if (compact) 6.dp else 12.dp
+                )
             )
-        )
+        }
         // Fast animation for horizontal card-to-card scroll-into-view, plus
         // a fixed edge margin so a card's focus scale-up always has room to
         // grow into instead of getting clipped by the LazyRow's own bounds

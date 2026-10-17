@@ -313,6 +313,11 @@ private fun HomeContent(
         onNavigate(MangoRoutes.detail(providerId, target.type, target.id))
     }
 
+    // A streaming-service tile opens that service's page
+    fun openStreamingService(tile: Content) {
+        serviceOfTileId(tile.id)?.let { onNavigate(MangoRoutes.streaming(it)) }
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         // The outer list is scrolled exclusively by the explicit
         // centering LaunchedEffect above now -- disabling Compose's own
@@ -366,7 +371,11 @@ private fun HomeContent(
                 itemsIndexed(state.sections, key = { _, section -> section.id }) { index, section ->
                     ContentRow(
                         section = section,
-                        onItemClick = if (section.style == RowStyle.CONTINUE_WATCHING) onResume else ::navigateToContent,
+                        onItemClick = when (section.style) {
+                            RowStyle.CONTINUE_WATCHING -> onResume
+                            RowStyle.STREAMING_SERVICES -> ::openStreamingService
+                            else -> ::navigateToContent
+                        },
                         modifier = Modifier.padding(bottom = MangoDimens.RowSpacing),
                         posterScale = 0.75f,
                         onFocusChanged = { hasFocus -> if (hasFocus) focusedRowIndex = index },
