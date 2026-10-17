@@ -29,7 +29,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -180,16 +179,22 @@ fun StreamingTile(
             modifier = Modifier
                 .width(width)
                 .height(height)
-                // the light beneath the tile: a soft ellipse under its lower edge (drawn, not a blurred shadow, which older Android versions do not do)
+                // the light beneath the tile (the web's `0 28px 38px -16px glow`): a soft, rounded glow hugging the tile's lower edge, built from a few rounded
+                // rectangles that grow and fade, because a blurred shadow is not available on older Android versions
                 .drawBehind {
-                    val radius = size.width * 0.5f
-                    // worked out here: inside withTransform's own block Dp.toPx() has no receiver to use
-                    val center = Offset(size.width / 2f, size.height + 4.dp.toPx())
-                    withTransform({ scale(scaleX = 1f, scaleY = 0.28f, pivot = center) }) {
-                        drawCircle(
-                            brush = Brush.radialGradient(listOf(glow.copy(alpha = glowAlpha), glow.copy(alpha = 0f)), center = center, radius = radius),
-                            radius = radius,
-                            center = center
+                    val blur = 24.dp.toPx()
+                    val inset = 12.dp.toPx()
+                    val down = 14.dp.toPx()
+                    val top = size.height * 0.5f
+                    val passes = 12
+                    for (i in 0 until passes) {
+                        val t = i / (passes - 1f)
+                        val grow = blur * t
+                        drawRoundRect(
+                            color = glow.copy(alpha = (glowAlpha * 0.16f * (1f - t)).coerceIn(0f, 1f)),
+                            topLeft = Offset(inset - grow, top - grow),
+                            size = Size(size.width - inset * 2f + grow * 2f, size.height + down - top + grow * 2f),
+                            cornerRadius = CornerRadius(20.dp.toPx() + grow, 20.dp.toPx() + grow)
                         )
                     }
                 }
