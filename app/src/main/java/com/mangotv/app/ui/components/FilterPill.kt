@@ -37,7 +37,8 @@ fun FilterPill(
     // between a nav bar and a scrollable grid, rather than as an ordinary
     // LazyColumn sibling default focus search already handles on its own.
     focusUp: FocusRequester? = null,
-    focusDown: FocusRequester? = null
+    focusDown: FocusRequester? = null,
+    focusLeft: FocusRequester? = null
 ) {
     var focused by remember { mutableStateOf(false) }
     val contentColor = when {
@@ -53,6 +54,7 @@ fun FilterPill(
         focusRequester = focusRequester,
         focusUp = focusUp,
         focusDown = focusDown,
+        focusLeft = focusLeft,
         onFocusChanged = { focused = it },
         // No lift shadow: on a small pill it showed as a faint dark outline around it.
         focusedElevation = 0f,

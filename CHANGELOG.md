@@ -6086,3 +6086,21 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** none beyond the above.
+
+## Post-Milestone-176 -- TV: Home Rows as a short hub with a page for the streaming tiles and one for each addon
+
+**Status:** Done on a branch (the same one as Post-Milestone-172 to 175); not built here, not merged.
+
+**Context:** Settings > Home Rows had become one very long list (the streaming services, then every addon's rows, 60-odd lines), hard to move through with a remote. The owner picked a hub layout from a mock-up and asked that any addon installed later get its own page.
+
+**Changes:**
+- `HomeRowsScreen.kt` rewritten: a short hub with a card for "Streaming tiles" and one card per installed addon that has rows (an addon installed later gets its own card by itself; one with no rows, such as a stream-only addon, has none). A card opens a page with a Back pill and two tabs: "On Home" (the items that are shown, numbered, two across, each with a switch and the reorder handle: OK picks it up, Left / Right move it a place, Up / Down a row) and "Off" (the rest, three across; a switch turns one on). The remote's Back goes from a page to the hub, which re-focuses the card that was opened; an addon removed while its page is open sends the page back to the hub; focus moves on to the neighbouring cell when an item leaves the list.
+- `HomeRowsViewModel`: `AddonRows` (rows kept per addon), `moveRowWithin`, `moveServiceWithin`; a service turned on joins the end of the tiles.
+- `reorderWithin` (pure) moves an item among a page's items while every other row keeps its place in Home's single order list; `HomeRowPreferencesRepository.setRowOrder` saves it (the `streaming:` entries are kept). `FilterPill` gained `focusLeft`.
+- Test: `ReorderWithinTest`. `RELEASE_NOTES.md`: one bullet.
+
+**Tests performed:** manual re-read and a structural brace / paren check of the changed Kotlin; no Gradle/Android build or unit-test run was possible here (no route to `dl.google.com`), so it is uncompiled, the test has not run and the pages have not been tried with a remote.
+
+**Issues discovered:** a row switched back on keeps its old place in Home's order (only a streaming service goes to the end), since rows have no fixed default end.
+
+**Issues fixed:** none beyond the above.

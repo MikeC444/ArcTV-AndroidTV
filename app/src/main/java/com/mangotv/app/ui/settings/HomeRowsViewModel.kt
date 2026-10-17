@@ -9,7 +9,7 @@ import com.mangotv.app.data.provider.CatalogProvider
 import com.mangotv.app.data.provider.HomeRowPreferences
 import com.mangotv.app.data.provider.ProviderRegistry
 import com.mangotv.app.data.provider.inUserOrder
-import com.mangotv.app.data.provider.moveService
+import com.mangotv.app.data.provider.reorderWithin
 import com.mangotv.app.data.provider.orderServices
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -23,10 +23,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 
+/** One installed addon's rows (Cinemeta's genres, say); an addon that gives no rows has none of these, and so no page. */
+data class AddonRows(val providerId: String, val name: String, val rows: List<HomeSection>)
+
 sealed interface HomeRowsUiState {
     data object Loading : HomeRowsUiState
     data object NoAddons : HomeRowsUiState
-    data class Loaded(val rows: List<HomeSection>) : HomeRowsUiState
+    /** Every installed addon that has rows, in the order the addons are installed: each gets its own page in Settings > Home Rows. */
+    data class Loaded(val addons: List<AddonRows>) : HomeRowsUiState {
+        val rows: List<HomeSection> get() = addons.flatMap { it.rows }
+    }
 }
 
 /**
@@ -78,30 +84,41 @@ class HomeRowsViewModel(application: Application) : AndroidViewModel(application
         // that, same as before. What's new is `async` per provider instead
         // of a sequential loop, so every provider's own (up to ~30 request)
         // fetch overlaps instead of stacking up back to back.
-        val rows = coroutineScope {
+        val addons = coroutineScope {
             providers.map { provider ->
-                async { runCatching { provider.getHomeSections().toList().flatten() }.getOrDefault(emptyList()) }
+                async {
+                    val rows = runCatching { provider.getHomeSections().toList().flatten() }.getOrDefault(emptyList())
+                    AddonRows(provider.id, provider.name, rows)
+                }
             }.awaitAll()
-        }.flatten()
-        _uiState.value = HomeRowsUiState.Loaded(rows)
+        }.filter { it.rows.isNotEmpty() }
+        _uiState.value = HomeRowsUiState.Loaded(addons)
     }
 
     fun setRowVisible(rowId: String, visible: Boolean) {
         viewModelScope.launch { homeRowPreferences.setRowHidden(rowId, hidden = !visible) }
     }
 
-    /** [displayOrder] is the full list of row ids exactly as Settings is currently rendering them. */
-    fun moveRow(displayOrder: List<String>, rowId: String, delta: Int) {
-        viewModelScope.launch { homeRowPreferences.moveRow(displayOrder, rowId, delta) }
+    /**
+     * Moves one row [delta] places among [subset] (the rows the current page shows, in their order); [allOrdered] is every row's id in the order Home uses,
+     * so the other addons' rows keep their places.
+     */
+    fun moveRowWithin(allOrdered: List<String>, subset: List<String>, rowId: String, delta: Int) {
+        val next = reorderWithin(allOrdered, subset, rowId, delta) ?: return
+        viewModelScope.launch { homeRowPreferences.setRowOrder(next) }
     }
 
     fun setServiceVisible(service: String, visible: Boolean) {
-        viewModelScope.launch { homeRowPreferences.setServiceVisible(service, visible) }
+        viewModelScope.launch {
+            homeRowPreferences.setServiceVisible(service, visible)
+            // A service turned on joins the end of the tiles (as on the web's Off list), not wherever it happened to be in the default order
+            if (visible) homeRowPreferences.setServiceOrder(services.value.filter { it != service } + service)
+        }
     }
 
-    /** Moves one service's tile up or down among [current] (the services as Settings shows them). */
-    fun reorderService(current: List<String>, service: String, delta: Int) {
-        val next = moveService(current, service, delta) ?: return
+    /** Moves one service's tile [delta] places among [on] (the services shown, in their order); [all] is every service in the person's order. */
+    fun moveServiceWithin(all: List<String>, on: List<String>, service: String, delta: Int) {
+        val next = reorderWithin(all, on, service, delta) ?: return
         viewModelScope.launch { homeRowPreferences.setServiceOrder(next) }
     }
 }
