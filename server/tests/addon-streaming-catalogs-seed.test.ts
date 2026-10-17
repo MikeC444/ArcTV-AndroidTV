@@ -24,7 +24,7 @@ const install = (s: TestSession, manifestUrl: string, addonId: string, name: str
 
 describe("the server gives every adult profile the Streaming Catalogs addon once", () => {
   it("adds it after Cinemeta and OpenSubtitles for a brand-new account, catalogue-only, with the services in it, and not twice", async () => {
-    const s = await createTestSession();
+    const s = await createTestSession({ platform: "web" });
     const first = await list(s);
     expect(first.map((a) => a.manifestUrl)).toEqual([CINEMETA_URL, OPENSUBTITLES_URL, STREAMING_CATALOGS_MANIFEST_URL]);
     const row = streaming(first)[0]!;
@@ -37,7 +37,7 @@ describe("the server gives every adult profile the Streaming Catalogs addon once
   });
 
   it("adds it for an existing account, after the addons it already has, which are kept", async () => {
-    const s = await createTestSession();
+    const s = await createTestSession({ platform: "web" });
     await pool.query("INSERT INTO addon_seed_marks (user_id) VALUES ($1)", [s.userId]);
     await pool.query("INSERT INTO subtitles_addon_marks (user_id) VALUES ($1)", [s.userId]);
     await install(s, "https://tmdb.example/manifest.json", "id.tmdb", "TMDB", 4);
@@ -47,7 +47,7 @@ describe("the server gives every adult profile the Streaming Catalogs addon once
   });
 
   it("does not give it back to someone who removed it, on any device", async () => {
-    const s = await createTestSession();
+    const s = await createTestSession({ platform: "web" });
     await list(s);
     await request(app).delete("/user/addons").set(auth(s)).query({ manifestUrl: STREAMING_CATALOGS_MANIFEST_URL, updatedAt: "2030-01-01T00:00:00.000Z" });
     expect(streaming(await list(s))).toHaveLength(0);
@@ -55,20 +55,20 @@ describe("the server gives every adult profile the Streaming Catalogs addon once
   });
 
   it("leaves an account alone that installed the addon itself (with its own link), or had installed and removed it before this existed", async () => {
-    const own = await createTestSession();
+    const own = await createTestSession({ platform: "web" });
     await install(own, "https://other-host.example/own-config/manifest.json", STREAMING_CATALOGS_ADDON_ID, "Streaming Catalogs");
     const rows = await list(own);
     expect(rows.filter((a) => a.addonId === STREAMING_CATALOGS_ADDON_ID)).toHaveLength(1);
     expect(streaming(rows)).toHaveLength(0);
 
-    const removedBefore = await createTestSession();
+    const removedBefore = await createTestSession({ platform: "web" });
     await install(removedBefore, STREAMING_CATALOGS_MANIFEST_URL, STREAMING_CATALOGS_ADDON_ID, "Streaming Catalogs");
     await request(app).delete("/user/addons").set(auth(removedBefore)).query({ manifestUrl: STREAMING_CATALOGS_MANIFEST_URL, updatedAt: "2025-02-01T00:00:00.000Z" });
     expect(streaming(await list(removedBefore))).toHaveLength(0);
   });
 
   it("looks at each profile on its own, and leaves a kids profile out", async () => {
-    const s = await createTestSession();
+    const s = await createTestSession({ platform: "web" });
     const adult = await request(app).post("/user/profiles").set(auth(s)).send({ name: "Sam", avatar: "owl", kind: "adult" });
     const kids = await request(app).post("/user/profiles").set(auth(s)).send({ name: "Kit", avatar: "owl", kind: "kids" });
     expect(adult.status).toBeLessThan(300);

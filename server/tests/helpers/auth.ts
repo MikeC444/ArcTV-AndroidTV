@@ -22,6 +22,9 @@ interface CreateTestSessionOptions {
   userDeleted?: boolean;
   deviceRevoked?: boolean;
   isAdmin?: boolean;
+  /** What the device says it is at sign-in ("web", "fire_tv" ...). Some addons are only listed to apps that can cope with them (services/addonCompatibility.ts). */
+  platform?: string;
+  appVersion?: string;
 }
 
 /**
@@ -43,8 +46,8 @@ export async function createTestSession(options: CreateTestSessionOptions = {}):
   const userId = userResult.rows[0]!.id;
 
   const deviceResult = await pool.query<{ id: string }>(
-    "INSERT INTO devices (user_id, device_identifier, revoked_at) VALUES ($1, $2, $3) RETURNING id",
-    [userId, randomUUID(), options.deviceRevoked ? new Date() : null]
+    "INSERT INTO devices (user_id, device_identifier, revoked_at, platform, app_version) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+    [userId, randomUUID(), options.deviceRevoked ? new Date() : null, options.platform ?? "fire_tv", options.appVersion ?? null]
   );
   const deviceId = deviceResult.rows[0]!.id;
 

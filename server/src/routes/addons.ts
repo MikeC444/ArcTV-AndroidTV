@@ -1,10 +1,12 @@
 import { Router } from "express";
 import type { z } from "zod";
-import { requireAuth } from "../middleware/auth.js";
+import { cleanAppVersion, requireAuth } from "../middleware/auth.js";
 import { profileOf, resolveProfile } from "../middleware/profile.js";
 import { validate } from "../middleware/validate.js";
 import { addonBodySchema, addonDeleteQuerySchema } from "../schemas/addons.js";
 import * as addonService from "../services/addonService.js";
+import { addonSupportedBy } from "../services/addonCompatibility.js";
+import { pool } from "../db/pool.js";
 
 export const addonsRouter = Router();
 
@@ -24,7 +26,11 @@ function serialize(addon: addonService.UserAddon) {
 addonsRouter.get("/addons", requireAuth, resolveProfile, async (req, res, next) => {
   try {
     const addons = await addonService.listActiveAddons(req.user!.id, profileOf(req));
-    res.json({ items: addons.map(serialize) });
+    // Only the addons this device's app can cope with (see services/addonCompatibility.ts): the version it says it is now, else the one on record.
+    const device = await pool.query<{ platform: string | null; app_version: string | null }>("SELECT platform, app_version FROM devices WHERE id = $1", [req.session!.deviceId]);
+    const platform = device.rows[0]?.platform ?? null;
+    const version = cleanAppVersion(req.header("x-arctv-app-version")) ?? device.rows[0]?.app_version ?? null;
+    res.json({ items: addons.filter((addon) => addonSupportedBy(addon.addonId, platform, version)).map(serialize) });
   } catch (error) {
     next(error);
   }

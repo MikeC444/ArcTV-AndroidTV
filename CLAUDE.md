@@ -78,3 +78,15 @@ make My List a grid instead of a row") still got its own bullet. This rule
 is about not fragmenting one requested change into a trail of your own
 fix-up commits -- it isn't about batching everything a user asks for into
 a single line.
+
+## Server changes must not break apps that are still behind
+
+An app only gets new behaviour when its user updates, but the server changes for everyone the moment it is deployed. So before the server
+starts giving every account something an older app might not handle (a default addon, a new kind of addon, a changed response), make sure
+an app that is behind never sees it.
+
+- A server-given addon goes in `server/src/services/addonCompatibility.ts` (`ADDON_SUPPORT`) with the first version of each app that handles
+  it. `GET /user/addons` only lists it to a device whose platform is named there and whose app version is high enough; a device that already
+  has it drops it on its next sync. Add an app to an entry only once that app has shipped the support (web is "any").
+- Other changes (a new field, a new response shape): keep the old shape for old apps, or gate by the device's platform and `X-ArcTV-App-Version`.
+- Before deploying, say in the PR which app versions the change needs and what an app that is behind will do.

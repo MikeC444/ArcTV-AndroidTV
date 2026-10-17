@@ -5991,3 +5991,21 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** for a title whose owner is the catalogue-only addon, "You may also like" is empty (that addon has no rows now); it fills in once the TV has service tiles.
 
 **Issues fixed:** posters from a catalogue-only addon failing to open.
+
+## Post-Milestone-171 -- Server: a server-given addon is only listed to apps that can cope with it
+
+**Status:** Done on a branch; not merged or deployed.
+
+**Context:** Deploying Post-Milestone-168 gave every adult profile the Streaming Catalogs addon, a catalogue-only addon whose titles an app can only open if it looks details up in other addons. The Fire TV 0.6.0 app does not (fixed in 0.6.1, Post-Milestone-170), so every poster from it failed to open. The server changes for everyone at once, while an app changes only when its user updates.
+
+**Changes:**
+- `src/services/addonCompatibility.ts` (new): `ADDON_SUPPORT` says, per addon id, which platforms can cope with it and from which app version (Streaming Catalogs: `web` any, `fire_tv` 0.6.1); `addonSupportedBy` and `compareVersions`. An addon not in the table is listed to everyone; a platform not named, or a version not known, is not sent it.
+- `src/routes/addons.ts`: `GET /user/addons` leaves out the addons the device's app can't cope with, using the platform on record and the app version the request sends (else the one on record). A device that already has such an addon drops it on its next pull, so Fire TVs on 0.6.0 are repaired without updating. The seeding itself is unchanged, so the addon appears for a device the moment its app qualifies.
+- Tests: new `tests/addon-compatibility.test.ts`; `createTestSession` can set a device's platform and app version (default Fire TV, as the table does); the Streaming Catalogs seed tests sign in as web.
+- `CLAUDE.md`: a rule to gate any new server-given default by app version before deploying.
+
+**Tests performed:** the whole server suite against a local disposable Postgres (28 files, 351 tests, all passing) and `tsc --noEmit`.
+
+**Issues discovered:** the phone, Mac and Windows apps send other platform names (not checked here), so they do not get the addon until their platform is added to the table, which is the safe default. The web app's device is "web".
+
+**Issues fixed:** none beyond the above.
