@@ -118,7 +118,7 @@ describe("GET /user/plus", () => {
       paywall: true,
       supporterBoard: null,
       supporterAnonymous: null,
-      trialDays: 5,
+      trialDays: 0,
       prices: { monthly: { amount: 499, currency: "gbp" }, yearly: { amount: 3999, currency: "gbp" }, lifetime: { amount: 9999, currency: "gbp" } },
     });
   });
@@ -248,8 +248,8 @@ describe("POST /user/plus/checkout", () => {
     });
     const response = await post(s.token, { plan: "yearly" });
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ url: "https://checkout.stripe.test/c/pay_123", amountTotal: 2999, currency: "gbp", trialDays: 5 });
-    expect(sent!.form.get("subscription_data[trial_period_days]")).toBe("5");
+    expect(response.body).toEqual({ url: "https://checkout.stripe.test/c/pay_123", amountTotal: 2999, currency: "gbp", trialDays: 0 });
+    expect(sent!.form.get("subscription_data[trial_period_days]")).toBeNull();
     expect(sent!.url).toBe("https://api.stripe.com/v1/checkout/sessions");
     expect(sent!.headers.Authorization).toBe("Bearer sk_test_x");
     expect(sent!.form.get("mode")).toBe("subscription");
@@ -266,33 +266,25 @@ describe("POST /user/plus/checkout", () => {
     expect(sent!.form.get("subscription_data[trial_period_days]")).toBeNull();
   });
 
-  it("gives the free trial only to someone who has never had Plus, and a trial gives a few days of access first", async () => {
+  it("offers no free trial on any plan, to anyone, and still honours a trial checkout that was opened before the trial went away", async () => {
     const s = await createTestSession();
     let form: URLSearchParams | null = null;
     setStripeFetch(async (_url, init) => {
       form = new URLSearchParams(init.body);
       return { ok: true, status: 200, json: async () => ({ url: "https://checkout.stripe.test/c/x", amount_total: 999, currency: "gbp" }) };
     });
-    // Monthly never gets the trial, even for someone who has never had Plus.
-    const monthly = await post(s.token, { plan: "monthly" });
-    expect(monthly.body.trialDays).toBe(0);
-    expect(form!.get("subscription_data[trial_period_days]")).toBeNull();
-    expect(form!.get("metadata[trial_days]")).toBeNull();
+    for (const plan of ["monthly", "yearly"] as const) {
+      expect((await post(s.token, { plan })).body.trialDays).toBe(0);
+      expect(form!.get("subscription_data[trial_period_days]")).toBeNull();
+      expect(form!.get("metadata[trial_days]")).toBeNull();
+    }
+    expect((await entitlement(s.token)).body.trialDays).toBe(0);
 
-    expect((await post(s.token, { plan: "yearly" })).body.trialDays).toBe(5);
-    expect(form!.get("metadata[trial_days]")).toBe("5");
-
+    // A checkout opened while the trial existed can still complete: it gets the few days of access it was promised.
     await webhook(completed(s.userId, { metadata: { plan: "yearly", user_id: s.userId, trial_days: "5" } }));
     const until = new Date((await entitlement(s.token)).body.validUntil).getTime();
     expect(until).toBeGreaterThan(Date.now() + 5 * 86400_000);
     expect(until).toBeLessThan(Date.now() + 7 * 86400_000);
-
-    // Having had Plus once (even only a trial) ends the offer.
-    const again = await post(s.token, { plan: "yearly" });
-    expect(again.body.trialDays).toBe(0);
-    expect((await entitlement(s.token)).body.trialDays).toBe(0);
-    expect((await entitlement((await createTestSession()).token)).body.trialDays).toBe(5);
-    expect(form!.get("subscription_data[trial_period_days]")).toBeNull();
   });
 
   it("a Stripe failure is a server error, not a leaked message; a Lifetime owner is told they already have it", async () => {

@@ -6199,3 +6199,21 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none beyond the cause above. Token theft is a little easier for 2 minutes after each rotation (a stolen old token works once in that window); the stolen token's use rotates the real owner's next refresh into the new "previous" slot, so both stay usable until the window ends.
 
 **Issues fixed:** the sign-outs above, if that is their cause. No app or web change, so no release is needed; apps that are behind benefit as soon as the server is deployed.
+
+## Post-Milestone-183 -- Server: the Plus free trial is removed
+
+**Status:** Done on branch `claude/remove-trial`; not merged or deployed. The web side is in `ArcTV-Web` (same branch name).
+
+**Context:** Monthly already had no trial; the owner wants the 5-day yearly trial gone too, with no app release. Every app (any version) shows trial wording only when `GET /user/plus` or the checkout answer reports `trialDays` above 0, so the server alone hides it everywhere.
+
+**Changes:**
+- `plus.ts`: `GET /user/plus` and the checkout answer always report `trialDays: 0` (the field stays for apps built while the trial existed); checkout no longer works out a trial.
+- `stripe.ts`: `PLUS_TRIAL_DAYS` and the `trialDays` input are gone, so Stripe is never asked for a trial period.
+- `stripeWebhook.ts`: still reads `trial_days` from a checkout opened before this deploy, so someone who started a trial just before still gets the access they were promised (comment updated).
+- `plus.test.ts`: the trial tests now check that no plan gets a trial and that an old trial checkout is still honoured.
+
+**Tests performed:** `tsc` clean; `plus.test.ts` passes (41 tests); the full suite is run before merging (see the pull request).
+
+**Issues discovered:** subscriptions already in a Stripe trial are not touched; they convert to paid as Stripe planned. Apps keep their now-unreachable trial code until a later release removes it.
+
+**Issues fixed:** none beyond the above.
