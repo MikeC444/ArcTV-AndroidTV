@@ -12,69 +12,20 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  db:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: server/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      # DATABASE_URL is a repository secret (Settings > Secrets and
-      # variables > Actions), never a value in this file — GitHub masks it
-      # in logs once it's referenced via `env:`, which this check relies on
-      # instead of interpolating `${{ secrets.* }}` directly into a script.
-      - name: Check DATABASE_URL secret is configured
-        id: check_db
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          if [ -n "$DATABASE_URL" ]; then
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::DATABASE_URL repository secret is not set — skipping live-database migration/verification steps. Add it under Settings > Secrets and variables > Actions."
-          fi
-
-      # Runs the exact same migration runner/verification script the
-      # production backend ships with — no CI-only substitute — against
-      # the real Neon database, since this repo's own sandbox development
-      # environment cannot reach Postgres's raw TCP port directly (only
-      # HTTPS egress; see docs/milestone-0-audit-and-plan.md, "sandbox
-      # environment constraints"). Safe to run on every push: the
-      # migration runner is idempotent and verify-schema always rolls its
-      # own transaction back, so this never mutates real data.
-      - name: Run migrations against Neon
-        if: steps.check_db.outputs.configured == 'true'
-        run: npm run migrate
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
-      - name: Verify schema against Neon
-        if: steps.check_db.outputs.configured == 'true'
-        run: npm run verify-schema
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
-  # Separate job, separate database on purpose: the automated API test
-  # suite (tests/*.test.ts) TRUNCATEs its tables between every test, so it
-  # runs against a throwaway Postgres service container that lives only
-  # for this job, never against the real Neon project the `db` job above
-  # verifies. That also means this job needs no secret at all — full test
+  # Migrations are applied to the real Neon database only by Render, as the API
+  # service's Pre-Deploy Command (`npm run migrate`), right before a new build of
+  # `main` goes live -- never from CI. A push to any branch (claude/**, a test
+  # branch) therefore never touches production data, and the production
+  # connection string is not a GitHub secret at all. See docs/DEPLOYMENT.md §1.
+  #
+  # The test job below still applies every migration from scratch, to a
+  # throwaway Postgres, before the suite runs (npm test's pretest step), so a
+  # migration that fails to apply still turns CI red before it can be deployed.
+  #
+  # The automated API test suite (tests/*.test.ts) TRUNCATEs its tables
+  # between every test, so it runs against a throwaway Postgres service
+  # container that lives only for this job, never against the real Neon
+  # project. That also means this job needs no secret at all — full test
   # coverage runs the same way for every push or PR, with no dependency on
   # repository-secret access.
   test:
@@ -111,6 +62,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
 
       - name: Run automated API tests
         run: npm test
