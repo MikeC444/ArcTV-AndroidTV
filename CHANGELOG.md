@@ -6182,3 +6182,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none. The field is additive and read only by the admin panel, so no app version is affected.
 
 **Issues fixed:** none beyond the above.
+
+## Post-Milestone-182 -- Server: a lost refresh reply no longer signs the person out
+
+**Status:** Done on branch `claude/refresh-grace`; not merged or deployed. Needs the server deploy (one migration).
+
+**Context:** `POST /auth/refresh` replaces the refresh token on every use and kills the old one. When the reply carrying the new token never reached the app (a dropped connection, the web server restarting or running as two instances, an app closed mid-request), the app kept the old token, the next refresh got a 401, and both the apps and the web server read that as "signed out". The owner is signed out of the web app often and the TV now and then. This cause comes from reading the code; it has not been confirmed on the live servers.
+
+**Changes:**
+- Migration `0038_sessions_prev_refresh_token.sql`: `prev_refresh_token_hash` and `prev_refresh_expires_at` on `sessions`, with a partial index.
+- `authService.ts` `refresh()`: each rotation records the token it replaces for `REFRESH_GRACE_MS` (2 minutes); a refresh with that token is answered with new tokens too, and the token that was current becomes the new "previous". Still one atomic UPDATE; revoked sessions, deleted users and revoked devices stay rejected.
+- Tests in `auth-refresh.test.ts`: the old replay test now uses a token replaced two rotations ago; new tests for one retry inside the window, the earlier reply's token still working, the window ending, and a revoked session staying revoked.
+
+**Tests performed:** `tsc` clean; the whole server suite against a local Postgres (30 files, 367 tests passing, migration applied).
+
+**Issues discovered:** none beyond the cause above. Token theft is a little easier for 2 minutes after each rotation (a stolen old token works once in that window); the stolen token's use rotates the real owner's next refresh into the new "previous" slot, so both stay usable until the window ends.
+
+**Issues fixed:** the sign-outs above, if that is their cause. No app or web change, so no release is needed; apps that are behind benefit as soon as the server is deployed.
