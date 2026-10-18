@@ -4,6 +4,7 @@ import request from "supertest";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { resetDatabase } from "./helpers/db.js";
+import { pool } from "../src/db/pool.js";
 import { createTestSession } from "./helpers/auth.js";
 
 // Fresh app per test — see tests/me.test.ts's comment on why (the auth
@@ -44,15 +45,57 @@ describe("POST /auth/refresh", () => {
     expect(meWithOldToken.status).toBe(401);
   });
 
-  it("rejects reuse of an already-rotated (old) refresh token — replay prevention", async () => {
+  it("rejects reuse of a refresh token that was replaced two rotations ago — replay prevention", async () => {
     const registered = await request(app)
       .post("/auth/register")
       .send({ displayName: "Tester", email: "harry@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
 
-    await request(app).post("/auth/refresh").send({ refreshToken: registered.body.refreshToken });
+    const first = await request(app).post("/auth/refresh").send({ refreshToken: registered.body.refreshToken });
+    await request(app).post("/auth/refresh").send({ refreshToken: first.body.refreshToken });
     const replay = await request(app).post("/auth/refresh").send({ refreshToken: registered.body.refreshToken });
 
     expect(replay.status).toBe(401);
+  });
+
+  it("answers one retry with the token just replaced (the reply may have been lost), and keeps the token it issued before working", async () => {
+    const registered = await request(app)
+      .post("/auth/register")
+      .send({ displayName: "Tester", email: "olga@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
+
+    const first = await request(app).post("/auth/refresh").send({ refreshToken: registered.body.refreshToken });
+    const retry = await request(app).post("/auth/refresh").send({ refreshToken: registered.body.refreshToken });
+    expect(retry.status).toBe(200);
+
+    // The app may have received the first reply after all (another tab, a late response): that token still works once.
+    const late = await request(app).post("/auth/refresh").send({ refreshToken: first.body.refreshToken });
+    expect(late.status).toBe(200);
+
+    const me = await request(app).get("/user/me").set("Authorization", `Bearer ${late.body.accessToken}`);
+    expect(me.status).toBe(200);
+  });
+
+  it("rejects the token just replaced once the grace period is over", async () => {
+    const registered = await request(app)
+      .post("/auth/register")
+      .send({ displayName: "Tester", email: "paul@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
+
+    await request(app).post("/auth/refresh").send({ refreshToken: registered.body.refreshToken });
+    await pool.query("UPDATE sessions SET prev_refresh_expires_at = now() - interval '1 second'");
+    const late = await request(app).post("/auth/refresh").send({ refreshToken: registered.body.refreshToken });
+
+    expect(late.status).toBe(401);
+  });
+
+  it("does not let the token just replaced revive a revoked session", async () => {
+    const registered = await request(app)
+      .post("/auth/register")
+      .send({ displayName: "Tester", email: "quinn@example.com", password: "correct-horse-battery", deviceId: randomUUID() });
+
+    const first = await request(app).post("/auth/refresh").send({ refreshToken: registered.body.refreshToken });
+    await request(app).post("/auth/logout").set("Authorization", `Bearer ${first.body.accessToken}`);
+    const retry = await request(app).post("/auth/refresh").send({ refreshToken: registered.body.refreshToken });
+
+    expect(retry.status).toBe(401);
   });
 
   it("rejects an unknown/garbage refresh token", async () => {

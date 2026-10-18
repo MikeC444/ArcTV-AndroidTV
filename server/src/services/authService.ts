@@ -7,6 +7,8 @@ import type { LoginInput, RegisterInput } from "../schemas/auth.js";
 
 const ACCESS_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+/** How long the refresh token just replaced still works once, so a lost reply does not sign the person out (see [refresh]). */
+export const REFRESH_GRACE_MS = 2 * 60 * 1000;
 
 const UNIQUE_VIOLATION = "23505";
 
@@ -201,22 +203,29 @@ export async function refresh(refreshToken: string): Promise<TokenPair> {
   // race window between confirming the token is valid and replacing it.
   // Rotating on every use means a stolen-and-reused *old* refresh token
   // simply fails from then on, rather than continuing to work forever.
+  //
+  // The one exception is the token replaced last: it keeps working for REFRESH_GRACE_MS, because the reply carrying its successor may never have
+  // reached the app (dropped connection, the web server restarting, an app closed mid-request) and the app would otherwise be signed out for a
+  // refresh that succeeded. Each rotation records the token it replaces, so a retry with the old token is answered with fresh tokens and the
+  // token the app may have received in the meantime is the new "previous" and still works.
   const result = await pool.query<{ id: string }>(
     `UPDATE sessions s
      SET access_token_hash = $2,
          access_token_expires_at = $3,
          refresh_token_hash = $4,
          refresh_token_expires_at = $5,
+         prev_refresh_token_hash = s.refresh_token_hash,
+         prev_refresh_expires_at = now() + make_interval(secs => $6),
          updated_at = now(),
          last_used_at = now()
      FROM users u, devices d
-     WHERE s.refresh_token_hash = $1
+     WHERE (s.refresh_token_hash = $1 OR (s.prev_refresh_token_hash = $1 AND s.prev_refresh_expires_at > now()))
        AND s.revoked_at IS NULL
        AND s.refresh_token_expires_at > now()
        AND u.id = s.user_id AND u.deleted_at IS NULL
        AND d.id = s.device_id AND d.revoked_at IS NULL
      RETURNING s.id`,
-    [hashToken(refreshToken), hashToken(newAccessToken), accessTokenExpiresAt, hashToken(newRefreshToken), refreshTokenExpiresAt]
+    [hashToken(refreshToken), hashToken(newAccessToken), accessTokenExpiresAt, hashToken(newRefreshToken), refreshTokenExpiresAt, REFRESH_GRACE_MS / 1000]
   );
 
   if (result.rows.length === 0) {
