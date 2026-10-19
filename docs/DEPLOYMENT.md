@@ -110,6 +110,7 @@ real deployment. **Never commit `.env`** (already covered by
 | `NODE_ENV` | No (defaults to `development`) | `production` suppresses the extra `detail` field `errorHandler` otherwise includes on unexpected 500s for local debugging — never leak internals in production. |
 | `PORT` | No (defaults to `3000`) | Port the HTTP server listens on. |
 | `TMDB_READ_ACCESS_TOKEN` | No | Powers the Detail screen's Trailer button (`/user/trailer`) and its movie release-date lookup (`/user/release-date`). Both degrade gracefully without it (no button; the addon's own bare year instead of a real date) — see `server/.env.example` for where to get one. |
+| `RESEND_API_KEY` | No | Turns on "Forgot password" emails (Resend). Without it, `POST /auth/password/forgot` answers 503; changing a password while signed in works either way. Verify the sending domain (arctv.org) in Resend first. Optional `MAIL_FROM` (default `Arc TV <no-reply@arctv.org>`) and `PASSWORD_RESET_URL` (default `https://web.arctv.org/reset-password`). |
 
 The **Android app** reads its own, separate configuration —
 `API_BASE_URL` in `local.properties` (gitignored, developer/deployment-

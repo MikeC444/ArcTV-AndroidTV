@@ -3,8 +3,9 @@ import { z } from "zod";
 import { requireAuth } from "../middleware/auth.js";
 import { createAuthRateLimiter } from "../middleware/rateLimit.js";
 import { validate } from "../middleware/validate.js";
-import { loginSchema, refreshSchema, registerSchema } from "../schemas/auth.js";
+import { changePasswordSchema, forgotPasswordSchema, loginSchema, refreshSchema, registerSchema, resetPasswordSchema } from "../schemas/auth.js";
 import * as authService from "../services/authService.js";
+import * as passwordService from "../services/passwordService.js";
 
 const sessionIdParams = z.object({ id: z.uuid("id must be a UUID") });
 
@@ -97,6 +98,39 @@ export function createAuthRouter(): Router {
     try {
       const { id } = req.validated!.params as z.infer<typeof sessionIdParams>;
       await authService.revokeSession(req.user!.id, id);
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Changes the password of the signed-in account: the current one is checked, and every other device is signed out.
+  authRouter.post("/password/change", requireAuth, validate({ body: changePasswordSchema }), async (req, res, next) => {
+    try {
+      const { currentPassword, newPassword } = req.validated!.body as z.infer<typeof changePasswordSchema>;
+      await passwordService.changePassword(req.user!.id, req.session!.id, currentPassword, newPassword);
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // "Forgot password": always 204 whether or not the address has an account, so it can't be used to find out who does (503 until email is set up).
+  authRouter.post("/password/forgot", validate({ body: forgotPasswordSchema }), async (req, res, next) => {
+    try {
+      const { email } = req.validated!.body as z.infer<typeof forgotPasswordSchema>;
+      await passwordService.requestPasswordReset(email);
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Sets a new password from the emailed link; every session on the account is signed out.
+  authRouter.post("/password/reset", validate({ body: resetPasswordSchema }), async (req, res, next) => {
+    try {
+      const { token, newPassword } = req.validated!.body as z.infer<typeof resetPasswordSchema>;
+      await passwordService.resetPassword(token, newPassword);
       res.status(204).end();
     } catch (error) {
       next(error);

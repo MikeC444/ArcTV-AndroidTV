@@ -6233,3 +6233,27 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the pooled `DATABASE_URL` is used for pre-deploy migrations; each migration is one transaction on one connection, which Neon's pooler keeps on one session. A future migration needing `CREATE INDEX CONCURRENTLY` (not allowed in a transaction) would need the runner changed either way.
 
 **Issues fixed:** branch pushes no longer touch production; production database credentials no longer need to be in GitHub. Server behaviour and API responses are unchanged, so no app version is affected.
+
+## Post-Milestone-185 -- Server: change password, and reset it by email
+
+**Status:** Done on branch `claude/password-reset`; not merged or deployed. The web pages are in `ArcTV-Web` (same branch name). Reset emails need `RESEND_API_KEY` set on Render (and arctv.org verified in Resend); until then "Forgot password" answers 503 and change password works on its own.
+
+**Context:** Security audit finding M7: there was no way to change a password or recover an account. The owner chose Resend for email.
+
+**Changes:**
+- Migration `0039_password_reset_tokens.sql`: one-time reset tokens (hash only), expiring after an hour.
+- `services/email.ts`: sends through Resend's API, read per call so setting the key needs no deploy; swappable fetch for tests.
+- `services/passwordService.ts` and three routes on the `/auth` router (its 10/min per-address limit applies):
+  - `POST /auth/password/change` (signed in): checks the current password (wrong is 403, not 401), signs every OTHER session out, cancels waiting reset links.
+  - `POST /auth/password/forgot`: always 204, so it can't reveal which addresses have accounts; the email goes out in the background; at most 3 per account per hour and one a minute; a new link cancels the older one.
+  - `POST /auth/password/reset`: the link works once, sets the password and signs every session out.
+- The emailed link is `https://web.arctv.org/reset-password#token=…` (the token in the fragment never reaches a server log).
+- The email (`resetEmailHtml`): from `Arc TV <no-reply@arctv.org>`, subject "Reset your Arc TV password"; branded HTML (the landing site's logo on a dark bar, a heading, one teal button, the 1-hour note, a footer with the Privacy Policy link; tables and inline styles only) plus a plain-text version.
+- `public/activate.html`/`.js`: a "Forgot your password?" link on the phone sign-in page (sign-in mode only), to the web app's page.
+- `.env.example`, `docs/DEPLOYMENT.md`: `RESEND_API_KEY`, `MAIL_FROM`, `PASSWORD_RESET_URL`.
+
+**Tests performed:** `tsc` clean; new `tests/password.test.ts` (9 tests, the email's sender, subject, button link and logo included: change with other sessions signed out, wrong / same / short password, 503 without a key, unknown address, the full reset flow, expired and made-up links, the one-a-minute limit and newer link replacing the older, deleted account); the whole suite against a local Postgres 16 (31 files, 376 tests passing). No real email was sent (Resend is stubbed in tests).
+
+**Issues discovered:** two "forgot" requests arriving at the same instant could both pass the one-a-minute check and send two emails; harmless. Accounts registered with a mistyped address can't use reset (there is no email verification).
+
+**Issues fixed:** M7 (no password change or recovery). New routes only: no app version is affected; older apps simply don't show the options.
