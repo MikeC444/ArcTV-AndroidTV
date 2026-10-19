@@ -6320,6 +6320,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 - `RowsBrowseScreen` (`RowsBrowseGridContent`): the page is five wide pictures across with 9dp gaps, no sort pills, and the Top 10 in the pills' place (so every offset in the grid code holds). While the page loads it shows the Top 10's grey posters and grey wide cells; after the last title, grey wide cells carry on. Focus: the nav bar's DOWN lands on the Top 10 (on the last poster that had focus), DOWN goes on to the titles, UP from the first row returns to the Top 10, UP from the Top 10 to the nav bar, and coming back from a title lands where focus was.
 
 - The "Netflix" title and the Top 10 row sit 36dp higher than on the other pages (the list's top margin is the bar's height less 12dp, not plus 24dp), so more of the page shows.
+- Top 10: the number "10" had a big gap between its 1 and its 0 (every digit of the font has the same width, and a 1 is narrow); each digit now gets a box as wide as its own shape (a 1 is narrower).
 - Top 10: moving back to the first poster (or any whose number is cut off at the left) scrolls the whole item, big number included, into view; before, only the poster was brought on screen and the number stayed cut off.
 - The page's posters (the Top 10 and the wide pictures) start 24dp from each side of the screen instead of the usual 56dp margin, so they reach further to either side (`SERVICE_SIDE_PADDING` in `RowsBrowseScreen`); the title and the top bar keep the usual margin.
 

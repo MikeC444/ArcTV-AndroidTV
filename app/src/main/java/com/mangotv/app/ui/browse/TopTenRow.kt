@@ -95,20 +95,29 @@ fun NetflixN(width: Dp) {
 private fun RankNumber(rank: Int, posterWidth: Dp) {
     val density = LocalDensity.current
     val fontSize = with(density) { (posterWidth * 1.5f).toSp() }
-    val digits = rank.toString().length
+    val digits = rank.toString()
+    // Every digit of the font has the same width, so a "1" (a narrow shape) left a big gap before the next digit ("10"). Each digit gets a box as wide as
+    // its own shape instead (the web app stretches the number to fit, which comes to the same).
+    val digitWidths = digits.map { if (it == '1') posterWidth * 0.52f else posterWidth * 0.84f }
     // the poster sits over the right of the number (the web app's negative margin)
-    val boxWidth = posterWidth * 0.84f * digits - posterWidth * 0.2f
+    val boxWidth = digitWidths.fold(0.dp) { sum, w -> sum + w } - posterWidth * 0.2f
     val base = TextStyle(fontSize = fontSize, fontWeight = FontWeight.Black)
-    Box(Modifier.width(boxWidth).height(posterWidth * 1.2f), contentAlignment = Alignment.BottomStart) {
-        val textModifier = Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true).wrapContentHeight(align = Alignment.Bottom, unbounded = true).offset(y = posterWidth * 0.27f)
-        Text(
-            text = rank.toString(),
-            style = base.copy(color = Color(0xFF6F6F7A), drawStyle = Stroke(width = with(density) { 2.5.dp.toPx() }, join = StrokeJoin.Round)),
-            maxLines = 1,
-            softWrap = false,
-            modifier = textModifier
-        )
-        Text(text = rank.toString(), style = base.copy(color = MangoBackground), maxLines = 1, softWrap = false, modifier = textModifier)
+    val outline = base.copy(color = Color(0xFF6F6F7A), drawStyle = Stroke(width = with(density) { 2.5.dp.toPx() }, join = StrokeJoin.Round))
+    val fill = base.copy(color = MangoBackground)
+    Box(Modifier.width(boxWidth).height(posterWidth * 1.2f)) {
+        // wider than the box once the poster's overlap is taken off, so it is laid out unbounded and left to overflow under the poster
+        Row(Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true)) {
+            digits.forEachIndexed { i, digit ->
+                Box(Modifier.width(digitWidths[i]).height(posterWidth * 1.2f), contentAlignment = Alignment.BottomCenter) {
+                    val textModifier = Modifier
+                        .wrapContentWidth(align = Alignment.CenterHorizontally, unbounded = true)
+                        .wrapContentHeight(align = Alignment.Bottom, unbounded = true)
+                        .offset(y = posterWidth * 0.27f)
+                    Text(text = digit.toString(), style = outline, maxLines = 1, softWrap = false, modifier = textModifier)
+                    Text(text = digit.toString(), style = fill, maxLines = 1, softWrap = false, modifier = textModifier)
+                }
+            }
+        }
     }
 }
 
