@@ -81,4 +81,13 @@ describe("GET /user/addons keeps the Streaming Catalogs addon from apps that are
     const s = await createTestSession();
     expect(await urls(s.token)).not.toContain(STREAMING_CATALOGS_MANIFEST_URL);
   });
+
+  it("sends it to a developer account on any app and version, but not to an ordinary account on the same one", async () => {
+    const dev = await createTestSession({ platform: "fire_tv", appVersion: "0.1.0", isAdmin: true });
+    expect(await urls(dev.token)).toContain(STREAMING_CATALOGS_MANIFEST_URL);
+    const devOther = await createTestSession({ platform: "windows", appVersion: "1.0.0", isAdmin: true });
+    expect(await urls(devOther.token)).toContain(STREAMING_CATALOGS_MANIFEST_URL);
+    const ordinary = await createTestSession({ platform: "fire_tv", appVersion: "0.1.0" });
+    expect(await urls(ordinary.token)).not.toContain(STREAMING_CATALOGS_MANIFEST_URL);
+  });
 });

@@ -3,6 +3,8 @@ import { STREAMING_CATALOGS_ADDON_ID } from "../data/streamingCatalogsManifest.j
 /**
  * Which apps can cope with a server-given addon, so deploying the server never breaks an app that is still behind.
  *
+ * (Developer accounts, users.is_admin, skip this table: `GET /user/addons` lists them everything, so an emulator or debug build on version 0.1.0 still has the addon.)
+ *
  * An addon here is only listed to a device whose platform is named and whose app version is at least the one given ("any" means every version).
  * A device on another platform, or one whose version isn't known, is not sent it: it simply never sees the addon, and a device that already has it
  * drops it on its next sync (a pull replaces the device's addon list). An addon NOT in this table is listed to everyone.

@@ -30,7 +30,9 @@ addonsRouter.get("/addons", requireAuth, resolveProfile, async (req, res, next) 
     const device = await pool.query<{ platform: string | null; app_version: string | null }>("SELECT platform, app_version FROM devices WHERE id = $1", [req.session!.deviceId]);
     const platform = device.rows[0]?.platform ?? null;
     const version = cleanAppVersion(req.header("x-arctv-app-version")) ?? device.rows[0]?.app_version ?? null;
-    res.json({ items: addons.filter((addon) => addonSupportedBy(addon.addonId, platform, version)).map(serialize) });
+    // A developer account (users.is_admin) is listed everything whatever app it is on, so a debug build or an emulator (which reports version 0.1.0) still has the addon.
+    const listed = req.user!.isAdmin ? addons : addons.filter((addon) => addonSupportedBy(addon.addonId, platform, version));
+    res.json({ items: listed.map(serialize) });
   } catch (error) {
     next(error);
   }

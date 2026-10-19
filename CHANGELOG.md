@@ -6355,3 +6355,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** with no band, the logo (which has no background of its own) can sit over bright artwork once Home is scrolled. Not changed.
 
 **Issues fixed:** none beyond the above.
+
+## Post-Milestone-192 -- Server: developer accounts are listed every addon, so a debug build still has Streaming Catalogs
+
+**Status:** Done on `main`; needs the server deployed. No migration.
+
+**Context:** `GET /user/addons` holds Streaming Catalogs back from a Fire TV below 0.7.0 (`ADDON_SUPPORT`). A debug build or emulator run from source reports version 0.1.0, so the addon disappeared from the owner's emulator.
+
+**Changes:** `routes/addons.ts`: an account with `users.is_admin` (the developer panel accounts) is listed every addon whatever its app, platform or version; every other account is filtered as before. Note in `services/addonCompatibility.ts`.
+
+**Tests performed:** `tsc` clean; a new test in `tests/addon-compatibility.test.ts` (a developer account gets it on a Fire TV at 0.1.0 and on Windows, an ordinary account on 0.1.0 does not); `addon-compatibility` and `addons` suites pass (29 tests) against a local Postgres 16. The whole suite was not re-run.
+
+**Issues discovered:** none. Only developer accounts are affected, so no app that is behind sees anything new; a developer on an old app would see the addon as one giant Home row.
+
+**Issues fixed:** the addon missing on a developer's emulator.
