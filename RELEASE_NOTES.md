@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+## 0.7.1
+
 - Netflix's page got a glow-up: a Top 10 Today row, then wide pictures with each title's logo.
 - The top bar now glides away as you scroll down and glides back as soon as you scroll up.
 - Shows with lots of seasons now scroll along the season row, and it opens on your season.
