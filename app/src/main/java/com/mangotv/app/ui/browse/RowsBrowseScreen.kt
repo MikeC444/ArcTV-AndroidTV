@@ -891,7 +891,7 @@ private fun RowsBrowseGridContent(
                         .fillMaxSize(),
                     // the top margin is padding INSIDE the list, so posters scroll up under the nav bar all the way to the top of the screen
                     // instead of being cut off where the list used to start
-                    contentPadding = PaddingValues(top = MangoDimens.NavBarHeight + 24.dp)
+                    contentPadding = PaddingValues(top = if (servicePage) MangoDimens.NavBarHeight - 12.dp else MangoDimens.NavBarHeight + 24.dp)
                 ) {
                     item(key = "title") {
                         BrowseTitleRow(
