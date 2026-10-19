@@ -26,7 +26,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -189,12 +188,6 @@ private fun DetailContent(
     // proven on Home — see HomeScreen.kt for the full rationale on why both
     // the NestedScrollConnection block and the snapshotFlow watchdog exist.
     var heroRegionFocused by remember { mutableStateOf(true) }
-
-    val isScrolled by remember {
-        derivedStateOf {
-            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 60
-        }
-    }
 
     LaunchedEffect(content.id) {
         if (!hasRequestedInitialFocus) {
@@ -444,7 +437,8 @@ private fun DetailContent(
 }
 
         TopNavBar(
-            transparentBackground = !isScrolled,
+            // no dark band behind the bar, even once the page has scrolled under it (the pill and the profile chip have their own background)
+            transparentBackground = true,
             modifier = Modifier.align(Alignment.TopCenter),
             selectedIndex = 0,
             selectedItemFocusRequester = navFocusRequester,

@@ -32,7 +32,6 @@ import com.mangotv.app.data.model.RowStyle
 import com.mangotv.app.ui.components.limitVerticalKeyRepeat
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -217,12 +216,6 @@ private fun HomeContent(
     // index) currently holds focus -- drives the explicit centering effect
     // below. null while focus is in the hero/nav region.
     var focusedRowIndex by remember { mutableStateOf<Int?>(null) }
-
-    val isScrolled by remember {
-        derivedStateOf {
-            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 60
-        }
-    }
 
     LaunchedEffect(state) {
         // Rows not loaded yet but a poster was remembered: wait for them rather than giving up on the restore.
@@ -454,7 +447,8 @@ private fun HomeContent(
         }
 
         TopNavBar(
-            transparentBackground = !isScrolled,
+            // no dark band behind the bar, even once the page has scrolled under it (the pill and the profile chip have their own background)
+            transparentBackground = true,
             modifier = Modifier
                 .align(Alignment.TopCenter),
             selectedIndex = 0,

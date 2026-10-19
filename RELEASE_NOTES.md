@@ -16,6 +16,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 - Netflix's page got a glow-up: a Top 10 Today row, then wide pictures with each title's logo.
 - Smart source picking is smoother: Play goes straight to the player, and Back no longer traps you in a loop.
+- A cleaner top bar: no more dark band behind it on Home and title pages.
 - Fewer surprise sign-outs: Arc TV now keeps you signed in unless your account really needs a new sign-in.
 - Change your password in seconds: scan a code with your phone from Account settings.
 
