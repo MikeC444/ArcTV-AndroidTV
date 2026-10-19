@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -95,6 +96,7 @@ fun SeasonsSection(
 
     var picked by remember { mutableStateOf<Int?>(null) }
     val selectedIndex = picked ?: seasons.indexOfFirst { it.seasonNumber == startSeason }.coerceAtLeast(0)
+    val seasonsState = rememberLazyListState(initialFirstVisibleItemIndex = (selectedIndex - 2).coerceAtLeast(0))
     val selectedSeason = seasons.getOrNull(selectedIndex) ?: return
     // The episode whose hold-OK menu is open.
     var menuEpisode by remember { mutableStateOf<Episode?>(null) }
@@ -109,31 +111,36 @@ fun SeasonsSection(
                 vertical = if (compact) 6.dp else 12.dp
             )
         )
-        LazyRow(
-            modifier = if (onNavigateUpPastRow != null) {
-                Modifier.onPreviewKeyEvent { event ->
-                    if (event.key == Key.DirectionUp) {
-                        if (event.type == KeyEventType.KeyDown) {
-                            onNavigateUpPastRow()
+        // A long list of seasons scrolls as focus moves along it: this page switches the automatic scroll-into-view off, so the row asks for the
+        // edge-safe one (as the episode row below does), and it opens scrolled to the season that is selected.
+        EdgeSafeBringIntoView {
+            LazyRow(
+                state = seasonsState,
+                modifier = if (onNavigateUpPastRow != null) {
+                    Modifier.onPreviewKeyEvent { event ->
+                        if (event.key == Key.DirectionUp) {
+                            if (event.type == KeyEventType.KeyDown) {
+                                onNavigateUpPastRow()
+                            }
+                            true
+                        } else {
+                            false
                         }
-                        true
-                    } else {
-                        false
                     }
+                } else {
+                    Modifier
+                },
+                contentPadding = PaddingValues(horizontal = MangoDimens.ScreenPaddingHorizontal),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(seasons, key = { it.seasonNumber }) { season ->
+                    SeasonPill(
+                        seasonNumber = season.seasonNumber,
+                        selected = season.seasonNumber == selectedSeason.seasonNumber,
+                        onClick = { picked = seasons.indexOf(season) },
+                        size = if (compact) 44.dp else 52.dp
+                    )
                 }
-            } else {
-                Modifier
-            },
-            contentPadding = PaddingValues(horizontal = MangoDimens.ScreenPaddingHorizontal),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(seasons, key = { it.seasonNumber }) { season ->
-                SeasonPill(
-                    seasonNumber = season.seasonNumber,
-                    selected = season.seasonNumber == selectedSeason.seasonNumber,
-                    onClick = { picked = seasons.indexOf(season) },
-                    size = if (compact) 44.dp else 52.dp
-                )
             }
         }
 

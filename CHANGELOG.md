@@ -6398,3 +6398,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the centring formula is from reading the API (item offsets in a padded list are relative to the content start), not seen on a TV: if rows now sit a little high or low when focus moves down, that line is the place to adjust. With no band, the logo sits over any bright poster scrolled under it.
 
 **Issues fixed:** the hard cut-off line.
+
+## Post-Milestone-195 -- TV: a long row of seasons scrolls
+
+**Status:** Done on `main`; not built or run on a TV here (CI is the compile check).
+
+**Context:** On a show with many seasons the season pills ran off the screen and focus could not follow them. The title page switches the automatic scroll-into-view off (`DisabledBringIntoViewSpec`), and only the episode row below had its own edge-safe spec; the season row (a `LazyRow`) had none. Cause read from the code, not run on a TV.
+
+**Changes:** `SeasonsSection`: the season row is wrapped in `EdgeSafeBringIntoView` like the episode row, so it scrolls as focus moves along it, and it opens scrolled so the selected season (Play's season, or the one picked) is in view (`rememberLazyListState(initialFirstVisibleItemIndex = selected - 2)`).
+
+**Tests performed:** manual re-read only; no Gradle/Android build or on-device run was possible here (no route to `dl.google.com`).
+
+**Issues discovered:** none.
+
+**Issues fixed:** the season row not following focus.
