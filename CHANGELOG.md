@@ -6428,3 +6428,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** on a TV, "scrolling" is focus moving between rows, so the bar goes when focus moves down a row or two and returns when it moves up; if the first row sits just past the 120 px line the bar may hide a little early or late. The hidden bar is still in the focus order (invisible), so a stray UP can land on it, which shows it.
 
 **Issues fixed:** none beyond the above.
+
+## Post-Milestone-197 -- Server: the Mac app (0.3.0 and up) is sent the Streaming Catalogs addon
+
+**Status:** Done on `main`; the server still has to be deployed for it to take effect (I cannot see the deploy setup from here).
+
+**Context:** The Streaming Catalogs addon is only listed to a device whose platform is named in `ADDON_SUPPORT` and whose app version is high enough, so an app that cannot show it never sees it. Mac 0.3.0 (published 19 Oct) has the streaming tiles and service pages, but "macos" was not in the table, so Mac devices were not sent the addon and their tiles stayed empty (a Mac that already had it dropped it on its next sync).
+
+**Changes:** `addonCompatibility.ts`: `macos: "0.3.0"` added to the Streaming Catalogs entry (the Mac app signs in with the platform "macos"; the comments are updated). `addon-compatibility.test.ts`: the version rule (0.3.0 and 0.10.0 yes; 0.2.0 and an unknown version no) and the listing for a Mac on 0.3.0 and on 0.2.0.
+
+**What an app that is behind does:** a Mac on 0.2.0 or earlier is still not sent the addon and does not see it, as before; web, Fire TV and phone are not affected.
+
+**Tests performed:** `tsc --noEmit` is clean, and the version rule was run directly (`addonSupportedBy` for macos 0.3.0 / 0.10.0 true, 0.2.0 / no version false; Fire TV 0.7.0 true, 0.6.1 false). The Vitest suite itself was not run: it needs `TEST_DATABASE_URL` (a Postgres), which this sandbox does not have, so the two new listing tests have not been run here; the server CI is the check.
+
+**Issues discovered:** a Mac that was already on 0.3.0 will get the addon back on its next addon sync, once the server is deployed.
+
+**Issues fixed:** the Mac's empty streaming tiles.

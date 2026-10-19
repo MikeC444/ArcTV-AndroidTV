@@ -53,6 +53,13 @@ describe("addonSupportedBy", () => {
     expect(addonSupportedBy(STREAMING, "windows", "1.0.0")).toBe(false);
     expect(addonSupportedBy(STREAMING, null, null)).toBe(false);
   });
+
+  it("lists it to the Mac app from 0.3.0 (the first version with the tiles), not to an older one", () => {
+    expect(addonSupportedBy(STREAMING, "macos", "0.3.0")).toBe(true);
+    expect(addonSupportedBy(STREAMING, "macos", "0.10.0")).toBe(true);
+    expect(addonSupportedBy(STREAMING, "macos", "0.2.0")).toBe(false);
+    expect(addonSupportedBy(STREAMING, "macos", null)).toBe(false);
+  });
 });
 
 describe("GET /user/addons keeps the Streaming Catalogs addon from apps that are behind", () => {
@@ -75,6 +82,13 @@ describe("GET /user/addons keeps the Streaming Catalogs addon from apps that are
     const s = await createTestSession({ platform: "fire_tv", appVersion: "0.6.0" });
     expect(await urls(s.token, { "X-ArcTV-App-Version": "0.7.0" })).toContain(STREAMING_CATALOGS_MANIFEST_URL);
     expect(await urls(s.token, { "X-ArcTV-App-Version": "0.6.1" })).not.toContain(STREAMING_CATALOGS_MANIFEST_URL);
+  });
+
+  it("sends it to a Mac on 0.3.0 and not to one on 0.2.0", async () => {
+    const mac = await createTestSession({ platform: "macos", appVersion: "0.3.0" });
+    expect(await urls(mac.token)).toContain(STREAMING_CATALOGS_MANIFEST_URL);
+    const old = await createTestSession({ platform: "macos", appVersion: "0.2.0" });
+    expect(await urls(old.token)).not.toContain(STREAMING_CATALOGS_MANIFEST_URL);
   });
 
   it("does not send it to a Fire TV (the default platform) that never said which version it is", async () => {
