@@ -6248,10 +6248,11 @@ The footer note is plain text again (equal-height plan cards already stop Down j
   - `POST /auth/password/forgot`: always 204, so it can't reveal which addresses have accounts; the email goes out in the background; at most 3 per account per hour and one a minute; a new link cancels the older one.
   - `POST /auth/password/reset`: the link works once, sets the password and signs every session out.
 - The emailed link is `https://web.arctv.org/reset-password#token=…` (the token in the fragment never reaches a server log).
+- The email (`resetEmailHtml`): from `Arc TV <no-reply@arctv.org>`, subject "Reset your Arc TV password"; branded HTML (the landing site's logo on a dark bar, a heading, one teal button, the 1-hour note, a footer with the Privacy Policy link; tables and inline styles only) plus a plain-text version.
 - `public/activate.html`/`.js`: a "Forgot your password?" link on the phone sign-in page (sign-in mode only), to the web app's page.
 - `.env.example`, `docs/DEPLOYMENT.md`: `RESEND_API_KEY`, `MAIL_FROM`, `PASSWORD_RESET_URL`.
 
-**Tests performed:** `tsc` clean; new `tests/password.test.ts` (9 tests: change with other sessions signed out, wrong / same / short password, 503 without a key, unknown address, the full reset flow, expired and made-up links, the one-a-minute limit and newer link replacing the older, deleted account); the whole suite against a local Postgres 16 (31 files, 376 tests passing). No real email was sent (Resend is stubbed in tests).
+**Tests performed:** `tsc` clean; new `tests/password.test.ts` (9 tests, the email's sender, subject, button link and logo included: change with other sessions signed out, wrong / same / short password, 503 without a key, unknown address, the full reset flow, expired and made-up links, the one-a-minute limit and newer link replacing the older, deleted account); the whole suite against a local Postgres 16 (31 files, 376 tests passing). No real email was sent (Resend is stubbed in tests).
 
 **Issues discovered:** two "forgot" requests arriving at the same instant could both pass the one-a-minute check and send two emails; harmless. Accounts registered with a mistyped address can't use reset (there is no email verification).
 

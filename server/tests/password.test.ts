@@ -8,7 +8,7 @@ import { setMailFetch } from "../src/services/email.js";
 import { resetDatabase } from "./helpers/db.js";
 
 let app: Express;
-let sent: Array<{ to: string[]; subject: string; text: string }>;
+let sent: Array<{ from: string; to: string[]; subject: string; text: string; html: string }>;
 
 beforeEach(async () => {
   app = createApp();
@@ -16,7 +16,7 @@ beforeEach(async () => {
   sent = [];
   process.env.RESEND_API_KEY = "re_test_key";
   setMailFetch(async (_url, init) => {
-    sent.push(JSON.parse(init.body) as { to: string[]; subject: string; text: string });
+    sent.push(JSON.parse(init.body) as { from: string; to: string[]; subject: string; text: string; html: string });
     return { ok: true, status: 200, text: async () => "{}" };
   });
 });
@@ -81,8 +81,13 @@ describe("forgot password", () => {
     expect((await request(app).post("/auth/password/forgot").send({ email: "SAM@example.com" })).status).toBe(204);
     await vi.waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0]!.to).toEqual(["sam@example.com"]);
+    expect(sent[0]!.from).toBe("Arc TV <no-reply@arctv.org>");
+    expect(sent[0]!.subject).toBe("Reset your Arc TV password");
     expect(sent[0]!.text).toContain("https://web.arctv.org/reset-password#token=");
     const token = tokenFrom(sent[0]!.text);
+    // the branded HTML carries the same link on its button, and the logo
+    expect(sent[0]!.html).toContain(`href="https://web.arctv.org/reset-password#token=${encodeURIComponent(token)}"`);
+    expect(sent[0]!.html).toContain('src="https://arctv.org/arctv-logo.png"');
 
     expect((await request(app).post("/auth/password/reset").send({ token, newPassword: "new-password-2" })).status).toBe(204);
     expect((await me(session.accessToken)).status).toBe(401);

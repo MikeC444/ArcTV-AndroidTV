@@ -10,6 +10,29 @@ export const RESET_TTL_MS = 60 * 60 * 1000;
 export const RESET_MAX_PER_HOUR = 3;
 export const RESET_MIN_GAP_MS = 60 * 1000;
 
+/**
+ * The reset email as HTML: the logo on a dark bar (it is white), a heading, one button and a footer. Tables and inline styles only, which
+ * is what email apps reliably show; the logo is the landing site's own, and an app that hides images shows "Arc TV" in its place.
+ */
+export function resetEmailHtml(link: string): string {
+  return `<!doctype html>
+<html><body style="margin:0;padding:0;background:#f2f3f5;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2f3f5;padding:32px 12px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:16px;overflow:hidden;font-family:Helvetica,Arial,sans-serif;">
+<tr><td style="background:#0b0d10;padding:28px 32px;" align="left"><img src="https://arctv.org/arctv-logo.png" width="132" alt="Arc TV" style="display:block;border:0;width:132px;height:auto;color:#ffffff;font-size:20px;font-weight:bold;"></td></tr>
+<tr><td style="padding:32px 32px 8px;color:#111418;">
+<h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;">Reset your password</h1>
+<p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#3d4450;">Someone asked to reset the password for your Arc TV account. Press the button to choose a new one.</p>
+<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:10px;background:#0a9db0;"><a href="${link}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:10px;">Choose a new password</a></td></tr></table>
+<p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#6b7280;">The link works once and expires in 1 hour. If you didn&rsquo;t ask for this, you can ignore this email: your password hasn&rsquo;t changed.</p>
+</td></tr>
+<tr><td style="padding:24px 32px 28px;font-size:12px;line-height:1.6;color:#9aa1ab;border-top:1px solid #eceef1;">Arc TV &middot; <a href="https://arctv.org/privacy/" style="color:#9aa1ab;">Privacy Policy</a></td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
 /** Where the emailed link points: the web app's reset page, with the token in the #fragment so it never reaches a server log. */
 export function resetLink(token: string): string {
   const base = (process.env.PASSWORD_RESET_URL?.trim() || "https://web.arctv.org/reset-password").replace(/\/+$/, "");
@@ -70,8 +93,8 @@ export async function requestPasswordReset(email: string): Promise<{ sending: Pr
   const sending = sendEmail({
     to: email,
     subject: "Reset your Arc TV password",
-    text: `Someone asked to reset the password for your Arc TV account.\n\nChoose a new password here (the link works once, for 1 hour):\n${link}\n\nIf it wasn't you, ignore this email: your password hasn't changed.`,
-    html: `<p>Someone asked to reset the password for your Arc TV account.</p><p><a href="${link}">Choose a new password</a></p><p>The link works once, for 1 hour. If it wasn't you, ignore this email: your password hasn't changed.</p>`,
+    text: `Someone asked to reset the password for your Arc TV account.\n\nChoose a new password here (the link works once and expires in 1 hour):\n${link}\n\nIf you didn't ask for this, you can ignore this email: your password hasn't changed.\n\nArc TV · Privacy Policy: https://arctv.org/privacy/`,
+    html: resetEmailHtml(link),
   }).catch((error: unknown) => console.error(`password reset email failed: ${error instanceof Error ? error.message : "unknown error"}`));
   return { sending };
 }
