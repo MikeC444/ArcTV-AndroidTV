@@ -60,7 +60,13 @@ class UiSoundPlayer(context: Context, soundPreferencesRepository: SoundPreferenc
         }
     }
 
+    // The last time the navigation tick played: a second one inside NAV_MIN_GAP_MS is dropped, so a held or rapidly repeated direction can never turn into a buzz.
+    private var lastNavAtMs = 0L
+
     fun playNav() {
+        val now = android.os.SystemClock.uptimeMillis()
+        if (now - lastNavAtMs < NAV_MIN_GAP_MS) return
+        lastNavAtMs = now
         soundPool.play(navSoundId, volume, volume, 0, 0, 1f)
     }
 
@@ -70,6 +76,11 @@ class UiSoundPlayer(context: Context, soundPreferencesRepository: SoundPreferenc
 
     fun playBack() {
         soundPool.play(backSoundId, volume, volume, 0, 0, 1f)
+    }
+
+    private companion object {
+        /** The shortest time between two navigation ticks. */
+        const val NAV_MIN_GAP_MS = 120L
     }
 }
 

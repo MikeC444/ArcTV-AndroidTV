@@ -6369,3 +6369,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none. Only developer accounts are affected, so no app that is behind sees anything new; a developer on an old app would see the addon as one giant Home row.
 
 **Issues fixed:** the addon missing on a developer's emulator.
+
+## Post-Milestone-193 -- TV: the navigation tick no longer repeats while a direction is held
+
+**Status:** Done on `main`; not built or run on a TV here (CI is the compile check).
+
+**Context:** Holding left, right, up or down on the remote repeats the key-down event many times a second, and the app-wide listener played the navigation tick on every one of them.
+
+**Changes:** `MangoNavHost`: the tick plays only on the first press (`repeatCount == 0`), not on the repeats while the button is held. `UiSoundPlayer.playNav`: a second tick within 120 ms of the last is dropped, so fast separate presses cannot turn into a buzz either. The click and back sounds are unchanged (they play on a press of OK or Back, not on a held direction).
+
+**Tests performed:** manual re-read only; no Gradle/Android build or on-device run was possible here (no route to `dl.google.com`). No unit test (the sound player needs a device's sound pool).
+
+**Issues discovered:** the 120 ms gap is a guess; very quick separate presses faster than that now share one tick.
+
+**Issues fixed:** the repeating tick.

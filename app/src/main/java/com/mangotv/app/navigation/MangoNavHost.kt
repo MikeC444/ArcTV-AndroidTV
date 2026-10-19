@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.nativeKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
@@ -278,8 +279,11 @@ fun MangoNavHost() {
                     // PlayerScreen's own composable below for the matching
                     // LocalUiSoundPlayer override that silences its buttons'
                     // click/back sounds the same way.
+                    // Only the first press of a direction: holding the button down repeats KeyDown many times a second, and a tick on each
+                    // of those is a stutter of noise (the sound plays once when the button goes down, not while it is held).
                     if (!isPlayerActive &&
                         event.type == KeyEventType.KeyDown &&
+                        event.nativeKeyEvent.repeatCount == 0 &&
                         (event.key == Key.DirectionUp || event.key == Key.DirectionDown ||
                             event.key == Key.DirectionLeft || event.key == Key.DirectionRight)
                     ) {
