@@ -115,6 +115,16 @@ export function createAuthRouter(): Router {
     }
   });
 
+  // A one-time link to set a new password for the signed-in account, for a TV to show as a QR code (see createChangeLink). New route: apps that don't call it are unaffected.
+  authRouter.post("/password/change-link", requireAuth, async (req, res, next) => {
+    try {
+      const { url, expiresAt } = await passwordService.createChangeLink(req.user!.id);
+      res.json({ url, expiresAt: expiresAt.toISOString() });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // "Forgot password": always 204 whether or not the address has an account, so it can't be used to find out who does (503 until email is set up).
   authRouter.post("/password/forgot", validate({ body: forgotPasswordSchema }), async (req, res, next) => {
     try {

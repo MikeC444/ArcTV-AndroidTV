@@ -50,6 +50,10 @@ data class TokenPairResponse(
     val refreshTokenExpiresAt: String
 )
 
+/** Answer of POST /auth/password/change-link: a one-time link to set a new password for the signed-in account. */
+@Serializable
+data class PasswordChangeLinkResponse(val url: String, val expiresAt: String)
+
 /** Body for POST /auth/register — mirrors server/src/schemas/auth.ts's registerSchema exactly. */
 @Serializable
 data class RegisterRequest(

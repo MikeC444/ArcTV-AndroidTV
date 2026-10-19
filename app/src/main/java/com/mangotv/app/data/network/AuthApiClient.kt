@@ -82,6 +82,16 @@ class AuthApiClient(private val baseUrl: String) {
         Unit
     }
 
+    /** A one-time link (15 minutes) for the account this token belongs to, to show as a QR code; it opens the web app's page that sets a new password. */
+    suspend fun createPasswordChangeLink(accessToken: String): PasswordChangeLinkResponse = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("$baseUrl/auth/password/change-link")
+            .header("Authorization", "Bearer $accessToken")
+            .post(ByteArray(0).toRequestBody(null))
+            .build()
+        json.decodeFromString(PasswordChangeLinkResponse.serializer(), execute(request))
+    }
+
     private fun encode(value: String): String = URLEncoder.encode(value, "UTF-8")
 
     private fun post(url: String, jsonBody: String): String {

@@ -39,6 +39,34 @@ export function resetLink(token: string): string {
   return `${base}#token=${encodeURIComponent(token)}`;
 }
 
+/** How long a link made for a signed-in TV (shown as a QR code) works: it is on a screen in a room, so much shorter than an emailed one. */
+export const CHANGE_LINK_TTL_MS = 15 * 60 * 1000;
+
+/**
+ * A one-time link for the signed-in account to set a new password, for a TV to show as a QR code: it opens the web app's reset page, which
+ * changes the password of exactly this account whatever the phone is signed in as. It is the emailed reset link without the email (so it
+ * works while email isn't set up); the same page and rules apply: it works once, and setting the password signs every device out. A new link
+ * replaces any earlier one still waiting (a reset email included). Possession of the signed-in session is the proof, in place of the
+ * current password.
+ */
+export async function createChangeLink(userId: string): Promise<{ url: string; expiresAt: Date }> {
+  const token = generateToken();
+  const expiresAt = new Date(Date.now() + CHANGE_LINK_TTL_MS);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("UPDATE password_reset_tokens SET used_at = now() WHERE user_id = $1 AND used_at IS NULL", [userId]);
+    await client.query("INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, source) VALUES ($1, $2, $3, 'tv')", [userId, hashToken(token), expiresAt]);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+  return { url: resetLink(token), expiresAt };
+}
+
 /**
  * Changes a signed-in account's password after checking the current one. Every OTHER session is signed out (the device making the change
  * stays signed in), and any reset link still waiting is cancelled. A wrong current password is 403, not 401: a 401 would read as "this
@@ -78,7 +106,7 @@ export async function requestPasswordReset(email: string): Promise<{ sending: Pr
   if (!user) return null;
 
   const recent = await pool.query<{ n: number; newest: Date | null }>(
-    "SELECT count(*)::int AS n, max(created_at) AS newest FROM password_reset_tokens WHERE user_id = $1 AND created_at > now() - interval '1 hour'",
+    "SELECT count(*)::int AS n, max(created_at) AS newest FROM password_reset_tokens WHERE user_id = $1 AND source = 'email' AND created_at > now() - interval '1 hour'",
     [user.id]
   );
   const { n, newest } = recent.rows[0]!;

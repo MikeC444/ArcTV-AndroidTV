@@ -6275,19 +6275,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Issues fixed:** none yet; this is how #122's cause will be found once a Shield runs a build with it. New route only: no app version is affected.
 
-## Post-Milestone-187 -- TV: Change password in Settings, through a QR code
+## Post-Milestone-187 -- TV: Change password in Settings, through a QR code for this account
 
-**Status:** Done on branch `claude/great-volta-v7xvmz`; not built here, not merged.
+**Status:** Done on `main` (merged in #128, then changed again on `main`); the TV part is not built here. The server part needs deploying first (migration 0041 runs as Render's pre-deploy step).
 
-**Context:** The web app has a Change password page (`/change-password`, signed in only; ArcTV-Web `docs/PARITY.md`, 19 Oct) backed by the server's `POST /auth/password/change` (Post-Milestone-185). The TV has no browser, so the owner asked for a QR code that takes the person to that page on their phone.
+**Context:** The web app has a Change password page (ArcTV-Web `docs/PARITY.md`, 19 Oct). The TV has no browser, so the owner asked for a QR code. A plain link to `/change-password` does not know the TV's account (it changes whoever is signed in on the phone), so the owner asked for the code to lead to the account the TV is signed in to, and chose a one-time link.
 
 **Changes:**
-- `ui/settings/AccountScreen.kt`: a "Change password" button under Sign Out that opens the dialog.
-- `ui/settings/DebridHelpDialog.kt`: the QR dialog is now a shared `ScanWithPhoneDialog(message, url, shownUrl)`; `DebridHelpDialog` uses it unchanged in look and wording, and the new `ChangePasswordDialog` shows a QR code for `https://web.arctv.org/change-password` (`CHANGE_PASSWORD_URL`). BACK or Close dismisses it.
+- Server `POST /auth/password/change-link` (signed in): makes a one-time token for the signed-in account, valid 15 minutes (`CHANGE_LINK_TTL_MS`), and returns the web app's existing reset-page link with the token in the #fragment (`https://web.arctv.org/reset-password#token=...`) and `expiresAt`. It is the emailed "forgot password" token without the email, so no web change is needed and it works while email is not set up. It works once; a newer link (or a reset email) replaces an older one; setting the password signs every device out, this TV included. Migration `0041_password_reset_token_source.sql` adds `source` ('email' or 'tv') so these links never count towards the three reset emails an hour.
+- TV: `AuthApiClient.createPasswordChangeLink`, `AuthRepository.passwordChangeLink` (refreshes the session first, never signs anyone out on a failure); Settings > Account has a "Change password" button (`AccountScreen.kt`) that opens `ChangePasswordDialog` (`DebridHelpDialog.kt`): "Getting your link...", then the QR code with a note that the link works once for 15 minutes and signs every device out, or "Couldn't get a link right now" with Try again. The QR dialog is shared with the debrid help (`ScanWithPhoneDialog`).
 
-**Tests performed:** manual re-read and a brace / paren balance check only; no Gradle/Android build or on-device run was possible here (no route to `dl.google.com`), so it is uncompiled and not seen on a screen. No new unit test.
+**Tests performed:** server: `tsc` clean; four new tests in `tests/password.test.ts` (needs sign-in; the link sets a new password for exactly the signed-in account, signs every device out, leaves another account alone and works once; expires after 15 minutes and a newer link replaces the older; five links do not use up the reset emails); the whole server suite against a local Postgres 16 (32 files, 385 tests passing). TV: manual re-read only; no Gradle/Android build or on-device run was possible here (no route to `dl.google.com`), so it is uncompiled and not seen on a TV.
 
-**Issues discovered:** the button is shown to every signed-in account; an account that signed in only by QR and never set a password is left to the web page to explain. "Forgot your password?" on the TV sign-in screen and a Privacy Policy link are still not done. No server change, so no app version is affected.
+**Issues discovered:** the link stands in for the current password (the signed-in TV is the proof), so anyone who can see the QR code within 15 minutes could scan it and change the password; the web page's own "Change password" (current password asked) is unchanged. The server must be deployed before the TV button works: on an older server the dialog says it couldn't get a link. New route and column only, so no app version that is behind is affected.
 
 **Issues fixed:** none beyond the above.
 

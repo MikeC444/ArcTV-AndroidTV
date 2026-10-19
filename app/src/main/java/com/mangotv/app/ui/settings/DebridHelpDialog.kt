@@ -12,11 +12,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import com.mangotv.app.MangoTvApplication
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -47,18 +54,86 @@ fun DebridHelpDialog(onClose: () -> Unit) {
     )
 }
 
-/** The page on the web app where a signed-in person changes their password. */
-const val CHANGE_PASSWORD_URL = "https://web.arctv.org/change-password"
-
-/** Account tab's "Change password": the TV has no browser, so the web app's page is opened from a phone through a QR code. */
+/**
+ * Account tab's "Change password": the TV has no browser, so a QR code takes the person to the web app's page on their phone. The code holds a
+ * one-time link the server makes for the account this TV is signed in to (it works for 15 minutes), so the page changes that account's password
+ * whatever the phone is signed in as. Setting it signs every device out, this TV included.
+ */
 @Composable
 fun ChangePasswordDialog(onClose: () -> Unit) {
-    ScanWithPhoneDialog(
-        message = "Open your phone's camera and point it at the code to change your password. Sign in on your phone if it asks.",
-        url = CHANGE_PASSWORD_URL,
-        shownUrl = "web.arctv.org/change-password",
-        onClose = onClose
-    )
+    val context = LocalContext.current
+    val auth = remember { (context.applicationContext as MangoTvApplication).container.authRepository }
+    var attempt by remember { mutableIntStateOf(0) }
+    var link by remember { mutableStateOf<String?>(null) }
+    var failed by remember { mutableStateOf(false) }
+    LaunchedEffect(attempt) {
+        link = null
+        failed = false
+        auth.passwordChangeLink().onSuccess { link = it }.onFailure { failed = true }
+    }
+    val url = link
+    if (url != null) {
+        ScanWithPhoneDialog(
+            message = "Scan to choose a new password for this account. The link works once, for 15 minutes. Changing it signs every device out, this TV included.",
+            url = url,
+            shownUrl = "Opens web.arctv.org",
+            onClose = onClose
+        )
+    } else {
+        MessageDialog(
+            message = if (failed) "Couldn't get a link right now. Check your connection and try again." else "Getting your link…",
+            actionText = if (failed) "Try again" else null,
+            onAction = { attempt++ },
+            onClose = onClose
+        )
+    }
+}
+
+/** A small dialog with one line, an optional action button and Close; BACK dismisses it. */
+@Composable
+private fun MessageDialog(message: String, actionText: String?, onAction: () -> Unit, onClose: () -> Unit) {
+    val focus = remember { FocusRequester() }
+    Dialog(
+        onDismissRequest = onClose,
+        properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = false, usePlatformDefaultWidth = false)
+    ) {
+        LaunchedEffect(actionText) { runCatching { focus.requestFocus() } }
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
+            Column(
+                modifier = Modifier
+                    .width(420.dp)
+                    .background(MangoBackgroundElevated, RoundedCornerShape(20.dp))
+                    .padding(28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(text = "Change password", color = TextPrimary, style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(10.dp))
+                Text(text = message, color = TextSecondary, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(18.dp))
+                if (actionText != null) {
+                    MangoButton(
+                        text = actionText,
+                        icon = Icons.Filled.Refresh,
+                        onClick = onAction,
+                        style = MangoButtonStyle.FILLED,
+                        focusRequester = focus,
+                        compact = true,
+                        borderColor = TextPrimary
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+                MangoButton(
+                    text = "Close",
+                    icon = Icons.Filled.Close,
+                    onClick = onClose,
+                    style = MangoButtonStyle.GLASS,
+                    focusRequester = if (actionText == null) focus else null,
+                    compact = true,
+                    borderColor = TextPrimary
+                )
+            }
+        }
+    }
 }
 
 /** A QR code for a phone with a line of explanation under the title. BACK or Close dismisses it. */

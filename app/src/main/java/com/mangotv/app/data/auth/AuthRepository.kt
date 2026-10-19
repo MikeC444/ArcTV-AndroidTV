@@ -210,6 +210,22 @@ class AuthRepository(context: Context) {
         }
     }
 
+    /**
+     * A one-time link that opens the web app's page for choosing a new password for the account this TV is signed in to, to show as a QR
+     * code. Fails (without signing anyone out) when offline, signed out, or the server is older than the route.
+     */
+    suspend fun passwordChangeLink(): Result<String> {
+        if (!ensureFreshSession()) return Result.failure(IOException("Not signed in"))
+        val session = sessionManager.current() ?: return Result.failure(IOException("Not signed in"))
+        return try {
+            Result.success(apiClient.createPasswordChangeLink(session.accessToken).url)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun logout() {
         val current = sessionManager.current()
         if (current != null) {

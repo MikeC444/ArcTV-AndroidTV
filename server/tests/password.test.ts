@@ -129,3 +129,47 @@ describe("forgot password", () => {
     expect(sent).toHaveLength(0);
   });
 });
+
+describe("POST /auth/password/change-link", () => {
+  it("needs a signed-in session", async () => {
+    expect((await request(app).post("/auth/password/change-link")).status).toBe(401);
+  });
+
+  it("gives a one-time link that sets a new password for exactly the signed-in account and signs every device out", async () => {
+    const other = await register("zed@example.com", "other-password-1");
+    const session = await register("yan@example.com", "old-password-1");
+    const res = await request(app).post("/auth/password/change-link").set("Authorization", `Bearer ${session.accessToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.url).toContain("https://web.arctv.org/reset-password#token=");
+    expect(new Date(res.body.expiresAt).getTime()).toBeGreaterThan(Date.now() + 14 * 60 * 1000);
+    expect(new Date(res.body.expiresAt).getTime()).toBeLessThanOrEqual(Date.now() + 15 * 60 * 1000);
+    const token = tokenFrom(res.body.url);
+
+    expect((await request(app).post("/auth/password/reset").send({ token, newPassword: "new-password-2" })).status).toBe(204);
+    expect((await login("yan@example.com", "new-password-2")).status).toBe(200);
+    expect((await login("yan@example.com", "old-password-1")).status).toBe(401);
+    expect((await me(session.accessToken)).status).toBe(401);
+    // another account is untouched
+    expect((await me(other.accessToken)).status).toBe(200);
+    // it works once
+    expect((await request(app).post("/auth/password/reset").send({ token, newPassword: "third-password-3" })).status).toBe(400);
+  });
+
+  it("expires after 15 minutes, and a newer link replaces the older one", async () => {
+    const session = await register("xia@example.com", "old-password-1");
+    const ask = () => request(app).post("/auth/password/change-link").set("Authorization", `Bearer ${session.accessToken}`);
+    const first = tokenFrom((await ask()).body.url);
+    const second = tokenFrom((await ask()).body.url);
+    expect((await request(app).post("/auth/password/reset").send({ token: first, newPassword: "new-password-2" })).status).toBe(400);
+    await pool.query("UPDATE password_reset_tokens SET expires_at = now() - interval '1 minute'");
+    expect((await request(app).post("/auth/password/reset").send({ token: second, newPassword: "new-password-2" })).status).toBe(400);
+  });
+
+  it("does not use up the account's reset emails", async () => {
+    const session = await register("wes@example.com", "old-password-1");
+    for (let i = 0; i < 5; i++) await request(app).post("/auth/password/change-link").set("Authorization", `Bearer ${session.accessToken}`);
+    await pool.query("UPDATE password_reset_tokens SET created_at = now() - interval '2 minutes'");
+    expect((await request(app).post("/auth/password/forgot").send({ email: "wes@example.com" })).status).toBe(204);
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+  });
+});
