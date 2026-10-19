@@ -88,3 +88,19 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
 export function cleanAppVersion(value: string | undefined): string | null {
   return value && /^[0-9A-Za-z][0-9A-Za-z.+_-]{0,31}$/.test(value.trim()) ? value.trim() : null;
 }
+
+/**
+ * The account behind an Authorization: Bearer token when it is a live session, else null -- never an error. For the few routes a signed-out
+ * app may also call (crash reports): a guest's report is kept without an account.
+ */
+export async function optionalUserId(req: Request): Promise<string | null> {
+  const header = req.header("authorization");
+  const token = header?.startsWith(BEARER_PREFIX) ? header.slice(BEARER_PREFIX.length).trim() : undefined;
+  if (!token) return null;
+  const result = await pool.query<{ user_id: string }>(
+    `SELECT u.id AS user_id FROM sessions s JOIN users u ON u.id = s.user_id JOIN devices d ON d.id = s.device_id
+     WHERE s.access_token_hash = $1 AND s.revoked_at IS NULL AND s.access_token_expires_at > now() AND u.deleted_at IS NULL AND d.revoked_at IS NULL`,
+    [hashToken(token)]
+  );
+  return result.rows[0]?.user_id ?? null;
+}

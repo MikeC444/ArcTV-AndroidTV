@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import coil.ImageLoader
 import coil.imageLoader
 import coil.request.ImageRequest
+import com.mangotv.app.data.crash.CrashReporter
 import com.mangotv.app.ui.home.heroImages
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
@@ -12,6 +13,7 @@ import coil.memory.MemoryCache
 import kotlinx.coroutines.runBlocking
 
 private const val HERO_WARM_IMAGES = 3
+private const val CRASH_REPORT_DELAY_MS = 8_000L
 
 class MangoTvApplication : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
@@ -19,8 +21,32 @@ class MangoTvApplication : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        // First, so a crash anywhere after this (even while the container is built) is saved for the developer panel.
+        CrashReporter.install(this)
         container = AppContainer(this)
         warmUp()
+        sendCrashReports()
+    }
+
+    // What the last crashes left behind goes to the developer panel a few seconds after opening, off the main thread and out of the way of
+    // the first screen; with the account when signed in. Nothing is shown to the person, and a failure just waits for the next start.
+    private fun sendCrashReports() {
+        Thread {
+            runCatching {
+                Thread.sleep(CRASH_REPORT_DELAY_MS)
+                runBlocking {
+                    CrashReporter.sendPending(this@MangoTvApplication, BuildConfig.API_BASE_URL) {
+                        val auth = container.authRepository
+                        if (auth.ensureFreshSession()) auth.getCurrentSession()?.accessToken else null
+                    }
+                }
+            }
+        }.apply {
+            name = "mango-crash-reports"
+            priority = Thread.MIN_PRIORITY
+            isDaemon = true
+            start()
+        }
     }
 
     // Work the first screen would otherwise do on the main thread (and the first frame would wait for): loading the

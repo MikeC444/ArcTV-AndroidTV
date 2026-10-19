@@ -73,3 +73,14 @@ export function createQrPollRateLimiter(): RateLimitRequestHandler {
     handler: rateLimitHandler,
   });
 }
+
+/** POST /crash-reports: an app sends what it saved from its last crashes when it opens again, a handful at most; this only stops a flood. */
+export function createCrashReportRateLimiter(): RateLimitRequestHandler {
+  return rateLimit({
+    windowMs: 60_000,
+    limit: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: rateLimitHandler,
+  });
+}

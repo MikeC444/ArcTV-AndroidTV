@@ -7,6 +7,7 @@ import { FEATURE_INTROS } from "../schemas/featureIntros.js";
 import * as adminService from "../services/adminService.js";
 import * as downloadEventService from "../services/downloadEventService.js";
 import * as appPromoEventService from "../services/appPromoEventService.js";
+import * as crashReportService from "../services/crashReportService.js";
 
 /**
  * The developer panel's read-only data. Every route needs a signed-in account with users.is_admin (set by hand in the database).
@@ -38,6 +39,17 @@ adminRouter.get("/downloads", async (_req, res, next) => {
 adminRouter.get("/app-promos", async (_req, res, next) => {
   try {
     res.json(await appPromoEventService.appPromosDetail());
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Crash reports from the apps: the last 30 days grouped by crash, and the latest reports with their traces.
+const crashesQuery = z.object({ limit: z.coerce.number().int().min(1).max(200).default(50) });
+adminRouter.get("/crashes", validate({ query: crashesQuery }), async (req, res, next) => {
+  try {
+    const { limit } = req.validated!.query as z.infer<typeof crashesQuery>;
+    res.json(await crashReportService.crashesDetail(limit));
   } catch (error) {
     next(error);
   }

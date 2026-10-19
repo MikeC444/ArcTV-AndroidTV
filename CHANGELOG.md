@@ -6257,3 +6257,20 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** two "forgot" requests arriving at the same instant could both pass the one-a-minute check and send two emails; harmless. Accounts registered with a mistyped address can't use reset (there is no email verification).
 
 **Issues fixed:** M7 (no password change or recovery). New routes only: no app version is affected; older apps simply don't show the options.
+
+## Post-Milestone-186 -- Crash reports to the developer panel
+
+**Status:** Done on branch `claude/crash-reports`; not merged or deployed. The panel view is in `ArcTV-Web` (same branch name). TV app: reaches people only in the next release.
+
+**Context:** Issue #122: the TV app closes after 20-30 s on an NVIDIA Shield (Android 11) and nothing in the code or an Android 11 emulator run (signed out, no addons) reproduced it. Without a crash log the cause can't be found. The owner wants crash reports in the developer panel, not by email.
+
+**Changes:**
+- Migration `0040_crash_reports.sql`; `POST /crash-reports` (signed in or not: a crash can come before sign-in; the account is kept when the token is live; 20/min per address; the trace cut at 16,000 characters); `GET /admin/crashes` (the last 30 days grouped by crash, with count, people, versions and devices, plus the latest reports with traces). Reports are kept 90 days. Nothing is emailed.
+- A crash's signature (for grouping): its kind, the error's class and the first trace line in the app's own code.
+- TV app `data/crash/CrashReporter.kt`: an uncaught error is saved to a small file before the app closes (at most 5 kept); a few seconds after the next start the files go to `/crash-reports` (with the account when signed in) and are deleted once answered. On Android 11+ it also reports how the app last ended from the system's own record (`ApplicationExitInfo`): a native crash (VLC, torrents), a freeze (ANR, with its trace) or being closed for memory while on screen; background housekeeping is ignored. `MangoTvApplication` installs it first thing.
+
+**Tests performed:** `tsc` clean; new `tests/crash-reports.test.ts` (5 tests: with and without an account, malformed and overlong reports, grouping, the admin list and its 404 for non-admins); the whole suite against a local Postgres 16 (32 files, 381 tests passing). The TV app was not built here (no Android SDK): the branch's **Build debug APK** run is the compile check, and the reporter was not run on a device.
+
+**Issues discovered:** the first start after installing reports the system's earlier exits too (up to 10), labelled with the reporting version, as the system's record carries no version. A native crash's tombstone is binary on newer Android and is left out (the reason, memory and description still come through). Continue Watching does not remove duplicate titles (the same title through two addons); its row keys cards by title id, which crashes. Not fixed here.
+
+**Issues fixed:** none yet; this is how #122's cause will be found once a Shield runs a build with it. New route only: no app version is affected.
