@@ -124,6 +124,8 @@ fun TopTenRow(
     onItemClick: (Content) -> Unit,
     focusRequester: FocusRequester,
     onNavigateUp: () -> Unit,
+    // The row starts this far from the screen's side (the page's own margin)
+    sidePadding: Dp = MangoDimens.ScreenPaddingHorizontal,
     modifier: Modifier = Modifier,
     // Told when a poster gains focus, so the page can bring focus back here after a title is opened
     onFocused: () -> Unit = {}
@@ -135,7 +137,7 @@ fun TopTenRow(
             text = TOP_TEN_TITLE,
             color = TextPrimary,
             style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(horizontal = MangoDimens.ScreenPaddingHorizontal, vertical = 12.dp)
+            modifier = Modifier.padding(horizontal = sidePadding, vertical = 12.dp)
         )
         val density = LocalDensity.current
         val bringIntoViewSpec = remember(density) {
@@ -154,7 +156,7 @@ fun TopTenRow(
                         false
                     }
                 },
-                contentPadding = PaddingValues(horizontal = MangoDimens.ScreenPaddingHorizontal, vertical = 8.dp),
+                contentPadding = PaddingValues(horizontal = sidePadding, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 if (titles == null) {

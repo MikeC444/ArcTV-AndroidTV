@@ -619,6 +619,9 @@ const val GRID_COLUMNS = 7
 private const val WIDE_COLUMNS = 5
 private val SERVICE_GAP = 9.dp
 
+/** Netflix's page: the posters reach further towards the sides of the screen than the usual margin. */
+private val SERVICE_SIDE_PADDING = 24.dp
+
 /** Rows of grey poster shapes shown after the last title while more are still to come. */
 private const val PLACEHOLDER_ROWS = 3
 
@@ -667,6 +670,7 @@ private fun RowsBrowseGridContent(
     val columns = if (servicePage) WIDE_COLUMNS else GRID_COLUMNS
     val gap = if (servicePage) SERVICE_GAP else MangoDimens.CardSpacing
     val rowGap = if (servicePage) SERVICE_GAP else MangoDimens.RowSpacing
+    val sidePadding = if (servicePage) SERVICE_SIDE_PADDING else MangoDimens.ScreenPaddingHorizontal
     val topTenFocusable = topTen is TopTenState.Ready
     val hasContent = items.isNotEmpty() || topTenFocusable
     val listState = rememberLazyListState()
@@ -836,7 +840,7 @@ private fun RowsBrowseGridContent(
         // instead of filling the screen. Width alone reliably fills the
         // screen every time; the LazyColumn already scrolls, so however
         // many rows this scale happens to show without scrolling is fine.
-        val availableWidth = maxWidth - MangoDimens.ScreenPaddingHorizontal * 2
+        val availableWidth = maxWidth - sidePadding * 2
         val cardWidth = (availableWidth - MangoDimens.CardSpacing * (GRID_COLUMNS - 1)) / GRID_COLUMNS
         val posterScale = (cardWidth / MangoDimens.PosterWidth).coerceIn(0.3f, 1f)
         // Netflix's page: exactly WIDE_COLUMNS wide pictures across
@@ -905,6 +909,7 @@ private fun RowsBrowseGridContent(
                                     titles = topTen.items,
                                     onItemClick = ::navigateToContent,
                                     focusRequester = sortBarFocusRequester,
+                                    sidePadding = sidePadding,
                                     onNavigateUp = {
                                         navRegionFocused = true
                                         coroutineScope.launch {
@@ -918,6 +923,7 @@ private fun RowsBrowseGridContent(
                                     titles = null,
                                     onItemClick = {},
                                     focusRequester = sortBarFocusRequester,
+                                    sidePadding = sidePadding,
                                     onNavigateUp = {}
                                 )
                                 else -> {}
@@ -956,7 +962,7 @@ private fun RowsBrowseGridContent(
                     itemsIndexed(rows, key = { index, _ -> "grid_row_$index" }) { rowIndex, rowItems ->
                         Row(
                             modifier = Modifier
-                                .padding(horizontal = MangoDimens.ScreenPaddingHorizontal, vertical = rowGap / 2)
+                                .padding(horizontal = sidePadding, vertical = rowGap / 2)
                                 .onFocusChanged { state -> if (state.hasFocus) focusedGridRowIndex = rowIndex }
                                 .let { base ->
                                     if (rowIndex == 0) {
@@ -1041,7 +1047,7 @@ private fun RowsBrowseGridContent(
                         // three more rows of grey shapes, so the page can be scrolled ahead of what has loaded
                         items(PLACEHOLDER_ROWS, key = { "grid_placeholder_$it" }) {
                             Row(
-                                modifier = Modifier.padding(horizontal = MangoDimens.ScreenPaddingHorizontal, vertical = rowGap / 2),
+                                modifier = Modifier.padding(horizontal = sidePadding, vertical = rowGap / 2),
                                 horizontalArrangement = Arrangement.spacedBy(gap)
                             ) {
                                 repeat(columns) { if (servicePage) WidePlaceholder(width = wideWidth) else PosterPlaceholder(posterScale = posterScale) }
