@@ -1,6 +1,7 @@
 package com.mangotv.app.ui.home
 
 import com.mangotv.app.data.provider.ProviderRegistry
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -109,7 +110,7 @@ fun TopNavBar(
     // harmless fallback when this isn't provided (e.g. non-scrolling
     // screens, where the declarative path is already safe).
     onNavigateDown: (() -> Unit)? = null,
-    // False while the page is scrolled down: the bar slides away, and comes straight back (no animation) when visible is true again or when focus is on it.
+    // False while the page is scrolled down: the bar slides away, and slides back down when visible is true again or when focus is on it.
     visible: Boolean = true
 ) {
     // Someone browsing without an account sees "Sign In" where Settings would be (Settings needs an account).
@@ -142,10 +143,10 @@ fun TopNavBar(
     // Focus on the bar always brings it back (UP from the first row, the remote's BACK to the bar ...)
     var barHasFocus by remember { mutableStateOf(false) }
     val shown = visible || barHasFocus
-    // Hiding slides it up and away; showing is instant
+    // Hiding slides it up and away, showing slides it back down, both smoothly; the slide starts the moment the page scrolls up
     val shownFraction by animateFloatAsState(
         targetValue = if (shown) 1f else 0f,
-        animationSpec = if (shown) snap() else tween(200),
+        animationSpec = tween(240, easing = FastOutSlowInEasing),
         label = "navBarShown"
     )
 
@@ -344,7 +345,7 @@ private const val NAV_HIDE_AFTER_PX = 120
 
 /**
  * Whether a page's top bar should be showing: it slides away as the page scrolls down and comes back the moment the page scrolls up, or is at its top.
- * [listState] is the page's own list. A scroll up of any size brings it back (instant, see [TopNavBar]'s `visible`).
+ * [listState] is the page's own list. A scroll up of any size brings it back (it starts sliding back at once, see [TopNavBar]'s `visible`).
  */
 @Composable
 fun rememberNavBarVisible(listState: LazyListState): Boolean {

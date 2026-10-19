@@ -6421,7 +6421,7 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 
 **Context:** The owner asked for the top bar to get out of the way while scrolling down a page and to show again the instant the page scrolls up.
 
-**Changes:** `TopNavBar` has a `visible` parameter: false slides the bar up and out (200 ms), true (or focus on the bar, e.g. UP from the first row) brings it back with no animation. `rememberNavBarVisible(listState)` works it out from the page's own list: hidden once the page is scrolled down past 120 px and still moving down, shown again by any scroll up (more than 2 px) and whenever the page is at its top. Used on Home, Movies / TV Shows / Anime / My List / genre results / Netflix's page (both layouts), Search and the title page. Settings keeps its bar.
+**Changes:** `TopNavBar` has a `visible` parameter: false slides the bar up and out, true (or focus on the bar, e.g. UP from the first row) slides it back down, both smoothly (240 ms, fast-out-slow-in) and the slide back starts the moment the page scrolls up. `rememberNavBarVisible(listState)` works it out from the page's own list: hidden once the page is scrolled down past 120 px and still moving down, shown again by any scroll up (more than 2 px) and whenever the page is at its top. Used on Home, Movies / TV Shows / Anime / My List / genre results / Netflix's page (both layouts), Search and the title page. Settings keeps its bar.
 
 **Tests performed:** manual re-read only; no Gradle/Android build or on-device run was possible here (no route to `dl.google.com`). No unit test (it needs a scrolling list under a real focus).
 

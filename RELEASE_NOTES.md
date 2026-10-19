@@ -14,7 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
-- The top bar now slips away as you scroll down and comes back the instant you scroll up.
+- The top bar now glides away as you scroll down and glides back as soon as you scroll up.
 - Shows with lots of seasons now scroll along the season row, and it opens on your season.
 - Posters now scroll all the way to the top of the screen on every page, with no black cut-off.
 - Holding a direction on your remote no longer buzzes: the menu tick plays once, not over and over.
