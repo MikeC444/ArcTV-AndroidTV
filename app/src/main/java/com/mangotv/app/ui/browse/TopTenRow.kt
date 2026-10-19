@@ -27,6 +27,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -57,6 +58,7 @@ import com.mangotv.app.ui.theme.MangoDimens
 import com.mangotv.app.ui.theme.MangoMotion
 import com.mangotv.app.ui.theme.MangoSurfaceHigh
 import com.mangotv.app.ui.theme.TextPrimary
+import kotlinx.coroutines.launch
 
 /** The row's heading. */
 const val TOP_TEN_TITLE = "Top 10 Today"
@@ -131,6 +133,7 @@ fun TopTenRow(
     onFocused: () -> Unit = {}
 ) {
     val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     var lastFocused by rememberSaveable { mutableStateOf(0) }
     Column(modifier) {
         Text(
@@ -183,6 +186,12 @@ fun TopTenRow(
                                     if (isFocused) {
                                         lastFocused = index
                                         onFocused()
+                                        // Scrolling into view only brings the poster on screen, and its big number sits to the poster's left: going back
+                                        // to the first poster (or any whose number is cut off) scrolls the whole item, number included, into view.
+                                        scope.launch {
+                                            val info = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+                                            if (index == 0 || (info != null && info.offset < 0)) listState.animateScrollToItem(index)
+                                        }
                                     }
                                 },
                                 serviceStyle = ServiceCardStyle(
