@@ -39,6 +39,31 @@ const val DEBRID_GUIDE_URL = "https://web.arctv.org/guides/debrid"
 /** "Click here for help" on the Addons tab: a QR code for a phone, since the TV has no browser. BACK or Close dismisses it. */
 @Composable
 fun DebridHelpDialog(onClose: () -> Unit) {
+    ScanWithPhoneDialog(
+        message = "Open your phone's camera and point it at the code to read the debrid guide.",
+        url = DEBRID_GUIDE_URL,
+        shownUrl = "web.arctv.org/guides/debrid",
+        onClose = onClose
+    )
+}
+
+/** The page on the web app where a signed-in person changes their password. */
+const val CHANGE_PASSWORD_URL = "https://web.arctv.org/change-password"
+
+/** Account tab's "Change password": the TV has no browser, so the web app's page is opened from a phone through a QR code. */
+@Composable
+fun ChangePasswordDialog(onClose: () -> Unit) {
+    ScanWithPhoneDialog(
+        message = "Open your phone's camera and point it at the code to change your password. Sign in on your phone if it asks.",
+        url = CHANGE_PASSWORD_URL,
+        shownUrl = "web.arctv.org/change-password",
+        onClose = onClose
+    )
+}
+
+/** A QR code for a phone with a line of explanation under the title. BACK or Close dismisses it. */
+@Composable
+fun ScanWithPhoneDialog(message: String, url: String, shownUrl: String, onClose: () -> Unit) {
     val focus = remember { FocusRequester() }
     Dialog(
         onDismissRequest = onClose,
@@ -57,15 +82,15 @@ fun DebridHelpDialog(onClose: () -> Unit) {
                 Text(text = "Scan with your phone", color = TextPrimary, style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "Open your phone's camera and point it at the code to read the debrid guide.",
+                    text = message,
                     color = TextSecondary,
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center
                 )
                 Spacer(Modifier.height(16.dp))
-                QrCodeImage(content = DEBRID_GUIDE_URL, modifier = Modifier.size(220.dp))
+                QrCodeImage(content = url, modifier = Modifier.size(220.dp))
                 Spacer(Modifier.height(12.dp))
-                Text(text = "web.arctv.org/guides/debrid", color = TextTertiary, style = MaterialTheme.typography.labelMedium)
+                Text(text = shownUrl, color = TextTertiary, style = MaterialTheme.typography.labelMedium)
                 Spacer(Modifier.height(18.dp))
                 MangoButton(
                     text = "Close",

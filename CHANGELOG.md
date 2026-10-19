@@ -6274,3 +6274,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the first start after installing reports the system's earlier exits too (up to 10), labelled with the reporting version, as the system's record carries no version. A native crash's tombstone is binary on newer Android and is left out (the reason, memory and description still come through). Continue Watching does not remove duplicate titles (the same title through two addons); its row keys cards by title id, which crashes. Not fixed here.
 
 **Issues fixed:** none yet; this is how #122's cause will be found once a Shield runs a build with it. New route only: no app version is affected.
+
+## Post-Milestone-187 -- TV: Change password in Settings, through a QR code
+
+**Status:** Done on branch `claude/great-volta-v7xvmz`; not built here, not merged.
+
+**Context:** The web app has a Change password page (`/change-password`, signed in only; ArcTV-Web `docs/PARITY.md`, 19 Oct) backed by the server's `POST /auth/password/change` (Post-Milestone-185). The TV has no browser, so the owner asked for a QR code that takes the person to that page on their phone.
+
+**Changes:**
+- `ui/settings/AccountScreen.kt`: a "Change password" button under Sign Out that opens the dialog.
+- `ui/settings/DebridHelpDialog.kt`: the QR dialog is now a shared `ScanWithPhoneDialog(message, url, shownUrl)`; `DebridHelpDialog` uses it unchanged in look and wording, and the new `ChangePasswordDialog` shows a QR code for `https://web.arctv.org/change-password` (`CHANGE_PASSWORD_URL`). BACK or Close dismisses it.
+
+**Tests performed:** manual re-read and a brace / paren balance check only; no Gradle/Android build or on-device run was possible here (no route to `dl.google.com`), so it is uncompiled and not seen on a screen. No new unit test.
+
+**Issues discovered:** the button is shown to every signed-in account; an account that signed in only by QR and never set a password is left to the web page to explain. "Forgot your password?" on the TV sign-in screen and a Privacy Policy link are still not done. No server change, so no app version is affected.
+
+**Issues fixed:** none beyond the above.

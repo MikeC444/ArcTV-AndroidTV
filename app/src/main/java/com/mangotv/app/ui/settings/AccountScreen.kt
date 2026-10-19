@@ -10,7 +10,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.SwitchAccount
 import androidx.compose.ui.platform.LocalContext
 import com.mangotv.app.MangoTvApplication
@@ -60,6 +64,7 @@ fun ColumnScope.AccountSettingsContent(
     val session by viewModel.session.collectAsStateWithLifecycle()
     val signingOut by viewModel.signingOut.collectAsStateWithLifecycle()
     val signedOut by viewModel.signedOut.collectAsStateWithLifecycle()
+    var showChangePassword by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(signedOut) {
         if (signedOut) onSignedOut()
@@ -84,6 +89,17 @@ fun ColumnScope.AccountSettingsContent(
         compact = true,
         borderColor = TextPrimary
     )
+    Spacer(Modifier.height(8.dp))
+    MangoButton(
+        text = "Change password",
+        icon = Icons.Filled.Lock,
+        onClick = { showChangePassword = true },
+        style = MangoButtonStyle.GLASS,
+        focusLeft = sidebarFocusRequester,
+        compact = true,
+        borderColor = TextPrimary
+    )
+    if (showChangePassword) ChangePasswordDialog(onClose = { showChangePassword = false })
     if (activeProfile == null) {
         // Say why, instead of just not showing profiles: an older service, or the list couldn't be read.
         val why = when {
