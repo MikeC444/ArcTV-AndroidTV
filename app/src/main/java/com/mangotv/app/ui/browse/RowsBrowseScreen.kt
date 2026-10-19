@@ -65,6 +65,9 @@ import com.mangotv.app.ui.components.FilterPill
 import com.mangotv.app.ui.components.FullScreenErrorState
 import com.mangotv.app.ui.components.GridLoadingSkeleton
 import com.mangotv.app.ui.components.PosterPlaceholder
+import com.mangotv.app.ui.components.ServiceCardStyle
+import com.mangotv.app.ui.components.WidePlaceholder
+import com.mangotv.app.data.streaming.TopTenState
 import com.mangotv.app.ui.components.limitVerticalKeyRepeat
 import com.mangotv.app.ui.components.RowsLoadingSkeleton
 import com.mangotv.app.ui.components.TvFocusSurface
@@ -141,7 +144,10 @@ fun RowsBrowseContent(
     // joins it to the nav bar above and the filter / sort pills (or the grid) below.
     headerAction: (@Composable (BrowseHeaderFocus) -> Unit)? = null,
     // Grey poster shapes after the last title while more are still to come (GRID layout only; a streaming service's page)
-    placeholders: Boolean = false
+    placeholders: Boolean = false,
+    // Netflix's page (a streaming service with a Top 10): non-null makes it that page, as on the web app. Wide 16:9 pictures with the service's red N
+    // in rows close together, no sort pills, and the Top 10 row above them (grey posters while it loads, nothing when there is no list).
+    topTen: TopTenState? = null
 ) {
     Box(Modifier.fillMaxSize().background(MangoBackground)) {
         when (uiState) {
@@ -154,7 +160,13 @@ fun RowsBrowseContent(
             // disappear entirely for as long as the fetch was in flight
             // (the common case navigating to a tab on cold boot, before
             // its own data has loaded).
-            is RowsBrowseUiState.Loading -> RowsBrowseTransientState(navLabel, onNavigate) {
+            // Netflix's page shows itself while it loads: the Top 10's grey posters and grey wide cells in place of the titles
+            is RowsBrowseUiState.Loading -> if (topTen != null) {
+                RowsBrowseGridContent(
+                    screenTitle, navLabel, emptyList(), onNavigate, emptyMessage, onLoadMore,
+                    placeholders = true, topTen = topTen, loading = true
+                )
+            } else RowsBrowseTransientState(navLabel, onNavigate) {
                 if (layout == RowsBrowseLayout.GRID) {
                     GridLoadingSkeleton(screenTitle = screenTitle)
                 } else {
@@ -168,7 +180,7 @@ fun RowsBrowseContent(
                 RowsBrowseGridContent(
                     screenTitle, navLabel, uiState.sections.flatMap { it.items }, onNavigate, emptyMessage, onLoadMore,
                     filterOptions, selectedFilterIndex, onFilterSelected,
-                    headerAction, placeholders
+                    headerAction, placeholders, topTen
                 )
             } else {
                 RowsBrowseLoadedContent(
@@ -603,6 +615,10 @@ private fun CatalogSortPill(
 // it so the loading skeleton's column count matches the real grid exactly.
 const val GRID_COLUMNS = 7
 
+/** Netflix's page: wide pictures across (the web app has 5 on a laptop and bigger screens), and the 9dp between them and between rows. */
+private const val WIDE_COLUMNS = 5
+private val SERVICE_GAP = 9.dp
+
 /** Rows of grey poster shapes shown after the last title while more are still to come. */
 private const val PLACEHOLDER_ROWS = 3
 
@@ -641,8 +657,18 @@ private fun RowsBrowseGridContent(
     selectedFilterIndex: Int = 0,
     onFilterSelected: (Int) -> Unit = {},
     headerAction: (@Composable (BrowseHeaderFocus) -> Unit)? = null,
-    placeholders: Boolean = false
+    placeholders: Boolean = false,
+    topTen: TopTenState? = null,
+    // The titles have not come yet: the page is drawn with grey cells in their place (Netflix's page only)
+    loading: Boolean = false
 ) {
+    // Netflix's page: wide pictures in rows close together, the Top 10 where the sort pills are (the same slot, so every "title and bar" offset below holds)
+    val servicePage = topTen != null
+    val columns = if (servicePage) WIDE_COLUMNS else GRID_COLUMNS
+    val gap = if (servicePage) SERVICE_GAP else MangoDimens.CardSpacing
+    val rowGap = if (servicePage) SERVICE_GAP else MangoDimens.RowSpacing
+    val topTenFocusable = topTen is TopTenState.Ready
+    val hasContent = items.isNotEmpty() || topTenFocusable
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val navFocusRequester = remember { FocusRequester() }
@@ -699,7 +725,7 @@ private fun RowsBrowseGridContent(
         }
     }
 
-    val rows = remember(sortedItems) { sortedItems.chunked(GRID_COLUMNS) }
+    val rows = remember(sortedItems, columns) { sortedItems.chunked(columns) }
     // Computed only when the (sorted) item list itself changes (mount, a
     // loadMore page landing, or a sort change) -- this used to be
     // remember(items, lastFocusedContentId), re-running this
@@ -716,21 +742,25 @@ private fun RowsBrowseGridContent(
     val restoredFlatIndex = remember(sortedItems) {
         lastFocusedContentId?.let { id -> sortedItems.indexOfFirst { it.id == id } }?.takeIf { it >= 0 }
     }
-    var targetRowIndex by remember { mutableStateOf(restoredFlatIndex?.let { it / GRID_COLUMNS } ?: 0) }
-    var targetColIndex by remember { mutableStateOf(restoredFlatIndex?.let { it % GRID_COLUMNS } ?: 0) }
+    var targetRowIndex by remember { mutableStateOf(restoredFlatIndex?.let { it / columns } ?: 0) }
+    var targetColIndex by remember { mutableStateOf(restoredFlatIndex?.let { it % columns } ?: 0) }
+    // Netflix's page: whether focus was last on a Top 10 poster (so coming back from a title lands there, not on the first wide picture)
+    var lastFocusInTopTen by rememberSaveable { mutableStateOf(false) }
 
     // Nav-region starts UNLOCKED (skips the top-pinning watchdog below) when
     // there's a remembered target to restore straight into -- otherwise it
     // would immediately fight the restore in the LaunchedEffect below and
     // snap the list back to the top before the user ever sees it land on
     // the right card.
-    var navRegionFocused by remember { mutableStateOf(lastFocusedContentId == null) }
+    var navRegionFocused by remember { mutableStateOf(lastFocusedContentId == null && !lastFocusInTopTen) }
     var focusedGridRowIndex by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(items) {
         if (!hasRequestedInitialFocus) {
             hasRequestedInitialFocus = true
-            if (restoredFlatIndex != null) {
+            if (servicePage && lastFocusInTopTen && topTenFocusable) {
+                runCatching { sortBarFocusRequester.requestFocus() }
+            } else if (restoredFlatIndex != null) {
                 val lazyIndex = targetRowIndex + 2 // offset for the title (0) and sort bar (1) items
                 val alreadyVisible = listState.layoutInfo.visibleItemsInfo.any { it.index == lazyIndex }
                 if (!alreadyVisible) {
@@ -809,8 +839,11 @@ private fun RowsBrowseGridContent(
         val availableWidth = maxWidth - MangoDimens.ScreenPaddingHorizontal * 2
         val cardWidth = (availableWidth - MangoDimens.CardSpacing * (GRID_COLUMNS - 1)) / GRID_COLUMNS
         val posterScale = (cardWidth / MangoDimens.PosterWidth).coerceIn(0.3f, 1f)
+        // Netflix's page: exactly WIDE_COLUMNS wide pictures across
+        val wideWidth = (availableWidth - SERVICE_GAP * (WIDE_COLUMNS - 1)) / WIDE_COLUMNS
+        val serviceStyle = if (servicePage) ServiceCardStyle(width = wideWidth, wide = true, badge = { NetflixN(width = 11.dp) }) else null
 
-        if (items.isEmpty() && headerAction != null) {
+        if (items.isEmpty() && headerAction != null && !loading) {
             // Keep the title and drop-down on screen so a genre with nothing in it can be changed.
             Column(
                 modifier = Modifier
@@ -831,7 +864,7 @@ private fun RowsBrowseGridContent(
                     )
                 }
             }
-        } else if (items.isEmpty()) {
+        } else if (items.isEmpty() && !loading && !topTenFocusable) {
             Text(
                 text = emptyMessage,
                 color = TextSecondary,
@@ -865,7 +898,31 @@ private fun RowsBrowseGridContent(
                         )
                     }
                     item(key = "sort_bar") {
-                        if (hasFilterBar) {
+                        if (servicePage) {
+                            // the Top 10 takes the pills' place; nothing there when the service has no list
+                            when (topTen) {
+                                is TopTenState.Ready -> TopTenRow(
+                                    titles = topTen.items,
+                                    onItemClick = ::navigateToContent,
+                                    focusRequester = sortBarFocusRequester,
+                                    onNavigateUp = {
+                                        navRegionFocused = true
+                                        coroutineScope.launch {
+                                            listState.scrollToItem(0, 0)
+                                            runCatching { navFocusRequester.requestFocus() }
+                                        }
+                                    },
+                                    onFocused = { lastFocusInTopTen = true }
+                                )
+                                TopTenState.Loading -> TopTenRow(
+                                    titles = null,
+                                    onItemClick = {},
+                                    focusRequester = sortBarFocusRequester,
+                                    onNavigateUp = {}
+                                )
+                                else -> {}
+                            }
+                        } else if (hasFilterBar) {
                             Row(
                                 modifier = Modifier
                                     .padding(
@@ -899,7 +956,7 @@ private fun RowsBrowseGridContent(
                     itemsIndexed(rows, key = { index, _ -> "grid_row_$index" }) { rowIndex, rowItems ->
                         Row(
                             modifier = Modifier
-                                .padding(horizontal = MangoDimens.ScreenPaddingHorizontal, vertical = MangoDimens.RowSpacing / 2)
+                                .padding(horizontal = MangoDimens.ScreenPaddingHorizontal, vertical = rowGap / 2)
                                 .onFocusChanged { state -> if (state.hasFocus) focusedGridRowIndex = rowIndex }
                                 .let { base ->
                                     if (rowIndex == 0) {
@@ -923,7 +980,9 @@ private fun RowsBrowseGridContent(
                                                 if (event.type == KeyEventType.KeyDown) {
                                                     coroutineScope.launch {
                                                         listState.scrollToItem(0, 0)
-                                                        val barTarget = if (hasFilterBar) {
+                                                        val barTarget = if (servicePage) {
+                                                            if (topTenFocusable) sortBarFocusRequester else null
+                                                        } else if (hasFilterBar) {
                                                             filterChipFocusRequesters.getOrNull(selectedFilterIndex)
                                                         } else {
                                                             sortBarFocusRequester
@@ -940,10 +999,10 @@ private fun RowsBrowseGridContent(
                                         base
                                     }
                                 },
-                            horizontalArrangement = Arrangement.spacedBy(MangoDimens.CardSpacing)
+                            horizontalArrangement = Arrangement.spacedBy(gap)
                         ) {
                             // the grey shapes carry on in the cells right after the last title
-                            val fillers = if (placeholders && rowIndex == rows.lastIndex) GRID_COLUMNS - rowItems.size else 0
+                            val fillers = if (placeholders && rowIndex == rows.lastIndex) columns - rowItems.size else 0
                             rowItems.forEachIndexed { colIndex, content ->
                                 ContentCard(
                                     content = content,
@@ -954,8 +1013,10 @@ private fun RowsBrowseGridContent(
                                         null
                                     },
                                     posterScale = posterScale,
+                                    serviceStyle = serviceStyle,
                                     onFocusChanged = { isFocused ->
                                         if (isFocused) {
+                                            lastFocusInTopTen = false
                                             lastFocusedContentId = content.id
                                             targetRowIndex = rowIndex
                                             targetColIndex = colIndex
@@ -963,17 +1024,27 @@ private fun RowsBrowseGridContent(
                                     }
                                 )
                             }
-                            repeat(fillers) { PosterPlaceholder(posterScale = posterScale) }
+                            repeat(fillers) { if (servicePage) WidePlaceholder(width = wideWidth) else PosterPlaceholder(posterScale = posterScale) }
                         }
                     }
-                    if (placeholders) {
+                    if (items.isEmpty() && servicePage && !loading) {
+                        item(key = "service_empty") {
+                            Text(
+                                text = emptyMessage,
+                                color = TextSecondary,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.padding(horizontal = MangoDimens.ScreenPaddingHorizontal, vertical = 16.dp)
+                            )
+                        }
+                    }
+                    if (placeholders || loading) {
                         // three more rows of grey shapes, so the page can be scrolled ahead of what has loaded
                         items(PLACEHOLDER_ROWS, key = { "grid_placeholder_$it" }) {
                             Row(
-                                modifier = Modifier.padding(horizontal = MangoDimens.ScreenPaddingHorizontal, vertical = MangoDimens.RowSpacing / 2),
-                                horizontalArrangement = Arrangement.spacedBy(MangoDimens.CardSpacing)
+                                modifier = Modifier.padding(horizontal = MangoDimens.ScreenPaddingHorizontal, vertical = rowGap / 2),
+                                horizontalArrangement = Arrangement.spacedBy(gap)
                             ) {
-                                repeat(GRID_COLUMNS) { PosterPlaceholder(posterScale = posterScale) }
+                                repeat(columns) { if (servicePage) WidePlaceholder(width = wideWidth) else PosterPlaceholder(posterScale = posterScale) }
                             }
                         }
                     }
@@ -996,7 +1067,8 @@ private fun RowsBrowseGridContent(
             // points at.
             contentFocusRequester = when {
                 hasHeader -> headerFocusRequester
-                items.isEmpty() -> null
+                !hasContent -> null
+                servicePage -> if (topTenFocusable) sortBarFocusRequester else firstCardFocusRequester
                 hasFilterBar -> filterChipFocusRequesters.getOrNull(selectedFilterIndex)
                 else -> sortBarFocusRequester
             },
@@ -1004,10 +1076,15 @@ private fun RowsBrowseGridContent(
             onNavigateDown = if (items.isEmpty() && hasHeader) {
                 // Nothing to scroll to (a genre with no titles): just land on the drop-down so it can be changed.
                 { runCatching { headerFocusRequester.requestFocus() } }
-            } else if (items.isNotEmpty()) {
+            } else if (hasContent) {
                 {
                     navRegionFocused = false
                     coroutineScope.launch {
+                        if (servicePage && topTenFocusable) {
+                            // the Top 10 row is on screen already (the list is at its top), so there is nothing to scroll to first
+                            runCatching { sortBarFocusRequester.requestFocus() }
+                            return@launch
+                        }
                         // Scrolls the remembered card into view now (same
                         // reasoning as the LaunchedEffect above, and only if
                         // it isn't already on screen) so it's already
@@ -1023,6 +1100,8 @@ private fun RowsBrowseGridContent(
                         runCatching {
                             if (hasHeader) {
                                 headerFocusRequester.requestFocus()
+                            } else if (servicePage) {
+                                firstCardFocusRequester.requestFocus()
                             } else if (hasFilterBar) {
                                 filterChipFocusRequesters[selectedFilterIndex].requestFocus()
                             } else {
@@ -1073,6 +1152,7 @@ fun StreamingScreen(onNavigate: (String) -> Unit, viewModel: StreamingViewModel 
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val moreComing by viewModel.moreComing.collectAsStateWithLifecycle()
+    val topTen by viewModel.topTen.collectAsStateWithLifecycle()
     val name = streamingServiceById(viewModel.service)?.name ?: "Streaming"
     RowsBrowseContent(
         screenTitle = name,
@@ -1084,7 +1164,8 @@ fun StreamingScreen(onNavigate: (String) -> Unit, viewModel: StreamingViewModel 
         onLoadMore = viewModel::loadMore,
         emptyMessage = "Your addons didn't return any $name titles right now.",
         headerAction = null,
-        placeholders = moreComing
+        placeholders = moreComing,
+        topTen = if (viewModel.hasTopTen) topTen else null
     )
 }
 

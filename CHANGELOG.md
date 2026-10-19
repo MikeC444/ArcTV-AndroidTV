@@ -6304,3 +6304,23 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** other possible causes remain open and were not changed: a session that cannot be decrypted (the Android Keystore key lost or regenerated, e.g. after a power cycle or system update) is read as "signed out" with nothing logged (`SessionManager.readPersisted`); and the 30-day refresh token expiring on a TV left unused. If it still happens, a log line saying which path cleared the session would settle it.
 
 **Issues fixed:** the 401-race sign-out described above (inferred cause).
+
+## Post-Milestone-189 -- TV: Netflix's page like the web app's (Top 10 Today, wide pictures with logos)
+
+**Status:** Done on `main`; not built or run on a TV here (CI is the compile check).
+
+**Context:** The web app redesigned Netflix's streaming-service page on 19 Oct (`docs/PARITY.md` in ArcTV-Web: about 15 rows). The TV's page was the same poster grid as every other service. The owner asked for it to be copied.
+
+**Changes:** (Netflix only, as on the web; other services keep the grid)
+- `data/streaming/TopTen.kt` (new): `rankedPool` / `topTen` (series and movies taken in turn from TMDB's popularity list, ten kept), `pickUnblocked` (blocked genres left out: each candidate's genres are looked up through the addons, 30 candidates, ten at a time; a title whose genres cannot be found is kept) and `TopTenState`.
+- `StreamingViewModel`: for Netflix the Top 10 starts loading the moment the page opens, one answer is kept per service, country and set of blocked genres for the session, the title list waits for it up to 6 seconds and leaves its ten titles out of the list under it, and it is worked out again when the blocked genres change.
+- `StreamingTitlesRepository.regionOf`: a device with no country now asks for the US (was the UK), as the web app.
+- `ui/browse/TopTenRow.kt` (new): the "Top 10 Today" row (a big outlined number behind each poster, the red N on its corner; ten grey posters with their numbers while it loads; nothing when there is no list) and `NetflixN`.
+- `ContentCard`: an optional `ServiceCardStyle` (exact width, 2:3 poster or 16:9 wide picture, 4dp corners, no caption, the red N top left, the watched tick top right). A wide card shows the title's logo at its bottom left on a soft shade, straight from Metahub (`images.metahub.space/logo/medium/<IMDb id>/img`) and through the details lookup only when Metahub has none. Every other card is unchanged.
+- `RowsBrowseScreen` (`RowsBrowseGridContent`): the page is five wide pictures across with 9dp gaps, no sort pills, and the Top 10 in the pills' place (so every offset in the grid code holds). While the page loads it shows the Top 10's grey posters and grey wide cells; after the last title, grey wide cells carry on. Focus: the nav bar's DOWN lands on the Top 10 (on the last poster that had focus), DOWN goes on to the titles, UP from the first row returns to the Top 10, UP from the Top 10 to the nav bar, and coming back from a title lands where focus was.
+
+**Tests performed:** `TopTenTest` (ranking, no repeats, blocked genres, an unknown genre kept), `TopTenRowTest` (Robolectric: the row and its numbers, the loading row, pressing a poster, no captions on service cards), the region test updated to the US. Written here, not run: this sandbox cannot reach the Android build (no route to `dl.google.com`). The CI run on the push compiles and runs them.
+
+**Issues discovered:** the layout of the big numbers (their size, and how far down they sit) is by calculation from the web app's, not seen on a screen; they may need a nudge on a real TV. Not copied: the web app's mouse tilt and its 3D poster edges (no pointer on a TV), and its time-zone guess of the country (the device's country is used).
+
+**Issues fixed:** none beyond the above.

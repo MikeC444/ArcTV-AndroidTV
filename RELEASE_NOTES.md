@@ -14,6 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Netflix's page got a glow-up: a Top 10 Today row, then wide pictures with each title's logo.
 - Fewer surprise sign-outs: Arc TV now keeps you signed in unless your account really needs a new sign-in.
 - Change your password in seconds: scan a code with your phone from Account settings.
 

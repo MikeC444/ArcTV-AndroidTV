@@ -10,11 +10,11 @@ import java.util.Locale
 class StreamingTitlesRepositoryTest {
 
     @Test
-    fun `the region is the device's country, upper-cased, else the UK`() {
+    fun `the region is the device's country, upper-cased, else the US`() {
         assertEquals("US", regionOf(Locale("en", "us")))
         assertEquals("BR", regionOf(Locale("pt", "BR")))
-        assertEquals("GB", regionOf(Locale("en")))
-        assertEquals("GB", regionOf(Locale.ROOT))
+        assertEquals("US", regionOf(Locale("en")))
+        assertEquals("US", regionOf(Locale.ROOT))
     }
 
     @Test

@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.mangotv.app.data.model.Content
@@ -50,6 +51,20 @@ import com.mangotv.app.ui.theme.TextPrimary
 import com.mangotv.app.ui.theme.TextSecondary
 import com.mangotv.app.ui.theme.TextTertiary
 import com.mangotv.app.ui.theme.WatchedGreen
+
+/**
+ * How a card looks on a streaming service's page (Netflix's: the Top 10 posters and the wide pictures under them, as on the web app): an exact [width]
+ * (a poster is 2:3, a [wide] picture 16:9 with the title's logo at its bottom left), small corners, no caption under it, the service's mark ([badge]) at
+ * the top left and the watched tick at the top right, so the two never sit on each other.
+ */
+class ServiceCardStyle(
+    val width: Dp,
+    val wide: Boolean,
+    val cornerRadius: Dp = 4.dp,
+    val badge: (@Composable () -> Unit)? = null
+)
+
+private val IMDB_TITLE = Regex("^tt\\d+$")
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -74,7 +89,9 @@ fun ContentCard(
     // aggregate "is any card in me focused" (see ContentRow.onFocusChanged)
     // -- e.g. My List uses this to remember exactly which title the user
     // was last hovering so returning from the nav bar re-lands on it.
-    onFocusChanged: (Boolean) -> Unit = {}
+    onFocusChanged: (Boolean) -> Unit = {},
+    // A streaming service's page (see ServiceCardStyle); null everywhere else, so every other card is unchanged.
+    serviceStyle: ServiceCardStyle? = null
 ) {
     if (style == RowStyle.STREAMING_SERVICES) {
         StreamingTile(content = content, onClick = onClick, modifier = modifier, focusRequester = focusRequester, onFocusChanged = onFocusChanged, posterScale = posterScale, rowWidth = rowWidth)
@@ -82,11 +99,21 @@ fun ContentCard(
     }
     val isContinueWatching = style == RowStyle.CONTINUE_WATCHING
     val scale = (if (compact) 2f / 3f else 1f) * posterScale
-    val width = (if (isContinueWatching) MangoDimens.ContinueWatchingWidth else MangoDimens.PosterWidth) * scale
-    val height = (if (isContinueWatching) MangoDimens.ContinueWatchingHeight else MangoDimens.PosterHeight) * scale
+    val wideCard = serviceStyle?.wide == true
+    val cornerRadius = serviceStyle?.cornerRadius ?: MangoDimens.CardCornerRadius
+    val width = serviceStyle?.width ?: ((if (isContinueWatching) MangoDimens.ContinueWatchingWidth else MangoDimens.PosterWidth) * scale)
+    val height = when {
+        serviceStyle == null -> (if (isContinueWatching) MangoDimens.ContinueWatchingHeight else MangoDimens.PosterHeight) * scale
+        wideCard -> width * 9f / 16f
+        else -> width * 1.5f
+    }
     var focused by remember { mutableStateOf(false) }
     val lift = animateFloatAsState(targetValue = if (focused) 1f else 0f, animationSpec = MangoMotion.focusTween, label = "posterLift")
-    val imageUrl = if (isContinueWatching) content.backdropUrl else content.posterUrl
+    val imageUrl = when {
+        isContinueWatching -> content.backdropUrl
+        wideCard -> content.backdropUrl ?: content.posterUrl
+        else -> content.posterUrl
+    }
     val titleStyle = if (scale < 0.85f) {
         androidx.compose.material3.MaterialTheme.typography.labelMedium
     } else {
@@ -114,7 +141,7 @@ fun ContentCard(
                 .drawWithContent {
                     translate(top = if (isContinueWatching) 0f else -4.dp.toPx() * lift.value) { this@drawWithContent.drawContent() }
                 },
-            shape = RoundedCornerShape(MangoDimens.CardCornerRadius),
+            shape = RoundedCornerShape(cornerRadius),
             backgroundColor = MangoSurface,
             focusRequester = focusRequester,
             onFocusChanged = { isFocused -> focused = isFocused; onFocusChanged(isFocused) },
@@ -146,7 +173,7 @@ fun ContentCard(
                         .border(
                             1.dp,
                             Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.18f), Color.White.copy(alpha = 0.08f))),
-                            RoundedCornerShape(MangoDimens.CardCornerRadius)
+                            RoundedCornerShape(cornerRadius)
                         )
                 )
             }
@@ -158,7 +185,8 @@ fun ContentCard(
             if (content.watched) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopStart)
+                        // on a streaming service's page the service's mark holds the top left corner
+                        .align(if (serviceStyle != null) Alignment.TopEnd else Alignment.TopStart)
                         .padding(6.dp)
                         .size(22.dp)
                         .background(WatchedGreen, CircleShape),
@@ -173,8 +201,41 @@ fun ContentCard(
                 }
             }
 
+            serviceStyle?.badge?.let { badge ->
+                Box(Modifier.align(Alignment.TopStart).padding(top = 5.dp, start = 6.dp)) { badge() }
+            }
+            if (wideCard) {
+                // The title's logo at the bottom left, on a soft shade. A title with an IMDb id goes straight to the logo picture on Metahub (Cinemeta's logos
+                // live there) instead of waiting for a details lookup; the lookup is the fallback when Metahub has none.
+                val direct = if (IMDB_TITLE.matches(content.id) && content.logoUrl == null) "https://images.metahub.space/logo/medium/${content.id}/img" else null
+                var directFailed by remember(content.id) { mutableStateOf(false) }
+                val looked by rememberTitleLogo(content, enabled = direct == null || directFailed)
+                val logo = if (direct != null && !directFailed) direct else looked
+                if (logo != null) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .height(height * 0.5f)
+                            .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))))
+                    )
+                    AsyncImage(
+                        model = logo,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        alignment = Alignment.BottomStart,
+                        onError = { if (direct != null && !directFailed) directFailed = true },
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 8.dp, bottom = 6.dp)
+                            .widthIn(max = width * 0.52f)
+                            .heightIn(max = height * 0.34f)
+                    )
+                }
+            }
+
             val ratingOverlayAlpha = animateFloatAsState(
-                targetValue = if (focused && !isContinueWatching) 1f else 0f,
+                targetValue = if (focused && !isContinueWatching && !wideCard) 1f else 0f,
                 label = "ratingOverlayAlpha"
             )
             val ratingOverlayGradient = remember {
@@ -257,6 +318,21 @@ fun ContentCard(
             }
         }
 
+        if (serviceStyle == null) CardCaptions(content, focused, isContinueWatching, scale, titleStyle)
+    }
+}
+
+/** The title (and year, or why it was picked) under a poster. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun CardCaptions(
+    content: Content,
+    focused: Boolean,
+    isContinueWatching: Boolean,
+    scale: Float,
+    titleStyle: androidx.compose.ui.text.TextStyle
+) {
+    Column {
         Spacer(Modifier.height(if (scale < 0.85f) 6.dp else 8.dp))
 
         Text(

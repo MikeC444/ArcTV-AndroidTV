@@ -44,8 +44,8 @@ class StreamingTitlesRepository(private val authRepository: AuthRepository) {
     }
 }
 
-/** The viewer's country as TMDB wants it (what a service carries differs by country): the device's, else the UK. */
-fun regionOf(locale: Locale): String = locale.country.takeIf { it.length == 2 }?.uppercase(Locale.ROOT) ?: "GB"
+/** The viewer's country as TMDB wants it (what a service carries differs by country): the device's, else the US (as the web app). */
+fun regionOf(locale: Locale): String = locale.country.takeIf { it.length == 2 }?.uppercase(Locale.ROOT) ?: "US"
 
 internal fun StreamingTitleDto.toContent(providerId: String): Content? {
     val contentType = when (type) {

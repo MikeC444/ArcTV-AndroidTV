@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.mangotv.app.ui.browse.GRID_COLUMNS
 import com.mangotv.app.ui.theme.MangoBackground
@@ -225,4 +226,15 @@ fun PosterPlaceholder(posterScale: Float = 1f, modifier: Modifier = Modifier) {
         androidx.compose.foundation.layout.Spacer(Modifier.height(5.dp))
         androidx.compose.foundation.layout.Box(Modifier.width(MangoDimens.PosterWidth * posterScale * 0.32f).height(9.dp).background(color, RoundedCornerShape(4.dp)))
     }
+}
+
+/** A grey 16:9 cell the size of a wide card, ahead of the titles on a streaming service's page (no captions: wide cards have none). */
+@Composable
+fun WidePlaceholder(width: Dp, modifier: Modifier = Modifier, cornerRadius: Dp = 4.dp) {
+    androidx.compose.foundation.layout.Box(
+        modifier
+            .width(width)
+            .height(width * 9f / 16f)
+            .background(MangoSurfaceHigh.copy(alpha = 0.5f), RoundedCornerShape(cornerRadius))
+    )
 }

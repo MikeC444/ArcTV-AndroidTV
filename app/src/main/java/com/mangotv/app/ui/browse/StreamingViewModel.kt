@@ -11,7 +11,17 @@ import com.mangotv.app.data.model.HomeSection
 import com.mangotv.app.data.provider.CatalogProvider
 import com.mangotv.app.data.provider.ProviderRegistry
 import com.mangotv.app.data.provider.blockedGenreSet
+import com.mangotv.app.data.provider.loadDetails
+import com.mangotv.app.data.streaming.TOP_TEN_COUNT
+import com.mangotv.app.data.streaming.TOP_TEN_POOL
+import com.mangotv.app.data.streaming.TOP_TEN_SERVICE
+import com.mangotv.app.data.streaming.TopTenState
+import com.mangotv.app.data.streaming.pickUnblocked
+import com.mangotv.app.data.streaming.rankedPool
+import com.mangotv.app.data.streaming.regionOf
+import com.mangotv.app.data.streaming.topTen
 import com.mangotv.app.data.provider.withoutBlocked
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -19,7 +29,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.net.URLDecoder
+import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Backs a streaming service's page (Netflix, Disney+ ...), opened from a Home tile: that service's movies and series from every installed addon that
@@ -49,6 +62,16 @@ class StreamingViewModel(application: Application, savedStateHandle: SavedStateH
     private var hasMore = true
     private var isLoadingMore = false
 
+    /** The page opens with a Top 10 row, wide pictures and the service's red N (Netflix's page, as on the web app); the other services keep the poster grid. */
+    val hasTopTen: Boolean = service == TOP_TEN_SERVICE
+
+    private val _topTen = MutableStateFlow<TopTenState>(if (hasTopTen) TopTenState.Loading else TopTenState.None)
+
+    /** The Top 10 row: grey posters while it is on its way, then the ten titles (or nothing when the service has no list). */
+    val topTen: StateFlow<TopTenState> = _topTen.asStateFlow()
+    private var topTenIds: Set<String> = emptySet()
+    private var topTenGen = 0
+
     private val _moreComing = MutableStateFlow(true)
 
     /** True while more titles may still arrive by scrolling: the grid shows grey poster shapes after the last title, so the page can be scrolled ahead of what has loaded. */
@@ -61,7 +84,10 @@ class StreamingViewModel(application: Application, savedStateHandle: SavedStateH
         }
         viewModelScope.launch {
             blockedGenresRepository.effectiveGenres.collect { genres ->
+                val changed = blockedGenreSet(genres) != blocked
                 blocked = blockedGenreSet(genres)
+                // the Top 10 leaves out blocked genres too, so it is worked out again for the new set
+                if (changed && hasTopTen && providersSnapshot.isNotEmpty()) startTopTen(providersSnapshot)
                 if (_uiState.value is RowsBrowseUiState.Loaded && allItems.isNotEmpty()) _uiState.value = RowsBrowseUiState.Loaded(listOf(currentSection()))
             }
         }
@@ -76,7 +102,50 @@ class StreamingViewModel(application: Application, savedStateHandle: SavedStateH
     private fun Content.withWatchedFlag(): Content = if (id in watchedIds) copy(watched = true) else this
 
     private fun currentSection(): HomeSection =
-        HomeSection(id = "service_$service", title = "", items = allItems.withoutBlocked(blocked).map { it.withWatchedFlag() })
+        HomeSection(id = "service_$service", title = "", items = allItems.withoutBlocked(blocked).filterNot { it.id in topTenIds }.map { it.withWatchedFlag() })
+
+    /** What the title list shows again once the Top 10 has come (its ten titles are left out of the list under it, so nothing shows twice). */
+    private fun refreshList() {
+        if (_uiState.value is RowsBrowseUiState.Loaded && allItems.isNotEmpty()) _uiState.value = RowsBrowseUiState.Loaded(listOf(currentSection()))
+    }
+
+    /**
+     * Works out the Top 10 row: ten titles from TMDB's popularity list for the service in the viewer's country, series and movies in turn (not Netflix's own
+     * chart), leaving out titles with a blocked genre (their genres are looked up through the addons, as TMDB sends none). One answer per service, country
+     * and set of blocked genres is kept for the session. Starts at once when the page opens, not after the titles. Same as the web app's `TopTenRow.tsx`.
+     */
+    private fun startTopTen(providers: List<CatalogProvider>): Deferred<Unit> {
+        // An older ask is left to finish (a page waiting on it must not be cancelled with it); only the newest one's answer is used.
+        val gen = ++topTenGen
+        val providerId = providers.firstOrNull { service in it.streamingServices() }?.id
+        val key = "$service:${regionOf(Locale.getDefault())}:${blocked.sorted().joinToString(",")}"
+        val job = viewModelScope.async {
+            val cached = topTenCache[key]
+            val ten = cached ?: run {
+                if (providerId == null) {
+                    emptyList<Content>()
+                } else {
+                    val (movies, shows) = coroutineScope {
+                        val m = async { streamingTitlesRepository.page(service, ContentType.MOVIE, 1, providerId) }
+                        val t = async { streamingTitlesRepository.page(service, ContentType.TV_SHOW, 1, providerId) }
+                        m.await() to t.await()
+                    }
+                    val picked = if (blocked.isEmpty()) {
+                        topTen(movies.items, shows.items)
+                    } else {
+                        pickUnblocked(rankedPool(movies.items, shows.items, TOP_TEN_POOL), blocked, { c -> loadDetails(providers, providerId, c.type, c.id)?.genres }, TOP_TEN_COUNT)
+                    }
+                    if (picked.isNotEmpty()) topTenCache[key] = picked
+                    picked
+                }
+            }
+            if (gen != topTenGen) return@async
+            topTenIds = ten.map { it.id }.toSet()
+            _topTen.value = if (ten.isEmpty()) TopTenState.None else TopTenState.Ready(ten)
+            refreshList()
+        }
+        return job
+    }
 
     fun load() {
         viewModelScope.launch { load(ProviderRegistry.activeProviders()) }
@@ -98,6 +167,9 @@ class StreamingViewModel(application: Application, savedStateHandle: SavedStateH
             return
         }
 
+        // The Top 10 starts loading now, beside the titles
+        val topTenWork = if (hasTopTen) startTopTen(providers) else null
+
         // Only the addons that have a catalogue for this service are asked.
         val results = coroutineScope {
             providers.filter { service in it.streamingServices() }.map { provider -> async { runCatching { provider.getServiceItems(service) } } }.awaitAll()
@@ -106,6 +178,9 @@ class StreamingViewModel(application: Application, savedStateHandle: SavedStateH
         val items = results.flatMap { result -> result.getOrElse { anyProviderFailed = true; emptyList() } }.distinctBy { it.id }
         allItems += items
         seenIds += items.map { it.id }
+
+        // The titles wait for the Top 10 (up to 6 seconds), so it does not pull ten titles out of the list after the list is on screen
+        if (topTenWork != null && allItems.isNotEmpty()) withTimeoutOrNull(TOP_TEN_WAIT_MS) { topTenWork.await() }
 
         _uiState.value = when {
             allItems.isNotEmpty() -> RowsBrowseUiState.Loaded(listOf(currentSection()))
@@ -169,5 +244,13 @@ class StreamingViewModel(application: Application, savedStateHandle: SavedStateH
             b.getOrNull(i)?.let(out::add)
         }
         return out
+    }
+
+    private companion object {
+        /** How long the title list waits for the Top 10 before it shows anyway. */
+        const val TOP_TEN_WAIT_MS = 6_000L
+
+        /** One answer per service, country and set of blocked genres for the session, so coming back to the page does not ask again. */
+        val topTenCache = ConcurrentHashMap<String, List<Content>>()
     }
 }
