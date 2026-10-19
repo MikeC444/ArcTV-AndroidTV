@@ -48,3 +48,15 @@ export const refreshSchema = z.object({
   refreshToken: z.string().min(1),
 });
 export type RefreshInput = z.infer<typeof refreshSchema>;
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Enter your current password").max(256),
+  newPassword: password,
+});
+
+export const forgotPasswordSchema = z.object({ email });
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(20).max(200),
+  newPassword: password,
+});

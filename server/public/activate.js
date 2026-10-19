@@ -20,6 +20,7 @@
   var switchBtn = document.getElementById("switch-btn");
   var switchEl = document.getElementById("switch");
   var noteEl = document.getElementById("note");
+  var forgotEl = document.getElementById("forgot");
   var toggleBtn = document.getElementById("toggle");
   var deviceState = document.getElementById("device-state");
   var deviceDot = document.getElementById("device-dot");
@@ -34,6 +35,7 @@
     tabsEl.style.display = "none";
     switchEl.style.display = "none";
     noteEl.style.display = "none";
+    forgotEl.style.display = "none";
   }
 
   function setMode(next) {
@@ -41,6 +43,7 @@
     tabLogin.classList.toggle("active", mode === "login");
     tabRegister.classList.toggle("active", mode === "register");
     nameWrap.hidden = mode !== "register";
+    forgotEl.hidden = mode === "register";
     displayNameField.required = mode === "register";
     heading.textContent = mode === "register" ? "Create your account" : "Sign in to your TV";
     switchText.textContent = mode === "register" ? "Already have an account?" : "New to ArcTV?";
