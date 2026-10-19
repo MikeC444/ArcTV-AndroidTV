@@ -426,7 +426,14 @@ fun MangoNavHost() {
                 ) {
                     SourcesScreen(
                         onNavigate = ::navigateTo,
-                        onBack = { navController.popBackStack() }
+                        onBack = { navController.popBackStack() },
+                        // A source chosen for the person (Smart source picking, or the one they last used) goes to the player in this screen's place,
+                        // so Back from the player returns to where they pressed Play instead of landing here and picking the source all over again.
+                        onPlayInstead = { route ->
+                            navController.navigate(route) {
+                                popUpTo(MangoRoutes.SOURCES_PATTERN) { inclusive = true }
+                            }
+                        }
                     )
                 }
                 composable(MangoRoutes.PLAYER_PATTERN) { backStackEntry ->

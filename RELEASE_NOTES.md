@@ -14,6 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Smart source picking is smoother: Play goes straight to the player, and Back no longer traps you in a loop.
 - Fewer surprise sign-outs: Arc TV now keeps you signed in unless your account really needs a new sign-in.
 - Change your password in seconds: scan a code with your phone from Account settings.
 
