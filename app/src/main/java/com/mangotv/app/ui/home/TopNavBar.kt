@@ -146,7 +146,7 @@ fun TopNavBar(
     // Hiding slides it up and away, showing slides it back down, both smoothly; the slide starts the moment the page scrolls up
     val shownFraction by animateFloatAsState(
         targetValue = if (shown) 1f else 0f,
-        animationSpec = tween(240, easing = FastOutSlowInEasing),
+        animationSpec = tween(450, easing = FastOutSlowInEasing),
         label = "navBarShown"
     )
 
