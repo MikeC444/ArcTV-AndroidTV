@@ -131,7 +131,8 @@ fun SearchScreen(
     LaunchedEffect(focusedRowKey) {
         val key = focusedRowKey ?: return@LaunchedEffect
         val info = listState.layoutInfo.visibleItemsInfo.find { it.key == key } ?: return@LaunchedEffect
-        val viewportHeight = listState.layoutInfo.viewportSize.height
+        // twice the middle of the part of the list below the top margin (the list now spans the screen, and its top margin is padding inside it)
+        val viewportHeight = with(listState.layoutInfo) { viewportStartOffset + beforeContentPadding + viewportEndOffset }
         listState.animateScrollBy(info.offset + info.size / 2f - viewportHeight / 2f)
     }
 
@@ -173,8 +174,10 @@ fun SearchScreen(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = MangoDimens.NavBarHeight + 24.dp)
+                        .fillMaxSize(),
+                    // the top margin is padding INSIDE the list, so posters scroll up under the nav bar all the way to the top of the screen
+                    // instead of being cut off where the list used to start
+                    contentPadding = PaddingValues(top = MangoDimens.NavBarHeight + 24.dp)
                 ) {
                     item(key = "title") {
                         Text(
@@ -409,7 +412,8 @@ fun SearchScreen(
         }
 
         TopNavBar(
-            transparentBackground = false,
+            // posters scroll up under the bar, so no dark band behind it
+            transparentBackground = true,
             modifier = Modifier.align(Alignment.TopCenter),
             selectedLabel = "Search",
             selectedItemFocusRequester = navFocusRequester,

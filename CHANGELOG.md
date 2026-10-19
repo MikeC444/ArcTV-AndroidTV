@@ -6383,3 +6383,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the 120 ms gap is a guess; very quick separate presses faster than that now share one tick.
 
 **Issues fixed:** the repeating tick.
+
+## Post-Milestone-194 -- TV: posters scroll to the top of the screen (no black cut-off under the top bar)
+
+**Status:** Done on `main`; not built or run on a TV here (CI is the compile check).
+
+**Context:** On Movies, TV Shows, Anime, Netflix's page, My List, genre results and Search the list started below the top bar, so posters scrolling up were cut off in a hard line where the list began, with a black band above. The owner asked for the posters to go all the way to the top of the screen.
+
+**Changes:** `RowsBrowseScreen` (the rows layout and the poster grid) and `SearchScreen`: the top margin below the bar is now `contentPadding` inside the list instead of padding outside it, so the list spans the screen and posters scroll up under the bar. The top bar passes `transparentBackground = true` on those screens (no page-coloured band over the posters; the pill and the profile chip keep their own background). The explicit row-centering effects take the middle of the part of the list below the margin from `viewportStartOffset`, `beforeContentPadding` and `viewportEndOffset`, so rows are centred where they were before. Settings keeps its band (panels, not posters).
+
+**Tests performed:** manual re-read only; no Gradle/Android build or on-device run was possible here (no route to `dl.google.com`).
+
+**Issues discovered:** the centring formula is from reading the API (item offsets in a padded list are relative to the content start), not seen on a TV: if rows now sit a little high or low when focus moves down, that line is the place to adjust. With no band, the logo sits over any bright poster scrolled under it.
+
+**Issues fixed:** the hard cut-off line.

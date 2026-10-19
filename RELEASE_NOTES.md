@@ -14,6 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Posters now scroll all the way to the top of the screen on every page, with no black cut-off.
 - Holding a direction on your remote no longer buzzes: the menu tick plays once, not over and over.
 - Netflix's page got a glow-up: a Top 10 Today row, then wide pictures with each title's logo.
 - Smart source picking is smoother: Play goes straight to the player, and Back no longer traps you in a loop.

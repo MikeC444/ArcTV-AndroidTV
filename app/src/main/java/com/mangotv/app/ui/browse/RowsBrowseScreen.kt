@@ -300,7 +300,8 @@ private fun RowsBrowseLoadedContent(
         val lazyIndex = rowIndex + 1 // offset for the title item at index 0
         val info = listState.layoutInfo.visibleItemsInfo.find { it.index == lazyIndex }
         if (info != null) {
-            val viewportHeight = listState.layoutInfo.viewportSize.height
+            // twice the middle of the part of the list below the top margin (the list now spans the screen, and its top margin is padding inside it)
+        val viewportHeight = with(listState.layoutInfo) { viewportStartOffset + beforeContentPadding + viewportEndOffset }
             val itemCenter = info.offset + info.size / 2f
             val delta = itemCenter - viewportHeight / 2f
             listState.animateScrollBy(delta)
@@ -336,8 +337,10 @@ private fun RowsBrowseLoadedContent(
                     state = listState,
                     modifier = Modifier
                         .nestedScroll(navScrollLock)
-                        .fillMaxSize()
-                        .padding(top = MangoDimens.NavBarHeight + 24.dp)
+                        .fillMaxSize(),
+                    // the top margin is padding INSIDE the list, so posters scroll up under the nav bar all the way to the top of the screen
+                    // instead of being cut off where the list used to start
+                    contentPadding = PaddingValues(top = MangoDimens.NavBarHeight + 24.dp)
                 ) {
                     item(key = "title") {
                         Text(
@@ -454,7 +457,8 @@ private fun RowsBrowseLoadedContent(
         }
 
         TopNavBar(
-            transparentBackground = false,
+            // posters scroll up under the bar, so no dark band behind it
+            transparentBackground = true,
             modifier = Modifier.align(Alignment.TopCenter),
             selectedLabel = navLabel,
             selectedItemFocusRequester = navFocusRequester,
@@ -813,7 +817,8 @@ private fun RowsBrowseGridContent(
         val lazyIndex = rowIndex + 2 // offset for the title (0) and sort bar (1) items
         val info = listState.layoutInfo.visibleItemsInfo.find { it.index == lazyIndex }
         if (info != null) {
-            val viewportHeight = listState.layoutInfo.viewportSize.height
+            // twice the middle of the part of the list below the top margin (the list now spans the screen, and its top margin is padding inside it)
+        val viewportHeight = with(listState.layoutInfo) { viewportStartOffset + beforeContentPadding + viewportEndOffset }
             val itemCenter = info.offset + info.size / 2f
             val delta = itemCenter - viewportHeight / 2f
             listState.animateScrollBy(delta)
@@ -883,8 +888,10 @@ private fun RowsBrowseGridContent(
                     state = listState,
                     modifier = Modifier
                         .nestedScroll(navScrollLock)
-                        .fillMaxSize()
-                        .padding(top = MangoDimens.NavBarHeight + 24.dp)
+                        .fillMaxSize(),
+                    // the top margin is padding INSIDE the list, so posters scroll up under the nav bar all the way to the top of the screen
+                    // instead of being cut off where the list used to start
+                    contentPadding = PaddingValues(top = MangoDimens.NavBarHeight + 24.dp)
                 ) {
                     item(key = "title") {
                         BrowseTitleRow(
@@ -1062,7 +1069,8 @@ private fun RowsBrowseGridContent(
         }
 
         TopNavBar(
-            transparentBackground = false,
+            // posters scroll up under the bar, so no dark band behind it
+            transparentBackground = true,
             modifier = Modifier.align(Alignment.TopCenter),
             selectedLabel = navLabel,
             selectedItemFocusRequester = navFocusRequester,
