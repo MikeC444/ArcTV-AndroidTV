@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.IntOffset
 import coil.compose.AsyncImage
 import coil.imageLoader
 import android.graphics.Bitmap
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.mangotv.app.data.trailer.TrailerLauncher
 import coil.compose.AsyncImagePainter
@@ -127,15 +128,20 @@ fun HeroSection(
     LaunchedEffect(items) {
         val imageLoader = context.imageLoader
         val images = heroImages(items)
+        // Only the download is wanted from these (the slides ahead are decoded properly by the effect below), so each is decoded no bigger than the
+        // screen and kept out of the memory cache. With no size Coil decoded every one at its full original size, and the hero asks for the biggest size an
+        // addon has (a TMDB "original" is often 3840 x 2160, 16 MB decoded): about twenty of those at once filled the memory the rows need.
+        val screen = context.resources.displayMetrics
+        fun warm(image: HeroImage) = ImageRequest.Builder(context)
+            .data(image.url)
+            .size(screen.widthPixels, screen.heightPixels)
+            .memoryCachePolicy(CachePolicy.DISABLED)
+            .build()
         // The first slides straight away; the rest after a pause, so on a cold boot they don't compete with the
         // first slide and the poster rows for the same connection.
-        images.take(HERO_FIRST_IMAGES).forEach { image ->
-            imageLoader.enqueue(ImageRequest.Builder(context).data(image.url).build())
-        }
+        images.take(HERO_FIRST_IMAGES).forEach { image -> imageLoader.enqueue(warm(image)) }
         delay(HERO_REST_DELAY_MS)
-        images.drop(HERO_FIRST_IMAGES).forEach { image ->
-            imageLoader.enqueue(ImageRequest.Builder(context).data(image.url).build())
-        }
+        images.drop(HERO_FIRST_IMAGES).forEach { image -> imageLoader.enqueue(warm(image)) }
     }
 
     // Trailer lookups, once per title as its slide comes round: a key present means "looked up", whatever the answer

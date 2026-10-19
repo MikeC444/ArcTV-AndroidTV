@@ -3,6 +3,7 @@ package com.mangotv.app.ui.home
 import android.app.Application
 import android.graphics.Bitmap
 import coil.imageLoader
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -347,8 +348,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun prefetchHeroImages(items: List<Content>) {
         val context = getApplication<Application>()
         val loader = context.imageLoader
+        // Only the download is wanted here (so next launch's hero is on disk), so the picture is decoded no bigger than the screen and not kept in the
+        // memory cache. With no size Coil decoded every one of these at its full original size (a TMDB "original" backdrop is often 3840 x 2160, 16 MB
+        // decoded), ten pictures at a time, on every refresh of Home.
+        val screen = context.resources.displayMetrics
         heroImages(items).forEach { image ->
-            loader.enqueue(ImageRequest.Builder(context).data(image.url).bitmapConfig(Bitmap.Config.RGB_565).build())
+            loader.enqueue(
+                ImageRequest.Builder(context)
+                    .data(image.url)
+                    .bitmapConfig(Bitmap.Config.RGB_565)
+                    .size(screen.widthPixels, screen.heightPixels)
+                    .memoryCachePolicy(CachePolicy.DISABLED)
+                    .build()
+            )
         }
     }
 

@@ -14,7 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
-- Fixed crashes on the sign-in screen on TVs with little memory, and on the streaming tiles row.
+- Fewer crashes and freezes on TVs with little memory: Home uses far less memory, and sign-in and the streaming tiles are fixed.
 
 ## 0.7.1
 

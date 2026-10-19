@@ -61,9 +61,12 @@ class MangoTvApplication : Application(), ImageLoaderFactory {
             // memory the moment Home appears instead of being decoded from disk then.
             runCatching {
                 runBlocking { container.homeCacheRepository.read() }?.first?.let { hero ->
+                    // Sized to the screen, as the hero slide's own request is: with no size Coil decodes a picture at its full original size, and
+                    // the hero backdrops are asked for in the biggest size the addon has (a TMDB "original" is often 3840 x 2160, 16 MB decoded).
+                    val screen = resources.displayMetrics
                     heroImages(hero).take(HERO_WARM_IMAGES).forEach { image ->
                         imageLoader.enqueue(
-                            ImageRequest.Builder(this).data(image.url).bitmapConfig(Bitmap.Config.RGB_565).build()
+                            ImageRequest.Builder(this).data(image.url).bitmapConfig(Bitmap.Config.RGB_565).size(screen.widthPixels, screen.heightPixels).build()
                         )
                     }
                 }
