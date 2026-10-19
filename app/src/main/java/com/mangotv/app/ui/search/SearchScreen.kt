@@ -78,6 +78,7 @@ import com.mangotv.app.ui.components.TvFocusSurface
 import com.mangotv.app.ui.detail.PendingDetailCache
 import com.mangotv.app.ui.home.MangoNavItems
 import com.mangotv.app.ui.home.TopNavBar
+import com.mangotv.app.ui.home.rememberNavBarVisible
 import com.mangotv.app.ui.theme.ArcAccent
 import com.mangotv.app.ui.theme.DividerSubtle
 import com.mangotv.app.ui.theme.ErrorCoral
@@ -412,6 +413,7 @@ fun SearchScreen(
         }
 
         TopNavBar(
+            visible = rememberNavBarVisible(listState),
             // posters scroll up under the bar, so no dark band behind it
             transparentBackground = true,
             modifier = Modifier.align(Alignment.TopCenter),

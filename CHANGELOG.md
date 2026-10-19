@@ -6414,3 +6414,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** none.
 
 **Issues fixed:** the season row not following focus.
+
+## Post-Milestone-196 -- TV: the top bar hides while scrolling down and comes back at once when scrolling up
+
+**Status:** Done on `main`; not built or run on a TV here (CI is the compile check).
+
+**Context:** The owner asked for the top bar to get out of the way while scrolling down a page and to show again the instant the page scrolls up.
+
+**Changes:** `TopNavBar` has a `visible` parameter: false slides the bar up and out (200 ms), true (or focus on the bar, e.g. UP from the first row) brings it back with no animation. `rememberNavBarVisible(listState)` works it out from the page's own list: hidden once the page is scrolled down past 120 px and still moving down, shown again by any scroll up (more than 2 px) and whenever the page is at its top. Used on Home, Movies / TV Shows / Anime / My List / genre results / Netflix's page (both layouts), Search and the title page. Settings keeps its bar.
+
+**Tests performed:** manual re-read only; no Gradle/Android build or on-device run was possible here (no route to `dl.google.com`). No unit test (it needs a scrolling list under a real focus).
+
+**Issues discovered:** on a TV, "scrolling" is focus moving between rows, so the bar goes when focus moves down a row or two and returns when it moves up; if the first row sits just past the 120 px line the bar may hide a little early or late. The hidden bar is still in the focus order (invisible), so a stray UP can land on it, which shows it.
+
+**Issues fixed:** none beyond the above.

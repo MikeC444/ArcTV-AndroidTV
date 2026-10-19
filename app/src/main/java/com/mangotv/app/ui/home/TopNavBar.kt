@@ -34,6 +34,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -103,7 +108,9 @@ fun TopNavBar(
     // exists before it's used. contentFocusRequester still applies as a
     // harmless fallback when this isn't provided (e.g. non-scrolling
     // screens, where the declarative path is already safe).
-    onNavigateDown: (() -> Unit)? = null
+    onNavigateDown: (() -> Unit)? = null,
+    // False while the page is scrolled down: the bar slides away, and comes straight back (no animation) when visible is true again or when focus is on it.
+    visible: Boolean = true
 ) {
     // Someone browsing without an account sees "Sign In" where Settings would be (Settings needs an account).
     val context = LocalContext.current
@@ -132,9 +139,24 @@ fun TopNavBar(
         label = "navBarScrimAlpha"
     )
 
+    // Focus on the bar always brings it back (UP from the first row, the remote's BACK to the bar ...)
+    var barHasFocus by remember { mutableStateOf(false) }
+    val shown = visible || barHasFocus
+    // Hiding slides it up and away; showing is instant
+    val shownFraction by animateFloatAsState(
+        targetValue = if (shown) 1f else 0f,
+        animationSpec = if (shown) snap() else tween(200),
+        label = "navBarShown"
+    )
+
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .onFocusChanged { barHasFocus = it.hasFocus }
+            .graphicsLayer {
+                translationY = -size.height * (1f - shownFraction)
+                alpha = shownFraction
+            }
             .let { base ->
                 if (onNavigateDown != null) {
                     base.onPreviewKeyEvent { event ->
@@ -315,4 +337,32 @@ private fun NavItem(
                 .padding(horizontal = 14.dp, vertical = 8.dp)
         )
     }
+}
+
+/** A page has to be scrolled at least this far before the top bar slides away (so the bar stays while the first row or two is in view). */
+private const val NAV_HIDE_AFTER_PX = 120
+
+/**
+ * Whether a page's top bar should be showing: it slides away as the page scrolls down and comes back the moment the page scrolls up, or is at its top.
+ * [listState] is the page's own list. A scroll up of any size brings it back (instant, see [TopNavBar]'s `visible`).
+ */
+@Composable
+fun rememberNavBarVisible(listState: LazyListState): Boolean {
+    var visible by remember { mutableStateOf(true) }
+    LaunchedEffect(listState) {
+        var lastIndex = listState.firstVisibleItemIndex
+        var lastOffset = listState.firstVisibleItemScrollOffset
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }.collect { (index, offset) ->
+            val down = index > lastIndex || (index == lastIndex && offset > lastOffset + 2)
+            val up = index < lastIndex || (index == lastIndex && offset < lastOffset - 2)
+            if (index == 0 && offset <= NAV_HIDE_AFTER_PX) visible = true
+            else if (up) visible = true
+            else if (down) visible = false
+            if (down || up) {
+                lastIndex = index
+                lastOffset = offset
+            }
+        }
+    }
+    return visible
 }

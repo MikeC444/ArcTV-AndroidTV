@@ -447,6 +447,7 @@ private fun HomeContent(
         }
 
         TopNavBar(
+            visible = rememberNavBarVisible(listState),
             // no dark band behind the bar, even once the page has scrolled under it (the pill and the profile chip have their own background)
             transparentBackground = true,
             modifier = Modifier

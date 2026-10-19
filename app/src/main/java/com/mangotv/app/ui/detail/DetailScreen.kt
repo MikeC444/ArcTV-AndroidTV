@@ -61,6 +61,7 @@ import com.mangotv.app.ui.components.FullScreenErrorState
 import com.mangotv.app.ui.components.HomeLoadingSkeleton
 import com.mangotv.app.ui.components.rememberOpaqueImageRequest
 import com.mangotv.app.ui.home.TopNavBar
+import com.mangotv.app.ui.home.rememberNavBarVisible
 import com.mangotv.app.ui.theme.MangoBackground
 import com.mangotv.app.ui.theme.MangoSurfaceHigh
 import kotlinx.coroutines.launch
@@ -437,6 +438,7 @@ private fun DetailContent(
 }
 
         TopNavBar(
+            visible = rememberNavBarVisible(listState),
             // no dark band behind the bar, even once the page has scrolled under it (the pill and the profile chip have their own background)
             transparentBackground = true,
             modifier = Modifier.align(Alignment.TopCenter),
