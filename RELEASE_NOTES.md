@@ -14,6 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Pressing a direction on the remote can no longer close the app when focus has nowhere to go.
 - Fewer crashes and freezes on TVs with little memory: Home uses far less memory, and sign-in and the streaming tiles are fixed.
 
 ## 0.7.1
