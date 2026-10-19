@@ -6304,3 +6304,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** other possible causes remain open and were not changed: a session that cannot be decrypted (the Android Keystore key lost or regenerated, e.g. after a power cycle or system update) is read as "signed out" with nothing logged (`SessionManager.readPersisted`); and the 30-day refresh token expiring on a TV left unused. If it still happens, a log line saying which path cleared the session would settle it.
 
 **Issues fixed:** the 401-race sign-out described above (inferred cause).
+
+## Post-Milestone-191 -- TV: no dark band behind the top bar on Home and title pages
+
+**Status:** Done on branch `claude/nav-no-scrim`; not built or run on a TV here (CI is the compile check).
+
+**Context:** Once Home (or a title page) was scrolled, the top bar got a near-opaque page-coloured band that faded out below it (`TopNavBar`'s `scrimAlpha`, 0.96 when `transparentBackground` was false), darkening the picture and the buttons under it. The owner asked for it gone.
+
+**Changes:** `HomeScreen` and `DetailScreen` now always pass `transparentBackground = true` (their "has the page scrolled" state is removed, as nothing else used it). The pill and the profile chip keep their own frosted background. Other screens (Movies, TV Shows, Search, My List, Settings) keep the band, since a grid scrolling up under a bar with nothing behind it would be unreadable.
+
+**Tests performed:** manual re-read only; no Gradle/Android build or on-device run was possible here (no route to `dl.google.com`).
+
+**Issues discovered:** with no band, the logo (which has no background of its own) can sit over bright artwork once Home is scrolled. Not changed.
+
+**Issues fixed:** none beyond the above.

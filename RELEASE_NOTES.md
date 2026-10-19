@@ -14,6 +14,7 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- A cleaner top bar: no more dark band behind it on Home and title pages.
 - Fewer surprise sign-outs: Arc TV now keeps you signed in unless your account really needs a new sign-in.
 - Change your password in seconds: scan a code with your phone from Account settings.
 
