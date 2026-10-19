@@ -14,11 +14,11 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Netflix's page got a glow-up: a Top 10 Today row, then wide pictures with each title's logo.
 - The top bar now glides away as you scroll down and glides back as soon as you scroll up.
 - Shows with lots of seasons now scroll along the season row, and it opens on your season.
 - Posters now scroll all the way to the top of the screen on every page, with no black cut-off.
 - Holding a direction on your remote no longer buzzes: the menu tick plays once, not over and over.
-- Netflix's page got a glow-up: a Top 10 Today row, then wide pictures with each title's logo.
 - Smart source picking is smoother: Play goes straight to the player, and Back no longer traps you in a loop.
 - A cleaner top bar: no more dark band behind it on Home and title pages.
 - Fewer surprise sign-outs: Arc TV now keeps you signed in unless your account really needs a new sign-in.
