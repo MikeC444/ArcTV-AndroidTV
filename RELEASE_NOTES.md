@@ -14,6 +14,8 @@ under the new version heading and leaves a fresh empty `## Unreleased` above it.
 
 ## Unreleased
 
+- Fixed crashes on the sign-in screen on TVs with little memory, and on the streaming tiles row.
+
 ## 0.7.1
 
 - Netflix's page got a glow-up: a Top 10 Today row, then wide pictures with each title's logo.

@@ -168,7 +168,9 @@ fun StreamingTile(
 
     val screenWidth = rowWidth ?: LocalConfiguration.current.screenWidthDp.dp
     val gap = MangoDimens.CardSpacing * posterScale
-    val width = (screenWidth - MangoDimens.ScreenPaddingHorizontal * 2 - gap * (TILES_ACROSS - 1)) / TILES_ACROSS
+    // (never below zero: the row's width can be 0 or small for a moment while it is first measured, and a negative size made the padding below throw
+    // "Padding must be non-negative", which closed the app)
+    val width = ((screenWidth - MangoDimens.ScreenPaddingHorizontal * 2 - gap * (TILES_ACROSS - 1)) / TILES_ACROSS).coerceAtLeast(0.dp)
     val height = width * (MangoDimens.ContinueWatchingHeight.value / MangoDimens.ContinueWatchingWidth.value)
     val corner = 14.dp
     val shape = RoundedCornerShape(corner)

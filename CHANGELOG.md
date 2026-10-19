@@ -6444,3 +6444,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** a Mac that was already on 0.3.0 will get the addon back on its next addon sync, once the server is deployed.
 
 **Issues fixed:** the Mac's empty streaming tiles.
+
+## Post-Milestone-198 -- TV: two crashes from the crash reports (a negative tile size, and two oversized sign-in pictures)
+
+**Status:** Done on `main`; not built or run on a TV here (CI is the compile check). The memory kills and the freezes in the same batch of reports are NOT fixed (see Issues discovered).
+
+**Context:** The owner pasted a batch of crash reports from the developer panel (all 0.7.1): two `OutOfMemoryError` crashes on a RockChip TV box (API 25) on the sign-in screen, one `IllegalArgumentException: Padding must be non-negative` in `StreamingTile` on an onn 4K Pro (API 34), several "low memory" exits on Fire TV Stick (AFTKM) and several freezes (ANR).
+
+**Changes:**
+- `StreamingTile`: the tile's width is never below zero. It is worked out from the row's measured width (five tiles across), and while the row is first measured (or re-measured by a scroll-to-item, as in the report's trace) that width can be zero or small, which made a negative width, a negative padding and a crash.
+- The two pictures the sign-in screen decodes are smaller. The OOM sizes in the reports match them exactly: `auth_hero_living_room.webp` was 1672 x 940 (6,286,720 bytes decoded, the report says a 6,286,732-byte allocation) and `logo_arctv.png` 2232 x 676 with alpha (6,035,328 bytes, the report says 6,035,340). The hero is now 1280 x 720 (3.7 MB decoded, 55 KB file) and the logo 960 x 291 (1.1 MB, 129 KB file); both were looked at after the resize. The logo is shown about 42 dp high and the hero is a faded background, so neither should look different on a TV.
+
+**Tests performed:** manual re-read only; no Gradle/Android build or on-device run was possible here (no route to `dl.google.com`). No unit test for the tile size (it is a layout-time value).
+
+**Issues discovered:** (1) The "low memory" exits (Fire TV Stick 4K-class devices, 800 to 900 MB PSS, on screen) and the ANRs with 0 to 5 percent heap free and constant GC point at memory use during normal browsing, not at one bug; one ANR's main thread was in the accessibility tree walk (a screen reader or similar service on, with a large tree), another in Coil releasing images while Compose recomposed, another with Home's cache write on a worker thread. Not investigated further or changed here. (2) 4K and large pictures elsewhere are probably decoded at more than the size shown; not checked. (3) Those reports from signed-out devices include the memory ones; they are all from one person's devices plus a few testers.
+
+**Issues fixed:** the negative-padding crash; the sign-in screen's out-of-memory crash on small-heap devices (should be; not seen on one).
