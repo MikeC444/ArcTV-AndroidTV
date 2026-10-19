@@ -6217,3 +6217,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** subscriptions already in a Stripe trial are not touched; they convert to paid as Stripe planned. Apps keep their now-unreachable trial code until a later release removes it.
 
 **Issues fixed:** none beyond the above.
+
+## Post-Milestone-184 -- CI no longer migrates the production database
+
+**Status:** Done on branch `claude/security-ci-migrations`; not merged. Merge only after the Render API service's Pre-Deploy Command is set to `npm run migrate` (see below), then delete the `DATABASE_URL` GitHub secret.
+
+**Context:** Security audit finding. `server-ci.yml`'s `db` job ran `npm run migrate` and `verify-schema` against the real Neon database, with the production connection string as a GitHub secret, on every push touching `server/**` to `main`, `Account-Test` or any `claude/**` branch. An unmerged branch's migration could therefore change production data with no review, and npm packages run in that step had the production credential.
+
+**Changes:**
+- `.github/workflows/server-ci.yml`: the `db` job is gone; its `Typecheck` step moved into the `test` job. The `test` job still applies every migration from scratch to a throwaway Postgres (`pretest`), so a migration that fails to apply still fails CI.
+- `docs/DEPLOYMENT.md`: migrations now run on Render as the API service's Pre-Deploy Command (`npm run migrate`, or `cd server && npm run migrate` if the service's root directory is the repo root), after each build and before the new version takes traffic; a failing migration stops the deploy and the running version keeps serving. CI must not hold the production connection string.
+
+**Tests performed:** YAML parsed (one job, `test`); `npm run typecheck` clean; `npm run migrate` run against a local Postgres 16 (already migrated: "Already up to date"). The workflow itself was not run here; it runs on the next push of this branch. Render's Pre-Deploy Command was not set or seen from here (no dashboard access).
+
+**Issues discovered:** the pooled `DATABASE_URL` is used for pre-deploy migrations; each migration is one transaction on one connection, which Neon's pooler keeps on one session. A future migration needing `CREATE INDEX CONCURRENTLY` (not allowed in a transaction) would need the runner changed either way.
+
+**Issues fixed:** branch pushes no longer touch production; production database credentials no longer need to be in GitHub. Server behaviour and API responses are unchanged, so no app version is affected.

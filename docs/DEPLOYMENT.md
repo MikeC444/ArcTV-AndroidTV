@@ -41,13 +41,22 @@ database, and wire the Fire TV app to it. See
    designed — real inserts/deletes inside one transaction that's always
    rolled back, so it's safe to run again later against the same live
    database.
-5. **Optional but recommended**: add `DATABASE_URL` (the direct
-   connection string) as a GitHub repository secret named exactly
-   `DATABASE_URL`. `.github/workflows/server-ci.yml`'s `db` job already
-   runs `migrate` + `verify-schema` against it automatically on every
-   push touching `server/**`, and skips cleanly (not a failure) when the
-   secret isn't configured — so this is zero-effort continuous schema
-   verification against your real database the moment the secret exists.
+5. **After the first deploy, migrations run themselves.** On Render, set
+   the API service's **Pre-Deploy Command** (Settings → Build & Deploy) to
+   `npm run migrate` (`cd server && npm run migrate` if the service's Root
+   Directory is the repository root rather than `server`). Render runs it
+   after each build and before the new version takes traffic, with the
+   service's own `DATABASE_URL`: new migrations are applied exactly when
+   the code that needs them goes live, and if one fails the deploy stops
+   and the version already running keeps serving. The pooled connection
+   string is fine for this: each migration runs inside one transaction on
+   one connection, and Neon's pooler keeps a transaction on one session.
+
+   **Do not** give CI the production connection string: no GitHub secret
+   named `DATABASE_URL`. CI (`.github/workflows/server-ci.yml`) applies
+   every migration to a throwaway Postgres before the tests instead, so a
+   migration that doesn't apply still fails the build, and a push to any
+   branch never touches production data.
 
 ## 2. Backend deployment
 
@@ -75,8 +84,9 @@ npm start
 ```
 
 Run `npm run migrate` (with the *direct* Neon connection string, per §1)
-as a one-off step before the first deploy, and again after pulling any
-change that adds a new file under `server/migrations/`.
+as a one-off step before the first deploy. After that, Render's Pre-Deploy
+Command (§1, step 5) applies any new file under `server/migrations/` on
+each deploy; nothing needs running by hand.
 
 **`trust proxy` is set to trust exactly one hop** (`app.set("trust proxy",
 1)` in `src/app.ts`) — correct for a single reverse proxy in front, which
