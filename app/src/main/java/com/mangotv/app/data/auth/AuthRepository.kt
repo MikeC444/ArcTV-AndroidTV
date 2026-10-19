@@ -48,6 +48,9 @@ class AuthRepository(context: Context) {
     // already-refreshed result instead of racing it.
     private val refreshMutex = Mutex()
 
+    // When a refresh last worked (guarded by refreshMutex), so a 401 that raced it is not answered with another one.
+    private var lastRefreshAtMillis = 0L
+
     val session: StateFlow<Session?> = sessionManager.session
 
     /** True once the stored session has been read, so a null [session] really means signed out. */
@@ -144,6 +147,7 @@ class AuthRepository(context: Context) {
                 refreshTokenExpiresAtMillis = Iso8601.parseToEpochMillis(response.refreshTokenExpiresAt)
             )
             sessionManager.save(refreshed)
+            lastRefreshAtMillis = System.currentTimeMillis()
             true
         } catch (e: ApiException) {
             if (e.statusCode == 401) {
@@ -165,14 +169,45 @@ class AuthRepository(context: Context) {
 
     /**
      * For other authenticated API clients (e.g. SettingsSyncRepository) to
-     * call when their own request gets a confirmed 401 even right after
-     * ensureFreshSession() reported the session usable -- e.g. the session
-     * was revoked remotely (signed out from another device) between that
-     * check and this request landing. Same "only a confirmed rejection
-     * clears the session, never a network failure" rule as above.
+     * call when their own request gets a 401 even right after
+     * ensureFreshSession() reported the session usable.
+     *
+     * A 401 on a request is not proof the session is dead: the server
+     * replaces the access token on every refresh, so a request that left
+     * with the old one just before another caller's refresh lands is
+     * refused although the stored session is perfectly good. Clearing it
+     * there signs the person out for nothing. So this asks the server
+     * about the refresh token itself: only a confirmed 401 on that signs
+     * the person out; a refresh that works keeps the (renewed) session,
+     * and a network or other failure leaves everything as it is. A refresh
+     * done a moment ago (by the caller that raced this one) is taken as
+     * the answer, so a burst of 401s does not rotate the tokens again each.
      */
-    suspend fun clearSessionOnConfirmedUnauthorized() {
-        sessionManager.clear()
+    suspend fun clearSessionOnConfirmedUnauthorized(): Unit = refreshMutex.withLock {
+        val current = sessionManager.current() ?: return@withLock
+        if (!current.isRefreshTokenValid()) {
+            sessionManager.clear()
+            return@withLock
+        }
+        if (System.currentTimeMillis() - lastRefreshAtMillis < RECENT_REFRESH_MS) return@withLock
+        try {
+            val response = apiClient.refresh(current.refreshToken)
+            sessionManager.save(
+                current.copy(
+                    accessToken = response.accessToken,
+                    accessTokenExpiresAtMillis = Iso8601.parseToEpochMillis(response.accessTokenExpiresAt),
+                    refreshToken = response.refreshToken,
+                    refreshTokenExpiresAtMillis = Iso8601.parseToEpochMillis(response.refreshTokenExpiresAt)
+                )
+            )
+            lastRefreshAtMillis = System.currentTimeMillis()
+        } catch (e: ApiException) {
+            if (e.statusCode == 401) sessionManager.clear()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // A network or unexpected failure is never a reason to sign out.
+        }
     }
 
     suspend fun logout() {
@@ -185,5 +220,6 @@ class AuthRepository(context: Context) {
 
     companion object {
         private const val PLATFORM = "fire_tv"
+        private const val RECENT_REFRESH_MS = 10_000L
     }
 }

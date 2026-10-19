@@ -6290,3 +6290,17 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the button is shown to every signed-in account; an account that signed in only by QR and never set a password is left to the web page to explain. "Forgot your password?" on the TV sign-in screen and a Privacy Policy link are still not done. No server change, so no app version is affected.
 
 **Issues fixed:** none beyond the above.
+
+## Post-Milestone-188 -- TV: a refused request no longer signs the person out unless the sign-in is really dead
+
+**Status:** Done on branch `claude/great-volta-v7xvmz`; not built here, not merged.
+
+**Context:** The owner's TV is "always" signed out (a screenshot shows the top bar's Sign In and Addons' "Couldn't refresh"). No device log was available, so the cause is inferred from the code, not reproduced. One real way to be signed out for nothing: the server replaces the access token on every refresh, and about thirty sync and API callers cleared the whole session on any 401 from their own request (`clearSessionOnConfirmedUnauthorized`). A request that left with the old access token just before another caller's refresh landed got a 401 and signed out a perfectly good session.
+
+**Changes:** `data/auth/AuthRepository.kt`: `clearSessionOnConfirmedUnauthorized` no longer clears at once. Under the same lock as `ensureFreshSession` it tries the refresh token: only a 401 on that (or an expired refresh token) clears the session; a refresh that works saves the new tokens; a network or other failure changes nothing. A refresh done in the last 10 seconds counts as the answer, so a burst of 401s rotates the tokens once. No call site changed.
+
+**Tests performed:** manual re-read only; no Gradle/Android build or on-device run was possible here (no route to `dl.google.com`), so it is uncompiled and not seen on a TV. No unit test (the class needs a Context and the network client).
+
+**Issues discovered:** other possible causes remain open and were not changed: a session that cannot be decrypted (the Android Keystore key lost or regenerated, e.g. after a power cycle or system update) is read as "signed out" with nothing logged (`SessionManager.readPersisted`); and the 30-day refresh token expiring on a TV left unused. If it still happens, a log line saying which path cleared the session would settle it.
+
+**Issues fixed:** the 401-race sign-out described above (inferred cause).
