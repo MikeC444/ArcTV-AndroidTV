@@ -97,6 +97,27 @@ class SourcesViewModel(
     private val _uiState = MutableStateFlow<SourcesUiState>(SourcesUiState.Loading)
     val uiState: StateFlow<SourcesUiState> = _uiState.asStateFlow()
 
+    /**
+     * True when this screen is only a stop on the way to the player: Smart source picking will choose a source (Plus, switched on), the title is
+     * resumable on its last source, or "Next episode" takes the best one. The screen then shows the player's own loading screen, never the list of
+     * sources, so pressing Play goes straight to the player. False after "Choose a different source", which always shows the picker.
+     */
+    val autoFlow: Boolean = !skipAutoSelect && (autoPlay || smartPickingOn() || isResumeTarget())
+
+    private val _loadingContent = MutableStateFlow<Content?>(null)
+
+    /** The title's details as soon as they have come, for the loading screen's backdrop and logo while the sources are still being asked for. */
+    val loadingContent: StateFlow<Content?> = _loadingContent.asStateFlow()
+
+    private fun smartPickingOn(): Boolean =
+        DevicePlayerPrefs.smartSourcePicking(getApplication()) &&
+            (getApplication<Application>() as MangoTvApplication).container.plusRepository.status.value.active
+
+    private fun isResumeTarget(): Boolean {
+        val resumeEntry = continueWatchingRepository.findResumePoint(providerId, contentId, contentType)
+        return resumeEntry != null && resumeEntry.seasonNumber == season && resumeEntry.episodeNumber == episode
+    }
+
     /** Why the last "Add a torrent" attempt was refused (shown in its dialog), or null. */
     private val _addTorrentError = MutableStateFlow<String?>(null)
     val addTorrentError: StateFlow<String?> = _addTorrentError.asStateFlow()
@@ -145,12 +166,10 @@ class SourcesViewModel(
             // points at -- a remembered source for a different episode of
             // the same show isn't a valid auto-pick for this one, same
             // guard PlayerViewModel.resumePositionMs() already applies.
-            val resumeEntry = continueWatchingRepository.findResumePoint(providerId, contentId, contentType)
-            val isSameResumeTarget = resumeEntry != null && resumeEntry.seasonNumber == season && resumeEntry.episodeNumber == episode
+            val isSameResumeTarget = isResumeTarget()
             // Arc TV Plus, Smart source picking (when switched on): wait for the addons behind the loading screen, then play the best source
             // without asking. Not after "Choose a different source" (skipAutoSelect), the same way a remembered source is skipped.
-            val smart = !skipAutoSelect && !autoPlay && DevicePlayerPrefs.smartSourcePicking(getApplication()) &&
-                (getApplication<Application>() as MangoTvApplication).container.plusRepository.status.value.active
+            val smart = !skipAutoSelect && !autoPlay && smartPickingOn()
             val isResumeFlow = (isSameResumeTarget && !skipAutoSelect) || autoPlay || smart
 
             coroutineScope {
@@ -159,6 +178,8 @@ class SourcesViewModel(
                 // args, not the resolved Content) — always start both
                 // concurrently rather than waiting on getDetails first.
                 val contentDeferred = async { loadDetails(providers, providerId, contentType, contentId) }
+                // the loading screen shows the title's backdrop as soon as its details are in
+                if (isResumeFlow) launch { contentDeferred.await()?.let { _loadingContent.value = it } }
 
                 if (isResumeFlow) {
                     // Same all-or-nothing wait as before: this path must

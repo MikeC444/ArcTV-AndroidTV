@@ -6324,3 +6324,19 @@ The footer note is plain text again (equal-height plan cards already stop Down j
 **Issues discovered:** the layout of the big numbers (their size, and how far down they sit) is by calculation from the web app's, not seen on a screen; they may need a nudge on a real TV. Not copied: the web app's mouse tilt and its 3D poster edges (no pointer on a TV), and its time-zone guess of the country (the device's country is used).
 
 **Issues fixed:** none beyond the above.
+## Post-Milestone-190 -- TV: Back from the player no longer loops with Smart source picking, and Play goes straight to the player
+
+**Status:** Done on branch `claude/auto-source-fix`; not built or run on a TV here (CI is the compile check).
+
+**Context:** With Smart source picking on, pressing Back in the player showed the source list for a moment and then went straight back into the player, again and again. Play also showed a skeleton of the source list while the sources were being asked for. Cause (read from the code, not run on a TV): Play opens the Sources screen, which picks the source and opens the player on top of itself, so Sources stayed on the back stack; Back from the player returned to Sources, which picked the same source again (`LaunchedEffect(autoSelectStream.id)` runs on every re-entry) and opened the player again.
+
+**Changes:**
+- `MangoNavHost`: Sources gets `onPlayInstead`, which opens the player with `popUpTo(SOURCES_PATTERN) { inclusive = true }`, so a source chosen for the person (Smart source picking, the last-used source, "Next episode") replaces Sources on the back stack. Back from the player then returns to where Play was pressed (the title page). A source the person picks by hand still leaves the picker below the player, as before.
+- `SourcesViewModel`: `autoFlow` (Sources is only a stop on the way to the player: not after "Choose a different source") and `loadingContent` (the title's details as soon as they are in).
+- `SourcesScreen`: in that case it shows the player's own loading screen (the title's backdrop and logo with the loading symbol; a plain dark screen with the symbol until the details are in) instead of the skeleton of the source list, so Play looks like one step into the player. When Smart source picking finds no sure source the picker still shows, as before.
+
+**Tests performed:** manual re-read only; no Gradle/Android build or on-device run was possible here (no route to `dl.google.com`). No unit test: the screen and view model need the app's repositories.
+
+**Issues discovered:** the app still has to ask the addons for sources before it can pick one, so there is a short wait after Play (now on the player's loading screen); starting the player before the source is known would need the player itself to pick. Not changed.
+
+**Issues fixed:** the Back loop.

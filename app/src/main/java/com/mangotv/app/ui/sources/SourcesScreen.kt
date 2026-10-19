@@ -35,6 +35,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.layout.ContentScale
@@ -56,7 +57,9 @@ import com.mangotv.app.ui.components.FullScreenErrorState
 import com.mangotv.app.ui.components.HeroIconButton
 import com.mangotv.app.ui.components.MangoButton
 import com.mangotv.app.ui.components.MangoButtonStyle
+import com.mangotv.app.data.model.Content
 import com.mangotv.app.ui.components.ShimmerBox
+import com.mangotv.app.ui.player.PlayerLoadingScreen
 import com.mangotv.app.ui.components.rememberOpaqueImageRequest
 import com.mangotv.app.ui.theme.DividerSubtle
 import com.mangotv.app.ui.theme.ArcAccent
@@ -70,10 +73,14 @@ import com.mangotv.app.ui.theme.TextTertiary
 fun SourcesScreen(
     onNavigate: (String) -> Unit,
     onBack: () -> Unit,
+    // Goes to the player in place of this screen: pressing Back in the player then returns to where Play was pressed, not to this screen, which would
+    // pick the source again and go straight back into the player.
+    onPlayInstead: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SourcesViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val loadingContent by viewModel.loadingContent.collectAsStateWithLifecycle()
     val addTorrentError by viewModel.addTorrentError.collectAsStateWithLifecycle()
 
     Box(
@@ -82,7 +89,12 @@ fun SourcesScreen(
             .background(MangoBackground)
     ) {
         when (val state = uiState) {
-            is SourcesUiState.Loading -> SourcesLoadingSkeleton(onBack = onBack)
+            is SourcesUiState.Loading -> if (viewModel.autoFlow) {
+                // on its way to the player: the player's own loading screen, not the list of sources
+                AutoPickLoading(content = loadingContent, season = null, episode = null)
+            } else {
+                SourcesLoadingSkeleton(onBack = onBack)
+            }
             is SourcesUiState.Error -> FullScreenErrorState(
                 message = state.message,
                 onRetry = viewModel::load
@@ -100,12 +112,12 @@ fun SourcesScreen(
                     LaunchedEffect(autoSelectStream.id) {
                         state.content.providerId?.let { pid ->
                             StreamHandoff.put(autoSelectStream)
-                            onNavigate(
+                            onPlayInstead(
                                 MangoRoutes.player(pid, state.content.type, state.content.id, state.season, state.episode, autoSelectStream.id)
                             )
                         }
                     }
-                    SourcesLoadingSkeleton(onBack = onBack)
+                    AutoPickLoading(content = state.content, season = state.season, episode = state.episode)
                 } else {
                     SourcesContent(
                         state = state,
@@ -592,5 +604,21 @@ private fun SafetyBar() {
                 compact = true
             )
         }
+    }
+}
+
+/**
+ * Shown while Smart source picking (or a remembered source) decides: the same loading screen the player shows while it opens (the title's backdrop and
+ * logo, and a loading symbol), so pressing Play looks like one step into the player. A plain dark screen with the symbol until the details are in.
+ */
+@Composable
+private fun AutoPickLoading(content: Content?, season: Int?, episode: Int?) {
+    if (content == null) {
+        Box(Modifier.fillMaxSize().background(MangoBackground), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(modifier = Modifier.size(44.dp), color = Color.White)
+        }
+    } else {
+        val shown = content.seasons.firstOrNull { it.seasonNumber == season }?.episodes?.firstOrNull { it.episodeNumber == episode }
+        PlayerLoadingScreen(content = content, episode = shown, busy = true)
     }
 }
